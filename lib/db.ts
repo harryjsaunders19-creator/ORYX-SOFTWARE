@@ -821,10 +821,43 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
 ;(function bootstrapDefaultAdmin() {
   const count = (db.prepare("SELECT COUNT(*) as n FROM User").get() as { n: number }).n
   if (count > 0) return
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { hashPassword } = require("@/lib/password") as typeof import("@/lib/password")
+  const now = nowIso()
   db.prepare(`
-    INSERT INTO User (id,name,email,emailLower,role,active,createdAt,updatedAt)
-    VALUES (?,?,?,?,?,1,?,?)
-  `).run(nanoid(), "System Admin", null, null, "ADMIN", nowIso(), nowIso())
+    INSERT INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
+    VALUES (?,?,?,?,?,1,?,0,?,?)
+  `).run(nanoid(), "Admin", "admin@test.com", "admin@test.com", "ADMIN", hashPassword("admin123"), now, now)
+})()
+
+// Ensure every user has a password. Runs on every startup — idempotent.
+// Covers: users created before the password feature was added, database
+// restores, or any other case where passwordHash is NULL.
+;(function bootstrapMissingPasswords() {
+  const noPassword = db.prepare(
+    "SELECT id, name, emailLower FROM User WHERE passwordHash IS NULL"
+  ).all() as { id: string; name: string; emailLower: string | null }[]
+  if (!noPassword.length) return
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { hashPassword } = require("@/lib/password") as typeof import("@/lib/password")
+
+  const TEST_PASSWORDS: Record<string, string> = {
+    "admin@test.com":    "admin123",
+    "engineer@test.com": "engineer123",
+  }
+
+  for (const u of noPassword) {
+    const knownPw = u.emailLower ? TEST_PASSWORDS[u.emailLower] : null
+    if (knownPw) {
+      db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?")
+        .run(hashPassword(knownPw), u.id)
+      console.log(`[bootstrapMissingPasswords] Set password for ${u.name} (${u.emailLower})`)
+    } else {
+      db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?")
+        .run(hashPassword("changeme"), u.id)
+      console.log(`[bootstrapMissingPasswords] Set temp password for ${u.name} (must change on login)`)
+    }
+  }
 })()
 
 // ── Helpers ─────────────────────────────────────────────────────────
