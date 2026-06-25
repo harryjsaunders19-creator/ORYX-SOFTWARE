@@ -29,7 +29,9 @@
       "Bash(npm install *)",
       "Bash(mkdir -p \"C:\\\\Users\\\\harry\\\\Desktop\\\\Calc Sheet WIP\\\\ORYX Software\\\\app\\\\api\\\\users\\\\[id]\\\\reset-password\")",
       "Bash(npx tsx -e ' *)",
-      "Bash(curl -s -w '\\\\nHTTP %{http_code}' -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@test.com\",\"password\":\"admin123\"}')"
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}' -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@test.com\",\"password\":\"admin123\"}')",
+      "Bash(cat docker-compose.yml)",
+      "Bash(cat docker-compose.yaml)"
     ]
   }
 }
