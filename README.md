@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Oryx Design — Job Tracker
 
 Scaffold design job management system. Runs entirely locally — no cloud services,
@@ -88,3 +89,7 @@ duplicates under concurrent load.
 | sortBy        | createdAt  | createdAt, drawingNumber, clientCompany… |
 | sortDir       | desc       | asc or desc                                |
 | export        | false      | true = all matching rows, no pagination    |
+=======
+# ORYX-SOFTWARE
+Internal Software for ORYX
+>>>>>>> 9b8889719484343289b69be950f66facfbbab6c6
