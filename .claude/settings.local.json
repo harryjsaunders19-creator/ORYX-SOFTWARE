@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 15 npx next build)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"Exit: $?\")",
+      "PowerShell(Get-Process -Name node -ErrorAction SilentlyContinue)",
+      "Bash(timeout 20 npx next dev)",
+      "Bash(node -e ' *)",
+      "Bash(timeout 15 npx next dev)",
+      "Bash(timeout 15 npx next dev --port 3002)",
+      "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:3000/api/auth/login\" -Method POST -ContentType \"application/json\" -Body '{\"email\":\"admin@test.com\",\"password\":\"admin123\"}'; \"$\\($r.StatusCode\\): $\\($r.Content\\)\")",
+      "Bash(npx next *)",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\" -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@test.com\",\"password\":\"admin123\"}')",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\" -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"engineer@test.com\",\"password\":\"engineer123\"}')",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\" -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@test.com\",\"password\":\"wrong\"}')",
+      "Bash(node -e \"try { require\\('sharp'\\); console.log\\('sharp: yes'\\) } catch { console.log\\('sharp: no'\\) }\")",
+      "Bash(node -e \"try { require\\('canvas'\\); console.log\\('canvas: yes'\\) } catch { console.log\\('canvas: no'\\) }\")",
+      "Bash(cd \"C:\\\\Users\\\\harry\\\\Desktop\\\\Calc Sheet WIP\\\\ORYX Software\" && sed -i 's/\"#EDEBE9\" }/\"var\\(--color-bd\\)\" }/g' app/clients/\\\\[id\\\\]/page.tsx)",
+      "Bash(grep -rn 'style={{.*rgba\\(0,0,0' app/ components/ --include=\"*.tsx\")",
+      "Bash(grep -v 'comment\\\\|Comment\\\\|//')",
+      "Bash(sed -i 's|}, \\\\[job?.id\\\\]\\)  // eslint-disable-line|// eslint-disable-next-line react-hooks/exhaustive-deps -- re-fetch when job changes\\\\n  }, [job?.id]\\)|' components/assign-designer-modal.tsx)",
+      "Bash(sed -i 's|useEffect\\(\\(\\) => { load\\(\\) }, \\\\[job.id\\\\]\\) // eslint-disable-line|// eslint-disable-next-line react-hooks/exhaustive-deps -- re-fetch when job changes\\\\n  useEffect\\(\\(\\) => { load\\(\\) }, [job.id]\\)|' components/revisions-panel.tsx)",
+      "Bash(sed -i 's|useEffect\\(\\(\\) => { load\\(\\) }, \\\\[jobId\\\\]\\) // eslint-disable-line|// eslint-disable-next-line react-hooks/exhaustive-deps -- re-fetch when job changes\\\\n  useEffect\\(\\(\\) => { load\\(\\) }, [jobId]\\)|' components/status-history.tsx)",
+      "Bash(grep -v '/\\\\*')",
+      "Bash(grep -rn 'eslint-disable-line$' app/ components/ --include=\"*.tsx\")",
+      "Bash(node -e \"try{require\\('bcrypt'\\);console.log\\('bcrypt: yes'\\)}catch{console.log\\('bcrypt: no'\\)}\")",
+      "Bash(node -e \"try{require\\('bcryptjs'\\);console.log\\('bcryptjs: yes'\\)}catch{console.log\\('bcryptjs: no'\\)}\")",
+      "Bash(npm install *)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\harry\\\\Desktop\\\\Calc Sheet WIP\\\\ORYX Software\\\\app\\\\api\\\\users\\\\[id]\\\\reset-password\")",
+      "Bash(npx tsx -e ' *)",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}' -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@test.com\",\"password\":\"admin123\"}')"
+    ]
+  }
+}

@@ -1,0 +1,284 @@
+@import "tailwindcss";
+
+/*
+ * ================================================================
+ *  ORYX DESIGN SYSTEM  —  v3 (Apple-inspired refresh)
+ *
+ *  This project uses Tailwind CSS v4.
+ *  In v4, design tokens are defined here with @theme, NOT in
+ *  tailwind.config.ts. The @theme block generates Tailwind
+ *  utility classes automatically:
+ *    --color-sr   → bg-sr, text-sr, border-sr, etc.
+ *    --color-pg   → bg-pg, text-pg, etc.
+ *    --shadow-modal → shadow-modal
+ *
+ *  v3 changes (visual-only, same token names throughout — nothing
+ *  that references a token by name needed to change):
+ *    - Radius scale roughly doubled (control 6→8px, card 8→14px,
+ *      modal 12→20px) — generous corner rounding is the single
+ *      most recognisable "premium/Apple" tell, more so than any
+ *      individual colour choice.
+ *    - Shadows softened and enlarged (lower opacity, bigger blur,
+ *      more vertical offset) — depth from diffusion rather than a
+ *      hard-edged drop shadow.
+ *    - Default border lightened from a visible #E7E5E4 to a
+ *      barely-there #EDEBE9 — cards now lean on shadow + whitespace
+ *      for separation, with the border as a secondary cue rather
+ *      than the primary one.
+ *    - Colours, accent, and semantic palette are UNCHANGED — those
+ *      were never the gap; scale and depth were.
+ * ================================================================
+ */
+
+@theme {
+  /* ── Fonts ─────────────────────────────────────────── */
+  /* Self-hosted via @fontsource/inter + @fontsource/jetbrains-mono
+     (imported in app/layout.tsx) — real @font-face rules declared under
+     these exact family names, bundled as real files with no dependency on
+     Google's font CDN being reachable at build OR runtime, in any
+     environment. */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Colours ───────────────────────────────────────── */
+  /* Backgrounds */
+  --color-pg:     #FAFAF9;   /* page background — warm off-white */
+  --color-sr:     #FFFFFF;   /* surface — pure white (cards, modals, inputs) */
+
+  /* Borders */
+  --color-bd:     #EDEBE9;   /* border default — v3: lightened from #E7E5E4. Cards now separate via shadow + whitespace; the border is a secondary cue, not the primary one. */
+  --color-bds:    #D6D3D1;   /* border strong — focus/hover, unchanged */
+
+  /* Text */
+  --color-t1:     #18181B;   /* text primary — ink */
+  --color-t2:     #3F3F46;   /* text secondary */
+  --color-t3:     #71717A;   /* text muted */
+  --color-t4:     #A1A1AA;   /* text placeholder / disabled */
+
+  /* Primary accent — ink indigo */
+  --color-ac:     #4640DE;   /* interactive elements, primary actions */
+  --color-ach:    #3935B8;   /* hover */
+  --color-ac-bg:  #EEEDFC;   /* tint — active states, info callouts */
+
+  /* Secondary accent — slate teal (used sparingly: one category of meaning) */
+  --color-ac2:    #0E7A6E;
+  --color-ac2h:   #0B6258;
+  --color-ac2-bg: #E7F5F3;
+
+  /* Danger */
+  --color-dn:     #C0362C;   /* destructive actions */
+  --color-dnh:    #9C2B22;   /* hover */
+  --color-dn-bg:  #FDF1EF;   /* error backgrounds */
+  --color-dn-bd:  #F5D5CF;   /* error borders */
+  --color-dn-tx:  #7C2018;   /* error text */
+
+  /* Success */
+  --color-ok-bg:  #F2FBF4;
+  --color-ok-bd:  #C7E8CE;
+  --color-ok-tx:  #14532D;
+  --color-ok-ic:  #15803D;   /* icon */
+
+  /* Warning — new */
+  --color-wn:     #B45309;
+  --color-wn-bg:  #FFFBEB;
+  --color-wn-bd:  #FDE7BD;
+  --color-wn-tx:  #78350F;
+  --color-wn-ic:  #B45309;   /* icon */
+
+  /* Job status taxonomy — Yellow and Grey, added for the 4-state simplified
+     status system (New Request / In Progress / Requires Checking / Complete).
+     Requires Checking and Complete intentionally reuse wn/ok above — for a
+     status specifically, "needs attention" and "done" really do carry the
+     same meaning as warning/success, so borrowing those tokens is accurate
+     rather than a collision. Yellow has no existing equivalent (amber/wn was
+     already spoken for by Requires Checking) and is deliberately a more
+     saturated, visibly-yellow tint rather than copying wn's pale-cream
+     formula — at the same low saturation, yellow and amber are too close in
+     hue to tell apart at a glance, defeating the point of a 4-colour system. */
+  --color-yl:     #CA8A04;
+  --color-yl-bg:  #FEF9C3;
+  --color-yl-bd:  #FDE047;
+  --color-yl-tx:  #713F12;
+  --color-gy:     #71717A;
+  --color-gy-bg:  #F4F4F5;
+  --color-gy-bd:  #E4E4E7;
+  --color-gy-tx:  #3F3F46;
+
+  /* Data visualisation — same family as everything above, no separate rainbow */
+  --color-chart-1: #18181B;  /* ink — primary series */
+  --color-chart-2: #4640DE;  /* indigo — secondary series / target */
+  --color-chart-3: #0E7A6E;  /* teal — tertiary series */
+  --color-chart-4: #B45309;  /* amber — attention */
+  --color-chart-5: #A1A1AA;  /* muted — comparison / previous period */
+  --color-chart-6: #C0362C;  /* red — negative / decline only */
+
+  /* Work item type tags — a 5-way categorical label (Design/Revision/Site
+     Visit/Survey/Inspection), deliberately a separate, muted qualitative
+     palette from the five colours above. Type has no inherent success/
+     warning/danger meaning, so it shouldn't borrow those tokens — and two of
+     the five used to (Site Visit was amber, Survey was teal), which meant a
+     "Site Visit" tag could be misread as a caution indicator and a "Survey"
+     tag could be misread as the secondary brand accent when sitting next to
+     a real status badge in the same table row. These five hues are chosen
+     to sit clearly apart from ac/ac2/wn/dn/ok on the colour wheel. */
+  --color-tag-design:     #1E5A96;  /* cobalt */
+  --color-tag-design-bg:  #EAF1FB;
+  --color-tag-revision:   #6E3F9E;  /* plum */
+  --color-tag-revision-bg:#F2EDFA;
+  --color-tag-sitevisit:    #8C5A35;  /* clay — was amber, collided with the warning token */
+  --color-tag-sitevisit-bg: #F7EFE7;
+  --color-tag-survey:     #5F6B2E;  /* olive — was teal, collided with the secondary accent */
+  --color-tag-survey-bg:  #F2F4E5;
+  --color-tag-inspection:    #9C3F66;  /* rose */
+  --color-tag-inspection-bg: #FBEEF2;
+
+  /* ── Radius ────────────────────────────────────────── */
+  /* v3: roughly doubled across the board — generous rounding reads as
+     "considered" rather than "default Tailwind." Still a three-tier scale
+     (control / card / modal), still overriding Tailwind's built-in
+     md/lg/xl stops so existing rounded-md / rounded-lg / rounded-xl class
+     names pick the new values up automatically with no renaming anywhere.
+     Specified in raw px, not rem: this app's html element is explicitly
+     set to font-size: 14px (not the browser default 16px — see the @layer
+     base block below), so a rem-based radius here would silently resolve
+     smaller than its comment claims (0.875rem would render as 12.25px, not
+     14px) — the exact ambiguity the original v1/v2 tokens already had at a
+     smaller, easy-to-miss margin (0.5rem documented as "8px" actually
+     rendered as 7px). Fixed here rather than carried forward. */
+  --radius-md: 14px;   /* was 8px. Cards, dropdown/select popovers */
+  --radius-lg: 16px;   /* was 10px */
+  --radius-xl: 20px;   /* was 12px. Modals */
+
+  /* ── Shadows ───────────────────────────────────────── */
+  /* v3: softer and larger — depth from diffusion, not a hard edge. The
+     border token above was lightened specifically because these shadows
+     now do most of the separation work that a visible border used to. */
+  --shadow-card:  0 1px 2px 0 rgb(0 0 0 / 0.03), 0 8px 24px -8px rgb(0 0 0 / 0.08);
+  --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.18), 0 4px 12px 0 rgb(0 0 0 / 0.06);
+}
+
+/*
+ * ── Dark palette ────────────────────────────────────────────────
+ * When .dark is on <html>, every design-system token flips to its
+ * dark-mode equivalent. Components that use bg-pg, text-t1, border-bd
+ * etc. (whether via Tailwind classes or var(--color-*) in inline
+ * styles) switch automatically — no per-component dark: classes needed.
+ */
+html.dark {
+  --color-pg:     #0A0A0B;
+  --color-sr:     #18181B;
+  --color-bd:     #27272A;
+  --color-bds:    #3F3F46;
+  --color-t1:     #FAFAFA;
+  --color-t2:     #D4D4D8;
+  --color-t3:     #A1A1AA;
+  --color-t4:     #71717A;
+  --color-ac:     #6C63FF;
+  --color-ach:    #8B83FF;
+  --color-ac-bg:  rgba(108, 99, 255, 0.15);
+  --color-ac2:    #2DD4BF;
+  --color-ac2h:   #5EEAD4;
+  --color-ac2-bg: rgba(45, 212, 191, 0.12);
+  --color-dn:     #EF4444;
+  --color-dnh:    #F87171;
+  --color-dn-bg:  rgba(239, 68, 68, 0.12);
+  --color-dn-bd:  rgba(239, 68, 68, 0.25);
+  --color-dn-tx:  #FCA5A5;
+  --color-ok-bg:  rgba(34, 197, 94, 0.12);
+  --color-ok-bd:  rgba(34, 197, 94, 0.25);
+  --color-ok-tx:  #86EFAC;
+  --color-ok-ic:  #22C55E;
+  --color-wn:     #F59E0B;
+  --color-wn-bg:  rgba(245, 158, 11, 0.12);
+  --color-wn-bd:  rgba(245, 158, 11, 0.25);
+  --color-wn-tx:  #FCD34D;
+  --color-wn-ic:  #F59E0B;
+  --color-yl:     #EAB308;
+  --color-yl-bg:  rgba(234, 179, 8, 0.15);
+  --color-yl-bd:  rgba(234, 179, 8, 0.30);
+  --color-yl-tx:  #FDE047;
+  --color-gy:     #A1A1AA;
+  --color-gy-bg:  rgba(161, 161, 170, 0.12);
+  --color-gy-bd:  rgba(161, 161, 170, 0.25);
+  --color-gy-tx:  #D4D4D8;
+  --color-chart-1: #FAFAFA;
+  --color-chart-2: #6C63FF;
+  --color-chart-3: #2DD4BF;
+  --color-chart-4: #F59E0B;
+  --color-chart-5: #71717A;
+  --color-chart-6: #EF4444;
+  --color-tag-design:       #60A5FA;
+  --color-tag-design-bg:    rgba(96, 165, 250, 0.15);
+  --color-tag-revision:     #C084FC;
+  --color-tag-revision-bg:  rgba(192, 132, 252, 0.15);
+  --color-tag-sitevisit:    #FB923C;
+  --color-tag-sitevisit-bg: rgba(251, 146, 60, 0.15);
+  --color-tag-survey:       #A3E635;
+  --color-tag-survey-bg:    rgba(163, 230, 53, 0.12);
+  --color-tag-inspection:   #F472B6;
+  --color-tag-inspection-bg:rgba(244, 114, 182, 0.15);
+  --shadow-card:  0 1px 2px 0 rgb(0 0 0 / 0.2), 0 8px 24px -8px rgb(0 0 0 / 0.4);
+  --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.5), 0 4px 12px 0 rgb(0 0 0 / 0.3);
+  color-scheme: dark;
+}
+
+/*
+ * ── Base styles ──────────────────────────────────────────────────
+ * Applied after Tailwind's own base reset.
+ */
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-pg);
+    color: var(--color-t1);
+    height: 100%;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  body {
+    height: 100%;
+    margin: 0;
+    background-color: var(--color-pg);
+  }
+}
+
+/*
+ * ── Utility classes ──────────────────────────────────────────────
+ */
+@layer utilities {
+  /* Thin scrollbar for scroll containers */
+  .thin-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-bd) transparent;
+  }
+  .thin-scroll::-webkit-scrollbar       { width: 5px; height: 5px; }
+  .thin-scroll::-webkit-scrollbar-track { background: transparent; }
+  .thin-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--color-bd);
+    border-radius: 3px;
+  }
+  .thin-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-bds);
+  }
+
+  /* Skeleton placeholder */
+  .skeleton {
+    background-color: var(--color-bd);
+    border-radius: 4px;
+  }
+
+  /* Monospace — drawing numbers, money, IDs */
+  .font-mono {
+    font-family: var(--font-mono) !important;
+  }
+
+  /* Tabular figures for any numeric column/value — keeps columns of
+     numbers aligned instead of drifting with proportional widths */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}

@@ -1,0 +1,41 @@
+/**
+ * POST /api/auth/exit-impersonation
+ *
+ * Returns the active identity to whoever is really, currently authenticated
+ * for this browser session — the one-click "stop acting as someone else"
+ * action. Always succeeds if a real identity exists (there's no
+ * authorization decision here: leaving impersonation is never something
+ * that needs permission, only entering it is). If there was no active
+ * impersonation in progress, this is a harmless no-op.
+ */
+import { NextRequest, NextResponse } from "next/server"
+import { identitySwitchLogDb } from "@/lib/db"
+import { SESSION_COOKIE, REAL_SESSION_COOKIE, getRealUser } from "@/lib/auth"
+
+export async function POST(req: NextRequest) {
+  try {
+    const realUser = await getRealUser()
+    if (!realUser) {
+      return NextResponse.json({ error: "No active session" }, { status: 401 })
+    }
+
+    const currentActiveId = req.cookies.get(SESSION_COOKIE)?.value
+    if (currentActiveId && currentActiveId !== realUser.id) {
+      identitySwitchLogDb.log({
+        action: "IMPERSONATION_ENDED",
+        realUserId: realUser.id, realUserName: realUser.name,
+        targetUserId: realUser.id, targetUserName: realUser.name,
+        detail: `Exited impersonation (was acting as user ${currentActiveId})`,
+      })
+    }
+
+    const res = NextResponse.json({ user: realUser, isImpersonating: false })
+    const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 30 }
+    res.cookies.set(SESSION_COOKIE, realUser.id, opts)
+    res.cookies.set(REAL_SESSION_COOKIE, realUser.id, opts)
+    return res
+  } catch (err) {
+    console.error("[POST /api/auth/exit-impersonation]", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}

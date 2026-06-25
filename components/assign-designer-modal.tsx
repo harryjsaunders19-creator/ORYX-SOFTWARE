@@ -1,0 +1,108 @@
+"use client"
+import { useState, useRef, useEffect } from "react"
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog"
+import { Button }  from "@/components/ui/button"
+import { Input }   from "@/components/ui/input"
+import { Label }   from "@/components/ui/label"
+import { useUser } from "@/components/user-context"
+import { useToast } from "@/components/ui/toast"
+import type { Job } from "@/lib/types"
+
+interface Props {
+  job:      Job | null          // null = closed
+  onClose:  () => void
+  onSaved:  (updated: Job) => void
+}
+
+export function AssignDesignerModal({ job, onClose, onSaved }: Props) {
+  const { userName } = useUser()
+  const { toast }    = useToast()
+  const [name,    setName]    = useState("")
+  const [saving,  setSaving]  = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Reset & focus each time a job is opened
+  useEffect(() => {
+    if (job) {
+      setName(job.designer || "")
+      setTimeout(() => inputRef.current?.focus(), 50)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-fetch when job changes
+  }, [job?.id])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!job || !name.trim()) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/assign`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ designer: name.trim(), changedBy: userName }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "Failed to assign designer", "error")
+        return
+      }
+      const { job: updated } = await res.json() as { job: Job }
+      toast(`Designer updated to ${name.trim()}`, "success")
+      onSaved(updated)
+      onClose()
+    } catch {
+      toast("Network error", "error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={!!job} onOpenChange={o => { if (!o && !saving) onClose() }}>
+      <DialogContent size="sm">
+        <DialogHeader>
+          <DialogTitle>Assign designer</DialogTitle>
+          {job && (
+            <DialogDescription>
+              <span className="font-mono font-semibold text-ac">{job.drawingNumber}</span>
+              {" — "}{job.address}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+
+        <form id="assign-form" onSubmit={handleSubmit}>
+          <div
+            style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "6px" }}
+          >
+            <Label htmlFor="designer-input">Designer name</Label>
+            <Input
+              id="designer-input"
+              ref={inputRef}
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Sarah Mitchell"
+              autoComplete="off"
+            />
+
+          </div>
+        </form>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="assign-form"
+            variant="primary"
+            loading={saving}
+            disabled={saving || !name.trim()}
+          >
+            {saving ? "Saving…" : "Assign"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

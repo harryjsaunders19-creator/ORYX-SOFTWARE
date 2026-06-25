@@ -1,0 +1,580 @@
+"use client"
+import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
+import { format } from "date-fns"
+import {
+  Plus, FileText, Search, Download, CheckCircle2, XCircle,
+  Loader2, ArrowRight, Clock, FileDown,
+} from "lucide-react"
+import { Button }   from "@/components/ui/button"
+import { Input }    from "@/components/ui/input"
+import { Label }    from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog, DialogContent, DialogHeader, DialogFooter,
+  DialogTitle, DialogBody,
+} from "@/components/ui/dialog"
+import { ClientCombobox } from "@/components/client-combobox"
+import { DesignerCombobox } from "@/components/designer-combobox"
+import { QuickCreateClientModal } from "@/components/quick-create-client-modal"
+import { useToast } from "@/components/ui/toast"
+import { useUser }  from "@/components/user-context"
+import { formatGBP, cn, parseLocalDate } from "@/lib/utils"
+import { QUOTE_STATUSES } from "@/lib/types"
+import type { Quote, Client } from "@/lib/types"
+
+type QuotesData = { quotes: Quote[]; total: number; page: number; limit: number }
+
+function statusMeta(status: string) {
+  return QUOTE_STATUSES.find(s => s.value === status) ?? QUOTE_STATUSES[0]
+}
+
+function QuoteStatusBadge({ status }: { status: string }) {
+  const s = statusMeta(status)
+  return (
+    <span className={cn(
+      "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
+      s.color,
+    )}>
+      {s.label}
+    </span>
+  )
+}
+
+const TODAY_ISO = new Date().toISOString().split("T")[0]
+const addDaysIso = (iso: string, days: number) => {
+  const d = new Date(iso)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split("T")[0]
+}
+
+interface LineItemDraft { description: string; amount: string; vatApplicable: boolean }
+
+const EMPTY_FORM = {
+  clientId: "", clientCompany: "", contactName: "", address: "",
+  description: "", quoteValue: "", quoteDate: TODAY_ISO,
+  expiryDate: addDaysIso(TODAY_ISO, 30), notes: "", vatRate: "20",
+  lineItems: [] as LineItemDraft[],
+}
+type QuoteFormData = typeof EMPTY_FORM
+
+function QuoteForm({ formId, initial, quoteId, onSubmit }: {
+  formId: string
+  initial: QuoteFormData
+  quoteId?: string
+  onSubmit: (data: QuoteFormData) => void
+}) {
+  const [form, setForm] = useState<QuoteFormData>(initial)
+  const [quickCreateName, setQuickCreateName] = useState("")
+  const [expiryTouched, setExpiryTouched] = useState(
+    () => !!initial.quoteDate && initial.expiryDate !== addDaysIso(initial.quoteDate, 30)
+  )
+  const setF = (k: keyof QuoteFormData) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm(f => ({ ...f, [k]: e.target.value }))
+
+  // Editing an existing quote: fetch its line items separately (kept off
+  // the main list/detail response to avoid an N+1 join there) and seed the
+  // editor with them.
+  useEffect(() => {
+    if (!quoteId) return
+    fetch(`/api/quotes/${quoteId}/line-items`)
+      .then(r => r.json() as Promise<{ lineItems: { description: string; amount: number; vatApplicable: number }[] }>)
+      .then(d => {
+        if (d.lineItems?.length) {
+          setForm(f => ({ ...f, lineItems: d.lineItems.map(li => ({
+            description: li.description, amount: String(li.amount), vatApplicable: li.vatApplicable === 1,
+          })) }))
+        }
+      })
+      .catch(() => { /* line items are optional — a fetch failure just leaves the simple single-total mode */ })
+  }, [quoteId])
+
+  // Quote date drives a sensible expiry default (30 days out) until the user deliberately
+  // overrides the expiry field themselves — after that, the two fields move independently.
+  const handleQuoteDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const quoteDate = e.target.value
+    setForm(f => ({
+      ...f, quoteDate,
+      expiryDate: !expiryTouched && quoteDate ? addDaysIso(quoteDate, 30) : f.expiryDate,
+    }))
+  }
+  const handleExpiryDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setExpiryTouched(true)
+    setForm(f => ({ ...f, expiryDate: e.target.value }))
+  }
+
+  const addLineItem = () => setForm(f => ({ ...f, lineItems: [...f.lineItems, { description: "", amount: "", vatApplicable: true }] }))
+  const removeLineItem = (i: number) => setForm(f => ({ ...f, lineItems: f.lineItems.filter((_, idx) => idx !== i) }))
+  const updateLineItem = (i: number, patch: Partial<LineItemDraft>) =>
+    setForm(f => ({ ...f, lineItems: f.lineItems.map((li, idx) => idx === i ? { ...li, ...patch } : li) }))
+  const lineItemsTotal = form.lineItems.reduce((sum, li) => sum + (parseFloat(li.amount) || 0), 0)
+  // Derived, not stored — when line items exist they're the source of
+  // truth for the total; this avoids syncing two pieces of state together
+  // via an effect (which would otherwise need a setState call inside that
+  // effect, an anti-pattern that risks an extra cascading render).
+  const displayedQuoteValue = form.lineItems.length > 0 ? lineItemsTotal.toFixed(2) : form.quoteValue
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit(form.lineItems.length > 0 ? { ...form, quoteValue: lineItemsTotal.toFixed(2) } : form)
+  }
+
+  return (
+    <form id={formId} onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label>Client *</Label>
+          <ClientCombobox
+            value={form.clientId}
+            name={form.clientCompany}
+            onChange={(clientId, clientName) => setForm(f => ({ ...f, clientId, clientCompany: clientName }))}
+            onCreateNew={name => setQuickCreateName(name)}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Contact name</Label>
+          <Input value={form.contactName} onChange={setF("contactName")} placeholder="Jane Smith" />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Address *</Label>
+        <Input value={form.address} onChange={setF("address")} placeholder="14 Clifton Road, Bristol, BS8 1AF" autoComplete="off" />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Description of works *</Label>
+        <Textarea value={form.description} onChange={setF("description")} rows={3}
+          placeholder="Design of a temporary monopitch roof structure spanning 18m…" />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label>Quote value (£) *</Label>
+          <Input value={displayedQuoteValue} onChange={setF("quoteValue")} placeholder="e.g. 1850" inputMode="decimal" autoComplete="off"
+            disabled={form.lineItems.length > 0} />
+          {form.lineItems.length > 0 && <p className="text-[11px] text-t4">Set by the line items below</p>}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>VAT rate (%)</Label>
+          <Input value={form.vatRate} onChange={setF("vatRate")} placeholder="e.g. 20" inputMode="decimal" autoComplete="off" />
+          <p className="text-[11px] text-t4">Blank = no VAT breakdown on the PDF</p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Quote date *</Label>
+          <Input type="date" value={form.quoteDate} onChange={handleQuoteDateChange} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Expiry date</Label>
+          <Input type="date" value={form.expiryDate} onChange={handleExpiryDateChange} />
+          {!expiryTouched && <p className="text-[11px] text-t4">Defaults to 30 days out</p>}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <Label>Individual jobs / work items (optional)</Label>
+          <button type="button" onClick={addLineItem} className="text-xs text-ac hover:text-ach font-medium">+ Add job / item</button>
+        </div>
+        <p className="text-[11px] text-t4">
+          Leave empty for a single-line quote using the description and value above. For a quote covering several jobs at the same site, add one entry per job here — each gets its own detailed description and price on the PDF, and the quote value becomes the sum of all of them.
+        </p>
+        {form.lineItems.length > 0 && (
+          <div className="border border-bd rounded-md divide-y divide-bd">
+            {form.lineItems.map((li, i) => (
+              <div key={i} className="p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-medium text-t3">Item {i + 1}</span>
+                  <button type="button" onClick={() => removeLineItem(i)} className="text-t4 hover:text-dn text-xs px-1">Remove ✕</button>
+                </div>
+                <Textarea
+                  value={li.description}
+                  onChange={e => updateLineItem(i, { description: e.target.value })}
+                  placeholder="Detailed description of this design / work item — wraps onto its own row(s) under this item on the PDF"
+                  rows={3}
+                />
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-t3">£</span>
+                    <Input value={li.amount} onChange={e => updateLineItem(i, { amount: e.target.value })}
+                      placeholder="0.00" inputMode="decimal" className="w-28" />
+                  </div>
+                  <label className="flex items-center gap-1.5 text-xs text-t3 whitespace-nowrap">
+                    <input type="checkbox" checked={li.vatApplicable} onChange={e => updateLineItem(i, { vatApplicable: e.target.checked })} />
+                    VAT applicable
+                  </label>
+                </div>
+              </div>
+            ))}
+            <div className="flex justify-end p-2 text-xs text-t2 font-medium">Lines total: £{lineItemsTotal.toFixed(2)}</div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Notes</Label>
+        <Textarea value={form.notes} onChange={setF("notes")} rows={2} placeholder="Terms, exclusions, conditions…" />
+      </div>
+
+      {/* Quick-create client modal — lets the user register a brand-new client without leaving the quote form */}
+      {quickCreateName && (
+        <QuickCreateClientModal
+          initialName={quickCreateName}
+          onCreated={(client: Client) => {
+            setForm(f => ({ ...f, clientId: client.id, clientCompany: client.name }))
+            setQuickCreateName("")
+          }}
+          onClose={() => setQuickCreateName("")}
+        />
+      )}
+    </form>
+  )
+}
+
+function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
+  quote: Quote
+  onClose: () => void
+  onConverted: () => void
+}) {
+  const { userName }  = useUser()
+  const { toast }     = useToast()
+  const [designer,       setDesigner]       = useState("")
+  const [requiredByDate, setRequiredByDate] = useState("")
+  const [saving,         setSaving]         = useState(false)
+
+  const submit = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/quotes/${quote.id}/convert`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ designer: designer.trim(), requiredByDate: requiredByDate || null, changedBy: userName }),
+      })
+      const body = await res.json() as { job?: { drawingNumber: string }; error?: string }
+      if (!res.ok) { toast(body.error ?? "Failed to create job", "error"); return }
+      toast(`Job ${body.job?.drawingNumber} created from ${quote.quoteNumber}`, "success")
+      onConverted()
+    } catch { toast("Network error", "error") }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <Dialog open onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent size="sm">
+        <DialogHeader><DialogTitle>Create job from {quote.quoteNumber}</DialogTitle></DialogHeader>
+        <DialogBody className="space-y-4">
+          <div className="bg-pg border border-bd rounded-md p-3 space-y-1.5">
+            <p className="text-[11px] font-semibold text-t3 uppercase tracking-wider mb-1">Will be copied to the new job</p>
+            <p className="text-xs text-t2"><span className="text-t4">Client:</span> {quote.clientCompany}</p>
+            <p className="text-xs text-t2"><span className="text-t4">Address:</span> {quote.address}</p>
+            <p className="text-xs text-t2"><span className="text-t4">Quote value:</span> {formatGBP(quote.quoteValue)}</p>
+            <p className="text-xs text-t2"><span className="text-t4">Quote ref:</span> {quote.quoteNumber}</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Drawing number</Label>
+            <p className="text-xs text-t4 bg-pg border border-bd rounded-md px-3 py-2">
+              Generated automatically when the job is created
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Designer</Label>
+            <DesignerCombobox value={designer} onChange={setDesigner} placeholder="Sarah Mitchell (optional)" autoFocus />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Required by date</Label>
+            <Input type="date" value={requiredByDate} onChange={e => setRequiredByDate(e.target.value)} />
+          </div>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="primary" onClick={submit} loading={saving}>
+            <ArrowRight className="h-3.5 w-3.5" /> Create job
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export default function QuotesPage() {
+  const { userName } = useUser()
+  const { toast }    = useToast()
+
+  const [data,       setData]       = useState<QuotesData | null>(null)
+  const [loading,    setLoading]    = useState(true)
+  const [search,     setSearch]     = useState("")
+  const [statusFilter, setStatusFilter] = useState("ALL")
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editQuote,  setEditQuote]  = useState<Quote | null>(null)
+  const [convertQuote, setConvertQuote] = useState<Quote | null>(null)
+  const [saving,     setSaving]     = useState(false)
+  const [pdfGenerating, setPdfGenerating] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const qs = new URLSearchParams({
+        ...(search && { search }),
+        ...(statusFilter !== "ALL" && { status: statusFilter }),
+        limit: "100",
+      })
+      setData(await fetch(`/api/quotes?${qs}`).then(r => r.json()) as QuotesData)
+    } catch { toast("Failed to load quotes", "error") }
+    finally { setLoading(false) }
+  }, [search, statusFilter, toast])
+
+  useEffect(() => { load() }, [load])
+
+  const doCreate = async (form: QuoteFormData) => {
+    setSaving(true)
+    try {
+      const res = await fetch("/api/quotes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, status: "DRAFT", createdBy: userName }),
+      })
+      const body = await res.json() as Quote & { error?: string }
+      if (!res.ok) { toast(body.error ?? "Failed to create quote", "error"); return }
+      toast(`${body.quoteNumber} created`, "success")
+      setCreateOpen(false)
+      load()
+    } catch { toast("Network error", "error") }
+    finally { setSaving(false) }
+  }
+
+  const doEdit = async (form: QuoteFormData) => {
+    if (!editQuote) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/quotes/${editQuote.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      const body = await res.json() as Quote & { error?: string }
+      if (!res.ok) { toast(body.error ?? "Failed to save", "error"); return }
+      toast("Quote updated", "success")
+      setEditQuote(null)
+      load()
+    } catch { toast("Network error", "error") }
+    finally { setSaving(false) }
+  }
+
+  const setStatus = async (quote: Quote, status: string) => {
+    try {
+      const res = await fetch(`/api/quotes/${quote.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) { toast("Failed to update status", "error"); return }
+      toast(`${quote.quoteNumber} marked ${statusMeta(status).label}`, status === "ACCEPTED" ? "success" : "info")
+      load()
+    } catch { toast("Network error", "error") }
+  }
+
+  const generatePdf = async (quote: Quote) => {
+    setPdfGenerating(quote.id)
+    try {
+      // Deliberately sending no body here: the PDF always shows the
+      // quote's real, persisted creator (quote.createdBy) — not whoever
+      // happens to be the currently logged-in user when this button is
+      // clicked, which is what was happening before and is exactly the
+      // "every quote shows the same name" bug this was built to avoid.
+      const res = await fetch(`/api/quotes/${quote.id}/pdf`, { method: "POST" })
+      const body = await res.json() as { pdfPath?: string; error?: string }
+      if (!res.ok || !body.pdfPath) { toast(body.error ?? "PDF generation failed", "error"); return }
+      window.open(body.pdfPath, "_blank")
+      toast(`PDF generated for ${quote.quoteNumber}`, "success")
+      load()
+    } catch { toast("Network error", "error") }
+    finally { setPdfGenerating(null) }
+  }
+
+  const total      = data?.total ?? 0
+  const quoteToForm = (q: Quote): QuoteFormData => ({
+    clientId: q.clientId ?? "", clientCompany: q.clientCompany,
+    contactName: q.contactName ?? "", address: q.address,
+    description: q.description, quoteValue: String(q.quoteValue),
+    quoteDate: q.quoteDate, expiryDate: q.expiryDate ?? "", notes: q.notes ?? "",
+    vatRate: q.vatRate != null ? String(q.vatRate) : "",
+    lineItems: [],   // populated by QuoteForm's own fetch via the quoteId prop
+  })
+
+  return (
+    <div className="px-6 py-6 max-w-5xl">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="text-lg font-semibold text-t1">Quotes</h1>
+          <p className="text-sm text-t3 mt-0.5">{total} quote{total !== 1 ? "s" : ""}</p>
+        </div>
+        <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-3.5 w-3.5" /> New quote
+        </Button>
+      </div>
+
+      {/* Search + status filter */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-t4 pointer-events-none" />
+          <Input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search quotes…" style={{ paddingLeft: "32px" }} />
+        </div>
+        <div className="flex items-center gap-1 flex-wrap">
+          <button onClick={() => setStatusFilter("ALL")}
+            className={cn("text-[11px] px-2 py-0.5 rounded border font-medium",
+              statusFilter === "ALL" ? "bg-ac text-sr border-ac" : "border-bd text-t3 hover:text-t2")}>
+            All
+          </button>
+          {QUOTE_STATUSES.map(s => (
+            <button key={s.value} onClick={() => setStatusFilter(s.value)}
+              className={cn("text-[11px] px-2 py-0.5 rounded border font-medium",
+                statusFilter === s.value ? s.color : "border-bd text-t3 hover:text-t2")}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="bg-sr border border-bd rounded-md">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-16 border-b border-bd last:border-0 px-4 flex items-center">
+              <div className="skeleton h-4 w-64 rounded" />
+            </div>
+          ))}
+        </div>
+      ) : !data?.quotes.length ? (
+        <div className="bg-sr border border-bd rounded-md p-10 text-center">
+          <FileText className="h-8 w-8 text-t4 mx-auto mb-3" />
+          <p className="text-sm font-medium text-t1 mb-1">No quotes yet</p>
+          <p className="text-xs text-t3 mb-4">Create a quote to start the quotation workflow.</p>
+          <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-3.5 w-3.5" /> New quote
+          </Button>
+        </div>
+      ) : (
+        <div className="bg-sr border border-bd rounded-md overflow-x-auto overflow-y-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-pg border-b border-bd text-xs">
+                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Quote No.</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Client</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Description</th>
+                <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Value</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Date</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-2.5 w-72" />
+              </tr>
+            </thead>
+            <tbody>
+              {data.quotes.map(q => (
+                <tr key={q.id} className="border-b border-bd last:border-0 hover:bg-pg">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="font-mono text-[11px] font-semibold text-ac">{q.quoteNumber}</span>
+                  </td>
+                  <td className="px-4 py-3 max-w-[140px]">
+                    <p className="text-xs font-medium text-t1 truncate">{q.clientCompany}</p>
+                    {q.contactName && <p className="text-xs text-t3 truncate">{q.contactName}</p>}
+                  </td>
+                  <td className="px-4 py-3 max-w-[220px]">
+                    <p className="text-xs text-t2 truncate">{q.description}</p>
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <p className="text-xs font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
+                    {q.vatRate != null && <p className="text-[10px] text-t4">+{q.vatRate}% VAT</p>}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <p className="text-xs text-t3 tabular-nums">{format(parseLocalDate(q.quoteDate), "d MMM yyyy")}</p>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <QuoteStatusBadge status={q.status} />
+                    {q.jobId && (
+                      <Link href={`/jobs/${q.jobId}`} className="block text-[10px] text-ac hover:underline mt-0.5">
+                        View job →
+                      </Link>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 justify-end flex-wrap">
+                      {q.pdfPath ? (
+                        <a href={q.pdfPath} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg" title="Open PDF">
+                          <FileDown className="h-3.5 w-3.5" />
+                        </a>
+                      ) : (
+                        <button onClick={() => generatePdf(q)} disabled={pdfGenerating === q.id}
+                          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg disabled:opacity-50"
+                          title="Generate PDF">
+                          {pdfGenerating === q.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => setEditQuote(q)}>Edit</Button>
+                      {q.status === "DRAFT" && (
+                        <Button variant="ghost" size="sm" onClick={() => setStatus(q, "SENT")}>
+                          <Clock className="h-3.5 w-3.5" /> Sent
+                        </Button>
+                      )}
+                      {(q.status === "DRAFT" || q.status === "SENT") && (
+                        <>
+                          <Button variant="ghost" size="sm" className="text-ok-tx hover:bg-ok-bg" onClick={() => setStatus(q, "ACCEPTED")}>
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-dn hover:bg-dn-bg" onClick={() => setStatus(q, "REJECTED")}>
+                            <XCircle className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                      {q.status === "ACCEPTED" && !q.jobId && (
+                        <Button variant="primary" size="sm" onClick={() => setConvertQuote(q)}>
+                          Create Job
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Create dialog */}
+      <Dialog open={createOpen} onOpenChange={o => { if (!o) setCreateOpen(false) }}>
+        <DialogContent size="md">
+          <DialogHeader><DialogTitle>New quote</DialogTitle></DialogHeader>
+          <DialogBody>
+            <QuoteForm formId="create-quote-form" initial={EMPTY_FORM} onSubmit={doCreate} />
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="create-quote-form" variant="primary" loading={saving}>Create quote</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editQuote} onOpenChange={o => { if (!o) setEditQuote(null) }}>
+        <DialogContent size="md">
+          <DialogHeader><DialogTitle>Edit {editQuote?.quoteNumber}</DialogTitle></DialogHeader>
+          <DialogBody>
+            {editQuote && (
+              <QuoteForm formId="edit-quote-form" initial={quoteToForm(editQuote)} quoteId={editQuote.id} onSubmit={doEdit} />
+            )}
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditQuote(null)} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="edit-quote-form" variant="primary" loading={saving}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create job from quote */}
+      {convertQuote && (
+        <CreateJobFromQuoteModal
+          quote={convertQuote}
+          onClose={() => setConvertQuote(null)}
+          onConverted={() => { setConvertQuote(null); load() }}
+        />
+      )}
+    </div>
+  )
+}

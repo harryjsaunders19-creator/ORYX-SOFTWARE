@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Job {
+  id            String    @id @default(cuid())
+  drawingNumber String    @unique
+  address       String
+  typeOfWorks   String
+  clientCompany String
+  requestedBy   String
+  status        String    @default("NEW_REQUEST")
+  designer      String
+  dateCreated   DateTime  @default(now())
+  dateCompleted DateTime?
+  invoiceStatus String    @default("NOT_INVOICED")
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status])
+  @@index([clientCompany])
+  @@index([designer])
+}
+
+model DrawingSequence {
+  id        String @id @default(cuid())
+  yearMonth String @unique
+  sequence  Int    @default(0)
+}
