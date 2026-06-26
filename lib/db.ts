@@ -47,11 +47,28 @@ if (!process.env.DB_PATH) {
   }
 }
 
-const db = new Database(DB_PATH)
-db.pragma("journal_mode = WAL")
-db.pragma("foreign_keys = ON")
-db.pragma("busy_timeout = 5000")
-db.pragma("synchronous  = NORMAL")
+function openDb(): InstanceType<typeof Database> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const conn = new Database(DB_PATH)
+      conn.pragma("journal_mode = WAL")
+      conn.pragma("foreign_keys = ON")
+      conn.pragma("busy_timeout = 10000")
+      conn.pragma("synchronous  = NORMAL")
+      return conn
+    } catch (err: unknown) {
+      if (attempt < 4 && err instanceof Error && err.message.includes("locked")) {
+        const ms = 1000 * (attempt + 1)
+        console.log(`[db] Database locked, retrying in ${ms}ms (attempt ${attempt + 1}/5)`)
+        const start = Date.now(); while (Date.now() - start < ms) { /* busy wait — no async in module init */ }
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error("Failed to open database after 5 attempts")
+}
+const db = openDb()
 
 // ── Schema ─────────────────────────────────────────────────────────
 

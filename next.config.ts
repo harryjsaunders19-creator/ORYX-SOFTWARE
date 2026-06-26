@@ -8,10 +8,13 @@ const nextConfig: NextConfig = {
     ],
   },
   experimental: {
-    // Single worker prevents SQLite SQLITE_BUSY errors during build —
-    // multiple workers open the same database file simultaneously for
-    // schema migrations, and SQLite can't handle that.
+    // Limit build parallelism to prevent SQLite SQLITE_BUSY errors —
+    // multiple worker processes each load lib/db.ts and run schema
+    // migrations simultaneously against the same database file.
     staticGenerationMaxConcurrency: 1,
+    staticGenerationMinPagesPerWorker: 999,
+    workerThreads: false,
+    cpus: 1,
   },
 };
 
