@@ -31,7 +31,9 @@ const DB_DIR  = process.env.DB_PATH
   ? path.dirname(process.env.DB_PATH)
   : path.join(/* turbopackIgnore: true */ process.cwd(), ".data")
 const DB_PATH = process.env.DB_PATH ?? path.join(DB_DIR, "oryx.db")
+const DB_EXISTED = fs.existsSync(DB_PATH)
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
+console.log(`[db] DB_PATH=${DB_PATH} | existed=${DB_EXISTED} | DB_PATH env=${process.env.DB_PATH ?? "(not set)"}`)
 
 // Auto-migrate: move database from old prisma/ location to new .data/ location
 if (!process.env.DB_PATH) {
@@ -839,6 +841,13 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
 //    other users — this is the seam future real authentication plugs into:
 //    once real login exists, this becomes the first account an installer
 //    sets a password for, instead of a no-op placeholder.
+// Log user state before bootstrap for debugging
+;(function logUserState() {
+  const users = db.prepare("SELECT id, name, email, role FROM User").all() as { id: string; name: string; email: string | null; role: string }[]
+  console.log(`[db] Users before bootstrap: ${users.length} — ${users.map(u => `${u.name} (${u.email ?? "no email"}, ${u.role})`).join(", ") || "none"}`)
+  console.log(`[db] Database was ${DB_EXISTED ? "existing" : "NEWLY CREATED"} at startup`)
+})()
+
 // Ensure the admin@test.com and engineer@test.com accounts always exist
 // with working passwords. Runs on every startup — idempotent.
 ;(function bootstrapAccounts() {
