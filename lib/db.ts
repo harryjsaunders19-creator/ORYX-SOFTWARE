@@ -2842,6 +2842,35 @@ export const userDb = {
   },
 }
 
+/** Wipes all jobs, clients, quotes, billing data, and sequences. Preserves users. */
+export function resetAllData(): { jobCount: number; clientCount: number; quoteCount: number } {
+  return db.transaction(() => {
+    const jobCount    = (db.prepare("SELECT COUNT(*) as n FROM Job").get()    as { n: number }).n
+    const clientCount = (db.prepare("SELECT COUNT(*) as n FROM Client").get() as { n: number }).n
+    const quoteCount  = (db.prepare("SELECT COUNT(*) as n FROM Quote").get()  as { n: number }).n
+
+    db.prepare("DELETE FROM BillingExportSnapshot").run()
+    db.prepare("DELETE FROM BillingExportBatch").run()
+    db.prepare("DELETE FROM BillingHandoff").run()
+    db.prepare("DELETE FROM StatusHistory").run()
+    db.prepare("DELETE FROM TypeOfWorksMigrationLog").run()
+    db.prepare("DELETE FROM QuoteLineItem").run()
+    db.prepare("DELETE FROM Quote").run()
+    db.prepare("DELETE FROM InvoiceItem").run()
+    db.prepare("DELETE FROM Invoice").run()
+    db.prepare("DELETE FROM InvoiceSequence").run()
+    db.prepare("DELETE FROM ExportBatchItem").run()
+    db.prepare("DELETE FROM ExportBatch").run()
+    db.prepare("DELETE FROM Job").run()
+    db.prepare("DELETE FROM DrawingSequence").run()
+    db.prepare("DELETE FROM RefSequence").run()
+    db.prepare("DELETE FROM ClientHold").run()
+    db.prepare("DELETE FROM Client").run()
+
+    return { jobCount, clientCount, quoteCount }
+  })()
+}
+
 // ── Backup system ────────────────────────────────────────────────
 
 export type BackupStatus  = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"

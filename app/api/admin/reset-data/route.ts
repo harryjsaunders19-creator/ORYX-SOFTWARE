@@ -7,11 +7,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireRole, getCurrentUser } from "@/lib/auth"
 import { verifyPassword } from "@/lib/password"
-import { userDb } from "@/lib/db"
-import Database from "better-sqlite3"
-import path from "path"
-
-const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), ".data", "oryx.db")
+import { resetAllData } from "@/lib/db"
 
 export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
@@ -41,40 +37,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
     }
 
-    const db = new Database(DB_PATH)
-    const counts = db.transaction(() => {
-      const jobCount = (db.prepare("SELECT COUNT(*) as n FROM Job").get() as { n: number }).n
-      const clientCount = (db.prepare("SELECT COUNT(*) as n FROM Client").get() as { n: number }).n
-      const quoteCount = (db.prepare("SELECT COUNT(*) as n FROM Quote").get() as { n: number }).n
-
-      db.prepare("DELETE FROM BillingExportSnapshot").run()
-      db.prepare("DELETE FROM BillingExportBatch").run()
-      db.prepare("DELETE FROM BillingHandoff").run()
-      db.prepare("DELETE FROM StatusHistory").run()
-      db.prepare("DELETE FROM TypeOfWorksMigrationLog").run()
-      db.prepare("DELETE FROM QuoteLineItem").run()
-      db.prepare("DELETE FROM Quote").run()
-      db.prepare("DELETE FROM InvoiceItem").run()
-      db.prepare("DELETE FROM Invoice").run()
-      db.prepare("DELETE FROM InvoiceSequence").run()
-      db.prepare("DELETE FROM ExportBatchItem").run()
-      db.prepare("DELETE FROM ExportBatch").run()
-      db.prepare("DELETE FROM Job").run()
-      db.prepare("DELETE FROM DrawingSequence").run()
-      db.prepare("DELETE FROM RefSequence").run()
-      db.prepare("DELETE FROM ClientHold").run()
-      db.prepare("DELETE FROM Client").run()
-
-      return { jobCount, clientCount, quoteCount }
-    })()
-    db.close()
+    const counts = resetAllData()
 
     console.log(`[RESET ALL DATA] Performed by ${user.name} (${user.email}). Cleared ${counts.jobCount} jobs, ${counts.clientCount} clients, ${counts.quoteCount} quotes.`)
 
-    return NextResponse.json({
-      ok: true,
-      cleared: counts,
-    })
+    return NextResponse.json({ ok: true, cleared: counts })
   } catch (err) {
     console.error("[POST /api/admin/reset-data]", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
