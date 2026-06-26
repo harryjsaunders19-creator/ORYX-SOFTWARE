@@ -818,45 +818,41 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
 //    other users — this is the seam future real authentication plugs into:
 //    once real login exists, this becomes the first account an installer
 //    sets a password for, instead of a no-op placeholder.
-;(function bootstrapDefaultAdmin() {
-  const count = (db.prepare("SELECT COUNT(*) as n FROM User").get() as { n: number }).n
-  if (count > 0) return
+// Ensure the admin@test.com and engineer@test.com accounts always exist
+// with working passwords. Runs on every startup — idempotent.
+;(function bootstrapAccounts() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { hashPassword } = require("@/lib/password") as typeof import("@/lib/password")
   const now = nowIso()
-  db.prepare(`
-    INSERT INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
-    VALUES (?,?,?,?,?,1,?,0,?,?)
-  `).run(nanoid(), "Admin", "admin@test.com", "admin@test.com", "ADMIN", hashPassword("admin123"), now, now)
-})()
 
-// Ensure every user has a password. Runs on every startup — idempotent.
-// Covers: users created before the password feature was added, database
-// restores, or any other case where passwordHash is NULL.
-;(function bootstrapMissingPasswords() {
-  const noPassword = db.prepare(
-    "SELECT id, name, emailLower FROM User WHERE passwordHash IS NULL"
-  ).all() as { id: string; name: string; emailLower: string | null }[]
-  if (!noPassword.length) return
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { hashPassword } = require("@/lib/password") as typeof import("@/lib/password")
+  const accounts = [
+    { email: "admin@test.com",    name: "Admin",    role: "ADMIN",    password: "admin123" },
+    { email: "engineer@test.com", name: "Engineer", role: "ENGINEER", password: "engineer123" },
+  ]
 
-  const TEST_PASSWORDS: Record<string, string> = {
-    "admin@test.com":    "admin123",
-    "engineer@test.com": "engineer123",
+  for (const acct of accounts) {
+    const existing = db.prepare("SELECT id, passwordHash FROM User WHERE emailLower = ?").get(acct.email) as { id: string; passwordHash: string | null } | undefined
+    if (!existing) {
+      db.prepare(`
+        INSERT INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
+        VALUES (?,?,?,?,?,1,?,0,?,?)
+      `).run(nanoid(), acct.name, acct.email, acct.email, acct.role, hashPassword(acct.password), now, now)
+      console.log(`[bootstrapAccounts] Created ${acct.email} (password: ${acct.password})`)
+    } else if (!existing.passwordHash) {
+      db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?")
+        .run(hashPassword(acct.password), existing.id)
+      console.log(`[bootstrapAccounts] Set password for ${acct.email}`)
+    }
   }
 
+  // Any other users without a password get a temp one
+  const noPassword = db.prepare(
+    "SELECT id, name FROM User WHERE passwordHash IS NULL"
+  ).all() as { id: string; name: string }[]
   for (const u of noPassword) {
-    const knownPw = u.emailLower ? TEST_PASSWORDS[u.emailLower] : null
-    if (knownPw) {
-      db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?")
-        .run(hashPassword(knownPw), u.id)
-      console.log(`[bootstrapMissingPasswords] Set password for ${u.name} (${u.emailLower})`)
-    } else {
-      db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?")
-        .run(hashPassword("changeme"), u.id)
-      console.log(`[bootstrapMissingPasswords] Set temp password for ${u.name} (must change on login)`)
-    }
+    db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?")
+      .run(hashPassword("changeme"), u.id)
+    console.log(`[bootstrapAccounts] Set temp password for ${u.name} (must change on login)`)
   }
 })()
 
