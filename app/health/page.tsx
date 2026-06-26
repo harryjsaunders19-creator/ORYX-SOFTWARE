@@ -1,8 +1,15 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
-import { CheckCircle2, XCircle, RefreshCw, Loader2 } from "lucide-react"
+import { CheckCircle2, XCircle, RefreshCw, Loader2, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input }  from "@/components/ui/input"
+import { Label }  from "@/components/ui/label"
+import {
+  Dialog, DialogContent, DialogHeader, DialogFooter,
+  DialogTitle, DialogBody,
+} from "@/components/ui/dialog"
 import { RequireRole } from "@/components/require-role"
+import { useToast } from "@/components/ui/toast"
 import { cn } from "@/lib/utils"
 
 interface Check { ok: boolean; message: string; detail?: unknown }
@@ -125,6 +132,117 @@ function HealthPageInner() {
           ))}
         </div>
       )}
+
+      <ResetDataSection />
     </div>
+  )
+}
+
+function ResetDataSection() {
+  const { toast } = useToast()
+  const [open, setOpen]               = useState(false)
+  const [password, setPassword]       = useState("")
+  const [phrase, setPhrase]           = useState("")
+  const [resetting, setResetting]     = useState(false)
+  const [error, setError]             = useState("")
+
+  const canSubmit = password.length > 0 && phrase === "RESET ALL DATA"
+
+  const handleReset = async () => {
+    setError("")
+    setResetting(true)
+    try {
+      const res = await fetch("/api/admin/reset-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, confirmPhrase: phrase }),
+      })
+      const body = await res.json() as { ok?: boolean; cleared?: { jobCount: number; clientCount: number; quoteCount: number }; error?: string }
+      if (!res.ok) { setError(body.error ?? "Reset failed"); return }
+
+      setOpen(false)
+      setPassword("")
+      setPhrase("")
+      toast(`Cleared ${body.cleared?.jobCount ?? 0} jobs, ${body.cleared?.clientCount ?? 0} clients, ${body.cleared?.quoteCount ?? 0} quotes`, "success")
+    } catch {
+      setError("Connection error")
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="mt-8 pt-6 border-t border-bd">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-dn shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-t1">Reset all data</p>
+            <p className="text-xs text-t3 mt-0.5 mb-3">
+              Permanently delete all jobs, clients, quotes, and billing data. User accounts are preserved. This cannot be undone.
+            </p>
+            <Button variant="danger" size="sm" onClick={() => { setOpen(true); setError(""); setPassword(""); setPhrase("") }}>
+              Reset all data
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={open} onOpenChange={o => { if (!o && !resetting) setOpen(false) }}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Reset all data</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <div className="rounded-md p-3 mb-4" style={{ backgroundColor: "var(--color-dn-bg)", border: "1px solid var(--color-dn-bd)" }}>
+              <p className="text-xs font-semibold text-dn-tx mb-1">This will permanently delete:</p>
+              <ul className="text-xs text-dn-tx space-y-0.5 list-disc pl-4">
+                <li>All jobs, revisions, and status history</li>
+                <li>All clients and hold records</li>
+                <li>All quotes and line items</li>
+                <li>All billing and export history</li>
+                <li>All drawing number sequences (reset to 001)</li>
+              </ul>
+              <p className="text-xs text-dn-tx mt-2 font-medium">User accounts are NOT deleted.</p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex flex-col gap-1.5">
+                <Label>Your password</Label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Enter your admin password"
+                  autoComplete="current-password"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Type <span className="font-mono font-bold">RESET ALL DATA</span> to confirm</Label>
+                <Input
+                  value={phrase}
+                  onChange={e => setPhrase(e.target.value)}
+                  placeholder="RESET ALL DATA"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="mt-3 p-2.5 rounded-md text-xs font-medium" style={{ backgroundColor: "var(--color-dn-bg)", color: "var(--color-dn-tx)" }}>
+                {error}
+              </div>
+            )}
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={resetting}>Cancel</Button>
+            <Button variant="danger" onClick={handleReset} loading={resetting} disabled={!canSubmit || resetting}>
+              {resetting ? "Resetting…" : "Permanently reset"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
