@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 }
 
 function setSessionCookies(res: NextResponse, activeUserId: string, realUserId: string) {
-  const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 30, secure: process.env.NODE_ENV === "production" }
+  const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 30, secure: process.env.COOKIE_SECURE === "true" }
   res.cookies.set(SESSION_COOKIE, activeUserId, opts)
   res.cookies.set(REAL_SESSION_COOKIE, realUserId, opts)
 }
