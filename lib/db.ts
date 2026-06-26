@@ -27,13 +27,15 @@ const { nanoid } = require("nanoid") as { nanoid: () => string }
 // when they're inside the project tree. .data/ is gitignored and outside
 // the content paths Turbopack cares about. If upgrading from a prisma/
 // location, the migration below moves the file automatically.
-const DB_DIR  = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : path.join(process.cwd(), ".data")
+const DB_DIR  = process.env.DB_PATH
+  ? path.dirname(process.env.DB_PATH)
+  : path.join(/* turbopackIgnore: true */ process.cwd(), ".data")
 const DB_PATH = process.env.DB_PATH ?? path.join(DB_DIR, "oryx.db")
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
 
 // Auto-migrate: move database from old prisma/ location to new .data/ location
 if (!process.env.DB_PATH) {
-  const oldPath = path.join(process.cwd(), "prisma", "oryx.db")
+  const oldPath = path.join(/* turbopackIgnore: true */ process.cwd(), "prisma", "oryx.db")
   if (fs.existsSync(oldPath) && !fs.existsSync(DB_PATH)) {
     for (const suffix of ["", "-shm", "-wal"]) {
       const src = oldPath + suffix
@@ -48,6 +50,7 @@ if (!process.env.DB_PATH) {
 const db = new Database(DB_PATH)
 db.pragma("journal_mode = WAL")
 db.pragma("foreign_keys = ON")
+db.pragma("busy_timeout = 5000")
 db.pragma("synchronous  = NORMAL")
 
 // ── Schema ─────────────────────────────────────────────────────────
@@ -710,6 +713,7 @@ try {
   if (probeNeedsRebuild) {
     db.exec(`
       PRAGMA foreign_keys = OFF;
+      DROP TABLE IF EXISTS BillingHandoff_migrate;
       CREATE TABLE BillingHandoff_migrate (
         id                    TEXT PRIMARY KEY,
         sourceJobId           TEXT NOT NULL REFERENCES Job(id),
