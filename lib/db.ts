@@ -468,6 +468,61 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_backupaudit_backup ON BackupAuditLog(backupId);
   CREATE INDEX IF NOT EXISTS idx_backupaudit_action ON BackupAuditLog(action);
+
+  -- ── Calendar ──────────────────────────────────────────────────────
+  CREATE TABLE IF NOT EXISTS EventCategory (
+    id    TEXT PRIMARY KEY,
+    name  TEXT UNIQUE NOT NULL,
+    color TEXT NOT NULL,
+    icon  TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS CalendarEvent (
+    id          TEXT PRIMARY KEY,
+    title       TEXT NOT NULL,
+    description TEXT,
+    categoryId  TEXT NOT NULL REFERENCES EventCategory(id),
+    startDate   TEXT NOT NULL,
+    endDate     TEXT NOT NULL,
+    allDay      INTEGER NOT NULL DEFAULT 1,
+    location    TEXT,
+    priority    TEXT NOT NULL DEFAULT 'MEDIUM',
+    status      TEXT NOT NULL DEFAULT 'SCHEDULED',
+    jobId       TEXT REFERENCES Job(id) ON DELETE SET NULL,
+    clientId    TEXT REFERENCES Client(id) ON DELETE SET NULL,
+    createdBy   TEXT NOT NULL,
+    createdAt   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updatedAt   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_cal_event_start    ON CalendarEvent(startDate);
+  CREATE INDEX IF NOT EXISTS idx_cal_event_end      ON CalendarEvent(endDate);
+  CREATE INDEX IF NOT EXISTS idx_cal_event_category ON CalendarEvent(categoryId);
+  CREATE INDEX IF NOT EXISTS idx_cal_event_job      ON CalendarEvent(jobId);
+  CREATE INDEX IF NOT EXISTS idx_cal_event_client   ON CalendarEvent(clientId);
+
+  CREATE TABLE IF NOT EXISTS CalendarAssignment (
+    id      TEXT PRIMARY KEY,
+    eventId TEXT NOT NULL REFERENCES CalendarEvent(id) ON DELETE CASCADE,
+    userId  TEXT NOT NULL REFERENCES User(id) ON DELETE CASCADE,
+    UNIQUE(eventId, userId)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_cal_assign_event ON CalendarAssignment(eventId);
+  CREATE INDEX IF NOT EXISTS idx_cal_assign_user  ON CalendarAssignment(userId);
+`)
+
+// ── Seed calendar categories ────────────────────────────────────────
+db.exec(`
+  INSERT OR IGNORE INTO EventCategory (id, name, color, icon) VALUES
+    ('cat_site_visit',       'Site Visit',       '#3B82F6', 'map-pin'),
+    ('cat_teams_meeting',    'Teams Meeting',    '#A855F7', 'video'),
+    ('cat_survey',           'Survey',           '#F97316', 'clipboard'),
+    ('cat_installation',     'Installation',     '#22C55E', 'wrench'),
+    ('cat_client_meeting',   'Client Meeting',   '#A855F7', 'users'),
+    ('cat_deadline',         'Deadline',         '#EF4444', 'alert-circle'),
+    ('cat_leave',            'Leave',            '#6B7280', 'calendar-off'),
+    ('cat_internal_meeting', 'Internal Meeting', '#14B8A6', 'message-square');
 `)
 
 // ── Live migrations ─────────────────────────────────────────────────
@@ -2879,6 +2934,8 @@ export function resetAllData(): { jobCount: number; clientCount: number; quoteCo
     const clientCount = (db.prepare("SELECT COUNT(*) as n FROM Client").get() as { n: number }).n
     const quoteCount  = (db.prepare("SELECT COUNT(*) as n FROM Quote").get()  as { n: number }).n
 
+    db.prepare("DELETE FROM CalendarAssignment").run()
+    db.prepare("DELETE FROM CalendarEvent").run()
     db.prepare("DELETE FROM BillingExportSnapshot").run()
     db.prepare("DELETE FROM BillingExportBatch").run()
     db.prepare("DELETE FROM BillingHandoff").run()
@@ -3015,6 +3072,152 @@ export const backupAuditDb = {
 
   findForBackup(backupId: string): BackupAuditLogRow[] {
     return db.prepare("SELECT * FROM BackupAuditLog WHERE backupId = ? ORDER BY createdAt ASC").all(backupId) as BackupAuditLogRow[]
+  },
+}
+
+// ── Calendar ────────────────────────────────────────────────────────
+
+export interface EventCategoryRow {
+  id: string; name: string; color: string; icon: string | null
+}
+
+export interface CalendarEventRow {
+  id: string; title: string; description: string | null
+  categoryId: string; startDate: string; endDate: string; allDay: number
+  location: string | null; priority: string; status: string
+  jobId: string | null; clientId: string | null
+  createdBy: string; createdAt: string; updatedAt: string
+}
+
+export interface CalendarEventWithDetails extends CalendarEventRow {
+  categoryName: string; categoryColor: string
+  assignees: { userId: string; userName: string }[]
+  jobDrawingNumber: string | null
+  clientName: string | null
+  createdByName: string
+}
+
+export interface CreateCalendarEventData {
+  id: string; title: string; description?: string | null
+  categoryId: string; startDate: string; endDate: string; allDay?: number
+  location?: string | null; priority?: string; status?: string
+  jobId?: string | null; clientId?: string | null; createdBy: string
+}
+
+export interface UpdateCalendarEventData {
+  title?: string; description?: string | null
+  categoryId?: string; startDate?: string; endDate?: string; allDay?: number
+  location?: string | null; priority?: string; status?: string
+  jobId?: string | null; clientId?: string | null
+}
+
+export const calendarDb = {
+  categories(): EventCategoryRow[] {
+    return db.prepare("SELECT * FROM EventCategory ORDER BY name ASC").all() as EventCategoryRow[]
+  },
+
+  findMany(opts: { from: string; to: string; userId?: string; categoryId?: string; jobId?: string; clientId?: string }): CalendarEventWithDetails[] {
+    const clauses = ["e.startDate <= ? AND e.endDate >= ?"]
+    const params: unknown[] = [opts.to, opts.from]
+
+    if (opts.categoryId) { clauses.push("e.categoryId = ?"); params.push(opts.categoryId) }
+    if (opts.jobId)      { clauses.push("e.jobId = ?");      params.push(opts.jobId) }
+    if (opts.clientId)   { clauses.push("e.clientId = ?");   params.push(opts.clientId) }
+    if (opts.userId) {
+      clauses.push("EXISTS (SELECT 1 FROM CalendarAssignment ca WHERE ca.eventId = e.id AND ca.userId = ?)")
+      params.push(opts.userId)
+    }
+
+    const rows = db.prepare(`
+      SELECT e.*, ec.name as categoryName, ec.color as categoryColor,
+             j.drawingNumber as jobDrawingNumber, c.name as clientName,
+             u.name as createdByName
+      FROM CalendarEvent e
+      LEFT JOIN EventCategory ec ON ec.id = e.categoryId
+      LEFT JOIN Job j ON j.id = e.jobId
+      LEFT JOIN Client c ON c.id = e.clientId
+      LEFT JOIN User u ON u.id = e.createdBy
+      WHERE ${clauses.join(" AND ")}
+      ORDER BY e.startDate ASC, e.title ASC
+    `).all(...params) as (CalendarEventRow & { categoryName: string; categoryColor: string; jobDrawingNumber: string | null; clientName: string | null; createdByName: string })[]
+
+    return rows.map(r => ({ ...r, assignees: this.getAssignees(r.id) }))
+  },
+
+  findUnique(id: string): CalendarEventWithDetails | null {
+    const row = db.prepare(`
+      SELECT e.*, ec.name as categoryName, ec.color as categoryColor,
+             j.drawingNumber as jobDrawingNumber, c.name as clientName,
+             u.name as createdByName
+      FROM CalendarEvent e
+      LEFT JOIN EventCategory ec ON ec.id = e.categoryId
+      LEFT JOIN Job j ON j.id = e.jobId
+      LEFT JOIN Client c ON c.id = e.clientId
+      LEFT JOIN User u ON u.id = e.createdBy
+      WHERE e.id = ?
+    `).get(id) as (CalendarEventRow & { categoryName: string; categoryColor: string; jobDrawingNumber: string | null; clientName: string | null; createdByName: string }) | undefined
+    if (!row) return null
+    return { ...row, assignees: this.getAssignees(id) }
+  },
+
+  create(data: CreateCalendarEventData): CalendarEventRow {
+    const now = nowIso()
+    db.prepare(`
+      INSERT INTO CalendarEvent (id, title, description, categoryId, startDate, endDate, allDay, location, priority, status, jobId, clientId, createdBy, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      data.id, data.title.trim(), data.description?.trim() || null,
+      data.categoryId, data.startDate, data.endDate, data.allDay ?? 1,
+      data.location?.trim() || null, data.priority ?? "MEDIUM", data.status ?? "SCHEDULED",
+      data.jobId ?? null, data.clientId ?? null, data.createdBy, now, now,
+    )
+    return db.prepare("SELECT * FROM CalendarEvent WHERE id = ?").get(data.id) as CalendarEventRow
+  },
+
+  update(id: string, data: UpdateCalendarEventData): CalendarEventRow | null {
+    const existing = db.prepare("SELECT * FROM CalendarEvent WHERE id = ?").get(id) as CalendarEventRow | undefined
+    if (!existing) return null
+    const fields: string[] = []
+    const params: unknown[] = []
+    if (data.title       !== undefined) { fields.push('"title" = ?');       params.push(data.title.trim()) }
+    if (data.description !== undefined) { fields.push('"description" = ?'); params.push(data.description?.trim() || null) }
+    if (data.categoryId  !== undefined) { fields.push('"categoryId" = ?');  params.push(data.categoryId) }
+    if (data.startDate   !== undefined) { fields.push('"startDate" = ?');   params.push(data.startDate) }
+    if (data.endDate     !== undefined) { fields.push('"endDate" = ?');     params.push(data.endDate) }
+    if (data.allDay      !== undefined) { fields.push('"allDay" = ?');      params.push(data.allDay) }
+    if (data.location    !== undefined) { fields.push('"location" = ?');    params.push(data.location?.trim() || null) }
+    if (data.priority    !== undefined) { fields.push('"priority" = ?');    params.push(data.priority) }
+    if (data.status      !== undefined) { fields.push('"status" = ?');      params.push(data.status) }
+    if (data.jobId       !== undefined) { fields.push('"jobId" = ?');       params.push(data.jobId) }
+    if (data.clientId    !== undefined) { fields.push('"clientId" = ?');    params.push(data.clientId) }
+    if (!fields.length) return existing
+    fields.push('"updatedAt" = ?'); params.push(nowIso(), id)
+    db.prepare(`UPDATE CalendarEvent SET ${fields.join(", ")} WHERE id = ?`).run(...params)
+    return db.prepare("SELECT * FROM CalendarEvent WHERE id = ?").get(id) as CalendarEventRow
+  },
+
+  delete(id: string): boolean {
+    return db.prepare("DELETE FROM CalendarEvent WHERE id = ?").run(id).changes > 0
+  },
+
+  getAssignees(eventId: string): { userId: string; userName: string }[] {
+    return db.prepare(`
+      SELECT ca.userId, u.name as userName
+      FROM CalendarAssignment ca
+      JOIN User u ON u.id = ca.userId
+      WHERE ca.eventId = ?
+      ORDER BY u.name ASC
+    `).all(eventId) as { userId: string; userName: string }[]
+  },
+
+  setAssignees(eventId: string, userIds: string[]): void {
+    db.transaction(() => {
+      db.prepare("DELETE FROM CalendarAssignment WHERE eventId = ?").run(eventId)
+      const insert = db.prepare("INSERT INTO CalendarAssignment (id, eventId, userId) VALUES (?, ?, ?)")
+      for (const uid of userIds) {
+        insert.run(nanoid(), eventId, uid)
+      }
+    })()
   },
 }
 

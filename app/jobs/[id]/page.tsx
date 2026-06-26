@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation"
 import { format } from "date-fns"
 import { ArrowLeft, Pencil, Trash2, FileText, UserPlus, GitBranch, Clock, AlertOctagon } from "lucide-react"
 import { Button }   from "@/components/ui/button"
+import { Input }    from "@/components/ui/input"
 import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogDescription, DialogBody,
@@ -82,6 +83,9 @@ export default function JobDetailPage() {
   const [delOpen,    setDelOpen]    = useState(false)
   const [deleting,   setDeleting]   = useState(false)
   const [historyKey, setHistoryKey] = useState(0)
+  const [dnEditOpen,   setDnEditOpen]   = useState(false)
+  const [dnEditValue,  setDnEditValue]  = useState("")
+  const [dnEditSaving, setDnEditSaving] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -189,6 +193,15 @@ export default function JobDetailPage() {
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-2">
             <span className="font-mono text-sm font-semibold text-ac">{job.drawingNumber}</span>
+            {isAdmin && (
+              <button
+                onClick={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
+                className="text-t4 hover:text-ac"
+                title="Edit drawing number"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
             <WorkItemTypeBadge itemType={job.itemType ?? "DESIGN"} />
             <StatusBadge status={job.status} />
             {isRevision && (
@@ -457,6 +470,54 @@ export default function JobDetailPage() {
             <Button variant="outline" onClick={() => setDelOpen(false)} disabled={deleting}>Cancel</Button>
             <Button variant="danger" onClick={handleDelete} loading={deleting} disabled={deleting}>
               {deleting ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Drawing number edit dialog — admin only */}
+      <Dialog open={dnEditOpen} onOpenChange={o => { if (!o && !dnEditSaving) setDnEditOpen(false) }}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Edit drawing number</DialogTitle>
+            <DialogDescription>
+              Current: <span className="font-mono font-semibold">{job.drawingNumber}</span>. The sequence counter will be updated automatically to prevent future duplicates.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <Input
+              value={dnEditValue}
+              onChange={e => setDnEditValue(e.target.value)}
+              placeholder="e.g. 26/ORYX/06/001"
+              className="font-mono"
+              autoFocus
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDnEditOpen(false)} disabled={dnEditSaving}>Cancel</Button>
+            <Button
+              variant="primary"
+              loading={dnEditSaving}
+              disabled={dnEditSaving || !dnEditValue.trim() || dnEditValue.trim() === job.drawingNumber}
+              onClick={async () => {
+                setDnEditSaving(true)
+                try {
+                  const res = await fetch(`/api/jobs/${id}/drawing-number`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ drawingNumber: dnEditValue.trim() }),
+                  })
+                  const data = await res.json() as Job & { error?: string }
+                  if (!res.ok) { toast(data.error ?? "Failed to update", "error"); return }
+                  setJob(data)
+                  setDnEditOpen(false)
+                  setHistoryKey(k => k + 1)
+                  toast("Drawing number updated", "success")
+                } catch { toast("Network error", "error") }
+                finally { setDnEditSaving(false) }
+              }}
+            >
+              {dnEditSaving ? "Saving…" : "Update"}
             </Button>
           </DialogFooter>
         </DialogContent>

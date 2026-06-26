@@ -1,1 +1,0 @@
-node -e "const db=require('better-sqlite3')('.data/oryx.db');db.transaction(()=>{db.prepare('DELETE FROM StatusHistory').run();db.prepare('DELETE FROM BillingHandoff').run();db.prepare('DELETE FROM Job').run();db.prepare('DELETE FROM DrawingSequence').run();db.prepare('DELETE FROM RefSequence').run()})();console.log('Cleared.');db.close()"

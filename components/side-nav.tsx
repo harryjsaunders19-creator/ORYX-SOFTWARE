@@ -3,7 +3,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  LayoutDashboard, FolderOpen, Activity, Receipt,
+  LayoutDashboard, FolderOpen, Activity, Receipt, CalendarDays,
   Building2, AlertTriangle, FileText, Users as UsersIcon, ShieldCheck, DatabaseBackup,
   Sun, Moon,
 } from "lucide-react"
@@ -19,6 +19,7 @@ const ICONS: Record<string, React.ElementType> = {
   "hold-list": AlertTriangle,
   jobs:       FolderOpen,
   quotes:     FileText,
+  calendar:   CalendarDays,
   billing:    Receipt,
   users:      UsersIcon,
   backups:    DatabaseBackup,

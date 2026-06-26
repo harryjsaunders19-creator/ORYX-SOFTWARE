@@ -3,7 +3,7 @@ import { Suspense, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { format } from "date-fns"
-import { Plus, Search, RotateCcw, Building2, ChevronRight, Trash2 } from "lucide-react"
+import { Plus, Search, RotateCcw, Building2, ChevronRight, Trash2, Upload } from "lucide-react"
 import { useUser } from "@/components/user-context"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
@@ -147,6 +147,13 @@ function ClientsInner() {
         <Button variant="primary" size="sm" onClick={() => { setCreateOpen(true); setDupError(null) }}>
           <Plus className="h-3.5 w-3.5" /> New client
         </Button>
+        {isAdmin && (
+          <Link href="/clients/import">
+            <Button variant="outline" size="sm">
+              <Upload className="h-3.5 w-3.5" /> Import
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="flex items-center gap-3 mb-4">

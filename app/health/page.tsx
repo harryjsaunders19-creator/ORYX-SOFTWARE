@@ -1,6 +1,6 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
-import { CheckCircle2, XCircle, RefreshCw, Loader2, AlertTriangle } from "lucide-react"
+import { CheckCircle2, XCircle, RefreshCw, Loader2, AlertTriangle, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
 import { Label }  from "@/components/ui/label"
@@ -133,7 +133,50 @@ function HealthPageInner() {
         </div>
       )}
 
+      <ExportDataSection />
       <ResetDataSection />
+    </div>
+  )
+}
+
+function ExportDataSection() {
+  const { toast } = useToast()
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const res = await fetch("/api/export/all")
+      if (!res.ok) { toast("Export failed", "error"); return }
+      const blob = await res.blob()
+      const disposition = res.headers.get("Content-Disposition") ?? ""
+      const match = disposition.match(/filename="([^"]+)"/)
+      const filename = match?.[1] ?? "oryx-export.xlsx"
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url; a.download = filename
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast("Export downloaded", "success")
+    } catch { toast("Export failed", "error") }
+    finally { setExporting(false) }
+  }
+
+  return (
+    <div className="mt-8 pt-6 border-t border-bd">
+      <div className="flex items-start gap-3">
+        <Download className="h-5 w-5 text-ac shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-t1">Export all data</p>
+          <p className="text-xs text-t3 mt-0.5 mb-3">
+            Download a single Excel file with all jobs, clients, upcoming calendar events, and invoicing data — each on its own sheet.
+          </p>
+          <Button variant="primary" size="sm" onClick={handleExport} loading={exporting} disabled={exporting}>
+            <Download className="h-3.5 w-3.5" />
+            {exporting ? "Exporting…" : "Export to Excel"}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

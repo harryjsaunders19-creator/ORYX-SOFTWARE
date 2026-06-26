@@ -1,273 +1,222 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
+import { format, startOfWeek, endOfWeek } from "date-fns"
 import {
-  AlertOctagon, Clock, ClipboardCheck, Receipt, AlertTriangle, ArrowRight,
+  MapPin, Video, Receipt, Briefcase,
+  AlertOctagon, ClipboardCheck, AlertTriangle, Clock,
 } from "lucide-react"
 import { useUser } from "@/components/user-context"
-import { cn, formatGBP, getDeadlineInfo } from "@/lib/utils"
-import type { StatsData, Job, ClientHoldWithClient, BillingHandoff } from "@/lib/types"
+import { useToast } from "@/components/ui/toast"
+import { cn, getDeadlineInfo } from "@/lib/utils"
+import type { StatsData, Job, ClientHoldWithClient } from "@/lib/types"
 
-function Skeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="h-5 w-72 rounded skeleton" />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-48 rounded border border-bd skeleton" />)}
+const SITE_VISIT_ID = "cat_site_visit"
+const TEAMS_MEETING_ID = "cat_teams_meeting"
+
+interface CalEvent {
+  id: string; title: string; startDate: string; endDate: string; allDay: number
+  categoryId: string; categoryName: string; categoryColor: string
+  location: string | null; jobId: string | null; jobDrawingNumber: string | null
+  clientName: string | null
+  assignees: { userId: string; userName: string }[]
+}
+
+// ── Reusable pieces ─────────────────────────────────────────────────
+
+function StatCard({ icon: Icon, label, value, accent, href }: {
+  icon: React.ElementType; label: string; value: number; accent: string; href?: string
+}) {
+  const inner = (
+    <div className="bg-sr border border-bd rounded-md p-4 flex items-center gap-3 hover:shadow-card transition-shadow">
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: accent + "15" }}>
+        <Icon className="h-4.5 w-4.5" style={{ color: accent }} />
+      </div>
+      <div>
+        <p className="text-2xl font-semibold tabular-nums text-t1">{value}</p>
+        <p className="text-[11px] font-medium text-t3 uppercase tracking-wider">{label}</p>
       </div>
     </div>
   )
+  return href ? <Link href={href}>{inner}</Link> : inner
 }
 
-function Empty() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <p className="text-sm font-medium text-t1 mb-1">No jobs yet</p>
-      <p className="text-xs text-t3 mb-4">Create your first job to see the dashboard.</p>
-      <Link href="/jobs" className="text-sm text-ac hover:text-ach font-medium">
-        Go to jobs <ArrowRight className="inline h-3.5 w-3.5" />
-      </Link>
-    </div>
-  )
-}
-
-/** Thin, low-emphasis context strip — counts only, no cards. The actionable sections below
- *  are the point of the page; this is just enough orientation to know the overall scale. */
-function GlanceStat({ label, value, href }: { label: string; value: number | string; href?: string }) {
-  const content = (
-    <>
-      <span className="text-sm font-semibold tabular-nums text-t1">{value}</span>
-      <span className="text-xs text-t3">{label}</span>
-    </>
-  )
-  if (!href) {
-    return <span className="flex items-baseline gap-1.5 shrink-0">{content}</span>
-  }
-  return (
-    <Link href={href} className="flex items-baseline gap-1.5 hover:opacity-70 shrink-0">
-      {content}
-    </Link>
-  )
-}
-
-/** Shell for every actionable section — icon, title, live count, "View all", and a row list
- *  (or an empty state when there's genuinely nothing to act on, which is itself good news). */
-function Section({ icon: Icon, accent, title, count, viewAllHref, isEmpty, emptyText, children }: {
-  icon: React.ElementType; accent: string; title: string; count: number; viewAllHref: string
-  isEmpty: boolean; emptyText: string; children: React.ReactNode
+function SectionHeader({ icon: Icon, accent, title, count, viewAllHref, viewAllLabel }: {
+  icon: React.ElementType; accent: string; title: string; count?: number; viewAllHref: string; viewAllLabel?: string
 }) {
   return (
-    <div className="bg-sr border border-bd rounded-md overflow-hidden flex flex-col">
-      <div className="px-4 py-3 border-b border-bd flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <Icon className={cn("h-4 w-4 shrink-0", accent)} />
-          <p className="text-sm font-semibold text-t1">{title}</p>
-          {count > 0 && (
-            <span className="text-[11px] font-bold rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center bg-pg text-t2 shrink-0">
-              {count}
-            </span>
-          )}
-        </div>
-        <Link href={viewAllHref} className="text-xs text-ac hover:text-ach font-medium shrink-0">
-          View all →
-        </Link>
+    <div className="px-4 py-3 border-b border-bd flex items-center justify-between shrink-0">
+      <div className="flex items-center gap-2">
+        <Icon className={cn("h-4 w-4 shrink-0", accent)} />
+        <p className="text-sm font-semibold text-t1">{title}</p>
+        {count != null && count > 0 && (
+          <span className="text-[11px] font-bold rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center bg-pg text-t2 shrink-0">{count}</span>
+        )}
       </div>
-      {isEmpty ? (
-        <p className="px-4 py-7 text-xs text-t4 text-center">{emptyText}</p>
-      ) : (
-        <div className="divide-y divide-bd">{children}</div>
-      )}
+      <Link href={viewAllHref} className="text-xs text-ac hover:text-ach font-medium shrink-0">{viewAllLabel ?? "View all →"}</Link>
     </div>
   )
 }
+
+// ── Main component ──────────────────────────────────────────────────
 
 export function DashboardStats() {
   const { isAdmin } = useUser()
-  const [stats,      setStats]      = useState<StatsData | null>(null)
-  const [error,      setError]      = useState(false)
+  const { toast }   = useToast()
 
-  const [overdueJobs,     setOverdueJobs]     = useState<Job[]>([])
-  const [dueThisWeekJobs, setDueThisWeekJobs] = useState<Job[]>([])
-  const [checkingJobs,    setCheckingJobs]    = useState<Job[]>([])
-  const [readyForInvoicing, setReadyForInvoicing] = useState<BillingHandoff[]>([])
-  const [holds,           setHolds]           = useState<ClientHoldWithClient[]>([])
+  const [stats, setStats]               = useState<StatsData | null>(null)
+  const [events, setEvents]             = useState<CalEvent[]>([])
+  const [overdueJobs, setOverdueJobs]   = useState<Job[]>([])
+  const [holds, setHolds]               = useState<ClientHoldWithClient[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState(false)
 
-  const load = () =>
-    fetch("/api/stats")
-      .then(r => { if (!r.ok) throw new Error(); return r.json() as Promise<StatsData> })
-      .then(setStats)
+  const today     = new Date()
+  const weekStart = startOfWeek(today, { weekStartsOn: 1 })
+  const weekEnd   = endOfWeek(today, { weekStartsOn: 1 })
+  const fromStr   = format(weekStart, "yyyy-MM-dd")
+  const toStr     = format(weekEnd, "yyyy-MM-dd")
+
+  const loadAll = useCallback(() => {
+    Promise.all([
+      fetch("/api/stats").then(r => r.ok ? r.json() as Promise<StatsData> : null),
+      fetch(`/api/calendar/events?from=${fromStr}&to=${toStr}`).then(r => r.ok ? r.json() as Promise<{ events: CalEvent[] }> : null),
+      fetch("/api/jobs?overdue=true&limit=5&sortBy=requiredByDate&sortDir=asc").then(r => r.ok ? r.json() as Promise<{ jobs: Job[] }> : null),
+      fetch("/api/hold-list").then(r => r.ok ? r.json() as Promise<{ holds: ClientHoldWithClient[] }> : null),
+    ])
+      .then(([s, e, ov, h]) => {
+        if (s) setStats(s)
+        if (e) setEvents(e.events)
+        if (ov) setOverdueJobs(ov.jobs)
+        if (h) setHolds(h.holds.slice(0, 5))
+      })
       .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }, [fromStr, toStr])
 
-  const loadOverdue = () =>
-    fetch("/api/jobs?overdue=true&limit=6&sortBy=requiredByDate&sortDir=asc")
-      .then(r => r.json() as Promise<{ jobs: Job[] }>).then(d => setOverdueJobs(d.jobs)).catch(() => {})
+  useEffect(() => { loadAll() }, [loadAll])
 
-  const loadDueThisWeek = () =>
-    fetch("/api/jobs?dueThisWeek=true&limit=6&sortBy=requiredByDate&sortDir=asc")
-      .then(r => r.json() as Promise<{ jobs: Job[] }>).then(d => setDueThisWeekJobs(d.jobs)).catch(() => {})
+  const siteVisits    = events.filter(e => e.categoryId === SITE_VISIT_ID)
+  const teamsMeetings = events.filter(e => e.categoryId === TEAMS_MEETING_ID)
 
-  const loadChecking = () =>
-    fetch("/api/jobs?status=CHECKING&limit=6&sortBy=dateCreated&sortDir=asc")
-      .then(r => r.json() as Promise<{ jobs: Job[] }>).then(d => setCheckingJobs(d.jobs)).catch(() => {})
-
-  const loadReadyForInvoicing = () =>
-    fetch("/api/billing-handoffs?view=awaiting&limit=6")
-      .then(r => { if (!r.ok) throw new Error(); return r.json() as Promise<{ handoffs: BillingHandoff[] }> })
-      .then(d => setReadyForInvoicing(d.handoffs))
-      .catch(() => {})
-
-  const loadHolds = () =>
-    fetch("/api/hold-list")
-      .then(r => r.json() as Promise<{ holds: ClientHoldWithClient[] }>)
-      .then(d => setHolds(d.holds.slice(0, 6)))
-      .catch(() => {})
-
-  useEffect(() => {
-    load(); loadOverdue(); loadDueThisWeek(); loadChecking(); loadHolds()
-    if (isAdmin) loadReadyForInvoicing()
-  }, [isAdmin])
-
-  if (error) return (
-    <div className="bg-sr border border-bd rounded-md p-4 text-sm text-dn">
-      Failed to load dashboard data.
+  if (error) return <div className="bg-sr border border-bd rounded-md p-4 text-sm text-dn">Failed to load dashboard data.</div>
+  if (loading) return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-md skeleton" />)}</div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4"><div className="h-48 rounded-md skeleton" /><div className="h-48 rounded-md skeleton" /></div>
     </div>
   )
-  if (!stats) return <Skeleton />
-  if (stats.total === 0) return <Empty />
 
   return (
-    <>
-      <div className="space-y-5">
-        {/* At a glance — orientation only, not the point of the page */}
-        <div className="flex items-center gap-4 flex-wrap pb-1">
-          <GlanceStat label="active jobs"  value={stats.totalActiveJobs} href="/jobs?onlyOriginals=true" />
-          <span className="h-3 w-px bg-bd" />
-          <GlanceStat label="revisions"    value={stats.totalRevisions}  href="/jobs?onlyRevisions=true" />
-          {isAdmin && stats.totalQuotedValue != null && stats.totalQuotedValue > 0 && (
-            <>
-              <span className="h-3 w-px bg-bd" />
-              <GlanceStat label="total quoted" value={formatGBP(stats.totalQuotedValue)} />
-            </>
-          )}
-          {isAdmin && stats.totalIssuedValue != null && stats.totalIssuedValue > 0 && (
-            <>
-              <span className="h-3 w-px bg-bd" />
-              <GlanceStat label="total issued" value={formatGBP(stats.totalIssuedValue)} />
-            </>
+    <div className="space-y-5">
+
+      {/* ── KPI Strip ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard icon={Briefcase}      label="Active Jobs"         value={stats?.totalActiveJobs ?? 0}            accent="#4640DE" href="/jobs" />
+        <StatCard icon={Clock}          label="Due This Week"       value={stats?.dueThisWeekCount ?? 0}           accent="#B45309" href="/jobs?deadline=this_week" />
+        <StatCard icon={ClipboardCheck} label="Requires Checking"   value={stats?.checking ?? 0}                  accent="#CA8A04" href="/jobs?status=CHECKING" />
+        {isAdmin && <StatCard icon={Receipt} label="Ready For Invoicing" value={stats?.readyForInvoicingCount ?? 0} accent="#0E7A6E" href="/billing" />}
+      </div>
+
+      {/* ── Needs Attention: Overdue + Checking + Holds ─────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Overdue Jobs */}
+        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+          <SectionHeader icon={AlertOctagon} accent="text-dn" title="Overdue" count={stats?.overdueCount} viewAllHref="/jobs?deadline=overdue" />
+          {overdueJobs.length === 0 ? (
+            <p className="px-4 py-6 text-xs text-t4 text-center">Nothing overdue — good shape.</p>
+          ) : (
+            <div className="divide-y divide-bd">
+              {overdueJobs.map(job => {
+                const dl = getDeadlineInfo(job.requiredByDate)
+                return (
+                  <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-pg">
+                    <div className="flex-1 min-w-0">
+                      <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
+                      <p className="text-[11px] text-t3 truncate mt-0.5">{job.address}</p>
+                    </div>
+                    <span className="text-[10px] font-semibold text-dn-tx shrink-0">{dl.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
           )}
         </div>
 
-        {/* Actionable sections — what needs attention today, not generic statistics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Section
-            icon={AlertOctagon} accent="text-dn" title="Overdue Jobs"
-            count={stats.overdueCount} viewAllHref="/jobs?deadline=overdue"
-            isEmpty={overdueJobs.length === 0} emptyText="Nothing overdue — good shape."
-          >
-            {overdueJobs.map(job => {
-              const dl = getDeadlineInfo(job.requiredByDate)
-              return (
-                <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-pg">
+        {/* Clients On Hold */}
+        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+          <SectionHeader icon={AlertTriangle} accent="text-dn" title="Clients On Hold" count={stats?.clientsOnHold} viewAllHref="/clients/hold-list" />
+          {holds.length === 0 ? (
+            <p className="px-4 py-6 text-xs text-t4 text-center">No clients on hold.</p>
+          ) : (
+            <div className="divide-y divide-bd">
+              {holds.map(hold => (
+                <Link key={hold.id} href={`/clients/${hold.clientId}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-pg">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-[11px] font-semibold text-ac shrink-0">{job.drawingNumber}</span>
-                      <span className="text-xs text-t2 truncate">{job.address}</span>
-                    </div>
-                    <p className="text-[11px] text-t4 mt-0.5 truncate">{job.clientCompany}</p>
+                    <p className="text-xs font-medium text-t1 truncate">{hold.clientName}</p>
+                    <p className="text-[11px] text-t4 truncate mt-0.5">{hold.reason}</p>
                   </div>
-                  <span className="text-[11px] font-semibold text-dn-tx shrink-0 whitespace-nowrap">{dl.label}</span>
-                </Link>
-              )
-            })}
-          </Section>
-
-          <Section
-            icon={Clock} accent="text-wn" title="Jobs Due This Week"
-            count={stats.dueThisWeekCount} viewAllHref="/jobs?deadline=this_week"
-            isEmpty={dueThisWeekJobs.length === 0} emptyText="Nothing due in the next 7 days."
-          >
-            {dueThisWeekJobs.map(job => {
-              const dl = getDeadlineInfo(job.requiredByDate)
-              return (
-                <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-pg">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-[11px] font-semibold text-ac shrink-0">{job.drawingNumber}</span>
-                      <span className="text-xs text-t2 truncate">{job.address}</span>
-                    </div>
-                    <p className="text-[11px] text-t4 mt-0.5 truncate">{job.clientCompany}</p>
-                  </div>
-                  <span className="text-[11px] font-semibold text-wn-tx shrink-0 whitespace-nowrap">{dl.label}</span>
-                </Link>
-              )
-            })}
-          </Section>
-
-          <Section
-            icon={ClipboardCheck} accent="text-wn" title="Requires Checking"
-            count={stats.checking} viewAllHref="/jobs?status=CHECKING"
-            isEmpty={checkingJobs.length === 0} emptyText="Nothing in technical review."
-          >
-            {checkingJobs.map(job => (
-              <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-pg">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-[11px] font-semibold text-ac shrink-0">{job.drawingNumber}</span>
-                    <span className="text-xs text-t2 truncate">{job.address}</span>
-                  </div>
-                  <p className="text-[11px] text-t4 mt-0.5 truncate">{job.clientCompany}</p>
-                </div>
-                <span className="text-[11px] text-t3 shrink-0 whitespace-nowrap">
-                  {job.designer || <span className="italic text-t4">Unassigned</span>}
-                </span>
-              </Link>
-            ))}
-          </Section>
-
-          {isAdmin && (
-            <Section
-              icon={Receipt} accent="text-ac2" title="Ready For Invoicing"
-              count={stats.readyForInvoicingCount ?? 0} viewAllHref="/billing"
-              isEmpty={readyForInvoicing.length === 0} emptyText="Nothing awaiting accounts action."
-            >
-              {readyForInvoicing.map(item => (
-                <Link key={item.id} href={`/jobs/${item.sourceJobId}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-pg">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-[11px] font-semibold text-ac shrink-0">{item.drawingNumber}</span>
-                      <span className="text-xs text-t2 truncate">{item.clientCompany}</span>
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-semibold text-t2 tabular-nums shrink-0">
-                    {item.quoteValue != null ? formatGBP(item.quoteValue) : "—"}
-                  </span>
                 </Link>
               ))}
-            </Section>
+            </div>
           )}
-
-          <Section
-            icon={AlertTriangle} accent="text-dn" title="Clients On Hold"
-            count={stats.clientsOnHold} viewAllHref="/clients/hold-list"
-            isEmpty={holds.length === 0} emptyText="No clients currently on hold."
-          >
-            {holds.map(hold => (
-              <Link key={hold.id} href={`/clients/${hold.clientId}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-pg">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-t1 truncate">{hold.clientName}</p>
-                  <p className="text-[11px] text-t4 mt-0.5 truncate">{hold.reason}</p>
-                </div>
-                {hold.activeJobCount > 0 && (
-                  <span className="text-[11px] font-semibold text-dn-tx shrink-0 whitespace-nowrap">
-                    {hold.activeJobCount} active
-                  </span>
-                )}
-              </Link>
-            ))}
-          </Section>
-
         </div>
       </div>
-    </>
+
+      {/* ── Upcoming: Site Visits + Meetings ────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Upcoming Site Visits */}
+        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+          <SectionHeader icon={MapPin} accent="text-[#3B82F6]" title="Upcoming Site Visits" count={siteVisits.length} viewAllHref="/calendar" viewAllLabel="View calendar →" />
+          {siteVisits.length === 0 ? (
+            <p className="px-4 py-7 text-xs text-t4 text-center">No site visits scheduled this week</p>
+          ) : (
+            <div className="divide-y divide-bd">
+              {siteVisits.slice(0, 5).map(e => (
+                <div key={e.id} className="px-4 py-2.5 hover:bg-pg/50">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[11px] text-t4 tabular-nums">{format(new Date(e.startDate), "EEE d MMM")}</span>
+                    {!e.allDay && <span className="text-[11px] text-t3 tabular-nums">{e.startDate.slice(11, 16)}</span>}
+                  </div>
+                  <p className="text-xs font-medium text-t1 truncate">{e.title}</p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    {e.assignees.length > 0 && <span className="text-[11px] text-t3">{e.assignees[0].userName}</span>}
+                    {e.jobDrawingNumber && (
+                      <Link href={`/jobs/${e.jobId}`} className="text-[11px] font-mono font-semibold text-ac hover:underline">{e.jobDrawingNumber}</Link>
+                    )}
+                    {e.location && (
+                      <span className="text-[11px] text-t4 flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{e.location}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Upcoming Meetings */}
+        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+          <SectionHeader icon={Video} accent="text-[#A855F7]" title="Upcoming Meetings" count={teamsMeetings.length} viewAllHref="/calendar" viewAllLabel="View calendar →" />
+          {teamsMeetings.length === 0 ? (
+            <p className="px-4 py-7 text-xs text-t4 text-center">No meetings scheduled this week</p>
+          ) : (
+            <div className="divide-y divide-bd">
+              {teamsMeetings.slice(0, 5).map(e => (
+                <div key={e.id} className="px-4 py-2.5 hover:bg-pg/50">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[11px] text-t4 tabular-nums">{format(new Date(e.startDate), "EEE d MMM")}</span>
+                    {!e.allDay && <span className="text-[11px] text-t3 tabular-nums">{e.startDate.slice(11, 16)} – {e.endDate.slice(11, 16)}</span>}
+                  </div>
+                  <p className="text-xs font-medium text-t1 truncate">{e.title}</p>
+                  {e.assignees.length > 0 && <span className="text-[11px] text-t3">{e.assignees.map(a => a.userName).join(", ")}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
