@@ -13,6 +13,9 @@
 # application data — SQLite database and backups, never committed
 /.data/
 /backups/
+prisma/oryx.db
+prisma/oryx.db-shm
+prisma/oryx.db-wal
 
 # testing
 /coverage
