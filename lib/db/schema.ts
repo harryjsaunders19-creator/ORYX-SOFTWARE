@@ -526,6 +526,8 @@ try {
   // any row created after the migration (nothing to preserve).
   add("customTypeDescription", "TEXT")
   add("legacyTypeOfWorks",      "TEXT")
+  add("variationFees",          "REAL")
+  add("additionalCharges",    "REAL")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_deadline ON Job(requiredByDate)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_clientid ON Job(clientId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_itemtype ON Job(itemType)")
@@ -560,6 +562,8 @@ try {
   // changes — see PROJECT_OVERVIEW.md for the explicit assumption this
   // rests on.
   add("vatRate",        "REAL")
+  add("typeOfWorks",           "TEXT")
+  add("customTypeDescription", "TEXT")
 })()
 
 // Add columns to Client that may be missing on existing databases

@@ -9,14 +9,20 @@
  *   status         = NEW_REQUEST
  *   designer       = "" (unassigned)
  *
+ * POST target must be the revision anchor:
+ *   - the original job when no revisions exist yet, OR
+ *   - the latest revision in the chain (e.g. Rev A to create Rev B).
+ *
  * GET /api/jobs/[id]/revisions
  * Returns all child Job rows for this parent (ordered by revisionLetter).
  */
 import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "@/lib/services/job-service"
 import { nextRevisionLetter, REVISION_LETTERS } from "@/lib/constants"
+import { canAddRevisionFrom, buildLatestRevisionMap, revisionParentId } from "@/lib/revision-chain"
 import { createId } from "@paralleldrive/cuid2"
 import { getCurrentUser } from "@/lib/auth"
+import { defaultRequiredByDate } from "@/lib/utils"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -26,8 +32,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
 
     const { id } = await params
-    if (!(await jobService.findUnique(id))) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    const revisions = await jobService.revisionsForJob(id)
+    const job = await jobService.findUnique(id)
+    if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+    const parentId = revisionParentId(job)
+    const revisions = await jobService.revisionsForJob(parentId)
     return NextResponse.json({ revisions })
   } catch (err) {
     console.error("[GET /api/jobs/[id]/revisions]", err)
@@ -41,25 +50,35 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
 
     const { id } = await params
-    const parent = await jobService.findUnique(id)
-    if (!parent) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const source = await jobService.findUnique(id)
+    if (!source) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    // Can only create revisions on original jobs, not on revisions-of-revisions
-    if (parent.parentJobId !== null) {
+    const parentId = revisionParentId(source)
+    const parent = source.parentJobId
+      ? await jobService.findUnique(source.parentJobId)
+      : source
+    if (!parent) return NextResponse.json({ error: "Parent job not found" }, { status: 404 })
+
+    const existing = await jobService.revisionsForJob(parent.id)
+    const latestMap = buildLatestRevisionMap(existing)
+
+    if (!canAddRevisionFrom(source, latestMap)) {
+      const latest = existing.at(-1)
       return NextResponse.json(
-        { error: "Cannot create a revision of a revision. Use the original job." },
-        { status: 422 }
+        {
+          error: latest
+            ? `Create the next revision from ${latest.drawingNumber} (the latest revision).`
+            : "Create the first revision from the original job.",
+        },
+        { status: 422 },
       )
     }
 
     let body: Record<string, unknown> = {}
     try { body = await req.json() } catch { /* body is optional */ }
 
-    // Find next letter from existing child jobs
-    const existing    = await jobService.revisionsForJob(id)
     const usedLetters = existing.map(r => r.revisionLetter).filter(Boolean) as string[]
 
-    // Optional explicit letter override
     let letter: string
     if (body.letter && typeof body.letter === "string") {
       letter = body.letter.toUpperCase()
@@ -69,23 +88,19 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       if (usedLetters.includes(letter)) {
         return NextResponse.json(
           { error: `Revision ${letter} already exists for this job` },
-          { status: 409 }
+          { status: 409 },
         )
       }
     } else {
       letter = nextRevisionLetter(usedLetters)
     }
 
-    const changedBy    = typeof body.changedBy === "string" && body.changedBy.trim()
+    const changedBy = typeof body.changedBy === "string" && body.changedBy.trim()
       ? body.changedBy.trim() : "System"
 
-    // The revision drawing number is the parent's number + " Rev A" etc.
-    // If the parent itself already has " Rev " in its name (shouldn't happen due to
-    // the check above, but guard anyway), strip it first.
     const baseDrawingNumber = parent.drawingNumber.replace(/ Rev [A-Z]$/, "")
     const revDrawingNumber  = `${baseDrawingNumber} Rev ${letter}`
 
-    // Inherit site/client details from parent; start fresh with status/designer
     const revision = await jobService.create({
       id:             createId(),
       drawingNumber:  revDrawingNumber,
@@ -96,11 +111,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       clientCompany:  parent.clientCompany,
       requestedBy:    parent.requestedBy,
       status:         "NEW_REQUEST",
-      designer:       "",                                      // unassigned
+      designer:       "",
       dateCompleted:  null,
       notes:          body.notes ? String(body.notes).trim() : null,
       parentJobId:    parent.id,
       revisionLetter: letter,
+      requiredByDate: defaultRequiredByDate(),
       changedBy,
     })
 

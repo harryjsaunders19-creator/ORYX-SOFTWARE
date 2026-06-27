@@ -1,10 +1,11 @@
 "use client"
-import { useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import {
-  Plus, FileText, Search, Download, CheckCircle2, XCircle,
-  Loader2, ArrowRight, Clock, FileDown,
+  Plus, FileText, Download, CheckCircle2, XCircle,
+  Loader2, ArrowRight, Clock, FileDown, Trash2,
 } from "lucide-react"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
@@ -19,11 +20,22 @@ import { DesignerCombobox } from "@/components/designer-combobox"
 import { QuickCreateClientModal } from "@/components/quick-create-client-modal"
 import { useToast } from "@/components/ui/toast"
 import { useUser }  from "@/components/user-context"
-import { formatGBP, cn, parseLocalDate } from "@/lib/utils"
+import { formatGBP, cn, parseLocalDate, defaultRequiredByDate, getQuoteExpiryInfo, quoteExpiryBadgeClass } from "@/lib/utils"
+import { OTHER_WORKS_TYPE } from "@/lib/constants"
+import { inferQuoteWorksFromDescription, quoteWorksDisplayLabel } from "@/lib/quote-works"
+import { TypeOfWorksCombobox } from "@/components/type-of-works-combobox"
+import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/components/page-layout"
 import { QUOTE_STATUSES } from "@/lib/types"
 import type { Quote, Client } from "@/lib/types"
 
-type QuotesData = { quotes: Quote[]; total: number; page: number; limit: number }
+type QuotesData = {
+  quotes: Quote[]
+  total: number
+  page: number
+  limit: number
+  expiringSoonCount?: number
+  expiredClearableCount?: number
+}
 
 function statusMeta(status: string) {
   return QUOTE_STATUSES.find(s => s.value === status) ?? QUOTE_STATUSES[0]
@@ -41,6 +53,28 @@ function QuoteStatusBadge({ status }: { status: string }) {
   )
 }
 
+function QuoteExpiryCell({ quote }: { quote: Quote }) {
+  const info = getQuoteExpiryInfo(quote.expiryDate, quote.status)
+  if (!quote.expiryDate) {
+    return <span className="text-xs text-t4">—</span>
+  }
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-t3 tabular-nums">
+        {format(parseLocalDate(quote.expiryDate), "d MMM yyyy")}
+      </p>
+      {info.severity !== "none" && (
+        <span className={cn(
+          "inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+          quoteExpiryBadgeClass(info.severity),
+        )}>
+          {info.label}
+        </span>
+      )}
+    </div>
+  )
+}
+
 const TODAY_ISO = new Date().toISOString().split("T")[0]
 const addDaysIso = (iso: string, days: number) => {
   const d = new Date(iso)
@@ -52,7 +86,8 @@ interface LineItemDraft { description: string; amount: string; vatApplicable: bo
 
 const EMPTY_FORM = {
   clientId: "", clientCompany: "", contactName: "", address: "",
-  description: "", quoteValue: "", quoteDate: TODAY_ISO,
+  typeOfWorks: "", customTypeDescription: "",
+  quoteValue: "", quoteDate: TODAY_ISO,
   expiryDate: addDaysIso(TODAY_ISO, 30), notes: "", vatRate: "20",
   lineItems: [] as LineItemDraft[],
 }
@@ -66,6 +101,8 @@ function QuoteForm({ formId, initial, quoteId, onSubmit }: {
 }) {
   const [form, setForm] = useState<QuoteFormData>(initial)
   const [quickCreateName, setQuickCreateName] = useState("")
+  const [worksError, setWorksError] = useState<string | null>(null)
+  const [customWorksError, setCustomWorksError] = useState<string | null>(null)
   const [expiryTouched, setExpiryTouched] = useState(
     () => !!initial.quoteDate && initial.expiryDate !== addDaysIso(initial.quoteDate, 30)
   )
@@ -89,6 +126,13 @@ function QuoteForm({ formId, initial, quoteId, onSubmit }: {
       })
       .catch(() => { /* line items are optional — a fetch failure just leaves the simple single-total mode */ })
   }, [quoteId])
+
+  const setTypeOfWorks = (v: string) =>
+    setForm(f => ({
+      ...f,
+      typeOfWorks: v,
+      customTypeDescription: v === OTHER_WORKS_TYPE ? f.customTypeDescription : "",
+    }))
 
   // Quote date drives a sensible expiry default (30 days out) until the user deliberately
   // overrides the expiry field themselves — after that, the two fields move independently.
@@ -117,6 +161,20 @@ function QuoteForm({ formId, initial, quoteId, onSubmit }: {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    let hasError = false
+    if (!form.typeOfWorks.trim()) {
+      setWorksError("Required")
+      hasError = true
+    } else {
+      setWorksError(null)
+    }
+    if (form.typeOfWorks === OTHER_WORKS_TYPE && !form.customTypeDescription.trim()) {
+      setCustomWorksError("Please specify the type of works")
+      hasError = true
+    } else {
+      setCustomWorksError(null)
+    }
+    if (hasError) return
     onSubmit(form.lineItems.length > 0 ? { ...form, quoteValue: lineItemsTotal.toFixed(2) } : form)
   }
 
@@ -144,10 +202,30 @@ function QuoteForm({ formId, initial, quoteId, onSubmit }: {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label>Description of works *</Label>
-        <Textarea value={form.description} onChange={setF("description")} rows={3}
-          placeholder="Design of a temporary monopitch roof structure spanning 18m…" />
+        <Label>Type of works *</Label>
+        <TypeOfWorksCombobox
+          value={form.typeOfWorks}
+          onChange={v => { setTypeOfWorks(v); setWorksError(null) }}
+          error={!!worksError}
+        />
+        {worksError && <p className="text-xs text-dn">{worksError}</p>}
       </div>
+
+      {form.typeOfWorks === OTHER_WORKS_TYPE && (
+        <div className="flex flex-col gap-1.5">
+          <Label>Specify type of works *</Label>
+          <Input
+            value={form.customTypeDescription}
+            onChange={e => {
+              setForm(f => ({ ...f, customTypeDescription: e.target.value }))
+              setCustomWorksError(null)
+            }}
+            placeholder="e.g. Temporary Pedestrian Tunnel"
+            autoComplete="off"
+          />
+          {customWorksError && <p className="text-xs text-dn">{customWorksError}</p>}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="flex flex-col gap-1.5">
@@ -240,7 +318,7 @@ function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
   const { userName }  = useUser()
   const { toast }     = useToast()
   const [designer,       setDesigner]       = useState("")
-  const [requiredByDate, setRequiredByDate] = useState("")
+  const [requiredByDate, setRequiredByDate] = useState(defaultRequiredByDate)
   const [saving,         setSaving]         = useState(false)
 
   const submit = async () => {
@@ -283,6 +361,7 @@ function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
           <div className="flex flex-col gap-1.5">
             <Label>Required by date</Label>
             <Input type="date" value={requiredByDate} onChange={e => setRequiredByDate(e.target.value)} />
+            <p className="text-xs text-t4">Defaults to 1 week from today if left blank</p>
           </div>
         </DialogBody>
         <DialogFooter>
@@ -297,18 +376,29 @@ function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
 }
 
 export default function QuotesPage() {
+  return (
+    <Suspense>
+      <QuotesInner />
+    </Suspense>
+  )
+}
+
+function QuotesInner() {
   const { userName } = useUser()
   const { toast }    = useToast()
+  const searchParams = useSearchParams()
 
   const [data,       setData]       = useState<QuotesData | null>(null)
   const [loading,    setLoading]    = useState(true)
-  const [search,     setSearch]     = useState("")
+  const [search,     setSearch]     = useState(() => searchParams.get("search") ?? "")
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [createOpen, setCreateOpen] = useState(false)
   const [editQuote,  setEditQuote]  = useState<Quote | null>(null)
   const [convertQuote, setConvertQuote] = useState<Quote | null>(null)
   const [saving,     setSaving]     = useState(false)
   const [pdfGenerating, setPdfGenerating] = useState<string | null>(null)
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -364,7 +454,8 @@ export default function QuotesPage() {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       })
-      if (!res.ok) { toast("Failed to update status", "error"); return }
+      const body = await res.json() as { error?: string }
+      if (!res.ok) { toast(body.error ?? "Failed to update status", "error"); return }
       toast(`${quote.quoteNumber} marked ${statusMeta(status).label}`, status === "ACCEPTED" ? "success" : "info")
       load()
     } catch { toast("Network error", "error") }
@@ -388,35 +479,59 @@ export default function QuotesPage() {
     finally { setPdfGenerating(null) }
   }
 
+  const clearExpired = async () => {
+    setClearing(true)
+    try {
+      const res = await fetch("/api/quotes/expired", { method: "DELETE" })
+      const body = await res.json() as { deleted?: number; error?: string }
+      if (!res.ok) { toast(body.error ?? "Failed to clear expired quotes", "error"); return }
+      const n = body.deleted ?? 0
+      toast(`Removed ${n} expired quote${n === 1 ? "" : "s"}`, "success")
+      setClearConfirmOpen(false)
+      load()
+    } catch { toast("Network error", "error") }
+    finally { setClearing(false) }
+  }
+
+  const expiredClearableCount = data?.expiredClearableCount ?? 0
   const total      = data?.total ?? 0
-  const quoteToForm = (q: Quote): QuoteFormData => ({
-    clientId: q.clientId ?? "", clientCompany: q.clientCompany,
-    contactName: q.contactName ?? "", address: q.address,
-    description: q.description, quoteValue: String(q.quoteValue),
-    quoteDate: q.quoteDate, expiryDate: q.expiryDate ?? "", notes: q.notes ?? "",
-    vatRate: q.vatRate != null ? String(q.vatRate) : "",
-    lineItems: [],   // populated by QuoteForm's own fetch via the quoteId prop
-  })
+  const quoteToForm = (q: Quote): QuoteFormData => {
+    const works = q.typeOfWorks
+      ? { typeOfWorks: q.typeOfWorks, customTypeDescription: q.customTypeDescription ?? "" }
+      : inferQuoteWorksFromDescription(q.description)
+    return {
+      clientId: q.clientId ?? "", clientCompany: q.clientCompany,
+      contactName: q.contactName ?? "", address: q.address,
+      typeOfWorks: works.typeOfWorks, customTypeDescription: works.customTypeDescription,
+      quoteValue: String(q.quoteValue),
+      quoteDate: q.quoteDate, expiryDate: q.expiryDate ?? "", notes: q.notes ?? "",
+      vatRate: q.vatRate != null ? String(q.vatRate) : "",
+      lineItems: [],
+    }
+  }
 
   return (
-    <div className="px-6 py-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-lg font-semibold text-t1">Quotes</h1>
-          <p className="text-sm text-t3 mt-0.5">{total} quote{total !== 1 ? "s" : ""}</p>
-        </div>
-        <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-3.5 w-3.5" /> New quote
-        </Button>
-      </div>
+    <PageShell wide>
+      <PageHeader
+        title="Quotes"
+        description={`${total} quote${total !== 1 ? "s" : ""}`}
+        actions={
+          <div className="flex items-center gap-2">
+            {expiredClearableCount > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setClearConfirmOpen(true)}>
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear expired ({expiredClearableCount})
+              </Button>
+            )}
+            <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-3.5 w-3.5" /> New quote
+            </Button>
+          </div>
+        }
+      />
 
-      {/* Search + status filter */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-t4 pointer-events-none" />
-          <Input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search quotes…" style={{ paddingLeft: "32px" }} />
-        </div>
+        <SearchField value={search} onChange={setSearch} placeholder="Search quotes…" className="max-w-xs" />
         <div className="flex items-center gap-1 flex-wrap">
           <button onClick={() => setStatusFilter("ALL")}
             className={cn("text-[11px] px-2 py-0.5 rounded border font-medium",
@@ -433,34 +548,57 @@ export default function QuotesPage() {
         </div>
       </div>
 
+      {(data?.expiringSoonCount ?? 0) > 0 && statusFilter !== "EXPIRED" && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl border border-wn-bd bg-wn-bg text-sm text-wn-tx">
+          <Clock className="h-4 w-4 shrink-0" />
+          <p>
+            <span className="font-semibold">{data!.expiringSoonCount}</span>
+            {" "}sent quote{data!.expiringSoonCount !== 1 ? "s" : ""} expiring within 7 days —
+            {" "}
+            <button
+              type="button"
+              className="text-ac hover:text-ach font-medium underline"
+              onClick={() => setStatusFilter("SENT")}
+            >
+              view sent quotes
+            </button>
+          </p>
+        </div>
+      )}
+
       {/* Table */}
       {loading ? (
-        <div className="bg-sr border border-bd rounded-md">
+        <DataPanel>
           {[...Array(5)].map((_, i) => (
             <div key={i} className="h-16 border-b border-bd last:border-0 px-4 flex items-center">
               <div className="skeleton h-4 w-64 rounded" />
             </div>
           ))}
-        </div>
+        </DataPanel>
       ) : !data?.quotes.length ? (
-        <div className="bg-sr border border-bd rounded-md p-10 text-center">
-          <FileText className="h-8 w-8 text-t4 mx-auto mb-3" />
-          <p className="text-sm font-medium text-t1 mb-1">No quotes yet</p>
-          <p className="text-xs text-t3 mb-4">Create a quote to start the quotation workflow.</p>
-          <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> New quote
-          </Button>
-        </div>
+        <DataPanel>
+          <EmptyPanel
+            icon={FileText}
+            title="No quotes yet"
+            description="Create a quote to start the quotation workflow."
+            action={
+              <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-3.5 w-3.5" /> New quote
+              </Button>
+            }
+          />
+        </DataPanel>
       ) : (
-        <div className="bg-sr border border-bd rounded-md overflow-x-auto overflow-y-hidden">
+        <DataPanel className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-pg border-b border-bd text-xs">
+              <tr className="bg-surface-low border-b border-bd text-xs">
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Quote No.</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Client</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Description</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Type of works</th>
                 <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Value</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Date</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Expires</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-2.5 w-72" />
               </tr>
@@ -476,7 +614,9 @@ export default function QuotesPage() {
                     {q.contactName && <p className="text-xs text-t3 truncate">{q.contactName}</p>}
                   </td>
                   <td className="px-4 py-3 max-w-[220px]">
-                    <p className="text-xs text-t2 truncate">{q.description}</p>
+                    <p className="text-xs text-t2 truncate">
+                      {quoteWorksDisplayLabel(q.typeOfWorks, q.customTypeDescription, q.description)}
+                    </p>
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <p className="text-xs font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
@@ -484,6 +624,9 @@ export default function QuotesPage() {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <p className="text-xs text-t3 tabular-nums">{format(parseLocalDate(q.quoteDate), "d MMM yyyy")}</p>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <QuoteExpiryCell quote={q} />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <QuoteStatusBadge status={q.status} />
@@ -513,7 +656,8 @@ export default function QuotesPage() {
                           <Clock className="h-3.5 w-3.5" /> Sent
                         </Button>
                       )}
-                      {(q.status === "DRAFT" || q.status === "SENT") && (
+                      {(q.status === "DRAFT" || q.status === "SENT")
+                        && getQuoteExpiryInfo(q.expiryDate, q.status).severity !== "expired" && (
                         <>
                           <Button variant="ghost" size="sm" className="text-ok-tx hover:bg-ok-bg" onClick={() => setStatus(q, "ACCEPTED")}>
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -534,7 +678,7 @@ export default function QuotesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </DataPanel>
       )}
 
       {/* Create dialog */}
@@ -575,6 +719,29 @@ export default function QuotesPage() {
           onConverted={() => { setConvertQuote(null); load() }}
         />
       )}
-    </div>
+
+      <Dialog open={clearConfirmOpen} onOpenChange={o => { if (!o && !clearing) setClearConfirmOpen(false) }}>
+        <DialogContent size="sm">
+          <DialogHeader><DialogTitle>Clear expired quotes?</DialogTitle></DialogHeader>
+          <DialogBody>
+            <p className="text-sm text-t2">
+              Permanently delete{" "}
+              <span className="font-semibold text-t1">{expiredClearableCount}</span>
+              {" "}expired quote{expiredClearableCount !== 1 ? "s" : ""} that{" "}
+              {expiredClearableCount === 1 ? "was" : "were"} never converted to a job.
+            </p>
+            <p className="text-xs text-t3 mt-2">This cannot be undone.</p>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClearConfirmOpen(false)} disabled={clearing}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={clearExpired} loading={clearing} className="bg-dn hover:bg-dn/90">
+              <Trash2 className="h-3.5 w-3.5" /> Delete expired
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </PageShell>
   )
 }

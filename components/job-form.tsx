@@ -7,20 +7,24 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { JOB_STATUSES, WORK_ITEM_TYPES, OTHER_WORKS_TYPE } from "@/lib/constants"
+import { JOB_STATUSES, WORK_ITEM_TYPES, OTHER_WORKS_TYPE, getWorkItemRefHint } from "@/lib/constants"
 import { AlertTriangle } from "lucide-react"
 import { ClientCombobox } from "@/components/client-combobox"
 import { DesignerCombobox } from "@/components/designer-combobox"
 import { TypeOfWorksCombobox } from "@/components/type-of-works-combobox"
 import { QuickCreateClientModal } from "@/components/quick-create-client-modal"
+import { defaultRequiredByDate, totalJobCommercialValue, formatGBP } from "@/lib/utils"
 import type { Job, JobFormData } from "@/lib/types"
 
-const EMPTY: JobFormData = {
-  itemType: "DESIGN",
-  address: "", typeOfWorks: "", customTypeDescription: "", clientCompany: "", clientId: "", requestedBy: "",
-  status: "NEW_REQUEST", designer: "", dateCompleted: "", notes: "",
-  quoteValue: "", quoteReference: "", quoteDate: "", commercialNotes: "",
-  requiredByDate: "",
+function emptyJobForm(): JobFormData {
+  return {
+    itemType: "DESIGN",
+    address: "", typeOfWorks: "", customTypeDescription: "", clientCompany: "", clientId: "", requestedBy: "",
+    status: "NEW_REQUEST", designer: "", dateCompleted: "", notes: "",
+    quoteValue: "", quoteReference: "", quoteDate: "", commercialNotes: "",
+    variationFees: "", additionalCharges: "",
+    requiredByDate: defaultRequiredByDate(),
+  }
 }
 
 type FieldErrors = Partial<Record<keyof JobFormData, string>>
@@ -85,8 +89,10 @@ export function JobForm({ job, formId, onSubmit }: JobFormProps) {
       quoteReference:  job.quoteReference ?? "",
       quoteDate:       job.quoteDate ?? "",
       commercialNotes: job.commercialNotes ?? "",
+      variationFees:   job.variationFees != null ? String(job.variationFees) : "",
+      additionalCharges: job.additionalCharges != null ? String(job.additionalCharges) : "",
       requiredByDate:  job.requiredByDate ?? "",
-    } : { ...EMPTY }
+    } : emptyJobForm()
   )
   const [errors, setErrors] = useState<FieldErrors>({})
   const [saving, setSaving] = useState(false)
@@ -157,7 +163,7 @@ export function JobForm({ job, formId, onSubmit }: JobFormProps) {
       {!job && (
         <div className="mb-5">
           <SH>Work item type</SH>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {selectableTypes.map(t => (
               <button
                 key={t.value}
@@ -171,10 +177,7 @@ export function JobForm({ job, formId, onSubmit }: JobFormProps) {
               >
                 <p className="font-semibold">{t.label}</p>
                 <p className="text-[11px] opacity-75 mt-0.5">
-                  {t.value === "DESIGN"     ? "YY/ORYX/MM/NNN" :
-                   t.value === "SITE_VISIT" ? "SV-YYYY-NNN" :
-                   t.value === "SURVEY"     ? "SRV-YYYY-NNN" :
-                   t.value === "INSPECTION" ? "INS-YYYY-NNN" : ""}
+                  {getWorkItemRefHint(t.value)}
                 </p>
               </button>
             ))}
@@ -268,7 +271,7 @@ export function JobForm({ job, formId, onSubmit }: JobFormProps) {
               <F label="Date completed">
                 <Input type="date" value={form.dateCompleted} onChange={setF("dateCompleted")} />
               </F>
-              <F label="Required by" hint="Deadline — leave blank if not applicable">
+              <F label="Required by" hint="Defaults to 1 week from today if left blank">
                 <Input type="date" value={form.requiredByDate} onChange={setF("requiredByDate")} />
               </F>
             </div>
@@ -285,6 +288,26 @@ export function JobForm({ job, formId, onSubmit }: JobFormProps) {
                 <Input value={form.quoteValue} onChange={setF("quoteValue")}
                   placeholder="e.g. 1250" inputMode="decimal" autoComplete="off" />
               </F>
+              <F label="Variation fees (£)" hint="Scope changes after the original quote">
+                <Input value={form.variationFees} onChange={setF("variationFees")}
+                  placeholder="e.g. 250" inputMode="decimal" autoComplete="off" />
+              </F>
+              <F label="Additional charges (£)" hint="Site visits, hourly revision work, etc.">
+                <Input value={form.additionalCharges} onChange={setF("additionalCharges")}
+                  placeholder="e.g. 95" inputMode="decimal" autoComplete="off" />
+              </F>
+              {(form.quoteValue || form.variationFees || form.additionalCharges) && (() => {
+                const total = totalJobCommercialValue({
+                  quoteValue: form.quoteValue ? parseFloat(form.quoteValue) : null,
+                  variationFees: form.variationFees ? parseFloat(form.variationFees) : null,
+                  additionalCharges: form.additionalCharges ? parseFloat(form.additionalCharges) : null,
+                })
+                return total != null ? (
+                  <p className="text-xs text-t3">
+                    Total agreed: <span className="font-semibold text-t1 tabular-nums">{formatGBP(total)}</span>
+                  </p>
+                ) : null
+              })()}
               <F label="Quote reference">
                 <Input value={form.quoteReference} onChange={setF("quoteReference")}
                   placeholder="e.g. QT-2026-047" autoComplete="off" />

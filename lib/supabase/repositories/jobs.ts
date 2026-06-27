@@ -6,6 +6,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { JobRow } from "@/lib/db/job-types"
 import type { FindManyOptions, WhereClause } from "@/lib/db/helpers"
+import { isDrawingNumberListSort, sortJobsForList } from "@/lib/job-list-sort"
 import {
   sortColumn,
   todayIsoDate,
@@ -20,6 +21,18 @@ type JobQuery = any
 
 function table() {
   return createAdminClient().from("jobs")
+}
+
+function isMissingCommercialExtrasColumn(error: { code?: string; message?: string } | null): boolean {
+  return error?.code === "PGRST204"
+    && !!error.message
+    && /variation_fees|additional_charges/.test(error.message)
+}
+
+/** Omit columns added in 005_job_commercial_extras.sql when Supabase hasn't migrated yet. */
+function withoutCommercialExtras(row: SupabaseJobRow): Omit<SupabaseJobRow, "variation_fees" | "additional_charges"> {
+  const { variation_fees: _v, additional_charges: _a, ...rest } = row
+  return rest
 }
 
 function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
@@ -70,8 +83,22 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
 
 export const supabaseJobRepo = {
   async findMany(opts: FindManyOptions = {}): Promise<JobRow[]> {
-    const col = sortColumn(opts.orderBy?.field ?? "dateCreated")
-    const asc = opts.orderBy?.dir === "asc"
+    const field = opts.orderBy?.field ?? "drawingNumber"
+    const dir = opts.orderBy?.dir ?? "asc"
+
+    if (isDrawingNumberListSort(field)) {
+      const { data, error } = await applyWhere(table().select("*"), opts.where)
+      if (error) throw error
+      const rows: JobRow[] = (data ?? []).map(toJobRow)
+      const sorted = sortJobsForList<JobRow>(rows, dir)
+      const skip = opts.skip ?? 0
+      if (opts.take != null) return sorted.slice(skip, skip + opts.take)
+      if (skip) return sorted.slice(skip)
+      return sorted
+    }
+
+    const col = sortColumn(field)
+    const asc = dir === "asc"
     let q = applyWhere(table().select("*"), opts.where).order(col, { ascending: asc })
     if (opts.skip != null && opts.take != null) {
       q = q.range(opts.skip, opts.skip + opts.take - 1)
@@ -114,8 +141,30 @@ export const supabaseJobRepo = {
     return (data ?? []).map(toJobRow)
   },
 
+  async findLatestRevisionsForParents(parentIds: string[]): Promise<JobRow[]> {
+    if (!parentIds.length) return []
+    const { data, error } = await table()
+      .select("*")
+      .in("parent_job_id", parentIds)
+    if (error) throw error
+    const latestByParent = new Map<string, JobRow>()
+    for (const row of data ?? []) {
+      const job = toJobRow(row)
+      if (!job.parentJobId || !job.revisionLetter) continue
+      const prev = latestByParent.get(job.parentJobId)
+      if (!prev || (prev.revisionLetter ?? "") < job.revisionLetter) {
+        latestByParent.set(job.parentJobId, job)
+      }
+    }
+    return [...latestByParent.values()]
+  },
+
   async upsert(job: JobRow): Promise<void> {
-    const { error } = await table().upsert(toSupabaseRow(job), { onConflict: "id" })
+    const row = toSupabaseRow(job)
+    let { error } = await table().upsert(row, { onConflict: "id" })
+    if (isMissingCommercialExtrasColumn(error)) {
+      ;({ error } = await table().upsert(withoutCommercialExtras(row), { onConflict: "id" }))
+    }
     if (error) throw error
   },
 

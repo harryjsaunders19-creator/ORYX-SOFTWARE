@@ -30,6 +30,7 @@ export const WORK_ITEM_TYPES = [
     icon:        "PenLine",
     requiresDrawingNumber: true,
     requiresTypeOfWorks:   true,
+    refPrefix:   null,
     color:       "bg-tag-design-bg text-tag-design",
     dot:         "bg-tag-design",
   },
@@ -40,6 +41,7 @@ export const WORK_ITEM_TYPES = [
     icon:        "GitBranch",
     requiresDrawingNumber: true,   // auto-generated from parent
     requiresTypeOfWorks:   false,
+    refPrefix:   null,
     color:       "bg-tag-revision-bg text-tag-revision",
     dot:         "bg-tag-revision",
   },
@@ -50,6 +52,7 @@ export const WORK_ITEM_TYPES = [
     icon:        "MapPin",
     requiresDrawingNumber: false,  // uses SV-YYYY-NNN
     requiresTypeOfWorks:   false,
+    refPrefix:   "SV",
     color:       "bg-tag-sitevisit-bg text-tag-sitevisit",
     dot:         "bg-tag-sitevisit",
   },
@@ -60,6 +63,7 @@ export const WORK_ITEM_TYPES = [
     icon:        "Clipboard",
     requiresDrawingNumber: false,  // uses SRV-YYYY-NNN
     requiresTypeOfWorks:   false,
+    refPrefix:   "SRV",
     color:       "bg-tag-survey-bg text-tag-survey",
     dot:         "bg-tag-survey",
   },
@@ -70,8 +74,20 @@ export const WORK_ITEM_TYPES = [
     icon:        "Search",
     requiresDrawingNumber: false,  // uses INS-YYYY-NNN
     requiresTypeOfWorks:   false,
+    refPrefix:   "INS",
     color:       "bg-tag-inspection-bg text-tag-inspection",
     dot:         "bg-tag-inspection",
+  },
+  {
+    value:       "CATIII_DESIGN_CHECK",
+    label:       "CATIII Design Check",
+    shortLabel:  "CATIII",
+    icon:        "ShieldCheck",
+    requiresDrawingNumber: false,  // uses CAT3-YYYY-NNN
+    requiresTypeOfWorks:   false,
+    refPrefix:   "CAT3",
+    color:       "bg-tag-catiii-bg text-tag-catiii",
+    dot:         "bg-tag-catiii",
   },
 ] as const
 
@@ -80,6 +96,17 @@ export const VALID_ITEM_TYPES = WORK_ITEM_TYPES.map(t => t.value)
 
 export function getWorkItemType(v: string) {
   return WORK_ITEM_TYPES.find(t => t.value === v) ?? WORK_ITEM_TYPES[0]
+}
+
+/** Yearly reference prefixes for non-drawing service item types (SV-2026-001, etc.) */
+export const REF_PREFIX_BY_ITEM_TYPE = Object.fromEntries(
+  WORK_ITEM_TYPES.filter(t => t.refPrefix).map(t => [t.value, t.refPrefix!]),
+) as Record<string, string>
+
+export function getWorkItemRefHint(itemType: string): string {
+  if (itemType === "DESIGN") return "YY/ORYX/MM/NNN"
+  const prefix = REF_PREFIX_BY_ITEM_TYPE[itemType]
+  return prefix ? `${prefix}-YYYY-NNN` : ""
 }
 
 /** True for item types that don't need a drawing number entered by the user */

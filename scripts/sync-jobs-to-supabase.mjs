@@ -68,6 +68,8 @@ for (const r of rows) {
     quote_reference: r.quoteReference,
     quote_date: dateOnly(r.quoteDate),
     commercial_notes: r.commercialNotes,
+    variation_fees: r.variationFees ?? null,
+    additional_charges: r.additionalCharges ?? null,
     invoice_id: r.invoiceId,
     billing_status: r.billingStatus,
     billing_batch_id: r.billingBatchId,

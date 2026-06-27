@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { quoteService } from "@/lib/services/quote-service"
 import { getCurrentUser } from "@/lib/auth"
+import { parseQuoteWorksBody, shouldAutoExpireQuote } from "@/lib/quote-works"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
 
@@ -22,6 +23,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
 
   const { id } = await params
+  await quoteService.expirePastDue()
   const quote  = await quoteService.findUnique(id)
   if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
   return NextResponse.json(quote)
@@ -36,6 +38,24 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     let body: Record<string, unknown>
     try { body = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
+
+    const existing = await quoteService.findUnique(id)
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+    if (body.status === "ACCEPTED") {
+      if (
+        existing.status === "EXPIRED"
+        || shouldAutoExpireQuote(existing.status, existing.expiryDate)
+      ) {
+        if (existing.status !== "EXPIRED") {
+          await quoteService.update(id, { status: "EXPIRED" })
+        }
+        return NextResponse.json(
+          { error: "This quote has passed its expiry date and cannot be accepted." },
+          { status: 422 },
+        )
+      }
+    }
 
     const validStatuses = ["DRAFT","SENT","ACCEPTED","REJECTED","EXPIRED"]
     if (body.status && !validStatuses.includes(String(body.status)))
@@ -62,10 +82,23 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (body.clientCompany !== undefined) data.clientCompany = String(body.clientCompany).trim()
     if (body.contactName   !== undefined) data.contactName   = body.contactName ? String(body.contactName).trim() : null
     if (body.address       !== undefined) data.address       = String(body.address).trim()
-    if (body.description   !== undefined) data.description   = String(body.description).trim()
+    if (body.typeOfWorks !== undefined || body.customTypeDescription !== undefined) {
+      const works = parseQuoteWorksBody({
+        typeOfWorks: body.typeOfWorks ?? existing.typeOfWorks ?? "",
+        customTypeDescription: body.customTypeDescription ?? existing.customTypeDescription ?? "",
+      })
+      if ("error" in works) {
+        return NextResponse.json({ error: works.error, field: works.field }, { status: 422 })
+      }
+      data.typeOfWorks = works.typeOfWorks
+      data.customTypeDescription = works.customTypeDescription
+      data.description = works.description
+    } else if (body.description !== undefined) {
+      data.description = String(body.description).trim()
+    }
     if (rawValue           !== undefined && !isNaN(rawValue)) data.quoteValue = Math.round(rawValue * 100) / 100
-    if (body.quoteDate     !== undefined) data.quoteDate     = String(body.quoteDate)
-    if (body.expiryDate    !== undefined) data.expiryDate    = body.expiryDate ? String(body.expiryDate) : null
+    if (body.quoteDate     !== undefined) data.quoteDate     = String(body.quoteDate).slice(0, 10)
+    if (body.expiryDate    !== undefined) data.expiryDate    = body.expiryDate ? String(body.expiryDate).slice(0, 10) : null
     if (body.status        !== undefined) data.status        = String(body.status)
     if (body.notes         !== undefined) data.notes         = body.notes ? String(body.notes).trim() : null
     if (vatRate            !== undefined) data.vatRate       = vatRate
@@ -81,6 +114,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
     // jobId is intentionally not settable here — only /api/quotes/[id]/convert may link a
     // quote to a job, since that route enforces the ACCEPTED-and-not-already-converted rules.
+
+    const nextStatus = data.status ?? existing.status
+    const nextExpiry = data.expiryDate !== undefined ? data.expiryDate : existing.expiryDate
+    if (shouldAutoExpireQuote(nextStatus, nextExpiry)) {
+      data.status = "EXPIRED"
+    }
 
     const updated = await quoteService.update(id, data)
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 })

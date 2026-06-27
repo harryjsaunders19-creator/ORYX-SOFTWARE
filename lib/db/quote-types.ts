@@ -8,6 +8,8 @@ export interface QuoteRow {
   contactName: string | null
   address: string
   description: string
+  typeOfWorks: string | null
+  customTypeDescription: string | null
   quoteValue: number
   quoteDate: string
   expiryDate: string | null
@@ -28,6 +30,8 @@ export interface CreateQuoteData {
   contactName?: string | null
   address: string
   description: string
+  typeOfWorks?: string | null
+  customTypeDescription?: string | null
   quoteValue: number
   quoteDate: string
   expiryDate?: string | null
@@ -43,6 +47,8 @@ export interface UpdateQuoteData {
   contactName?: string | null
   address?: string
   description?: string
+  typeOfWorks?: string | null
+  customTypeDescription?: string | null
   quoteValue?: number
   quoteDate?: string
   expiryDate?: string | null

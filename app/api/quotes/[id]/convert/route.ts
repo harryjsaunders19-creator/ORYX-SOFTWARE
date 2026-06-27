@@ -12,6 +12,7 @@ import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
 import { createId } from "@paralleldrive/cuid2"
 import { OTHER_WORKS_TYPE } from "@/lib/constants"
 import { getCurrentUser } from "@/lib/auth"
+import { resolveRequiredByDate } from "@/lib/utils"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
   try {
     const { id } = await params
+    await quoteService.expirePastDue()
     const quote = await quoteService.findUnique(id)
     if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
     if (quote.status !== "ACCEPTED")
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     const changedBy      = body.changedBy ? String(body.changedBy) : "System"
     const designer       = body.designer  ? String(body.designer).trim() : ""
-    const requiredByDate = body.requiredByDate ? String(body.requiredByDate) : null
+    const requiredByDate = resolveRequiredByDate(body.requiredByDate ? String(body.requiredByDate) : null)
 
     const { year, month, key } = getYearMonthKey()
     const seq           = sequenceDb.nextSequence(key)
@@ -48,15 +50,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         drawingNumber,
         itemType:       "DESIGN",
         address:        quote.address,
-        // Quote descriptions are free text, written before the controlled
-        // Type of Works list existed for this job — they can't be reliably
-        // auto-classified into one of the approved categories, so this
-        // always goes through Other + the real description rather than
-        // putting free text into the now-controlled typeOfWorks field.
-        // Whoever picks up the new job can recategorise it properly once
-        // they know the actual scope.
-        typeOfWorks:           OTHER_WORKS_TYPE,
-        customTypeDescription: quote.description.slice(0, 500),
+        typeOfWorks:           quote.typeOfWorks && quote.typeOfWorks !== OTHER_WORKS_TYPE
+          ? quote.typeOfWorks
+          : OTHER_WORKS_TYPE,
+        customTypeDescription: quote.typeOfWorks && quote.typeOfWorks !== OTHER_WORKS_TYPE
+          ? null
+          : (quote.customTypeDescription ?? quote.description).slice(0, 500),
         clientCompany:  quote.clientCompany,
         clientId:       quote.clientId ?? undefined,
         requestedBy:    quote.contactName ?? quote.clientCompany,

@@ -4,15 +4,28 @@ import { clientService } from "@/lib/services/client-service"
 import { sequenceDb } from "@/lib/db"
 import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
 import { createId } from "@paralleldrive/cuid2"
-import { VALID_ITEM_TYPES, isValidWorksType, OTHER_WORKS_TYPE } from "@/lib/constants"
+import { VALID_ITEM_TYPES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE } from "@/lib/constants"
 import { getCurrentUser } from "@/lib/auth"
+import { resolveRequiredByDate } from "@/lib/utils"
+import { applyOptionalMoneyField } from "@/lib/api-money"
+import {
+  buildLatestRevisionMap,
+  canAddRevisionFrom,
+  collectRevisionParentIds,
+} from "@/lib/revision-chain"
 
-// Reference-number prefixes for non-drawing item types
-const REF_PREFIXES: Record<string, string> = {
-  SITE_VISIT:  "SV",
-  SURVEY:      "SRV",
-  INSPECTION:  "INS",
+async function attachRevisionFlags<T extends { id: string; parentJobId: string | null }>(jobs: T[]) {
+  const parentIds = collectRevisionParentIds(jobs)
+  const latest = await jobService.findLatestRevisionsForParents(parentIds)
+  const latestMap = buildLatestRevisionMap(latest)
+  return jobs.map(job => ({
+    ...job,
+    canAddRevision: canAddRevisionFrom(job, latestMap),
+  }))
 }
+
+// Reference-number prefixes for non-drawing item types — sourced from WORK_ITEM_TYPES
+const REF_PREFIXES = REF_PREFIX_BY_ITEM_TYPE
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,8 +46,8 @@ export async function GET(req: NextRequest) {
     const page           = Math.max(1, parseInt(sp.get("page")    ?? "1"))
     const limit          = Math.max(1, Math.min(100, parseInt(sp.get("limit") ?? "25")))
     const exportAll      = sp.get("export")        === "true"
-    const sortBy         = sp.get("sortBy")        ?? "dateCreated"
-    const sortDir        = (sp.get("sortDir")      === "asc" ? "asc" : "desc") as "asc" | "desc"
+    const sortBy         = sp.get("sortBy")        ?? "drawingNumber"
+    const sortDir        = (sp.get("sortDir")      === "desc" ? "desc" : "asc") as "asc" | "desc"
 
     const clientId = sp.get("clientId") ?? ""
     const where = {
@@ -52,14 +65,17 @@ export async function GET(req: NextRequest) {
     }
 
     if (exportAll) {
-      const jobs = await jobService.findMany({ where, orderBy: { field: sortBy, dir: sortDir } })
+      const jobs = await attachRevisionFlags(
+        await jobService.findMany({ where, orderBy: { field: sortBy, dir: sortDir } }),
+      )
       return NextResponse.json({ jobs, total: jobs.length })
     }
 
-    const [jobs, total] = await Promise.all([
+    const [rawJobs, total] = await Promise.all([
       jobService.findMany({ where, orderBy: { field: sortBy, dir: sortDir }, skip: (page - 1) * limit, take: limit }),
       jobService.count(where),
     ])
+    const jobs = await attachRevisionFlags(rawJobs)
     return NextResponse.json({ jobs, total, page, limit })
   } catch (err) {
     console.error("[GET /api/jobs]", err)
@@ -121,6 +137,12 @@ export async function POST(req: NextRequest) {
     }
     const quoteValue = rawQuote !== null && !isNaN(rawQuote) ? Math.round(rawQuote * 100) / 100 : null
 
+    const commercial: Record<string, unknown> = {}
+    for (const field of ["variationFees", "additionalCharges"] as const) {
+      const err = applyOptionalMoneyField(body, field, commercial)
+      if (err) return err
+    }
+
     // Generate reference number based on item type
     let drawingNumber: string
     if (itemType === "DESIGN") {
@@ -170,8 +192,10 @@ export async function POST(req: NextRequest) {
       quoteReference:  body.quoteReference  ? String(body.quoteReference).trim()  : null,
       quoteDate:       body.quoteDate       ? String(body.quoteDate)                : null,
       commercialNotes: body.commercialNotes ? String(body.commercialNotes).trim()  : null,
+      variationFees: commercial.variationFees as number | null | undefined,
+      additionalCharges: commercial.additionalCharges as number | null | undefined,
       requestedDate:   body.requestedDate   ? String(body.requestedDate)            : null,
-      requiredByDate:  body.requiredByDate  ? String(body.requiredByDate)           : null,
+      requiredByDate:  resolveRequiredByDate(body.requiredByDate ? String(body.requiredByDate) : null),
       parentJobId:     null,
       revisionLetter:  null,
       changedBy,

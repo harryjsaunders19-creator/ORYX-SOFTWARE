@@ -1,6 +1,7 @@
 "use client"
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
+import { useRouter, usePathname } from "next/navigation"
 import { format } from "date-fns"
 import { Plus, Loader2, ArrowRight } from "lucide-react"
 import { Button }   from "@/components/ui/button"
@@ -10,17 +11,19 @@ import { StatusBadge } from "@/components/status-badge"
 import { useUser }  from "@/components/user-context"
 import { useToast } from "@/components/ui/toast"
 import { nextRevisionLetter } from "@/lib/constants"
+import { revisionParentId } from "@/lib/revision-chain"
+import { REVISIONS_CHANGED, notifyRevisionsChanged } from "@/lib/revision-events"
 import type { Job } from "@/lib/types"
 
 interface Props {
-  /** The original (parent) job */
+  /** Current job page — original or any revision in the chain */
   job: Job
-  /** Called after a revision is created, so the page can refresh */
   onRevisionCreated?: (revision: Job) => void
 }
 
 export function RevisionsPanel({ job, onRevisionCreated }: Props) {
   const router   = useRouter()
+  const pathname = usePathname()
   const { userName } = useUser()
   const { toast }    = useToast()
 
@@ -30,19 +33,53 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
   const [saving,    setSaving]    = useState(false)
   const [notes,     setNotes]     = useState("")
 
-  const load = async () => {
-    setLoading(true)
+  const parentId = revisionParentId(job)
+
+  const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/jobs/${job.id}/revisions`)
+      const res = await fetch(`/api/jobs/${job.id}/revisions`, { cache: "no-store" })
       if (!res.ok) return
       const { revisions: revs } = await res.json() as { revisions: Job[] }
       setRevisions(revs)
-    } finally { setLoading(false) }
-  }
+    } finally {
+      setLoading(false)
+    }
+  }, [job.id])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-fetch when job changes
-  useEffect(() => { load() }, [job.id])
+  useEffect(() => {
+    setLoading(true)
+    load()
+  }, [load, pathname])
 
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load()
+    }
+    const onPageshow = (e: PageTransitionEvent) => {
+      if (e.persisted) load()
+    }
+    const onRevisionsChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ parentJobId: string }>).detail
+      if (detail?.parentJobId === parentId) load()
+    }
+
+    window.addEventListener("focus", load)
+    document.addEventListener("visibilitychange", onVisible)
+    window.addEventListener("pageshow", onPageshow)
+    window.addEventListener(REVISIONS_CHANGED, onRevisionsChanged)
+
+    return () => {
+      window.removeEventListener("focus", load)
+      document.removeEventListener("visibilitychange", onVisible)
+      window.removeEventListener("pageshow", onPageshow)
+      window.removeEventListener(REVISIONS_CHANGED, onRevisionsChanged)
+    }
+  }, [load, parentId])
+
+  const latestRev = revisions.at(-1) ?? null
+  const canAdd = revisions.length === 0
+    ? job.parentJobId === null
+    : job.id === latestRev?.id
   const nextLetter = nextRevisionLetter(revisions.map(r => r.revisionLetter ?? ""))
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -60,10 +97,11 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
         return
       }
       const revision = await res.json() as Job
-      setRevisions(prev => [...prev, revision])
+      await load()
       setNotes("")
       setAdding(false)
       toast(`Revision ${revision.revisionLetter} created — ${revision.drawingNumber}`, "success")
+      notifyRevisionsChanged(parentId)
       onRevisionCreated?.(revision)
     } catch { toast("Network error", "error") }
     finally  { setSaving(false) }
@@ -77,16 +115,18 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
     )
   }
 
+  const baseDrawing = job.drawingNumber.replace(/ Rev [A-Z]$/, "")
+  const isOriginal = job.parentJobId === null
+
   return (
     <div className="space-y-3">
-      {/* Revision history table */}
       {revisions.length === 0 ? (
         <p className="text-xs text-t4 italic">No revisions yet.</p>
       ) : (
         <div className="border border-bd rounded-md overflow-hidden">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-pg border-b border-bd">
+              <tr className="bg-surface-low border-b border-bd">
                 <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider w-6">Rev</th>
                 <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Drawing number</th>
                 <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
@@ -96,8 +136,32 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-bd">
-              {revisions.map((rev, i) => {
-                const isLatest = i === revisions.length - 1
+              {isOriginal && (
+                <tr
+                  className={`cursor-pointer hover:bg-pg ${job.id !== latestRev?.id ? "bg-pg/40" : ""}`}
+                  onClick={() => router.push(`/jobs/${job.id}`)}
+                >
+                  <td className="px-3 py-2.5 font-semibold text-t3 whitespace-nowrap">—</td>
+                  <td className="px-3 py-2.5 font-mono text-t2 whitespace-nowrap font-semibold">
+                    {job.drawingNumber}
+                    <span className="ml-1.5 text-[10px] font-medium text-t4 normal-case">Original</span>
+                  </td>
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    <StatusBadge status={job.status} />
+                  </td>
+                  <td className="px-3 py-2.5 text-t2 whitespace-nowrap">
+                    {job.designer || <span className="text-t4 italic">Unassigned</span>}
+                  </td>
+                  <td className="px-3 py-2.5 text-t3 whitespace-nowrap tabular-nums">
+                    {format(new Date(job.dateCreated), "d MMM yyyy")}
+                  </td>
+                  <td className="px-3 py-2.5 text-t4">
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </td>
+                </tr>
+              )}
+              {revisions.map(rev => {
+                const isLatest = rev.id === latestRev?.id
                 return (
                   <tr
                     key={rev.id}
@@ -137,14 +201,23 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
         </div>
       )}
 
-      {/* Add revision */}
-      {adding ? (
+      {!canAdd && latestRev && (
+        <p className="text-xs text-t3">
+          To add Rev {nextLetter}, open{" "}
+          <Link href={`/jobs/${latestRev.id}`} className="text-ac hover:text-ach font-mono font-semibold">
+            {latestRev.drawingNumber}
+          </Link>{" "}
+          and click Add revision.
+        </p>
+      )}
+
+      {canAdd && (adding ? (
         <form onSubmit={handleCreate} className="border border-bd rounded-md p-4 bg-pg space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-t1">
               Create Revision {nextLetter}
               <span className="text-t4 font-normal ml-2">
-                → {job.drawingNumber} Rev {nextLetter}
+                → {baseDrawing} Rev {nextLetter}
               </span>
             </p>
           </div>
@@ -153,7 +226,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
             <ul className="list-disc list-inside space-y-0.5 mt-1">
               <li>Status: <strong>New Request</strong></li>
               <li>Designer: <strong>Unassigned</strong></li>
-              <li>Same site, client, and type of works as this job</li>
+              <li>Same site, client, and type of works as the original</li>
             </ul>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -177,14 +250,11 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
           </div>
         </form>
       ) : (
-        // Only allow revisions on original jobs (not on revisions of revisions)
-        job.parentJobId === null && (
-          <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            Create revision {revisions.length > 0 ? nextLetter : ""}
-          </Button>
-        )
-      )}
+        <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+          <Plus className="h-3.5 w-3.5" />
+          Add revision{nextLetter ? ` ${nextLetter}` : ""}
+        </Button>
+      ))}
     </div>
   )
 }

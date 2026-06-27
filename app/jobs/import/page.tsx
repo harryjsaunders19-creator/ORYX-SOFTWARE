@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
 import { useUser } from "@/components/user-context"
 import { RequireRole } from "@/components/require-role"
+import { PageHeader, PageShell, BackLink } from "@/components/page-layout"
 import { cn } from "@/lib/utils"
 import { getJobStatus } from "@/lib/constants"
 import type { ImportField } from "@/lib/import-jobs"
@@ -194,19 +195,12 @@ function ImportJobsInner() {
   }
 
   return (
-    <div className="px-6 py-6 max-w-[1200px] mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/jobs" className="text-t4 hover:text-t2">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div>
-          <h1 className="text-lg font-semibold text-t1">Import Jobs</h1>
-          <p className="text-sm text-t3 mt-0.5">
-            Upload a CSV or Excel spreadsheet to bulk-create job records.
-          </p>
-        </div>
-      </div>
+    <PageShell wide>
+      <BackLink href="/jobs">All jobs</BackLink>
+      <PageHeader
+        title="Import Jobs"
+        description="Upload a CSV or Excel spreadsheet to bulk-create job records."
+      />
 
       {/* Step: Upload */}
       {step === "upload" && (
@@ -591,6 +585,6 @@ function ImportJobsInner() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

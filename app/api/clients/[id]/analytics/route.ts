@@ -22,6 +22,7 @@ function computeAnalytics(jobs: JobRow[]) {
   const siteVisits = jobs.filter(j => j.itemType === "SITE_VISIT").length
   const surveys = jobs.filter(j => j.itemType === "SURVEY").length
   const inspections = jobs.filter(j => j.itemType === "INSPECTION").length
+  const catiiiDesignChecks = jobs.filter(j => j.itemType === "CATIII_DESIGN_CHECK").length
 
   const totalQuoted = jobs.reduce((sum, j) => sum + (j.quoteValue ?? 0), 0)
   const completedQuoted = jobs
@@ -65,6 +66,7 @@ function computeAnalytics(jobs: JobRow[]) {
     siteVisits,
     surveys,
     inspections,
+    catiiiDesignChecks,
     totalQuoted: Math.round(totalQuoted * 100) / 100,
     completedQuoted: Math.round(completedQuoted * 100) / 100,
     avgCompletionDays,

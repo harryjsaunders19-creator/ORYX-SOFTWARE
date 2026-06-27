@@ -53,6 +53,12 @@ export const jobService = {
     return supabaseJobRepo.revisionsForJob(parentId)
   },
 
+  async findLatestRevisionsForParents(parentIds: string[]): Promise<JobRow[]> {
+    if (!parentIds.length) return []
+    if (!useSupabaseJobs()) return jobDb.findLatestRevisionsForParents(parentIds)
+    return supabaseJobRepo.findLatestRevisionsForParents(parentIds)
+  },
+
   async create(data: CreateJobData): Promise<JobRow> {
     const job = jobDb.create(data)
     await mirror(job)

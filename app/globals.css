@@ -42,8 +42,10 @@
 
   /* ── Colours ───────────────────────────────────────── */
   /* Backgrounds */
-  --color-pg:     #FAFAF9;   /* page background — warm off-white */
+  --color-pg:     #F8F9FB;   /* page background — Stitch surface tint */
   --color-sr:     #FFFFFF;   /* surface — pure white (cards, modals, inputs) */
+  --color-surface-low: #F0F2F5; /* Stitch surface-container-low — search, table headers */
+  --color-outline: #E4E4E7;  /* Stitch outline variant */
 
   /* Borders */
   --color-bd:     #EDEBE9;   /* border default — v3: lightened from #E7E5E4. Cards now separate via shadow + whitespace; the border is a secondary cue, not the primary one. */
@@ -131,6 +133,8 @@
   --color-tag-survey-bg:  #F2F4E5;
   --color-tag-inspection:    #9C3F66;  /* rose */
   --color-tag-inspection-bg: #FBEEF2;
+  --color-tag-catiii:        #1D6B75;  /* petrol — distinct from survey olive */
+  --color-tag-catiii-bg:     #E6F4F5;
 
   /* ── Radius ────────────────────────────────────────── */
   /* v3: roughly doubled across the board — generous rounding reads as
@@ -153,8 +157,9 @@
   /* v3: softer and larger — depth from diffusion, not a hard edge. The
      border token above was lightened specifically because these shadows
      now do most of the separation work that a visible border used to. */
-  --shadow-card:  0 1px 2px 0 rgb(0 0 0 / 0.03), 0 8px 24px -8px rgb(0 0 0 / 0.08);
+  --shadow-card:  0 1px 3px 0 rgb(0 0 0 / 0.04), 0 12px 32px -12px rgb(0 0 0 / 0.12);
   --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.18), 0 4px 12px 0 rgb(0 0 0 / 0.06);
+  --shadow-sidebar: 4px 0 24px -6px rgb(0 0 0 / 0.18);
 }
 
 /*
@@ -167,6 +172,8 @@
 html.dark {
   --color-pg:     #0A0A0B;
   --color-sr:     #18181B;
+  --color-surface-low: #27272A;
+  --color-outline: #3F3F46;
   --color-bd:     #27272A;
   --color-bds:    #3F3F46;
   --color-t1:     #FAFAFA;
@@ -217,6 +224,8 @@ html.dark {
   --color-tag-survey-bg:    rgba(163, 230, 53, 0.12);
   --color-tag-inspection:   #F472B6;
   --color-tag-inspection-bg:rgba(244, 114, 182, 0.15);
+  --color-tag-catiii:       #2DD4BF;
+  --color-tag-catiii-bg:    rgba(45, 212, 191, 0.12);
   --shadow-card:  0 1px 2px 0 rgb(0 0 0 / 0.2), 0 8px 24px -8px rgb(0 0 0 / 0.4);
   --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.5), 0 4px 12px 0 rgb(0 0 0 / 0.3);
   color-scheme: dark;
@@ -280,5 +289,10 @@ html.dark {
      numbers aligned instead of drifting with proportional widths */
   .tabular-nums {
     font-variant-numeric: tabular-nums;
+  }
+
+  .glass-card {
+    background: color-mix(in srgb, var(--color-sr) 88%, transparent);
+    backdrop-filter: blur(12px);
   }
 }

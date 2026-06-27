@@ -113,6 +113,28 @@ export const supabaseQuoteRepo = {
     await this.replaceLineItems(quoteId, items)
   },
 
+  async expirePastDue(asOf: string): Promise<number> {
+    const { data, error } = await quotesTable()
+      .update({ status: "EXPIRED", updated_at: new Date().toISOString() })
+      .in("status", ["DRAFT", "SENT"])
+      .not("expiry_date", "is", null)
+      .lt("expiry_date", asOf)
+      .select("id")
+    if (error) throw error
+    return data?.length ?? 0
+  },
+
+  async countExpiringSoon(asOf: string, through: string): Promise<number> {
+    const { count, error } = await quotesTable()
+      .select("*", { count: "exact", head: true })
+      .in("status", ["DRAFT", "SENT"])
+      .not("expiry_date", "is", null)
+      .gte("expiry_date", asOf)
+      .lte("expiry_date", through)
+    if (error) throw error
+    return count ?? 0
+  },
+
   async stats(): Promise<{
     total: number
     draft: number

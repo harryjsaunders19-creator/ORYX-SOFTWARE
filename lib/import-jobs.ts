@@ -18,7 +18,7 @@
  *     compared pre-import.
  */
 
-import { WORKS_TYPES, isValidWorksType, OTHER_WORKS_TYPE, VALID_STATUSES } from "@/lib/constants"
+import { WORKS_TYPES, isValidWorksType, OTHER_WORKS_TYPE, VALID_STATUSES, VALID_ITEM_TYPES } from "@/lib/constants"
 import type { JobStatusValue } from "@/lib/constants"
 
 // ── Header mapping ──────────────────────────────────────────────────
@@ -332,7 +332,7 @@ export function parseRow(
     requiredByDate: parseDate(get("requiredByDate")),
     requestedDate: parseDate(get("requestedDate")),
     dateCompleted: parseDate(get("dateCompleted")),
-    itemType: ["DESIGN", "SITE_VISIT", "SURVEY", "INSPECTION"].includes(itemType) ? itemType : "DESIGN",
+    itemType: (VALID_ITEM_TYPES as readonly string[]).includes(itemType) && itemType !== "REVISION" ? itemType : "DESIGN",
     errors,
     warnings,
   }

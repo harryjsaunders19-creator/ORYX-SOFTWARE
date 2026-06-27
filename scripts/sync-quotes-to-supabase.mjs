@@ -50,6 +50,8 @@ for (const q of quotes) {
     contact_name: q.contactName,
     address: q.address,
     description: q.description,
+    type_of_works: q.typeOfWorks ?? null,
+    custom_type_description: q.customTypeDescription ?? null,
     quote_value: q.quoteValue,
     quote_date: dateOnly(q.quoteDate),
     expiry_date: dateOnly(q.expiryDate),

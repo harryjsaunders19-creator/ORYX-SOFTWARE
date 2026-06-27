@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { quoteService } from "@/lib/services/quote-service"
 import { clientService } from "@/lib/services/client-service"
 import { getCurrentUser } from "@/lib/auth"
+import { parseQuoteWorksBody, shouldAutoExpireQuote } from "@/lib/quote-works"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
 
@@ -27,11 +28,14 @@ export async function GET(req: NextRequest) {
     const page   = Math.max(1, parseInt(sp.get("page") ?? "1"))
     const limit  = Math.max(1, Math.min(100, parseInt(sp.get("limit") ?? "25")))
     const opts   = { ...(search && { search }), ...(status && { status }) }
-    const [quotes, total] = await Promise.all([
+    await quoteService.expirePastDue()
+    const [quotes, total, expiringSoonCount, expiredClearableCount] = await Promise.all([
       quoteService.findMany({ ...opts, skip: (page - 1) * limit, take: limit }),
       quoteService.count(opts),
+      quoteService.countExpiringSoon(),
+      Promise.resolve(quoteService.countExpiredDeletable()),
     ])
-    return NextResponse.json({ quotes, total, page, limit })
+    return NextResponse.json({ quotes, total, page, limit, expiringSoonCount, expiredClearableCount })
   } catch (err) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
@@ -50,8 +54,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Client company is required" }, { status: 422 })
     if (!body.address || String(body.address).trim() === "")
       return NextResponse.json({ error: "Address is required" }, { status: 422 })
-    if (!body.description || String(body.description).trim() === "")
-      return NextResponse.json({ error: "Description is required" }, { status: 422 })
+
+    const works = parseQuoteWorksBody(body)
+    if ("error" in works) {
+      return NextResponse.json({ error: works.error, field: works.field }, { status: 422 })
+    }
+
     if (!body.quoteDate)
       return NextResponse.json({ error: "Quote date is required" }, { status: 422 })
 
@@ -89,16 +97,22 @@ export async function POST(req: NextRequest) {
       ? Math.round(lineItems.reduce((sum, li) => sum + li.amount, 0) * 100) / 100
       : quoteValue
 
+    const expiryDate = body.expiryDate ? String(body.expiryDate).slice(0, 10) : null
+    let status = body.status ? String(body.status) : "DRAFT"
+    if (shouldAutoExpireQuote(status, expiryDate)) status = "EXPIRED"
+
     const quote = await quoteService.create({
       clientId,
       clientCompany,
       contactName:  body.contactName ? String(body.contactName).trim() : null,
       address:      String(body.address).trim(),
-      description:  String(body.description).trim(),
+      description:  works.description,
+      typeOfWorks:  works.typeOfWorks,
+      customTypeDescription: works.customTypeDescription,
       quoteValue:   effectiveQuoteValue,
-      quoteDate:    String(body.quoteDate),
-      expiryDate:   body.expiryDate ? String(body.expiryDate) : null,
-      status:       body.status ? String(body.status) : "DRAFT",
+      quoteDate:    String(body.quoteDate).slice(0, 10),
+      expiryDate,
+      status,
       notes:        body.notes ? String(body.notes).trim() : null,
       createdBy:    body.createdBy ? String(body.createdBy) : "System",
       vatRate,

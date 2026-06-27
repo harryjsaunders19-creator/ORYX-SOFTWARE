@@ -6,7 +6,7 @@ import {
   Search, Plus, Download, Upload, SlidersHorizontal,
   Pencil, Trash2, ChevronLeft, ChevronRight,
   X, FolderOpen, ArrowUp, ArrowDown, ArrowUpDown, GitBranch, AlertTriangle, Clock,
-  MoreHorizontal, Building2, FileText, UserCircle2, PenTool,
+  MoreHorizontal, Building2, FileText, UserCircle2, PenTool, ClipboardCheck,
 } from "lucide-react"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
@@ -22,7 +22,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogDescription, DialogBody,
 } from "@/components/ui/dialog"
-import { JOB_ROW_BG } from "@/components/status-badge"
+import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/components/status-badge"
 import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
 import { AssignDesignerModal } from "@/components/assign-designer-modal"
@@ -31,7 +31,10 @@ import { JobForm }       from "@/components/job-form"
 import { useToast }      from "@/components/ui/toast"
 import { useUser }       from "@/components/user-context"
 import { JOB_STATUSES, WORK_ITEM_TYPES, WORKS_TYPES, getJobStatus } from "@/lib/constants"
-import { cn, formatGBP, getDeadlineInfo, parseLocalDate } from "@/lib/utils"
+import { cn, formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue } from "@/lib/utils"
+import { ToolbarCard } from "@/components/page-layout"
+import { notifyRevisionsChanged } from "@/lib/revision-events"
+import { revisionParentId } from "@/lib/revision-chain"
 import type { Job, JobFormData, JobsResponse, SortField, SortDir } from "@/lib/types"
 
 const LIMIT = 25
@@ -113,7 +116,101 @@ function SortTh({ field, label, current, dir, onSort, className }: {
   )
 }
 
-export function JobsTable() {
+function JobMobileCard({
+  job,
+  holdClientIds,
+  onOpen,
+  onStatusChange,
+}: {
+  job: Job
+  holdClientIds: Set<string>
+  onOpen: () => void
+  onStatusChange: (status: string) => void
+}) {
+  const dl = getJobDeadlineInfo(job)
+  const showDeadline = dl.severity !== "none"
+  const total = totalJobCommercialValue(job)
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onOpen() }}
+      className={cn(
+        "rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5 cursor-pointer active:scale-[0.99] transition-transform",
+        JOB_ROW_BG[job.status] ?? "",
+        JOB_ROW_BORDER[job.status] ?? "",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {job.revisionLetter && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-ac-bg text-ach shrink-0">
+                Rev {job.revisionLetter}
+              </span>
+            )}
+            <span className="font-mono text-xs font-bold text-ac">{job.drawingNumber}</span>
+            {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
+              <WorkItemTypeBadge itemType={job.itemType} size="sm" />
+            )}
+          </div>
+          <p className="text-sm font-medium text-t1 mt-1 line-clamp-2">{job.address}</p>
+          <p className="text-xs text-t3 mt-0.5 truncate">{job.clientCompany}</p>
+        </div>
+        {job.clientId && holdClientIds.has(job.clientId) && (
+          <AlertTriangle className="h-4 w-4 text-dn shrink-0" aria-label="Client on hold" />
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
+        <InlineStatusSelect status={job.status} onChange={onStatusChange} size="lg" />
+        {showDeadline && (
+          <span className={cn(
+            "inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full border",
+            dl.severity === "overdue" ? "bg-dn-bg text-dn-tx border-dn-bd"
+              : dl.severity === "today" ? "bg-wn-bg text-wn-tx border-wn-bd"
+              : "bg-wn-bg/60 text-wn-tx border-wn-bd/60",
+          )}>
+            <Clock className="h-3 w-3 shrink-0" />
+            {dl.label}
+          </span>
+        )}
+      </div>
+
+      {(total != null || job.designer) && (
+        <div className="flex items-center justify-between gap-2 text-xs text-t3 pt-0.5 border-t border-bd/60">
+          {total != null && (
+            <span className="tabular-nums font-medium text-t2">{formatGBP(total)}</span>
+          )}
+          {job.designer && (
+            <span className="truncate">{job.designer}</span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full border border-ac/30 bg-ac-bg text-[11px] font-medium text-ach">
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="rounded-full p-0.5 hover:bg-ac/15 text-ach"
+        aria-label={`Remove ${label} filter`}
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </span>
+  )
+}
+
+export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" }) {
+  const isCheckingQueue = mode === "checking"
   const router       = useRouter()
   const { toast }    = useToast()
   const { userName, isAdmin } = useUser()
@@ -122,9 +219,10 @@ export function JobsTable() {
   const [holdClientIds, setHoldClientIds] = useState<Set<string>>(new Set())
   const [designers,    setDesigners]    = useState<string[]>([])
   const [loading,      setLoading]      = useState(true)
-  const [search,       setSearch]       = useState("")
   const searchParams = useSearchParams()
-  const [statusFilter,  setStatusFilter]  = useState(() => searchParams.get("status")  ?? "ALL")
+  const [search,       setSearch]       = useState(() => searchParams.get("search") ?? "")
+  const [statusFilter,  setStatusFilter]  = useState(() =>
+    isCheckingQueue ? "CHECKING" : (searchParams.get("status")  ?? "ALL"))
   const [onlyOriginals, setOnlyOriginals] = useState(() => searchParams.get("onlyOriginals") === "true")
   const [onlyRevisions, setOnlyRevisions] = useState(() => searchParams.get("onlyRevisions") === "true")
   const [itemTypeFilter, setItemTypeFilter] = useState(() => searchParams.get("itemType") ?? "ALL")
@@ -132,8 +230,8 @@ export function JobsTable() {
   const [deadlineFilter,  setDeadlineFilter]  = useState(() => searchParams.get("deadline") ?? "ALL")
   const initUnassigned = searchParams.get("unassigned") === "true"
   const [page,         setPage]         = useState(1)
-  const [sortBy,       setSortBy]       = useState<SortField>("createdAt")
-  const [sortDir,      setSortDir]      = useState<SortDir>("desc")
+  const [sortBy,       setSortBy]       = useState<SortField>("drawingNumber")
+  const [sortDir,      setSortDir]      = useState<SortDir>("asc")
   const [showFilters,  setShowFilters]  = useState(false)
   const [createOpen,   setCreateOpen]   = useState(false)
   const [createSaving, setCreateSaving] = useState(false)
@@ -142,6 +240,7 @@ export function JobsTable() {
   const [deleteJob,    setDeleteJob]    = useState<Job | null>(null)
   const [deleting,     setDeleting]     = useState(false)
   const [assignJob,    setAssignJob]    = useState<Job | null>(null)
+  const [creatingRevisionFor, setCreatingRevisionFor] = useState<string | null>(null)
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fetchId     = useRef(0)
@@ -230,6 +329,41 @@ export function JobsTable() {
     setSortBy(field); setSortDir(dir); setPage(1)
   }
 
+  const exitCheckingQueue = () => router.push("/jobs")
+
+  const applyStatusFilter = (value: string) => {
+    if (isCheckingQueue) {
+      if (value === "CHECKING") return
+      router.push(value === "ALL" ? "/jobs" : `/jobs?status=${value}`)
+      return
+    }
+    setStatusFilter(value)
+    setPage(1)
+  }
+
+  const clearStatusFilter = () => {
+    if (isCheckingQueue) {
+      exitCheckingQueue()
+      return
+    }
+    applyStatusFilter("ALL")
+  }
+
+  const clearAllFilters = () => {
+    if (isCheckingQueue) {
+      exitCheckingQueue()
+      return
+    }
+    setSearch("")
+    setStatusFilter("ALL")
+    setItemTypeFilter("ALL")
+    setTypeOfWorksFilter("ALL")
+    setDeadlineFilter("ALL")
+    setOnlyOriginals(false)
+    setOnlyRevisions(false)
+    setPage(1)
+  }
+
   const handleCreate = async (form: JobFormData) => {
     setCreateSaving(true)
     try {
@@ -300,6 +434,7 @@ export function JobsTable() {
 
   // One-click revision — no modal, no fields. Letter is auto-assigned server-side.
   const handleQuickRevision = async (job: Job) => {
+    setCreatingRevisionFor(job.id)
     try {
       const res = await fetch(`/api/jobs/${job.id}/revisions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -311,8 +446,10 @@ export function JobsTable() {
       }
       const revision = await res.json() as Job
       toast(`${revision.drawingNumber} created`, "success")
+      notifyRevisionsChanged(revision.parentJobId ?? revisionParentId(job))
       refresh()
     } catch { toast("Network error", "error") }
+    finally { setCreatingRevisionFor(null) }
   }
 
   const handleExport = async () => {
@@ -350,20 +487,29 @@ export function JobsTable() {
     } catch { toast("Export failed", "error") }
   }
 
-  const hasFilters = !!search || statusFilter !== "ALL" || itemTypeFilter !== "ALL" || typeOfWorksFilter !== "ALL" || deadlineFilter !== "ALL" || onlyOriginals || onlyRevisions
+  const hasFilters = !!search || (!isCheckingQueue && statusFilter !== "ALL") || itemTypeFilter !== "ALL" || typeOfWorksFilter !== "ALL" || deadlineFilter !== "ALL" || onlyOriginals || onlyRevisions
+  const activeFilterCount = [
+    isCheckingQueue || statusFilter !== "ALL",
+    itemTypeFilter !== "ALL",
+    typeOfWorksFilter !== "ALL",
+    deadlineFilter !== "ALL",
+    onlyOriginals,
+    onlyRevisions,
+  ].filter(Boolean).length
   const totalPages = data ? Math.ceil(data.total / LIMIT) : 0
   const sp = { current: sortBy, dir: sortDir, onSort: handleSort }
 
   return (
     <>
       {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
+      <ToolbarCard>
         <div className="relative flex-1 min-w-48 max-w-72">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-t4 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-t4 pointer-events-none" />
           <Input
             id="jobs-search"
             value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search jobs…" className="pl-8 pr-7"
+            placeholder="Search jobs…"
+            className="pl-10 pr-8 h-10 rounded-full bg-pg border-none shadow-none"
           />
           {search && (
             <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-t4 hover:text-t2">
@@ -378,8 +524,8 @@ export function JobsTable() {
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
           Filter
-          {statusFilter !== "ALL" && (
-            <span className="ml-1 bg-ac text-sr rounded-full h-4 w-4 text-[10px] flex items-center justify-center font-bold shrink-0">1</span>
+          {activeFilterCount > 0 && (
+            <span className="ml-1 bg-ac text-sr rounded-full h-4 w-4 text-[10px] flex items-center justify-center font-bold shrink-0">{activeFilterCount}</span>
           )}
         </Button>
 
@@ -395,18 +541,87 @@ export function JobsTable() {
           Import
         </Button>
 
+        {isCheckingQueue ? (
+          <Button variant="outline" size="sm" onClick={exitCheckingQueue}>
+            <X className="h-3.5 w-3.5" />
+            All jobs
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => router.push("/jobs/checking")}>
+            <ClipboardCheck className="h-3.5 w-3.5" />
+            Checking queue
+          </Button>
+        )}
+
         <Button variant="primary" size="sm" className="ml-auto" onClick={() => setCreateOpen(true)}>
           <Plus className="h-3.5 w-3.5" />
           New job
         </Button>
-      </div>
+      </ToolbarCard>
+
+      {/* Active filters — always visible so status/deadline chips can be cleared without opening the panel */}
+      {(isCheckingQueue || hasFilters || !!search) && (
+        <div className="flex items-center gap-2 flex-wrap mb-3">
+          {(isCheckingQueue || statusFilter !== "ALL") && (
+            <ActiveFilterChip
+              label={getJobStatus(isCheckingQueue ? "CHECKING" : statusFilter).label}
+              onRemove={clearStatusFilter}
+            />
+          )}
+          {deadlineFilter === "overdue" && (
+            <ActiveFilterChip label="Overdue" onRemove={() => { setDeadlineFilter("ALL"); setPage(1) }} />
+          )}
+          {deadlineFilter === "today" && (
+            <ActiveFilterChip label="Due today" onRemove={() => { setDeadlineFilter("ALL"); setPage(1) }} />
+          )}
+          {deadlineFilter === "this_week" && (
+            <ActiveFilterChip label="Due this week" onRemove={() => { setDeadlineFilter("ALL"); setPage(1) }} />
+          )}
+          {itemTypeFilter !== "ALL" && (
+            <ActiveFilterChip
+              label={WORK_ITEM_TYPES.find(t => t.value === itemTypeFilter)?.label ?? itemTypeFilter}
+              onRemove={() => { setItemTypeFilter("ALL"); setPage(1) }}
+            />
+          )}
+          {typeOfWorksFilter !== "ALL" && (
+            <ActiveFilterChip label={typeOfWorksFilter} onRemove={() => { setTypeOfWorksFilter("ALL"); setPage(1) }} />
+          )}
+          {onlyOriginals && (
+            <ActiveFilterChip label="Originals only" onRemove={() => { setOnlyOriginals(false); setPage(1) }} />
+          )}
+          {onlyRevisions && (
+            <ActiveFilterChip label="Revisions only" onRemove={() => { setOnlyRevisions(false); setPage(1) }} />
+          )}
+          {search && (
+            <ActiveFilterChip label={`Search: ${search}`} onRemove={() => setSearch("")} />
+          )}
+          {(hasFilters || !!search) && !isCheckingQueue && (
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="text-xs text-t3 hover:text-t2 underline underline-offset-2"
+            >
+              Clear all
+            </button>
+          )}
+          {isCheckingQueue && (
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="text-xs text-t3 hover:text-t2 underline underline-offset-2"
+            >
+              View all jobs
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filter bar */}
       {showFilters && (
-        <div className="flex items-center gap-3 mb-4 px-3 py-2.5 bg-pg border border-bd rounded-md flex-wrap">
+        <div className="flex items-center gap-3 mb-4 px-4 py-3 bg-sr border border-bd rounded-xl shadow-card flex-wrap">
           <span className="text-xs font-medium text-t2">Status</span>
           <div className="w-44">
-            <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1) }}>
+            <Select value={statusFilter} onValueChange={applyStatusFilter}>
               <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All statuses</SelectItem>
@@ -464,12 +679,22 @@ export function JobsTable() {
             ))}
           </div>
 
-          {hasFilters && (
-            <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setItemTypeFilter("ALL"); setTypeOfWorksFilter("ALL"); setDeadlineFilter("ALL"); setOnlyOriginals(false); setOnlyRevisions(false); setPage(1) }}
+          {(hasFilters || isCheckingQueue) && (
+            <button onClick={clearAllFilters}
               className="text-xs text-t3 hover:text-t2 underline underline-offset-2">
-              Clear all
+              {isCheckingQueue ? "View all jobs" : "Clear all"}
             </button>
           )}
+        </div>
+      )}
+
+      {isCheckingQueue && (
+        <div className="mb-4 flex items-start gap-2.5 px-4 py-3 rounded-xl border border-yl-bd bg-yl-bg text-sm text-yl-tx">
+          <ClipboardCheck className="h-4 w-4 shrink-0 mt-0.5" />
+          <p>
+            Jobs awaiting technical review. Mark <span className="font-semibold">Complete</span> when ready to issue,
+            or send back to <span className="font-semibold">In Progress</span> for further design work.
+          </p>
         </div>
       )}
 
@@ -481,12 +706,35 @@ export function JobsTable() {
         </p>
       )}
 
-      {/* Table */}
-      <div className="bg-sr border border-bd rounded-md overflow-hidden">
+      {/* Mobile field view — compact cards for site / phone use */}
+      <div className="md:hidden space-y-2.5 mb-4">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-28 rounded-xl border border-bd bg-sr skeleton" />
+          ))
+        ) : !data || data.jobs.length === 0 ? (
+          <div className="rounded-xl border border-bd bg-sr py-12 text-center">
+            <p className="text-sm font-medium text-t1">{hasFilters ? "No jobs match" : "No jobs yet"}</p>
+          </div>
+        ) : (
+          data.jobs.map(job => (
+            <JobMobileCard
+              key={job.id}
+              job={job}
+              holdClientIds={holdClientIds}
+              onOpen={() => router.push(`/jobs/${job.id}`)}
+              onStatusChange={value => patchJobField(job, "status", value)}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-sr border border-bd rounded-xl shadow-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-pg border-b border-bd">
+              <tr className="bg-surface-low border-b border-bd">
                 <SortTh field="drawingNumber" label="Drawing No." {...sp} />
                 <SortTh field="address"       label="Address"     {...sp} />
                 <th className={cn("px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider whitespace-nowrap", COL_TYPE_OF_WORKS)}>
@@ -499,15 +747,17 @@ export function JobsTable() {
                 <SortTh field="quoteValue" label="Quotation" className={COL_QUOTATION} {...sp} />
                 <SortTh field="status"     label="Completion Status" {...sp} />
                 <SortTh field="designer"   label="Designer" className={COL_DESIGNER} {...sp} />
-                <th className="px-4 py-2.5 w-16" />
+                <th className="px-4 py-2.5 text-right text-xs font-semibold text-t3 uppercase tracking-wider whitespace-nowrap min-w-[180px]">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? <SkeletonRows /> :
                !data || data.jobs.length === 0 ? (
-                <EmptyState hasFilters={hasFilters} onCreate={() => setCreateOpen(true)} onClear={() => { setSearch(""); setStatusFilter("ALL"); setItemTypeFilter("ALL"); setTypeOfWorksFilter("ALL"); setDeadlineFilter("ALL"); setOnlyOriginals(false); setOnlyRevisions(false); setPage(1) }} />
+                <EmptyState hasFilters={hasFilters || isCheckingQueue} onCreate={() => setCreateOpen(true)} onClear={clearAllFilters} />
                ) : data.jobs.map(job => {
-                const dl = getDeadlineInfo(job.requiredByDate)
+                const dl = getJobDeadlineInfo(job)
                 const showDeadlineFlag = dl.severity === "overdue" || dl.severity === "today" || dl.severity === "soon"
                 return (
                 <tr
@@ -515,10 +765,9 @@ export function JobsTable() {
                   onClick={() => router.push(`/jobs/${job.id}`)}
                   className={cn(
                     "border-b border-bd last:border-0 cursor-pointer group",
-                    // Subtle row tint by status — white for NEW_REQUEST, tinted for others
                     JOB_ROW_BG[job.status] ?? "",
-                    // Hover brightens slightly — use white so tint doesn't conflict
-                    "hover:brightness-95",
+                    JOB_ROW_BORDER[job.status] ?? "",
+                    "hover:brightness-[0.98]",
                   )}
                 >
                   {/* Drawing No. — most prominent column; carries the revision marker and a
@@ -528,7 +777,9 @@ export function JobsTable() {
                   <td className="px-4 py-3.5 whitespace-nowrap">
                     <span className="flex items-center gap-1.5">
                       {job.revisionLetter && (
-                        <span title={`Revision ${job.revisionLetter}`}><GitBranch className="h-3 w-3 text-ac shrink-0" aria-hidden /></span>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-ac-bg text-ach shrink-0">
+                          Rev {job.revisionLetter}
+                        </span>
                       )}
                       <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
                       {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
@@ -575,8 +826,15 @@ export function JobsTable() {
                   {/* Quotation — value (existing behaviour) plus reference, stacked */}
                   <td className={cn("px-4 py-3.5 whitespace-nowrap text-right", COL_QUOTATION)}>
                     <p className="text-xs tabular-nums font-medium text-t2">
-                      {job.quoteValue != null ? formatGBP(job.quoteValue) : <span className="text-t4">—</span>}
+                      {totalJobCommercialValue(job) != null
+                        ? formatGBP(totalJobCommercialValue(job))
+                        : job.quoteValue != null
+                          ? formatGBP(job.quoteValue)
+                          : <span className="text-t4">—</span>}
                     </p>
+                    {(job.variationFees != null || job.additionalCharges != null) && job.quoteValue != null && (
+                      <p className="text-[10px] text-t4 tabular-nums">incl. extras</p>
+                    )}
                     {job.quoteReference && (
                       <p className="text-[10px] font-mono text-t4 tabular-nums">{job.quoteReference}</p>
                     )}
@@ -586,7 +844,7 @@ export function JobsTable() {
                       folded in directly underneath, only when overdue/due today/due soon —
                       this is the one place deadline urgency still surfaces in the table now
                       that Created/Deadline are no longer separate columns. */}
-                  <td className="px-4 py-3.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                  <td className="px-4 py-3.5 whitespace-nowrap min-w-[148px]" onClick={e => e.stopPropagation()}>
                     <InlineStatusSelect
                       status={job.status}
                       onChange={value => patchJobField(job, "status", value)}
@@ -618,8 +876,22 @@ export function JobsTable() {
                     </div>
                   </td>
 
-                  <td className="px-3 py-3.5" onClick={e => e.stopPropagation()}>
-                    <DropdownMenu>
+                  <td className="px-3 py-3.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1.5">
+                      {job.canAddRevision && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          loading={creatingRevisionFor === job.id}
+                          onClick={() => handleQuickRevision(job)}
+                          title="Create the next revision in this chain"
+                          className="shrink-0"
+                        >
+                          <GitBranch className="h-3.5 w-3.5" />
+                          Add revision
+                        </Button>
+                      )}
+                      <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           className={cn(
@@ -635,11 +907,6 @@ export function JobsTable() {
                         <DropdownMenuItem onSelect={() => setEditJob(job)}>
                           <Pencil className="h-3.5 w-3.5 text-t4" /> Edit job
                         </DropdownMenuItem>
-                        {!job.parentJobId && (
-                          <DropdownMenuItem onSelect={() => handleQuickRevision(job)}>
-                            <GitBranch className="h-3.5 w-3.5 text-t4" /> Create revision
-                          </DropdownMenuItem>
-                        )}
                         {job.clientId && (
                           <DropdownMenuItem onSelect={() => router.push(`/clients/${job.clientId}`)}>
                             <Building2 className="h-3.5 w-3.5 text-t4" /> View client
@@ -659,35 +926,36 @@ export function JobsTable() {
                           </>
                         )}
                       </DropdownMenuContent>
-                    </DropdownMenu>
+                      </DropdownMenu>
+                    </div>
                   </td>
                 </tr>
               )})}
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
-        {data && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-bd bg-pg">
-            <p className="text-xs text-t3">
-              {((page - 1) * LIMIT) + 1}–{Math.min(page * LIMIT, data.total)} of{" "}
-              <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
-            </p>
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
-              <span className="text-xs text-t2 px-2 tabular-nums min-w-[56px] text-center">
-                {page} / {totalPages}
-              </span>
-              <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p + 1)} disabled={page === totalPages}>
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Pagination — shared by mobile cards and desktop table */}
+      {data && totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 mt-3 border border-bd rounded-xl bg-sr shadow-card">
+          <p className="text-xs text-t3">
+            {((page - 1) * LIMIT) + 1}–{Math.min(page * LIMIT, data.total)} of{" "}
+            <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="text-xs text-t2 px-2 tabular-nums min-w-[56px] text-center">
+              {page} / {totalPages}
+            </span>
+            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p + 1)} disabled={page === totalPages}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={o => { if (!createSaving) setCreateOpen(o) }}>

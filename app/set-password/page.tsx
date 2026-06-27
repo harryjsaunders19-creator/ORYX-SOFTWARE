@@ -1,9 +1,12 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
 import { useUser } from "@/components/user-context"
 import { Check, X } from "lucide-react"
+import { AuthLayout, AuthBrand } from "@/components/page-layout"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 const RULES = [
   { test: (p: string) => p.length >= 8,      label: "At least 8 characters" },
@@ -60,92 +63,85 @@ export default function SetPasswordPage() {
 
   if (success) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--color-pg)" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "var(--color-ok-bg)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-            <Check style={{ width: "24px", height: "24px", color: "var(--color-ok-ic)" }} />
+      <AuthLayout>
+        <div className="text-center py-4">
+          <div className="w-12 h-12 rounded-full bg-ok-bg flex items-center justify-center mx-auto mb-4">
+            <Check className="h-6 w-6 text-ok-ic" />
           </div>
-          <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-t1)" }}>Password set</p>
-          <p style={{ fontSize: "13px", color: "var(--color-t3)", marginTop: "4px" }}>Redirecting to dashboard…</p>
+          <p className="text-base font-semibold text-t1">Password set</p>
+          <p className="text-sm text-t3 mt-1">Redirecting to dashboard…</p>
         </div>
-      </div>
+      </AuthLayout>
     )
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--color-pg)", padding: "16px" }}>
-      <div style={{ width: "100%", maxWidth: "400px", backgroundColor: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "20px", padding: "40px 32px 32px", boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.03), 0 8px 24px -8px rgb(0 0 0 / 0.08)" }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
-          <Image src="/branding/LOGO2025.jpg" alt="Oryx Design" width={120} height={120} style={{ width: "80px", height: "auto", objectFit: "contain" }} priority />
+    <AuthLayout>
+      <AuthBrand
+        title="Set your password"
+        subtitle={`Hi ${user.name} — please choose a secure password for your account.`}
+      />
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="new-password">New password</Label>
+          <Input
+            id="new-password"
+            type="password"
+            autoComplete="new-password"
+            autoFocus
+            required
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+          />
         </div>
 
-        <h1 style={{ fontSize: "18px", fontWeight: 600, color: "var(--color-t1)", textAlign: "center", marginBottom: "4px" }}>
-          Set your password
-        </h1>
-        <p style={{ fontSize: "13px", color: "var(--color-t3)", textAlign: "center", marginBottom: "28px" }}>
-          Hi {user.name} — please choose a secure password for your account.
-        </p>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="confirm-password">Confirm password</Label>
+          <Input
+            id="confirm-password"
+            type="password"
+            autoComplete="new-password"
+            required
+            value={confirm}
+            onChange={e => setConfirm(e.target.value)}
+          />
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: "16px" }}>
-            <label htmlFor="new-password" style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--color-t2)", marginBottom: "6px" }}>
-              New password
-            </label>
-            <input
-              id="new-password" type="password" autoComplete="new-password" autoFocus required
-              value={password} onChange={e => setPassword(e.target.value)}
-              style={{ width: "100%", height: "40px", padding: "0 12px", fontSize: "14px", color: "var(--color-t1)", backgroundColor: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "8px", outline: "none", boxSizing: "border-box" }}
-              onFocus={e => { e.target.style.borderColor = "var(--color-ac)" }}
-              onBlur={e => { e.target.style.borderColor = "var(--color-bd)" }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "16px" }}>
-            <label htmlFor="confirm-password" style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--color-t2)", marginBottom: "6px" }}>
-              Confirm password
-            </label>
-            <input
-              id="confirm-password" type="password" autoComplete="new-password" required
-              value={confirm} onChange={e => setConfirm(e.target.value)}
-              style={{ width: "100%", height: "40px", padding: "0 12px", fontSize: "14px", color: "var(--color-t1)", backgroundColor: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "8px", outline: "none", boxSizing: "border-box" }}
-              onFocus={e => { e.target.style.borderColor = "var(--color-ac)" }}
-              onBlur={e => { e.target.style.borderColor = "var(--color-bd)" }}
-            />
-          </div>
-
-          {/* Strength checklist */}
-          <div style={{ marginBottom: "20px", padding: "12px", backgroundColor: "var(--color-pg)", borderRadius: "8px" }}>
-            {RULES.map((rule, i) => {
-              const pass = password.length > 0 && rule.test(password)
-              return (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "3px 0", fontSize: "12px", color: pass ? "var(--color-ok-tx)" : "var(--color-t4)" }}>
-                  {pass ? <Check style={{ width: "14px", height: "14px" }} /> : <X style={{ width: "14px", height: "14px" }} />}
-                  {rule.label}
-                </div>
-              )
-            })}
-            {confirm.length > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "3px 0", fontSize: "12px", color: passwordsMatch ? "var(--color-ok-tx)" : "var(--color-dn-tx)" }}>
-                {passwordsMatch ? <Check style={{ width: "14px", height: "14px" }} /> : <X style={{ width: "14px", height: "14px" }} />}
-                Passwords match
+        <div className="p-3 bg-pg rounded-md space-y-1">
+          {RULES.map((rule, i) => {
+            const pass = password.length > 0 && rule.test(password)
+            return (
+              <div key={i} className={`flex items-center gap-2 text-xs ${pass ? "text-ok-tx" : "text-t4"}`}>
+                {pass ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                {rule.label}
               </div>
-            )}
-          </div>
-
-          {error && (
-            <div style={{ marginBottom: "16px", padding: "10px 12px", backgroundColor: "var(--color-dn-bg)", border: "1px solid var(--color-dn-bd)", borderRadius: "8px", fontSize: "13px", color: "var(--color-dn-tx)", fontWeight: 500 }}>
-              {error}
+            )
+          })}
+          {confirm.length > 0 && (
+            <div className={`flex items-center gap-2 text-xs ${passwordsMatch ? "text-ok-tx" : "text-dn-tx"}`}>
+              {passwordsMatch ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+              Passwords match
             </div>
           )}
+        </div>
 
-          <button
-            type="submit" disabled={loading || !allRulesPass || !passwordsMatch}
-            style={{ width: "100%", height: "40px", backgroundColor: "var(--color-ac)", color: "#ffffff", fontSize: "14px", fontWeight: 600, border: "none", borderRadius: "8px", cursor: loading || !allRulesPass || !passwordsMatch ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", opacity: loading || !allRulesPass || !passwordsMatch ? 0.5 : 1 }}
-          >
-            {loading ? "Setting password…" : "Set password"}
-          </button>
-        </form>
-      </div>
-    </div>
+        {error && (
+          <div className="p-3 bg-dn-bg border border-dn-bd rounded-md text-sm text-dn-tx font-medium">
+            {error}
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          variant="primary"
+          className="w-full"
+          loading={loading}
+          disabled={loading || !allRulesPass || !passwordsMatch}
+        >
+          Set password
+        </Button>
+      </form>
+    </AuthLayout>
   )
 }

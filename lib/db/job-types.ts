@@ -20,6 +20,8 @@ export interface JobRow {
   quoteReference: string | null
   quoteDate: string | null
   commercialNotes: string | null
+  variationFees: number | null
+  additionalCharges: number | null
   invoiceId: string | null
   billingStatus: string | null
   billingBatchId: string | null
@@ -48,6 +50,8 @@ export interface CreateJobData {
   quoteReference?: string | null
   quoteDate?: string | null
   commercialNotes?: string | null
+  variationFees?: number | null
+  additionalCharges?: number | null
   parentJobId?: string | null
   revisionLetter?: string | null
   clientId?: string | null
@@ -70,6 +74,8 @@ export interface UpdateJobData {
   quoteReference?: string | null
   quoteDate?: string | null
   commercialNotes?: string | null
+  variationFees?: number | null
+  additionalCharges?: number | null
   clientId?: string | null
   requestedDate?: string | null
   requiredByDate?: string | null

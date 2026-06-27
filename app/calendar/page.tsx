@@ -12,6 +12,7 @@ import {
 import { useToast } from "@/components/ui/toast"
 import { MonthView } from "@/components/calendar/month-view"
 import { EventDialog } from "@/components/calendar/event-dialog"
+import { DataPanel, PageHeader, PageShell } from "@/components/page-layout"
 
 interface CalendarEvent {
   id: string; title: string; description: string | null
@@ -34,16 +35,13 @@ export default function CalendarPage() {
   const [categories, setCategories]   = useState<Category[]>([])
   const [users, setUsers]             = useState<UserOption[]>([])
 
-  // Filters
   const [filterCategory, setFilterCategory] = useState("ALL")
   const [filterUser, setFilterUser]         = useState("ALL")
 
-  // Dialog state
   const [dialogOpen, setDialogOpen]     = useState(false)
   const [editEvent, setEditEvent]       = useState<CalendarEvent | null>(null)
   const [defaultDate, setDefaultDate]   = useState<string | undefined>()
 
-  // Compute date range for the visible month grid
   const getRange = useCallback((date: Date) => {
     const monthStart = startOfMonth(date)
     const monthEnd   = endOfMonth(date)
@@ -103,69 +101,67 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="px-6 py-6">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon-sm" onClick={() => setCurrentDate(d => subMonths(d, 1))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
-            Today
-          </Button>
-          <Button variant="outline" size="icon-sm" onClick={() => setCurrentDate(d => addMonths(d, 1))}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <h1 className="text-lg font-semibold text-t1 ml-2">
-            {format(currentDate, "MMMM yyyy")}
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Category filter */}
-          <div className="w-40">
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="h-[30px] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All categories</SelectItem>
-                {categories.map(c => (
-                  <SelectItem key={c.id} value={c.id}>
-                    <span className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                      {c.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* User filter */}
-          {users.length > 0 && (
-            <div className="w-36">
-              <Select value={filterUser} onValueChange={setFilterUser}>
-                <SelectTrigger className="h-[30px] text-xs"><SelectValue /></SelectTrigger>
+    <PageShell wide>
+      <PageHeader
+        title="Calendar"
+        description="Site visits, meetings, and deadlines"
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="w-40">
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All staff</SelectItem>
-                  {users.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  <SelectItem value="ALL">All categories</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                        {c.name}
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
+            {users.length > 0 && (
+              <div className="w-36">
+                <Select value={filterUser} onValueChange={setFilterUser}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All staff</SelectItem>
+                    {users.map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button variant="primary" size="sm" onClick={handleNewEvent}>
+              <Plus className="h-3.5 w-3.5" /> New event
+            </Button>
+          </div>
+        }
+      />
 
-          <Button variant="primary" size="sm" onClick={handleNewEvent}>
-            <Plus className="h-3.5 w-3.5" /> New event
-          </Button>
-        </div>
+      <div className="flex items-center gap-2 mb-4">
+        <Button variant="outline" size="icon-sm" onClick={() => setCurrentDate(d => subMonths(d, 1))}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
+          Today
+        </Button>
+        <Button variant="outline" size="icon-sm" onClick={() => setCurrentDate(d => addMonths(d, 1))}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <p className="text-lg font-semibold text-t1 ml-1 tracking-tight">
+          {format(currentDate, "MMMM yyyy")}
+        </p>
       </div>
 
-      {/* Calendar grid */}
-      <div className="bg-sr border border-bd rounded-md overflow-hidden" style={{ backgroundColor: "var(--color-sr)", border: "1px solid var(--color-bd)" }}>
+      <DataPanel>
         {loading && events.length === 0 ? (
           <div className="flex items-center justify-center py-24 text-t3 gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+            <Loader2 className="h-4 w-4 animate-spin" />
             <span className="text-sm">Loading calendar…</span>
           </div>
         ) : (
@@ -176,9 +172,8 @@ export default function CalendarPage() {
             onEventClick={handleEventClick}
           />
         )}
-      </div>
+      </DataPanel>
 
-      {/* Event dialog */}
       <EventDialog
         open={dialogOpen}
         onClose={() => { setDialogOpen(false); setEditEvent(null) }}
@@ -186,6 +181,6 @@ export default function CalendarPage() {
         event={editEvent}
         defaultDate={defaultDate}
       />
-    </div>
+    </PageShell>
   )
 }

@@ -20,7 +20,8 @@ import { clientService } from "@/lib/services/client-service"
 import { sequenceDb } from "@/lib/db"
 import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
 import { createId } from "@paralleldrive/cuid2"
-import { isValidWorksType, OTHER_WORKS_TYPE, VALID_STATUSES } from "@/lib/constants"
+import { isValidWorksType, OTHER_WORKS_TYPE, VALID_STATUSES, REF_PREFIX_BY_ITEM_TYPE } from "@/lib/constants"
+import { resolveRequiredByDate } from "@/lib/utils"
 import {
   parseSpreadsheet,
   markInternalDuplicates,
@@ -31,11 +32,7 @@ import {
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 const MAX_ROWS = 5000
 
-const REF_PREFIXES: Record<string, string> = {
-  SITE_VISIT: "SV",
-  SURVEY:     "SRV",
-  INSPECTION: "INS",
-}
+const REF_PREFIXES = REF_PREFIX_BY_ITEM_TYPE
 
 export async function POST(req: NextRequest) {
   try {
@@ -211,7 +208,7 @@ export async function POST(req: NextRequest) {
             quoteDate: row.quoteDate || null,
             commercialNotes: row.commercialNotes?.trim() || null,
             requestedDate: row.requestedDate || null,
-            requiredByDate: row.requiredByDate || null,
+            requiredByDate: resolveRequiredByDate(row.requiredByDate),
             parentJobId: null,
             revisionLetter: null,
             changedBy,

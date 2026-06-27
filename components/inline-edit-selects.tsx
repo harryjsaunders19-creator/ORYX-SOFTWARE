@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react"
 import { SelectContent, SelectItem, SelectSeparator } from "@/components/ui/select"
 import { StatusBadge } from "@/components/status-badge"
 import { JOB_STATUSES } from "@/lib/constants"
+import { cn } from "@/lib/utils"
 
 const NEW_DESIGNER  = "__new__"
 const UNASSIGNED     = "__unassigned__"
@@ -17,7 +18,10 @@ export function InlineStatusSelect({ status, onChange, size = "md" }: { status: 
     <SelectPrimitive.Root value={status} onValueChange={onChange}>
       <SelectPrimitive.Trigger
         onClick={e => e.stopPropagation()}
-        className="inline-flex items-center gap-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-ac"
+        className={cn(
+          "inline-flex items-center gap-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-ac",
+          size === "lg" && "hover:brightness-[0.97] active:scale-[0.98] transition-all",
+        )}
         style={{ border: "none", background: "transparent", padding: 0, cursor: "pointer" }}
         aria-label="Change status"
       >

@@ -11,6 +11,8 @@ export interface SupabaseQuoteRow {
   contact_name: string | null
   address: string
   description: string
+  type_of_works: string | null
+  custom_type_description: string | null
   quote_value: number
   quote_date: string
   expiry_date: string | null
@@ -49,6 +51,8 @@ export function toQuoteRow(row: SupabaseQuoteRow): QuoteRow {
     contactName: row.contact_name,
     address: row.address,
     description: row.description,
+    typeOfWorks: row.type_of_works,
+    customTypeDescription: row.custom_type_description,
     quoteValue: Number(row.quote_value),
     quoteDate: row.quote_date,
     expiryDate: row.expiry_date,
@@ -73,6 +77,8 @@ export function toSupabaseQuoteRow(quote: QuoteRow): SupabaseQuoteRow {
     contact_name: quote.contactName,
     address: quote.address,
     description: quote.description,
+    type_of_works: quote.typeOfWorks,
+    custom_type_description: quote.customTypeDescription,
     quote_value: quote.quoteValue,
     quote_date: dateOnly(quote.quoteDate)!,
     expiry_date: dateOnly(quote.expiryDate),

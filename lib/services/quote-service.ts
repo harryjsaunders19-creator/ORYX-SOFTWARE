@@ -16,6 +16,7 @@ import type {
 import { quoteDb, quoteLineItemDb } from "@/lib/db/stores"
 import { useSupabaseQuotes } from "@/lib/supabase/feature-flags"
 import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
+import { todayIsoDate, addDaysToIsoDate } from "@/lib/utils"
 
 async function mirrorQuote(quote: QuoteRow | null) {
   if (quote && useSupabaseQuotes()) await supabaseQuoteRepo.upsert(quote)
@@ -66,6 +67,18 @@ export const quoteService = {
     return ok
   },
 
+  async clearExpired(): Promise<{ deleted: number }> {
+    const removed = quoteDb.deleteExpired()
+    if (useSupabaseQuotes()) {
+      for (const q of removed) await supabaseQuoteRepo.delete(q.id)
+    }
+    return { deleted: removed.length }
+  },
+
+  countExpiredDeletable(): number {
+    return quoteDb.countExpiredDeletable()
+  },
+
   async findLineItemsForQuote(quoteId: string): Promise<QuoteLineItemRow[]> {
     if (!useSupabaseQuotes()) return quoteLineItemDb.findForQuote(quoteId)
     return supabaseQuoteRepo.findLineItemsForQuote(quoteId)
@@ -88,5 +101,25 @@ export const quoteService = {
   async stats() {
     if (!useSupabaseQuotes()) return quoteDb.stats()
     return supabaseQuoteRepo.stats()
+  },
+
+  /** Auto-expire open quotes past their expiry date. Returns rows updated. */
+  async expirePastDue() {
+    const asOf = todayIsoDate()
+    const expired = quoteDb.expirePastDue(asOf)
+    for (const q of expired) await mirrorQuote(q)
+    if (useSupabaseQuotes()) {
+      await supabaseQuoteRepo.expirePastDue(asOf)
+    }
+    return expired
+  },
+
+  async countExpiringSoon(): Promise<number> {
+    const asOf = todayIsoDate()
+    const through = addDaysToIsoDate(new Date(asOf + "T00:00:00"), 7)
+    if (useSupabaseQuotes()) {
+      return supabaseQuoteRepo.countExpiringSoon(asOf, through)
+    }
+    return quoteDb.countExpiringSoon(asOf)
   },
 }

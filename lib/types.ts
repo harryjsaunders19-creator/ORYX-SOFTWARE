@@ -20,6 +20,8 @@ export interface Job {
   quoteReference:  string | null
   quoteDate:       string | null
   commercialNotes: string | null
+  variationFees: number | null
+  additionalCharges: number | null
   invoiceId:       string | null
   billingStatus:   string | null
   billingBatchId:  string | null
@@ -27,6 +29,8 @@ export interface Job {
   requiredByDate:  string | null   // ISO date — deadline
   parentJobId:     string | null
   revisionLetter:  string | null
+  /** List API only — true when this row is the revision anchor (original or latest rev). */
+  canAddRevision?: boolean
   createdAt:       string
   updatedAt:       string
 }
@@ -193,6 +197,8 @@ export interface Quote {
   contactName:   string | null
   address:       string
   description:   string
+  typeOfWorks:   string | null
+  customTypeDescription: string | null
   quoteValue:    number | null   // null when redacted for a role that can't view commercial values (see lib/permissions.ts)
   quoteDate:     string
   expiryDate:    string | null
@@ -249,6 +255,8 @@ export interface JobFormData {
   quoteReference:  string
   quoteDate:       string
   commercialNotes: string
+  variationFees: string
+  additionalCharges: string
   requiredByDate:  string
 }
 

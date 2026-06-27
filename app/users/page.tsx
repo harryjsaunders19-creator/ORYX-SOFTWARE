@@ -15,6 +15,7 @@ import {
 import { useToast } from "@/components/ui/toast"
 import { useUser }  from "@/components/user-context"
 import { RequireRole } from "@/components/require-role"
+import { PageHeader, PageShell, DataPanel } from "@/components/page-layout"
 import { cn } from "@/lib/utils"
 import { ROLES } from "@/lib/permissions"
 import type { User, Role } from "@/lib/types"
@@ -145,30 +146,30 @@ function UsersPageInner() {
   }
 
   return (
-    <div className="px-6 py-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-lg font-semibold text-t1">Users</h1>
-          <p className="text-sm text-t3 mt-0.5">{data?.total ?? 0} user{data?.total !== 1 ? "s" : ""}</p>
-        </div>
-        <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-3.5 w-3.5" /> New user
-        </Button>
-      </div>
+    <PageShell wide>
+      <PageHeader
+        title="Users"
+        description={`${data?.total ?? 0} user${data?.total !== 1 ? "s" : ""}`}
+        actions={
+          <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-3.5 w-3.5" /> New user
+          </Button>
+        }
+      />
 
       {loading ? (
-        <div className="bg-sr border border-bd rounded-md">
+        <DataPanel>
           {[...Array(3)].map((_, i) => (
             <div key={i} className="h-14 border-b border-bd last:border-0 px-4 flex items-center">
               <div className="skeleton h-4 w-48 rounded" />
             </div>
           ))}
-        </div>
+        </DataPanel>
       ) : (
-        <div className="bg-sr border border-bd rounded-md overflow-hidden overflow-x-auto">
+        <DataPanel className="overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
             <thead>
-              <tr className="bg-pg border-b border-bd text-xs">
+              <tr className="bg-surface-low border-b border-bd text-xs">
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Name</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Email</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Role</th>
@@ -224,7 +225,7 @@ function UsersPageInner() {
               ))}
             </tbody>
           </table>
-        </div>
+        </DataPanel>
       )}
 
       {/* Create */}
@@ -343,7 +344,7 @@ function UsersPageInner() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   )
 }
 

@@ -4,26 +4,18 @@ import Link from "next/link"
 import { format } from "date-fns"
 import { Clock, ArrowUpRight, Loader2, ClipboardCheck, Download, FileSpreadsheet } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
 import { useToast } from "@/components/ui/toast"
 import { useUser } from "@/components/user-context"
 import { RequireRole } from "@/components/require-role"
+import { PageHeader, PageShell, DataPanel, KpiTile, TabBar } from "@/components/page-layout"
 import { formatGBP, parseLocalDate } from "@/lib/utils"
 import type { BillingHandoff, BillingExportBatch } from "@/lib/types"
 
 type View = "awaiting" | "cleared" | "history"
-
-function KpiCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
-  return (
-    <div className="bg-sr border border-bd rounded-md p-4">
-      <p className="text-xs font-medium text-t3 uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-2xl font-semibold tabular-nums ${accent ?? "text-t1"}`}>{value}</p>
-      {sub && <p className="text-xs text-t4 mt-0.5">{sub}</p>}
-    </div>
-  )
-}
 
 async function downloadResponse(res: Response, fallbackName: string) {
   const blob = await res.blob()
@@ -106,9 +98,41 @@ function ExportModal({ count, onClose, onExported }: {
   )
 }
 
-function HandoffRow({ item, view, selected, onToggle }: {
+function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
   item: BillingHandoff; view: View; selected: boolean; onToggle: (id: string) => void
+  onQuoteSaved?: () => void
 }) {
+  const { toast } = useToast()
+  const [draftValue, setDraftValue] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  const saveQuote = async () => {
+    const parsed = parseFloat(draftValue.replace(/[£,\s]/g, ""))
+    if (isNaN(parsed) || parsed < 0) {
+      toast("Enter a valid amount", "error")
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/billing-handoffs/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quoteValue: parsed }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "Failed to save", "error")
+        return
+      }
+      toast("Value saved", "success")
+      onQuoteSaved?.()
+    } catch {
+      toast("Network error", "error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <tr className="hover:bg-pg">
       {view === "awaiting" && (
@@ -124,7 +148,26 @@ function HandoffRow({ item, view, selected, onToggle }: {
       <td className="px-4 py-3 text-t3 tabular-nums whitespace-nowrap">{format(parseLocalDate(item.completionDate), "d MMM yyyy")}</td>
       <td className="px-4 py-3 text-t2 whitespace-nowrap">{item.designer || <span className="text-t4 italic">Unassigned</span>}</td>
       <td className="px-4 py-3 text-t1 font-medium tabular-nums whitespace-nowrap">
-        {item.quoteValue != null ? formatGBP(item.quoteValue) : "—"}
+        {item.quoteValue != null ? (
+          formatGBP(item.quoteValue)
+        ) : view === "awaiting" ? (
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={draftValue}
+              onChange={e => setDraftValue(e.target.value)}
+              className="h-7 w-24 text-xs tabular-nums"
+              disabled={saving}
+            />
+            <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" loading={saving} onClick={saveQuote}>
+              Save
+            </Button>
+          </div>
+        ) : (
+          "—"
+        )}
       </td>
       {view === "cleared" && (
         <>
@@ -210,48 +253,36 @@ function BillingPageInner() {
   const colCount = view === "awaiting" ? 10 : view === "cleared" ? 10 : 6
 
   return (
-    <div className="px-6 py-6 space-y-5">
-      <div>
-        <h1 className="text-lg font-semibold text-t1">Ready For Invoicing</h1>
-        <p className="text-sm text-t3 mt-0.5">
-          A handoff queue for accounts — not an invoicing system. Completed work lands here automatically;
-          exporting a selection raises a numbered Accounts Handover batch and clears those items.
-        </p>
-      </div>
+    <PageShell wide className="space-y-5">
+      <PageHeader
+        title="Ready For Invoicing"
+        description="A handoff queue for accounts — not an invoicing system. Completed work lands here automatically; exporting a selection raises a numbered Accounts Handover batch and clears those items."
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <KpiCard label="Awaiting Accounts Action" value={stats?.awaitingCount ?? "—"} sub={stats ? formatGBP(stats.awaitingValue) : undefined} accent="text-wn-tx" />
-        <KpiCard label="Cleared" value={stats?.clearedCount ?? "—"} accent="text-ok-tx" />
+        <KpiTile label="Awaiting Accounts Action" value={stats?.awaitingCount ?? "—"} sub={stats ? formatGBP(stats.awaitingValue) : undefined} accent="#B45309" valueClassName="text-wn-tx" />
+        <KpiTile label="Cleared" value={stats?.clearedCount ?? "—"} accent="#15803D" valueClassName="text-ok-ic" />
       </div>
 
-      <div className="flex items-center justify-between border-b border-bd">
-        <div className="flex items-center gap-1">
-          {([
-            { v: "awaiting" as View, label: "Awaiting Accounts Action", icon: Clock },
-            { v: "cleared"  as View, label: "Cleared",                  icon: ClipboardCheck },
-            { v: "history"  as View, label: "Export History",           icon: FileSpreadsheet },
-          ]).map(({ v, label, icon: Icon }) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-none ${
-                view === v ? "border-ac text-ac" : "border-transparent text-t3 hover:text-t2"
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </button>
-          ))}
-        </div>
-        {view === "awaiting" && selected.size > 0 && (
-          <Button size="sm" variant="primary" onClick={() => setExporting(true)}>
-            Export Selected ({selected.size})
-          </Button>
-        )}
-      </div>
+      <TabBar
+        active={view}
+        onChange={v => setView(v as View)}
+        trailing={
+          view === "awaiting" && selected.size > 0 ? (
+            <Button size="sm" variant="primary" onClick={() => setExporting(true)}>
+              Export Selected ({selected.size})
+            </Button>
+          ) : undefined
+        }
+        tabs={[
+          { id: "awaiting", label: "Awaiting Accounts Action", icon: Clock },
+          { id: "cleared", label: "Cleared", icon: ClipboardCheck },
+          { id: "history", label: "Export History", icon: FileSpreadsheet },
+        ]}
+      />
 
       {view === "history" ? (
-        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+        <DataPanel className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-pg border-b border-bd">
@@ -273,9 +304,9 @@ function BillingPageInner() {
               )}
             </tbody>
           </table>
-        </div>
+        </DataPanel>
       ) : (
-        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+        <DataPanel className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-pg border-b border-bd">
@@ -310,12 +341,19 @@ function BillingPageInner() {
                 </td></tr>
               ) : (
                 items.map(item => (
-                  <HandoffRow key={item.id} item={item} view={view} selected={selected.has(item.id)} onToggle={toggle} />
+                  <HandoffRow
+                    key={item.id}
+                    item={item}
+                    view={view}
+                    selected={selected.has(item.id)}
+                    onToggle={toggle}
+                    onQuoteSaved={() => load(view)}
+                  />
                 ))
               )}
             </tbody>
           </table>
-        </div>
+        </DataPanel>
       )}
 
       {exporting && (
@@ -325,7 +363,7 @@ function BillingPageInner() {
           onExported={() => { setExporting(false); load("awaiting") }}
         />
       )}
-    </div>
+    </PageShell>
   )
 }
 

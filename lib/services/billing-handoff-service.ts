@@ -12,9 +12,10 @@ import type {
   BillingHandoffListOptions,
   BillingHandoffRow,
 } from "@/lib/db/billing-types"
-import { billingHandoffDb, type AccountsHandoverSnapshot } from "@/lib/db/stores"
-import { useSupabaseBilling } from "@/lib/supabase/feature-flags"
+import { billingHandoffDb, jobDb, type AccountsHandoverSnapshot } from "@/lib/db/stores"
+import { useSupabaseBilling, useSupabaseJobs } from "@/lib/supabase/feature-flags"
 import { supabaseBillingRepo } from "@/lib/supabase/repositories/billing"
+import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 
 async function mirrorBatchExport(batchId: string): Promise<void> {
   if (!useSupabaseBilling()) return
@@ -79,6 +80,15 @@ export const billingHandoffService = {
   async stats(): Promise<{ awaitingCount: number; awaitingValue: number; clearedCount: number }> {
     if (!useSupabaseBilling()) return billingHandoffDb.stats()
     return supabaseBillingRepo.stats()
+  },
+
+  async updateQuoteValue(handoffId: string, quoteValue: number): Promise<BillingHandoffRow | { error: string }> {
+    const result = billingHandoffDb.updateQuoteValue(handoffId, quoteValue)
+    if ("error" in result) return result
+    const job = jobDb.findUnique(result.sourceJobId)
+    if (job && useSupabaseJobs()) await supabaseJobRepo.upsert(job)
+    if (useSupabaseBilling()) await supabaseBillingRepo.upsertHandoff(result)
+    return result
   },
 
   /** Mirror handoffs for a job after jobDb side effects (ISSUED / revert). */

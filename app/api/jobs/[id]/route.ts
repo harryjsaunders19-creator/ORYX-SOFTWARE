@@ -3,6 +3,7 @@ import { jobService } from "@/lib/services/job-service"
 import { clientService } from "@/lib/services/client-service"
 import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE } from "@/lib/constants"
 import { getCurrentUser, requireRole } from "@/lib/auth"
+import { applyOptionalMoneyField } from "@/lib/api-money"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -101,6 +102,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         }
         data.quoteValue = isNaN(parsed) ? null : Math.round(parsed * 100) / 100
       }
+    }
+    for (const field of ["variationFees", "additionalCharges"] as const) {
+      const err = applyOptionalMoneyField(body, field, data)
+      if (err) return err
     }
     const changedBy = typeof body.changedBy === "string" && body.changedBy.trim()
       ? body.changedBy.trim() : "System"

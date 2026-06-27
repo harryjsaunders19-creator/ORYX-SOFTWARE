@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { format } from "date-fns"
-import { ArrowLeft, Building2, Mail, Phone, MapPin, FileText, AlertTriangle, ShieldOff, BarChart3 } from "lucide-react"
+import { Mail, Phone, MapPin, FileText, AlertTriangle, ShieldOff, BarChart3 } from "lucide-react"
 import { Button }            from "@/components/ui/button"
 import { Input }             from "@/components/ui/input"
 import { Textarea }          from "@/components/ui/textarea"
@@ -13,25 +13,21 @@ import { StatusBadge }       from "@/components/status-badge"
 import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
 import { useToast }          from "@/components/ui/toast"
 import { useUser }           from "@/components/user-context"
-import { formatGBP }         from "@/lib/utils"
+import { cn, formatGBP } from "@/lib/utils"
+import { PageShell, BackLink, PageHeader, KpiTile, DataPanel, DetailPanel, surfaceCard } from "@/components/page-layout"
 import type { Client, ClientStats, ClientHold, Job } from "@/lib/types"
 
 interface ClientDetail { client: Client; stats: ClientStats | null; jobs: Job[] }
 
 interface ClientAnalytics {
   totalJobs: number; completed: number; inProgress: number; checking: number; newRequest: number
-  completionRate: number; designs: number; revisions: number; siteVisits: number; surveys: number; inspections: number
+  completionRate: number; designs: number; revisions: number; siteVisits: number; surveys: number; inspections: number; catiiiDesignChecks: number
   totalQuoted: number; completedQuoted: number; avgCompletionDays: number | null
   timeline: { month: string; created: number; completed: number }[]
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="bg-sr border border-bd rounded-md p-3">
-      <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-xl font-semibold tabular-nums text-t1">{value}</p>
-    </div>
-  )
+  return <KpiTile label={label} value={value} accent="#4640DE" />
 }
 
 export default function ClientDetailPage() {
@@ -106,18 +102,18 @@ export default function ClientDetailPage() {
   }
 
   if (loading) return (
-    <div className="px-6 py-6 max-w-4xl space-y-4">
+    <PageShell className="space-y-4">
       <div className="skeleton h-4 w-24 rounded" />
       <div className="skeleton h-7 w-64 rounded" />
       <div className="grid grid-cols-3 gap-3 mt-4">{[...Array(6)].map((_,i) => <div key={i} className="skeleton h-16 rounded" />)}</div>
-    </div>
+    </PageShell>
   )
 
   if (notFound || !detail) return (
-    <div className="px-6 py-6 max-w-4xl text-center py-20">
+    <PageShell className="text-center py-20">
       <p className="text-sm text-t3">Client not found.</p>
       <Link href="/clients" className="text-sm text-ac mt-3 inline-block">← Back to clients</Link>
-    </div>
+    </PageShell>
   )
 
   const { client, stats, jobs } = detail
@@ -126,32 +122,34 @@ export default function ClientDetailPage() {
   const nonDesignJobs  = jobs.filter(j => j.itemType && !["DESIGN","REVISION"].includes(j.itemType))
 
   return (
-    <div className="px-6 py-6 max-w-4xl">
-      <Link href="/clients" className="inline-flex items-center gap-1.5 text-xs text-t3 hover:text-t2 mb-4">
-        <ArrowLeft className="h-3.5 w-3.5" /> All clients
-      </Link>
+    <PageShell>
+      <BackLink href="/clients">All clients</BackLink>
 
-      {/* Header */}
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Building2 className="h-5 w-5 text-ac" />
-            <h1 className="text-lg font-semibold text-t1">{client.name}</h1>
+      <PageHeader
+        title={client.name}
+        description={
+          <span className="flex flex-wrap gap-4">
+            {client.contactName && <span>{client.contactName}</span>}
+            {client.email && (
+              <a href={`mailto:${client.email}`} className="flex items-center gap-1 text-ac hover:text-ach">
+                <Mail className="h-3 w-3" />{client.email}
+              </a>
+            )}
+            {client.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{client.phone}</span>}
+            {client.billingAddress && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{client.billingAddress}</span>}
+          </span>
+        }
+        actions={
+          <>
             {!client.active && (
               <span className="text-[11px] bg-t1/[0.06] text-t3 rounded-full px-2.5 py-0.5">Archived</span>
             )}
-          </div>
-          <div className="flex flex-wrap gap-4 text-xs text-t3">
-            {client.contactName  && <span>{client.contactName}</span>}
-            {client.email        && <a href={`mailto:${client.email}`} className="flex items-center gap-1 text-ac hover:text-ach"><Mail className="h-3 w-3" />{client.email}</a>}
-            {client.phone        && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{client.phone}</span>}
-            {client.billingAddress && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{client.billingAddress}</span>}
-          </div>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => router.push(`/clients`)}>
-          All clients
-        </Button>
-      </div>
+            <Button variant="outline" size="sm" onClick={() => router.push(`/clients`)}>
+              All clients
+            </Button>
+          </>
+        }
+      />
 
       {/* Hold banner */}
       {hold && (
@@ -217,24 +215,24 @@ export default function ClientDetailPage() {
 
           {/* Key metrics row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-sr border border-bd rounded-md p-3">
+            <div className={surfaceCard + " p-3"}>
               <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">Completion Rate</p>
               <p className="text-2xl font-semibold tabular-nums text-t1">{analytics.completionRate}%</p>
               <p className="text-[11px] text-t4 mt-0.5">{analytics.completed} of {analytics.totalJobs} jobs</p>
             </div>
-            <div className="bg-sr border border-bd rounded-md p-3">
+            <div className={surfaceCard + " p-3"}>
               <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">In Progress</p>
               <p className="text-2xl font-semibold tabular-nums text-yl">{analytics.inProgress}</p>
               <p className="text-[11px] text-t4 mt-0.5">{analytics.checking} awaiting check</p>
             </div>
-            <div className="bg-sr border border-bd rounded-md p-3">
+            <div className={surfaceCard + " p-3"}>
               <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">Avg. Completion</p>
               <p className="text-2xl font-semibold tabular-nums text-t1">
                 {analytics.avgCompletionDays != null ? `${analytics.avgCompletionDays}d` : "—"}
               </p>
               <p className="text-[11px] text-t4 mt-0.5">calendar days</p>
             </div>
-            <div className="bg-sr border border-bd rounded-md p-3">
+            <div className={surfaceCard + " p-3"}>
               <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">Completed Value</p>
               <p className="text-2xl font-semibold tabular-nums text-ok-ic">{formatGBP(analytics.completedQuoted)}</p>
               <p className="text-[11px] text-t4 mt-0.5">of {formatGBP(analytics.totalQuoted)} quoted</p>
@@ -244,8 +242,7 @@ export default function ClientDetailPage() {
           {/* Status breakdown + item type breakdown side by side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Status breakdown */}
-            <div className="bg-sr border border-bd rounded-md p-4">
-              <p className="text-[11px] font-semibold text-t3 uppercase tracking-wider mb-3">Jobs by Status</p>
+            <DetailPanel title="Jobs by Status" className="p-0">
               <div className="space-y-2">
                 {([
                   { label: "New Request", count: analytics.newRequest, color: "var(--color-gy)" },
@@ -265,11 +262,10 @@ export default function ClientDetailPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </DetailPanel>
 
             {/* Item type breakdown */}
-            <div className="bg-sr border border-bd rounded-md p-4">
-              <p className="text-[11px] font-semibold text-t3 uppercase tracking-wider mb-3">Jobs by Type</p>
+            <DetailPanel title="Jobs by Type">
               <div className="space-y-2">
                 {([
                   { label: "Design", count: analytics.designs },
@@ -277,6 +273,7 @@ export default function ClientDetailPage() {
                   { label: "Site Visit", count: analytics.siteVisits },
                   { label: "Survey", count: analytics.surveys },
                   { label: "Inspection", count: analytics.inspections },
+                  { label: "CATIII Design Check", count: analytics.catiiiDesignChecks },
                 ] as const).filter(t => t.count > 0).map(t => (
                   <div key={t.label} className="flex items-center gap-3">
                     <span className="text-xs text-t2 flex-1">{t.label}</span>
@@ -284,13 +281,12 @@ export default function ClientDetailPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </DetailPanel>
           </div>
 
           {/* Monthly timeline */}
           {analytics.timeline.some(m => m.created > 0 || m.completed > 0) && (
-            <div className="bg-sr border border-bd rounded-md p-4">
-              <p className="text-[11px] font-semibold text-t3 uppercase tracking-wider mb-3">12-Month Timeline</p>
+            <DetailPanel title="12-Month Timeline">
               <div className="flex items-end gap-1" style={{ height: "80px" }}>
                 {analytics.timeline.map((m, i) => {
                   const maxVal = Math.max(...analytics.timeline.map(t => Math.max(t.created, t.completed)), 1)
@@ -315,14 +311,14 @@ export default function ClientDetailPage() {
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-ok-ic)" }} /> Completed
                 </span>
               </div>
-            </div>
+            </DetailPanel>
           )}
         </div>
       )}
 
       {/* Notes */}
       {client.notes && (
-        <div className="bg-pg border border-bd rounded-md px-4 py-3 mb-5 flex gap-2">
+        <div className={cn(surfaceCard, "bg-pg px-4 py-3 mb-5 flex gap-2")}>
           <FileText className="h-4 w-4 text-t4 shrink-0 mt-0.5" />
           <p className="text-xs text-t2">{client.notes}</p>
         </div>
@@ -398,17 +394,17 @@ export default function ClientDetailPage() {
         </DialogContent>
       </Dialog>
 
-    <p className="text-xs text-t4 mt-4">
+      <p className="text-xs text-t4 mt-4">
         Client created {format(new Date(client.createdAt), "d MMMM yyyy")} ·
         Last updated {format(new Date(client.updatedAt), "d MMMM yyyy")}
       </p>
-    </div>
+    </PageShell>
   )
 }
 
 function JobsTable({ jobs }: { jobs: Job[] }) {
   return (
-    <div className="bg-sr border border-bd rounded-md overflow-hidden">
+    <DataPanel>
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-pg border-b border-bd text-xs">
@@ -440,6 +436,6 @@ function JobsTable({ jobs }: { jobs: Job[] }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </DataPanel>
   )
 }

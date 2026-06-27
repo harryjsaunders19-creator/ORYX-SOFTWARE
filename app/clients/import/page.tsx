@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
 import { RequireRole } from "@/components/require-role"
+import { PageHeader, PageShell, BackLink, DataPanel, surfaceCard } from "@/components/page-layout"
 import { cn } from "@/lib/utils"
 import type { ClientImportField } from "@/lib/import-clients"
 
@@ -93,14 +94,12 @@ function ImportClientsInner() {
   const reset = () => { setStep("upload"); setPreview(null); setResult(null); setSelectedFile(null) }
 
   return (
-    <div className="px-6 py-6 max-w-[1200px] mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/clients" className="text-t4 hover:text-t2"><ArrowLeft className="h-4 w-4" /></Link>
-        <div>
-          <h1 className="text-lg font-semibold text-t1">Import Clients</h1>
-          <p className="text-sm text-t3 mt-0.5">Upload a CSV or Excel spreadsheet to bulk-add client records.</p>
-        </div>
-      </div>
+    <PageShell wide>
+      <BackLink href="/clients">All clients</BackLink>
+      <PageHeader
+        title="Import Clients"
+        description="Upload a CSV or Excel spreadsheet to bulk-add client records."
+      />
 
       {/* Upload */}
       {step === "upload" && (
@@ -279,6 +278,6 @@ function ImportClientsInner() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

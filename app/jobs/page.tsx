@@ -1,18 +1,16 @@
 import { Suspense } from "react"
 import { JobsTable } from "@/components/jobs-table"
+import { PageHeader, PageShell } from "@/components/page-layout"
 
 export const metadata = { title: "Jobs" }
 
 export default function JobsPage() {
   return (
-    <div className="px-6 py-6">
-      <div className="mb-5">
-        <h1 className="text-lg font-semibold text-t1">Jobs</h1>
-        <p className="text-sm text-t3 mt-0.5">Manage scaffold design jobs</p>
-      </div>
+    <PageShell wide>
+      <PageHeader title="Jobs" description="Manage scaffold design jobs" />
       <Suspense>
         <JobsTable />
       </Suspense>
-    </div>
+    </PageShell>
   )
 }

@@ -3,7 +3,7 @@ import { Suspense, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { format } from "date-fns"
-import { Plus, Search, RotateCcw, Building2, ChevronRight, Trash2, Upload } from "lucide-react"
+import { Plus, RotateCcw, Building2, ChevronRight, Trash2, Upload } from "lucide-react"
 import { useUser } from "@/components/user-context"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/toast"
 import { cn }       from "@/lib/utils"
+import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/components/page-layout"
 import type { Client } from "@/lib/types"
 
 type ClientWithMeta = Client & { activeJobCount: number; onHold: boolean }
@@ -84,8 +85,9 @@ function ClientForm({ formId, initial, onSubmit, saving }: {
 function ClientsInner() {
   const { toast } = useToast()
   const { isAdmin } = useUser()
+  const searchParams = useSearchParams()
   const [data,       setData]       = useState<ClientsData | null>(null)
-  const [search,     setSearch]     = useState("")
+  const [search,     setSearch]     = useState(() => searchParams.get("search") ?? "")
   const [showAll,    setShowAll]    = useState(false)
   const [loading,    setLoading]    = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
@@ -138,52 +140,52 @@ function ClientsInner() {
   }
 
   return (
-    <div className="px-6 py-6 max-w-4xl">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-lg font-semibold text-t1">Clients</h1>
-          <p className="text-sm text-t3 mt-0.5">{data?.total ?? 0} client{data?.total !== 1 ? "s" : ""}{!showAll && " (active)"}</p>
-        </div>
-        <Button variant="primary" size="sm" onClick={() => { setCreateOpen(true); setDupError(null) }}>
-          <Plus className="h-3.5 w-3.5" /> New client
-        </Button>
-        {isAdmin && (
-          <Link href="/clients/import">
-            <Button variant="outline" size="sm">
-              <Upload className="h-3.5 w-3.5" /> Import
+    <PageShell>
+      <PageHeader
+        title="Clients"
+        description={`${data?.total ?? 0} client${data?.total !== 1 ? "s" : ""}${!showAll ? " (active)" : ""}`}
+        actions={
+          <>
+            <Button variant="primary" size="sm" onClick={() => { setCreateOpen(true); setDupError(null) }}>
+              <Plus className="h-3.5 w-3.5" /> New client
             </Button>
-          </Link>
-        )}
-      </div>
+            {isAdmin && (
+              <Link href="/clients/import">
+                <Button variant="outline" size="sm">
+                  <Upload className="h-3.5 w-3.5" /> Import
+                </Button>
+              </Link>
+            )}
+          </>
+        }
+      />
 
       <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-t4 pointer-events-none" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search clients…"
-            className="pl-8" style={{ paddingLeft: "32px" }} />
-        </div>
-        <label className="flex items-center gap-2 text-xs text-t3 cursor-pointer select-none">
+        <SearchField value={search} onChange={setSearch} placeholder="Search clients…" />
+        <label className="flex items-center gap-2 text-xs text-t3 cursor-pointer select-none shrink-0">
           <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} className="h-4 w-4 accent-ac" />
           Show archived
         </label>
       </div>
 
       {loading ? (
-        <div className="bg-sr border border-bd rounded-md">
+        <DataPanel>
           {[...Array(5)].map((_, i) => <div key={i} className="h-14 border-b border-bd last:border-0 px-4 flex items-center"><div className="skeleton h-4 w-48 rounded" /></div>)}
-        </div>
+        </DataPanel>
       ) : !data?.clients.length ? (
-        <div className="bg-sr border border-bd rounded-md p-10 text-center">
-          <Building2 className="h-8 w-8 text-t4 mx-auto mb-3" />
-          <p className="text-sm font-medium text-t1 mb-1">No clients yet</p>
-          <p className="text-xs text-t3 mb-4">Create your first client or they will be auto-imported from jobs.</p>
-          <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}><Plus className="h-3.5 w-3.5" /> New client</Button>
-        </div>
+        <DataPanel>
+          <EmptyPanel
+            icon={Building2}
+            title="No clients yet"
+            description="Create your first client or they will be auto-imported from jobs."
+            action={<Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}><Plus className="h-3.5 w-3.5" /> New client</Button>}
+          />
+        </DataPanel>
       ) : (
-        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+        <DataPanel>
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-pg border-b border-bd text-xs">
+              <tr className="bg-surface-low border-b border-bd text-xs">
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Company</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Contact</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Email</th>
@@ -230,7 +232,7 @@ function ClientsInner() {
               ))}
             </tbody>
           </table>
-        </div>
+        </DataPanel>
       )}
 
       {/* Create */}
@@ -318,7 +320,7 @@ function ClientsInner() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   )
 }
 

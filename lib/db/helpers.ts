@@ -1,6 +1,7 @@
 /**
  * lib/db/helpers.ts — shared query helpers.
  */
+import { isDrawingNumberListSort } from "@/lib/job-list-sort"
 export interface WhereClause {
   search?: string; status?: string
   unassigned?: boolean; hasQuote?: boolean
@@ -55,6 +56,14 @@ export function buildWhere(where: WhereClause = {}): { sql: string; params: unkn
 const SORT_WHITELIST = new Set(["createdAt","drawingNumber","clientCompany","designer","status","dateCreated","quoteValue","itemType","requiredByDate","requestedDate","address"])
 
 export function safeOrder(field: string, dir: string) {
-  const f = SORT_WHITELIST.has(field) ? field : "createdAt"
-  return `ORDER BY "${f}" ${dir === "asc" ? "ASC" : "DESC"}`
+  const d = dir === "asc" ? "ASC" : "DESC"
+  if (isDrawingNumberListSort(field)) {
+    // Originals by drawing number; revisions grouped under parent, then by letter.
+    return `ORDER BY
+      CASE WHEN parentJobId IS NULL THEN drawingNumber
+           ELSE COALESCE((SELECT p.drawingNumber FROM Job p WHERE p.id = Job.parentJobId), drawingNumber) END ${d},
+      COALESCE(revisionLetter, '') ${d}`
+  }
+  const f = SORT_WHITELIST.has(field) ? field : "dateCreated"
+  return `ORDER BY "${f}" ${d}`
 }

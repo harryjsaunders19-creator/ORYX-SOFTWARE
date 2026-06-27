@@ -6,6 +6,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RequireRole } from "@/components/require-role"
+import { PageHeader, PageShell, DataPanel, KpiTile, surfaceCard } from "@/components/page-layout"
 import { useToast } from "@/components/ui/toast"
 import { cn } from "@/lib/utils"
 
@@ -120,51 +121,34 @@ function BackupsInner() {
     : null
 
   return (
-    <div className="px-6 py-6 max-w-4xl">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-lg font-semibold text-t1">System Backup</h1>
-          <p className="text-sm text-t3 mt-0.5">Automated daily at ~02:00 · {backups.length} backup{backups.length !== 1 ? "s" : ""} recorded</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
-          </Button>
-          <Button variant="primary" size="sm" onClick={startManualBackup} disabled={starting || backups.some(b => b.status === "RUNNING" || b.status === "PENDING")}>
-            <Play className="h-3.5 w-3.5" />
-            {starting ? "Starting…" : "Run backup now"}
-          </Button>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="System Backup"
+        description={`Automated daily at ~02:00 · ${backups.length} backup${backups.length !== 1 ? "s" : ""} recorded`}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              Refresh
+            </Button>
+            <Button variant="primary" size="sm" onClick={startManualBackup} disabled={starting || backups.some(b => b.status === "RUNNING" || b.status === "PENDING")}>
+              <Play className="h-3.5 w-3.5" />
+              {starting ? "Starting…" : "Run backup now"}
+            </Button>
+          </>
+        }
+      />
 
-      {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-        <div className="bg-sr border border-bd rounded-md p-3">
-          <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">Last backup</p>
-          <p className="text-sm font-semibold text-t1">
-            {latestCompleted
-              ? format(new Date(latestCompleted.completedAt!), "d MMM yyyy, HH:mm")
-              : "Never"}
-          </p>
-        </div>
-        <div className="bg-sr border border-bd rounded-md p-3">
-          <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">Size</p>
-          <p className="text-sm font-semibold text-t1">{formatBytes(latestCompleted?.sizeBytes ?? null)}</p>
-        </div>
-        <div className="bg-sr border border-bd rounded-md p-3">
-          <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">Rows backed up</p>
-          <p className="text-sm font-semibold text-t1">{totalRows?.toLocaleString() ?? "—"}</p>
-        </div>
-        <div className="bg-sr border border-bd rounded-md p-3">
-          <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">Storage location</p>
-          <p className="text-xs font-mono text-t2 truncate" title={backupsDir}>{backupsDir || "—"}</p>
-        </div>
+        <KpiTile label="Last backup" value={latestCompleted ? format(new Date(latestCompleted.completedAt!), "d MMM yyyy, HH:mm") : "Never"} accent="#4640DE" />
+        <KpiTile label="Size" value={formatBytes(latestCompleted?.sizeBytes ?? null)} accent="#0E7A6E" />
+        <KpiTile label="Rows backed up" value={totalRows?.toLocaleString() ?? "—"} accent="#B45309" />
+        <KpiTile label="Storage location" value={<span className="text-sm font-mono font-normal truncate block">{backupsDir || "—"}</span>} accent="#71717A" />
       </div>
 
       {/* Backup history */}
       {loading && backups.length === 0 ? (
-        <div className="bg-sr border border-bd rounded-md">
+        <div className={surfaceCard}>
           {[...Array(3)].map((_, i) => (
             <div key={i} className="h-14 border-b border-bd last:border-0 px-4 flex items-center">
               <div className="skeleton h-4 w-64 rounded" />
@@ -172,13 +156,13 @@ function BackupsInner() {
           ))}
         </div>
       ) : backups.length === 0 ? (
-        <div className="bg-sr border border-bd rounded-md p-10 text-center">
+        <div className={cn(surfaceCard, "p-10 text-center")}>
           <DatabaseBackup className="h-8 w-8 text-t4 mx-auto mb-3" />
           <p className="text-sm font-medium text-t1 mb-1">No backups yet</p>
           <p className="text-xs text-t3">The first automated backup will run at ~02:00, or click &ldquo;Run backup now&rdquo; to create one immediately.</p>
         </div>
       ) : (
-        <div className="bg-sr border border-bd rounded-md overflow-hidden mb-5">
+        <DataPanel className="overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-bd">
             <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Backup history</p>
           </div>
@@ -225,12 +209,12 @@ function BackupsInner() {
               </tbody>
             </table>
           </div>
-        </div>
+        </DataPanel>
       )}
 
       {/* Error details for failed backups */}
       {backups.filter(b => b.status === "FAILED").length > 0 && (
-        <div className="bg-sr border border-bd rounded-md overflow-hidden mb-5">
+        <DataPanel className="overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-bd">
             <p className="text-xs font-semibold text-dn-tx uppercase tracking-wider">Failed backups</p>
           </div>
@@ -242,12 +226,12 @@ function BackupsInner() {
               </div>
             ))}
           </div>
-        </div>
+        </DataPanel>
       )}
 
       {/* Audit log */}
       {auditLog.length > 0 && (
-        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+        <DataPanel className="overflow-hidden">
           <div className="px-4 py-3 border-b border-bd">
             <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Audit log</p>
           </div>
@@ -265,8 +249,8 @@ function BackupsInner() {
               </div>
             ))}
           </div>
-        </div>
+        </DataPanel>
       )}
-    </div>
+    </PageShell>
   )
 }

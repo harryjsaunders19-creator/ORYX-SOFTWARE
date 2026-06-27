@@ -3,6 +3,7 @@
  */
 import { db, DB_PATH } from "./connection"
 import { nowIso, buildWhere, safeOrder, type WhereClause, type FindManyOptions } from "./helpers"
+import { todayIsoDate, addDaysToIsoDate, totalJobCommercialValue } from "@/lib/utils"
 import type {
   CalendarEventRow,
   CalendarEventWithDetails,
@@ -113,7 +114,7 @@ export interface AccountsHandoverSnapshot {
   }
   commercial: {
     agreedFee: number | null; quotedFee: number | null; quoteReference: string | null
-    variationFees: string | null; additionalCharges: string | null
+    variationFees: number | null; additionalCharges: number | null
     revisionCharges: number | null; commercialNotes: string | null
     paymentTerms: string | null
   }
@@ -177,14 +178,15 @@ export const jobDb = {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       nanoid(), job.id, billingEventType, job.drawingNumber, job.itemType, job.typeOfWorks, job.customTypeDescription,
-      job.clientCompany, job.address, job.designer || null, job.quoteValue, job.quoteReference,
+      job.clientCompany, job.address, job.designer || null,
+      totalJobCommercialValue(job) ?? job.quoteValue, job.quoteReference,
       completionDate, nowIso(), nowIso(), nowIso(),
     )
   },
 
   findMany(opts: FindManyOptions = {}): JobRow[] {
     const { sql: w, params } = buildWhere(opts.where)
-    const order  = opts.orderBy ? safeOrder(opts.orderBy.field, opts.orderBy.dir) : "ORDER BY dateCreated DESC"
+    const order  = opts.orderBy ? safeOrder(opts.orderBy.field, opts.orderBy.dir) : safeOrder("drawingNumber", "asc")
     const limit  = opts.take != null ? `LIMIT ${opts.take}` : ""
     const offset = opts.skip != null ? `OFFSET ${opts.skip}` : ""
     return db.prepare(`SELECT * FROM Job ${w} ${order} ${limit} ${offset}`).all(...params) as JobRow[]
@@ -212,20 +214,37 @@ export const jobDb = {
     return db.prepare("SELECT * FROM Job WHERE parentJobId = ? ORDER BY revisionLetter ASC").all(parentId) as JobRow[]
   },
 
+  /** Latest revision row per original job (by max revisionLetter). */
+  findLatestRevisionsForParents(parentIds: string[]): JobRow[] {
+    if (!parentIds.length) return []
+    const placeholders = parentIds.map(() => "?").join(",")
+    return db.prepare(`
+      SELECT j.* FROM Job j
+      INNER JOIN (
+        SELECT parentJobId, MAX(revisionLetter) AS maxLetter
+        FROM Job
+        WHERE parentJobId IN (${placeholders})
+        GROUP BY parentJobId
+      ) latest ON j.parentJobId = latest.parentJobId AND j.revisionLetter = latest.maxLetter
+    `).all(...parentIds) as JobRow[]
+  },
+
   create(data: CreateJobData): JobRow {
     const now = nowIso(); const changedBy = data.changedBy ?? "System"
     db.transaction(() => {
       db.prepare(`
         INSERT INTO Job (id,drawingNumber,itemType,address,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
           status,designer,dateCompleted,notes,quoteValue,quoteReference,quoteDate,commercialNotes,
+          variationFees,additionalCharges,
           parentJobId,revisionLetter,requestedDate,requiredByDate,dateCreated,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `).run(data.id, data.drawingNumber, data.itemType ?? "DESIGN", data.address, data.typeOfWorks,
              data.customTypeDescription ?? null,
              data.clientCompany, data.clientId ?? null, data.requestedBy, data.status, data.designer ?? "",
              data.dateCompleted ?? null, data.notes ?? null,
              data.quoteValue ?? null, data.quoteReference ?? null,
              data.quoteDate ?? null, data.commercialNotes ?? null,
+             data.variationFees ?? null, data.additionalCharges ?? null,
              data.parentJobId ?? null, data.revisionLetter ?? null,
              data.requestedDate ?? null, data.requiredByDate ?? null,
              now, now, now)
@@ -838,6 +857,23 @@ export const billingHandoffDb = {
     return db.prepare("SELECT * FROM BillingHandoff WHERE sourceJobId = ? ORDER BY createdAt DESC").all(jobId) as BillingHandoffRow[]
   },
 
+  /** Set quote value on an uncleared handoff and its source job (Awaiting tab). */
+  updateQuoteValue(handoffId: string, quoteValue: number): BillingHandoffRow | { error: string } {
+    const handoff = this.findUnique(handoffId)
+    if (!handoff) return { error: "Not found" }
+    if (handoff.clearedByAccountsAt) return { error: "Cannot edit a cleared item" }
+    if (quoteValue < 0) return { error: "Value cannot be negative" }
+
+    const now = nowIso()
+    db.transaction(() => {
+      db.prepare('UPDATE Job SET quoteValue = ?, "updatedAt" = ? WHERE id = ?').run(quoteValue, now, handoff.sourceJobId)
+      const job = jobDb.findUnique(handoff.sourceJobId)!
+      const snapshotValue = totalJobCommercialValue(job) ?? quoteValue
+      db.prepare('UPDATE BillingHandoff SET quoteValue = ?, "updatedAt" = ? WHERE id = ?').run(snapshotValue, now, handoffId)
+    })()
+    return this.findUnique(handoffId)!
+  },
+
   /**
    * Builds the full Accounts Handover snapshot for one handoff — everything
    * accounts should need without coming back to the application. Evaluated
@@ -885,7 +921,6 @@ export const billingHandoffDb = {
       "Internal References",
       "Purchase Order Number",
       "Cost Centre",
-      "Variation Fees / Additional Charges (as distinct tracked line items — only free-text commercial notes exist)",
       "Payment Terms",
       "Surveyor (distinct role from Designer), Survey Date, Survey Notes, Survey References — this application does not track a separate survey workflow from the design workflow, even for itemType='SURVEY' jobs",
       "Attachments / Documents — this application has no file upload or document storage of any kind",
@@ -941,11 +976,11 @@ export const billingHandoffDb = {
         costCentre:             null,   // not tracked — see notTracked
       },
       commercial: {
-        agreedFee:        handoff.quoteValue,
-        quotedFee:        handoff.quoteValue,
+        agreedFee:        totalJobCommercialValue(job ?? {}) ?? handoff.quoteValue,
+        quotedFee:        job?.quoteValue ?? handoff.quoteValue,
         quoteReference:   job?.quoteReference ?? handoff.quoteReference ?? null,
-        variationFees:    null,   // not tracked — see notTracked
-        additionalCharges: null,  // not tracked — see notTracked
+        variationFees:    job?.variationFees ?? null,
+        additionalCharges: job?.additionalCharges ?? null,
         revisionCharges:  revisions.length ? revisionChargesTotal : null,
         commercialNotes:  job?.commercialNotes ?? null,
         paymentTerms:     null,   // not tracked — see notTracked
@@ -1596,8 +1631,8 @@ export const quoteDb = {
     const params: unknown[] = []
     if (opts.search) {
       const pat = `%${opts.search}%`
-      clauses.push("(quoteNumber LIKE ? OR clientCompany LIKE ? OR address LIKE ? OR description LIKE ?)")
-      params.push(pat, pat, pat, pat)
+      clauses.push("(quoteNumber LIKE ? OR clientCompany LIKE ? OR address LIKE ? OR description LIKE ? OR typeOfWorks LIKE ? OR customTypeDescription LIKE ?)")
+      params.push(pat, pat, pat, pat, pat, pat)
     }
     if (opts.status)   { clauses.push("status = ?");   params.push(opts.status) }
     if (opts.clientId) { clauses.push("clientId = ?"); params.push(opts.clientId) }
@@ -1612,8 +1647,8 @@ export const quoteDb = {
     const params: unknown[] = []
     if (opts.search) {
       const pat = `%${opts.search}%`
-      clauses.push("(quoteNumber LIKE ? OR clientCompany LIKE ? OR address LIKE ? OR description LIKE ?)")
-      params.push(pat, pat, pat, pat)
+      clauses.push("(quoteNumber LIKE ? OR clientCompany LIKE ? OR address LIKE ? OR description LIKE ? OR typeOfWorks LIKE ? OR customTypeDescription LIKE ?)")
+      params.push(pat, pat, pat, pat, pat, pat)
     }
     if (opts.status)   { clauses.push("status = ?");   params.push(opts.status) }
     if (opts.clientId) { clauses.push("clientId = ?"); params.push(opts.clientId) }
@@ -1632,8 +1667,9 @@ export const quoteDb = {
     db.prepare(`
       INSERT INTO Quote
         (id,quoteNumber,clientId,clientCompany,contactName,address,description,
+         typeOfWorks,customTypeDescription,
          quoteValue,quoteDate,expiryDate,status,notes,createdBy,vatRate,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       id, quoteNumber,
       data.clientId ?? null,
@@ -1641,6 +1677,8 @@ export const quoteDb = {
       data.contactName?.trim() || null,
       data.address.trim(),
       data.description.trim(),
+      data.typeOfWorks?.trim() || null,
+      data.customTypeDescription?.trim() || null,
       data.quoteValue,
       data.quoteDate,
       data.expiryDate ?? null,
@@ -1660,6 +1698,7 @@ export const quoteDb = {
     const params: unknown[] = []
     const cols: (keyof UpdateQuoteData)[] = [
       "clientId","clientCompany","contactName","address","description",
+      "typeOfWorks","customTypeDescription",
       "quoteValue","quoteDate","expiryDate","status","notes","jobId",
       "pdfPath","preparedBy","vatRate",
     ]
@@ -1675,6 +1714,56 @@ export const quoteDb = {
 
   delete(id: string): boolean {
     return db.prepare("DELETE FROM Quote WHERE id = ?").run(id).changes > 0
+  },
+
+  countExpiredDeletable(): number {
+    return (db.prepare(`
+      SELECT COUNT(*) as n FROM Quote
+      WHERE status = 'EXPIRED' AND jobId IS NULL
+    `).get() as { n: number }).n
+  },
+
+  /** Delete EXPIRED quotes that were never converted to a job. */
+  deleteExpired(): QuoteRow[] {
+    const candidates = db.prepare(`
+      SELECT * FROM Quote
+      WHERE status = 'EXPIRED' AND jobId IS NULL
+    `).all() as QuoteRow[]
+
+    const deleted: QuoteRow[] = []
+    for (const q of candidates) {
+      if (this.delete(q.id)) deleted.push(q)
+    }
+    return deleted
+  },
+
+  /** Mark open quotes past expiryDate as EXPIRED. Idempotent. */
+  expirePastDue(asOf: string = todayIsoDate()): QuoteRow[] {
+    const candidates = db.prepare(`
+      SELECT * FROM Quote
+      WHERE status IN ('DRAFT', 'SENT')
+        AND expiryDate IS NOT NULL
+        AND substr(expiryDate, 1, 10) < ?
+    `).all(asOf) as QuoteRow[]
+
+    const expired: QuoteRow[] = []
+    for (const q of candidates) {
+      const updated = this.update(q.id, { status: "EXPIRED" })
+      if (updated) expired.push(updated)
+    }
+    return expired
+  },
+
+  /** Open quotes expiring within the next 7 days (inclusive). */
+  countExpiringSoon(asOf: string = todayIsoDate()): number {
+    const inSeven = addDaysToIsoDate(new Date(asOf + "T00:00:00"), 7)
+    return (db.prepare(`
+      SELECT COUNT(*) as n FROM Quote
+      WHERE status IN ('DRAFT', 'SENT')
+        AND expiryDate IS NOT NULL
+        AND substr(expiryDate, 1, 10) >= ?
+        AND substr(expiryDate, 1, 10) <= ?
+    `).get(asOf, inSeven) as { n: number }).n
   },
 
   stats(): {

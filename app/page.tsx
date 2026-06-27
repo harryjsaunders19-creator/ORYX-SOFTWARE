@@ -1,13 +1,14 @@
+import { format } from "date-fns"
 import { DashboardStats } from "@/components/dashboard-stats"
+import { PageHeader, PageShell } from "@/components/page-layout"
 
 export default function DashboardPage() {
+  const today = format(new Date(), "EEEE, d MMMM yyyy")
+
   return (
-    <div className="px-6 py-6">
-      <div className="mb-5">
-        <h1 className="text-lg font-semibold text-t1">Dashboard</h1>
-        <p className="text-sm text-t3 mt-0.5">Your week at a glance</p>
-      </div>
+    <PageShell>
+      <PageHeader title="Dashboard" description={today} />
       <DashboardStats />
-    </div>
+    </PageShell>
   )
 }

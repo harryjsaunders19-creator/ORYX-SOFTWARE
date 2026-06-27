@@ -9,6 +9,7 @@ import {
   DialogTitle, DialogBody,
 } from "@/components/ui/dialog"
 import { RequireRole } from "@/components/require-role"
+import { PageHeader, PageShell, DataPanel, surfaceCard } from "@/components/page-layout"
 import { useToast } from "@/components/ui/toast"
 import { cn } from "@/lib/utils"
 
@@ -23,7 +24,7 @@ interface Health {
 function CheckRow({ name, check }: { name: string; check: Check }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="bg-sr border border-bd rounded-md overflow-hidden">
+    <div className={cn(surfaceCard, "overflow-hidden")}>
       <div className={cn("flex items-center gap-3 px-4 py-3", !check.ok && "bg-dn-bg")}>
         {check.ok
           ? <CheckCircle2 className="h-4 w-4 text-ok-ic shrink-0" />
@@ -74,19 +75,19 @@ function HealthPageInner() {
   const healthy = data?.status === "healthy"
 
   return (
-    <div className="px-6 py-6 max-w-2xl">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-lg font-semibold text-t1">Health</h1>
-          <p className="text-sm text-t3 mt-0.5">Database and API status</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={run} disabled={loading}>
-          {loading
-            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            : <RefreshCw className="h-3.5 w-3.5" />}
-          Refresh
-        </Button>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="System Health"
+        description="Database and API status"
+        actions={
+          <Button variant="outline" size="sm" onClick={run} disabled={loading}>
+            {loading
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <RefreshCw className="h-3.5 w-3.5" />}
+            Refresh
+          </Button>
+        }
+      />
 
       {/* Overall status banner */}
       {data && (
@@ -135,7 +136,7 @@ function HealthPageInner() {
 
       <ExportDataSection />
       <ResetDataSection />
-    </div>
+    </PageShell>
   )
 }
 

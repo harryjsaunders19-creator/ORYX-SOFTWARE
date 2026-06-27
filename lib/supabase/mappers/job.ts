@@ -23,6 +23,8 @@ export interface SupabaseJobRow {
   quote_reference: string | null
   quote_date: string | null
   commercial_notes: string | null
+  variation_fees: number | null
+  additional_charges: number | null
   invoice_id: string | null
   billing_status: string | null
   billing_batch_id: string | null
@@ -60,6 +62,8 @@ export function toJobRow(row: SupabaseJobRow): JobRow {
     quoteReference: row.quote_reference,
     quoteDate: row.quote_date,
     commercialNotes: row.commercial_notes,
+    variationFees: row.variation_fees != null ? Number(row.variation_fees) : null,
+    additionalCharges: row.additional_charges != null ? Number(row.additional_charges) : null,
     invoiceId: row.invoice_id,
     billingStatus: row.billing_status,
     billingBatchId: row.billing_batch_id,
@@ -93,6 +97,8 @@ export function toSupabaseRow(job: JobRow): SupabaseJobRow {
     quote_reference: job.quoteReference,
     quote_date: dateOnly(job.quoteDate),
     commercial_notes: job.commercialNotes,
+    variation_fees: job.variationFees,
+    additional_charges: job.additionalCharges,
     invoice_id: job.invoiceId,
     billing_status: job.billingStatus,
     billing_batch_id: job.billingBatchId,

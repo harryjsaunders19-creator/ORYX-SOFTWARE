@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { format } from "date-fns"
-import { ArrowLeft, Pencil, Trash2, FileText, UserPlus, GitBranch, Clock, AlertOctagon } from "lucide-react"
+import { Pencil, Trash2, FileText, UserPlus, GitBranch, Clock, AlertOctagon } from "lucide-react"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
 import {
@@ -18,9 +18,10 @@ import { StatusHistory }       from "@/components/status-history"
 import { RevisionsPanel }      from "@/components/revisions-panel"
 import { JobForm }             from "@/components/job-form"
 import { useToast }            from "@/components/ui/toast"
-import { formatGBP, getDeadlineInfo, deadlineBadgeClass, parseLocalDate } from "@/lib/utils"
+import { formatGBP, getJobDeadlineInfo, deadlineBadgeClass, parseLocalDate, totalJobCommercialValue } from "@/lib/utils"
 import { PaymentBadge }        from "@/components/ui/badge"
 import { useUser }             from "@/components/user-context"
+import { PageShell, DetailPanel, BackLink, PageHeader } from "@/components/page-layout"
 import { OTHER_WORKS_TYPE }    from "@/lib/constants"
 import type { Job, JobFormData, BillingHandoff } from "@/lib/types"
 
@@ -50,17 +51,6 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
       <p className="col-span-2 text-sm text-t1">
         {value ?? <span className="text-t4 italic">Not set</span>}
       </p>
-    </div>
-  )
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-sr border border-bd rounded-md">
-      <div className="px-4 py-3 border-b border-bd">
-        <p className="text-xs font-semibold text-t3 uppercase tracking-wider">{title}</p>
-      </div>
-      <div className="px-4 py-3">{children}</div>
     </div>
   )
 }
@@ -143,35 +133,26 @@ export default function JobDetailPage() {
     } finally { setDeleting(false) }
   }
 
-  if (loading) return <div className="px-6 py-6 max-w-5xl"><Skeleton /></div>
+  if (loading) return <PageShell wide><Skeleton /></PageShell>
 
   if (notFound || !job) return (
-    <div className="px-6 py-6 max-w-5xl flex flex-col items-center justify-center py-24 text-center">
+    <PageShell wide className="flex flex-col items-center justify-center py-24 text-center">
       <FileText className="h-8 w-8 text-t4 mb-3" />
       <p className="text-sm font-medium text-t1 mb-1">Job not found</p>
       <p className="text-xs text-t3 mb-4">This job may have been deleted.</p>
       <Button variant="outline" onClick={() => router.push("/jobs")}>Back to jobs</Button>
-    </div>
+    </PageShell>
   )
 
   const isRevision = job.parentJobId !== null
 
   return (
-    <div className="px-6 py-6 max-w-5xl">
+    <PageShell wide>
       {/* Back nav — goes to parent if revision, otherwise to jobs list */}
       {isRevision && parentJob ? (
-        <Link
-          href={`/jobs/${parentJob.id}`}
-          className="inline-flex items-center gap-1.5 text-xs text-t3 hover:text-t2 mb-4"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          {parentJob.drawingNumber}
-        </Link>
+        <BackLink href={`/jobs/${parentJob.id}`}>{parentJob.drawingNumber}</BackLink>
       ) : (
-        <Link href="/jobs" className="inline-flex items-center gap-1.5 text-xs text-t3 hover:text-t2 mb-4">
-          <ArrowLeft className="h-3.5 w-3.5" />
-          All jobs
-        </Link>
+        <BackLink href="/jobs">All jobs</BackLink>
       )}
 
       {/* Revision breadcrumb — only on revisions */}
@@ -189,10 +170,11 @@ export default function JobDetailPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-5">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-2">
-            <span className="font-mono text-sm font-semibold text-ac">{job.drawingNumber}</span>
+      <PageHeader
+        title={job.address}
+        description={
+          <span className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono font-semibold text-ac">{job.drawingNumber}</span>
             {isAdmin && (
               <button
                 onClick={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
@@ -210,7 +192,7 @@ export default function JobDetailPage() {
               </span>
             )}
             {(() => {
-              const dl = getDeadlineInfo(job.requiredByDate)
+              const dl = getJobDeadlineInfo(job)
               if (dl.severity === "none") return null
               const cls = deadlineBadgeClass(dl.severity)
               return (
@@ -220,34 +202,34 @@ export default function JobDetailPage() {
                   {dl.label}
                 </span>
               )
-            })()} 
-          </div>
-          <h1 className="text-lg font-semibold text-t1 leading-snug">{job.address}</h1>
-          <p className="text-sm text-t3 mt-0.5">
-            {job.typeOfWorks === OTHER_WORKS_TYPE && job.customTypeDescription ? job.customTypeDescription : job.typeOfWorks} · {job.clientCompany}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
-            <Pencil className="h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button variant="outline" size="icon-sm" onClick={() => setDelOpen(true)} title="Delete">
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </div>
+            })()}
+            <span className="text-t3">·</span>
+            <span>{job.typeOfWorks === OTHER_WORKS_TYPE && job.customTypeDescription ? job.customTypeDescription : job.typeOfWorks} · {job.clientCompany}</span>
+          </span>
+        }
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+            <Button variant="outline" size="icon-sm" onClick={() => setDelOpen(true)} title="Delete">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        }
+      />
 
       {/* Body */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
-          <Panel title="Status">
+          <DetailPanel title="Status">
             <StatusWorkflow
               jobId={job.id} currentStatus={job.status}
               onStatusChange={s => { setJob({ ...job, status: s }); setHistoryKey(k => k + 1) }}
             />
-          </Panel>
+          </DetailPanel>
 
-          <Panel title="Details">
+          <DetailPanel title="Details">
             <InfoRow label="Type"          value={(() => { const t = job.itemType ?? "DESIGN"; return t.charAt(0) + t.slice(1).toLowerCase().replace("_", " ") })()} />
             <InfoRow label="Address"       value={job.address} />
             <InfoRow label="Type of works" value={
@@ -268,14 +250,24 @@ export default function JobDetailPage() {
             {job.requestedDate  && <InfoRow label="Requested date" value={format(parseLocalDate(job.requestedDate),  "d MMMM yyyy")} />}
             {job.requiredByDate && <InfoRow label="Required by"    value={format(parseLocalDate(job.requiredByDate), "d MMMM yyyy")} />}
             {job.notes && <InfoRow label="Notes" value={job.notes} />}
-          </Panel>
+          </DetailPanel>
 
           {/* Commercial section — always shown, edit to populate */}
-          <Panel title="Commercial">
-            {job.quoteValue != null || job.quoteReference || job.quoteDate || job.commercialNotes ? (
+          <DetailPanel title="Commercial">
+            {job.quoteValue != null || job.quoteReference || job.quoteDate || job.commercialNotes
+              || job.variationFees != null || job.additionalCharges != null ? (
               <>
                 {job.quoteValue != null && (
                   <InfoRow label="Quote value" value={formatGBP(job.quoteValue)} />
+                )}
+                {job.variationFees != null && (
+                  <InfoRow label="Variation fees" value={formatGBP(job.variationFees)} />
+                )}
+                {job.additionalCharges != null && (
+                  <InfoRow label="Additional charges" value={formatGBP(job.additionalCharges)} />
+                )}
+                {totalJobCommercialValue(job) != null && (
+                  <InfoRow label="Total agreed" value={formatGBP(totalJobCommercialValue(job))} />
                 )}
                 {job.quoteReference && (
                   <InfoRow label="Quote reference" value={job.quoteReference} />
@@ -332,30 +324,28 @@ export default function JobDetailPage() {
                 </p>
               </div>
             )}
-          </Panel>
+          </DetailPanel>
 
-          <Panel title="Activity">
+          <DetailPanel title="Activity">
             <StatusHistory
               key={historyKey} jobId={job.id}
               onUpdate={() => setHistoryKey(k => k + 1)}
             />
-          </Panel>
+          </DetailPanel>
 
-          {/* Revisions panel — only on original jobs */}
-          {!isRevision && (
-            <Panel title="Revisions">
-              <RevisionsPanel
-                job={job}
-                onRevisionCreated={() => {
-                  /* panel handles its own state; no page reload needed */
-                }}
-              />
-            </Panel>
-          )}
+          {/* Revision chain — original and revision detail pages */}
+          <DetailPanel title={isRevision ? "Revision history" : "Revisions"}>
+            <RevisionsPanel
+              job={job}
+              onRevisionCreated={() => {
+                /* panel handles its own state; no page reload needed */
+              }}
+            />
+          </DetailPanel>
         </div>
 
         <div className="space-y-3">
-          <Panel title="Timeline">
+          <DetailPanel title="Timeline">
             <dl className="space-y-2">
               {([
                 ["Created",  format(new Date(job.dateCreated), "d MMM yyyy")],
@@ -368,11 +358,11 @@ export default function JobDetailPage() {
                 </div>
               ))}
             </dl>
-          </Panel>
+          </DetailPanel>
 
           {/* Deadline card */}
-          {job.requiredByDate && (() => {
-            const dl = getDeadlineInfo(job.requiredByDate)
+          {job.requiredByDate && job.status !== "ISSUED" && (() => {
+            const dl = getJobDeadlineInfo(job)
             return (
               <div className={`rounded-md border p-4 ${
                 dl.severity === "overdue" ? "bg-dn-bg border-dn-bd" :
@@ -399,7 +389,7 @@ export default function JobDetailPage() {
             )
           })()}
 
-          <Panel title="Actions">
+          <DetailPanel title="Actions">
             <div className="space-y-1.5">
               {!job.designer && (
                 <Button variant="primary" size="sm" className="w-full justify-start" onClick={() => setAssignOpen(true)}>
@@ -415,7 +405,7 @@ export default function JobDetailPage() {
                 <Trash2 className="h-3.5 w-3.5" /> Delete job
               </Button>
             </div>
-          </Panel>
+          </DetailPanel>
         </div>
       </div>
 
@@ -522,6 +512,6 @@ export default function JobDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   )
 }

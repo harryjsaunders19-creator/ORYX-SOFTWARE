@@ -27,17 +27,23 @@ function StatCard({ icon: Icon, label, value, accent, href }: {
   icon: React.ElementType; label: string; value: number; accent: string; href?: string
 }) {
   const inner = (
-    <div className="bg-sr border border-bd rounded-md p-4 flex items-center gap-3 hover:shadow-card transition-shadow">
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: accent + "15" }}>
-        <Icon className="h-4.5 w-4.5" style={{ color: accent }} />
-      </div>
-      <div>
-        <p className="text-2xl font-semibold tabular-nums text-t1">{value}</p>
-        <p className="text-[11px] font-medium text-t3 uppercase tracking-wider">{label}</p>
+    <div className="group relative glass-card border border-bd rounded-2xl shadow-card p-6 overflow-hidden hover:shadow-lg transition-all h-full">
+      <div className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: accent }} />
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[40px] font-bold tabular-nums text-t1 leading-none tracking-tight">{value}</p>
+          <p className="text-xs font-semibold text-t3 uppercase tracking-wider mt-3">{label}</p>
+        </div>
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: accent + "18" }}
+        >
+          <Icon className="h-5 w-5" style={{ color: accent }} />
+        </div>
       </div>
     </div>
   )
-  return href ? <Link href={href}>{inner}</Link> : inner
+  return href ? <Link href={href} className="block">{inner}</Link> : inner
 }
 
 function SectionHeader({ icon: Icon, accent, title, count, viewAllHref, viewAllLabel }: {
@@ -100,27 +106,37 @@ export function DashboardStats() {
   if (error) return <div className="bg-sr border border-bd rounded-md p-4 text-sm text-dn">Failed to load dashboard data.</div>
   if (loading) return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-md skeleton" />)}</div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4"><div className="h-48 rounded-md skeleton" /><div className="h-48 rounded-md skeleton" /></div>
+      <div className="grid grid-cols-12 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="col-span-6 lg:col-span-3 h-28 rounded-2xl skeleton" />)}</div>
+      <div className="grid grid-cols-12 gap-4"><div className="col-span-12 lg:col-span-6 h-52 rounded-2xl skeleton" /><div className="col-span-12 lg:col-span-6 h-52 rounded-2xl skeleton" /></div>
     </div>
   )
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
 
-      {/* ── KPI Strip ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard icon={Briefcase}      label="Active Jobs"         value={stats?.totalActiveJobs ?? 0}            accent="#4640DE" href="/jobs" />
-        <StatCard icon={Clock}          label="Due This Week"       value={stats?.dueThisWeekCount ?? 0}           accent="#B45309" href="/jobs?deadline=this_week" />
-        <StatCard icon={ClipboardCheck} label="Requires Checking"   value={stats?.checking ?? 0}                  accent="#CA8A04" href="/jobs?status=CHECKING" />
-        {isAdmin && <StatCard icon={Receipt} label="Ready For Invoicing" value={stats?.readyForInvoicingCount ?? 0} accent="#0E7A6E" href="/billing" />}
+      {/* ── KPI bento (12-col) ─────────────────────────────────── */}
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-6 lg:col-span-3">
+          <StatCard icon={Briefcase} label="Active Jobs" value={stats?.totalActiveJobs ?? 0} accent="#4640DE" href="/jobs" />
+        </div>
+        <div className="col-span-6 lg:col-span-3">
+          <StatCard icon={Clock} label="Due This Week" value={stats?.dueThisWeekCount ?? 0} accent="#B45309" href="/jobs?deadline=this_week" />
+        </div>
+        <div className="col-span-6 lg:col-span-3">
+          <StatCard icon={ClipboardCheck} label="Requires Checking" value={stats?.checking ?? 0} accent="#CA8A04" href="/jobs/checking" />
+        </div>
+        {isAdmin ? (
+          <div className="col-span-6 lg:col-span-3">
+            <StatCard icon={Receipt} label="Ready For Invoicing" value={stats?.readyForInvoicingCount ?? 0} accent="#0E7A6E" href="/billing" />
+          </div>
+        ) : (
+          <div className="col-span-6 lg:col-span-3 hidden lg:block" aria-hidden />
+        )}
       </div>
 
-      {/* ── Needs Attention: Overdue + Checking + Holds ─────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* Overdue Jobs */}
-        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+      {/* ── Needs Attention ───────────────────────────────────── */}
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 lg:col-span-6 bg-sr border border-bd rounded-2xl shadow-card overflow-hidden">
           <SectionHeader icon={AlertOctagon} accent="text-dn" title="Overdue" count={stats?.overdueCount} viewAllHref="/jobs?deadline=overdue" />
           {overdueJobs.length === 0 ? (
             <p className="px-4 py-6 text-xs text-t4 text-center">Nothing overdue — good shape.</p>
@@ -129,7 +145,7 @@ export function DashboardStats() {
               {overdueJobs.map(job => {
                 const dl = getDeadlineInfo(job.requiredByDate)
                 return (
-                  <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-pg">
+                  <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-low">
                     <div className="flex-1 min-w-0">
                       <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
                       <p className="text-[11px] text-t3 truncate mt-0.5">{job.address}</p>
@@ -142,15 +158,14 @@ export function DashboardStats() {
           )}
         </div>
 
-        {/* Clients On Hold */}
-        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+        <div className="col-span-12 lg:col-span-6 bg-sr border border-bd rounded-2xl shadow-card overflow-hidden">
           <SectionHeader icon={AlertTriangle} accent="text-dn" title="Clients On Hold" count={stats?.clientsOnHold} viewAllHref="/clients/hold-list" />
           {holds.length === 0 ? (
             <p className="px-4 py-6 text-xs text-t4 text-center">No clients on hold.</p>
           ) : (
             <div className="divide-y divide-bd">
               {holds.map(hold => (
-                <Link key={hold.id} href={`/clients/${hold.clientId}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-pg">
+                <Link key={hold.id} href={`/clients/${hold.clientId}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-low">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-t1 truncate">{hold.clientName}</p>
                     <p className="text-[11px] text-t4 truncate mt-0.5">{hold.reason}</p>
@@ -162,11 +177,9 @@ export function DashboardStats() {
         </div>
       </div>
 
-      {/* ── Upcoming: Site Visits + Meetings ────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* Upcoming Site Visits */}
-        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+      {/* ── Upcoming ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 lg:col-span-6 bg-sr border border-bd rounded-2xl shadow-card overflow-hidden">
           <SectionHeader icon={MapPin} accent="text-[#3B82F6]" title="Upcoming Site Visits" count={siteVisits.length} viewAllHref="/calendar" viewAllLabel="View calendar →" />
           {siteVisits.length === 0 ? (
             <p className="px-4 py-7 text-xs text-t4 text-center">No site visits scheduled this week</p>
@@ -194,8 +207,7 @@ export function DashboardStats() {
           )}
         </div>
 
-        {/* Upcoming Meetings */}
-        <div className="bg-sr border border-bd rounded-md overflow-hidden">
+        <div className="col-span-12 lg:col-span-6 bg-sr border border-bd rounded-2xl shadow-card overflow-hidden">
           <SectionHeader icon={Video} accent="text-[#A855F7]" title="Upcoming Meetings" count={teamsMeetings.length} viewAllHref="/calendar" viewAllLabel="View calendar →" />
           {teamsMeetings.length === 0 ? (
             <p className="px-4 py-7 text-xs text-t4 text-center">No meetings scheduled this week</p>
