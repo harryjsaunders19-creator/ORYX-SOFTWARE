@@ -349,38 +349,15 @@ export interface ParseFileResult {
 }
 
 /** Parses a CSV or XLSX file buffer into structured import rows. */
-export function parseSpreadsheet(buffer: Buffer, filename: string): ParseFileResult {
-  // Dynamic require to avoid bundling xlsx on the client
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const XLSX = require("xlsx") as typeof import("xlsx")
-
-  const ext = filename.toLowerCase().split(".").pop()
-  let workbook: import("xlsx").WorkBook
-
-  if (ext === "csv") {
-    const text = buffer.toString("utf-8")
-    workbook = XLSX.read(text, { type: "string" })
-  } else {
-    workbook = XLSX.read(buffer, { type: "buffer" })
-  }
-
-  const sheetName = workbook.SheetNames[0]
-  if (!sheetName) {
-    return { headers: [], mapping: {}, unmappedHeaders: [], rows: [], totalRawRows: 0 }
-  }
-
-  const sheet = workbook.Sheets[sheetName]
-  const rawData = XLSX.utils.sheet_to_json<(string | number | undefined)[]>(sheet, {
-    header: 1,
-    defval: "",
-    blankrows: false,
-  })
+export async function parseSpreadsheet(buffer: Buffer, filename: string): Promise<ParseFileResult> {
+  const { readSpreadsheetRows } = await import("@/lib/spreadsheet-read")
+  const rawData = await readSpreadsheetRows(buffer, filename)
 
   if (rawData.length === 0) {
     return { headers: [], mapping: {}, unmappedHeaders: [], rows: [], totalRawRows: 0 }
   }
 
-  const headerRow = rawData[0].map(v => String(v ?? "").trim())
+  const headerRow = rawData[0].map((v: string | number | undefined) => String(v ?? "").trim())
   const { mapping, unmapped } = detectHeaderMapping(headerRow)
 
   const dataRows = rawData.slice(1)
@@ -390,7 +367,7 @@ export function parseSpreadsheet(buffer: Buffer, filename: string): ParseFileRes
   const rows: ParsedImportRow[] = []
   for (let i = 0; i < dataRows.length; i++) {
     const raw = dataRows[i]
-    const hasData = raw.some(v => v != null && String(v).trim() !== "")
+    const hasData = raw.some((v: string | number | undefined) => v != null && String(v).trim() !== "")
     if (!hasData) continue
     rows.push(parseRow(raw, mapping, i + 2)) // +2: 1-indexed, skip header
   }

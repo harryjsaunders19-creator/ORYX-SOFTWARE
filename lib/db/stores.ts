@@ -1,837 +1,17 @@
 /**
- * lib/db.ts — SQLite database layer via better-sqlite3.
- *
- * Tables:
- *   Job            — jobs and revisions (revisions have parentJobId set)
- *   DrawingSequence — auto-increment per YYMM for drawing numbers
- *   StatusHistory  — audit log of status transitions + notes
- *   BillingHandoff — one row per billable completion event (a Job reaching
- *                    ISSUED); the "Ready For Invoicing" handoff queue for
- *                    accounts. Replaces the Invoice/ExportBatch workflow
- *                    below — see PROJECT_OVERVIEW.md §19.
- *   Invoice, InvoiceItem, InvoiceSequence, ExportBatch, ExportBatchItem
- *                  — DEPRECATED. Kept only so existing historical data
- *                    isn't destroyed; nothing writes to these anymore.
+ * lib/db/stores.ts — table access objects (jobDb, clientDb, …).
  */
-
-import Database from "better-sqlite3"
-import path from "path"
-import fs from "fs"
-import { classifyLegacyWorksType } from "@/lib/works-type-migration"
-import { WORKS_TYPES } from "@/lib/constants"
+import { db, DB_PATH } from "./connection"
+import { nowIso, buildWhere, safeOrder, type WhereClause, type FindManyOptions } from "./helpers"
+import type {
+  CalendarEventRow,
+  CalendarEventWithDetails,
+  CreateCalendarEventData,
+  EventCategoryRow,
+  UpdateCalendarEventData,
+} from "./calendar-types"
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { nanoid } = require("nanoid") as { nanoid: () => string }
-
-// Default path is .data/ instead of prisma/ — Turbopack scans the entire
-// project directory and chokes on SQLite's WAL lock files (.db-shm/.db-wal)
-// when they're inside the project tree. .data/ is gitignored and outside
-// the content paths Turbopack cares about. If upgrading from a prisma/
-// location, the migration below moves the file automatically.
-const DB_DIR  = process.env.DB_PATH
-  ? path.dirname(process.env.DB_PATH)
-  : path.join(/* turbopackIgnore: true */ process.cwd(), ".data")
-const DB_PATH = process.env.DB_PATH ?? path.join(DB_DIR, "oryx.db")
-const DB_EXISTED = fs.existsSync(DB_PATH)
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
-console.log(`[db] DB_PATH=${DB_PATH} | existed=${DB_EXISTED} | DB_PATH env=${process.env.DB_PATH ?? "(not set)"}`)
-
-// Auto-migrate: move database from old prisma/ location to new .data/ location
-if (!process.env.DB_PATH) {
-  const oldPath = path.join(/* turbopackIgnore: true */ process.cwd(), "prisma", "oryx.db")
-  if (fs.existsSync(oldPath) && !fs.existsSync(DB_PATH)) {
-    for (const suffix of ["", "-shm", "-wal"]) {
-      const src = oldPath + suffix
-      if (fs.existsSync(src)) {
-        fs.copyFileSync(src, DB_PATH + suffix)
-      }
-    }
-    console.log(`[db] Migrated database from prisma/oryx.db to .data/oryx.db`)
-  }
-}
-
-function openDb(): InstanceType<typeof Database> {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      const conn = new Database(DB_PATH)
-      conn.pragma("journal_mode = WAL")
-      conn.pragma("foreign_keys = ON")
-      conn.pragma("busy_timeout = 10000")
-      conn.pragma("synchronous  = NORMAL")
-      return conn
-    } catch (err: unknown) {
-      if (attempt < 4 && err instanceof Error && err.message.includes("locked")) {
-        const ms = 1000 * (attempt + 1)
-        console.log(`[db] Database locked, retrying in ${ms}ms (attempt ${attempt + 1}/5)`)
-        const start = Date.now(); while (Date.now() - start < ms) { /* busy wait — no async in module init */ }
-        continue
-      }
-      throw err
-    }
-  }
-  throw new Error("Failed to open database after 5 attempts")
-}
-const db = openDb()
-
-// ── Schema ─────────────────────────────────────────────────────────
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS Job (
-    id              TEXT PRIMARY KEY,
-    drawingNumber   TEXT UNIQUE NOT NULL,
-    itemType        TEXT NOT NULL DEFAULT 'DESIGN',
-    address         TEXT NOT NULL,
-    typeOfWorks     TEXT NOT NULL,
-    clientCompany   TEXT NOT NULL,
-    requestedBy     TEXT NOT NULL,
-    status          TEXT NOT NULL DEFAULT 'NEW_REQUEST',
-    designer        TEXT NOT NULL DEFAULT '',
-    dateCreated     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    dateCompleted   TEXT,
-    notes           TEXT,
-    parentJobId     TEXT REFERENCES Job(id) ON DELETE SET NULL,
-    revisionLetter  TEXT,
-    quoteValue      REAL,
-    quoteReference  TEXT,
-    quoteDate       TEXT,
-    commercialNotes TEXT,
-    invoiceId       TEXT,
-    billingStatus   TEXT,
-    billingBatchId  TEXT,
-    requestedDate   TEXT,
-    requiredByDate  TEXT,
-    createdAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    updatedAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_job_status    ON Job(status);
-  CREATE INDEX IF NOT EXISTS idx_job_client    ON Job(clientCompany);
-  CREATE INDEX IF NOT EXISTS idx_job_designer  ON Job(designer);
-  CREATE INDEX IF NOT EXISTS idx_job_created   ON Job(createdAt);
-  CREATE TABLE IF NOT EXISTS DrawingSequence (
-    id        TEXT PRIMARY KEY,
-    yearMonth TEXT UNIQUE NOT NULL,
-    sequence  INTEGER NOT NULL DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS StatusHistory (
-    id         TEXT PRIMARY KEY,
-    jobId      TEXT NOT NULL REFERENCES Job(id) ON DELETE CASCADE,
-    fromStatus TEXT,
-    toStatus   TEXT NOT NULL,
-    changedBy  TEXT NOT NULL DEFAULT 'System',
-    changedAt  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    note       TEXT
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_history_job     ON StatusHistory(jobId);
-  CREATE INDEX IF NOT EXISTS idx_history_changed ON StatusHistory(changedAt);
-
-  -- Permanent audit trail for the controlled Type of Works migration (see
-  -- migrateTypeOfWorksValues() below and PROJECT_OVERVIEW.md §22). One row
-  -- per job whose typeOfWorks value needed remapping when the controlled
-  -- list was introduced — never deleted or modified afterward, same
-  -- philosophy as StatusHistory/ExportBatch/ClientHold. This is the actual,
-  -- queryable record of "what got mapped to what" — not just a console log.
-  CREATE TABLE IF NOT EXISTS TypeOfWorksMigrationLog (
-    id                TEXT PRIMARY KEY,
-    jobId             TEXT NOT NULL REFERENCES Job(id),
-    drawingNumber     TEXT NOT NULL,
-    originalValue     TEXT NOT NULL,
-    mappedTo          TEXT NOT NULL,
-    customDescription TEXT,
-    matchType         TEXT NOT NULL,   -- EXACT | ALIAS | FLAGGED
-    needsReview       INTEGER NOT NULL DEFAULT 0,
-    reviewedAt        TEXT,
-    reviewedBy        TEXT,
-    migratedAt        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_towml_job    ON TypeOfWorksMigrationLog(jobId);
-  CREATE INDEX IF NOT EXISTS idx_towml_review ON TypeOfWorksMigrationLog(needsReview);
-
-  -- ── DEPRECATED ──────────────────────────────────────────────────
-  -- Invoice / InvoiceItem / InvoiceSequence / ExportBatch / ExportBatchItem
-  -- (below, through line ~153) are no longer written to or read from
-  -- anywhere in the app. The business decided to stop managing invoicing
-  -- internally — see PROJECT_OVERVIEW.md §19. These tables are kept
-  -- in place rather than dropped, purely so any historical data already in
-  -- a deployed database isn't destroyed; nothing in the current codebase
-  -- creates new rows here. BillingHandoff (below) is the replacement.
-  CREATE TABLE IF NOT EXISTS Invoice (
-    id            TEXT PRIMARY KEY,
-    invoiceNumber TEXT UNIQUE NOT NULL,
-    invoiceDate   TEXT NOT NULL,
-    invoiceValue  REAL NOT NULL DEFAULT 0,
-    clientCompany TEXT NOT NULL,
-    paymentStatus TEXT NOT NULL DEFAULT 'DRAFT',
-    notes         TEXT,
-    createdBy     TEXT NOT NULL DEFAULT 'System',
-    createdAt     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    updatedAt     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    sentAt        TEXT,
-    paidAt        TEXT
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_invoice_client  ON Invoice(clientCompany);
-  CREATE INDEX IF NOT EXISTS idx_invoice_status  ON Invoice(paymentStatus);
-  CREATE INDEX IF NOT EXISTS idx_invoice_date    ON Invoice(invoiceDate);
-
-  CREATE TABLE IF NOT EXISTS InvoiceItem (
-    id            TEXT PRIMARY KEY,
-    invoiceId     TEXT NOT NULL REFERENCES Invoice(id) ON DELETE CASCADE,
-    jobId         TEXT NOT NULL REFERENCES Job(id) ON DELETE CASCADE,
-    drawingNumber TEXT NOT NULL,
-    description   TEXT,
-    value         REAL NOT NULL DEFAULT 0,
-    UNIQUE(invoiceId, jobId)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_item_invoice ON InvoiceItem(invoiceId);
-  CREATE INDEX IF NOT EXISTS idx_item_job     ON InvoiceItem(jobId);
-
-  CREATE TABLE IF NOT EXISTS InvoiceSequence (
-    id   TEXT PRIMARY KEY,
-    year INTEGER UNIQUE NOT NULL,
-    seq  INTEGER NOT NULL DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS RefSequence (
-    id     TEXT PRIMARY KEY,
-    prefix TEXT NOT NULL,
-    year   INTEGER NOT NULL,
-    seq    INTEGER NOT NULL DEFAULT 0,
-    UNIQUE(prefix, year)
-  );
-
-  CREATE TABLE IF NOT EXISTS ExportBatch (
-    id          TEXT PRIMARY KEY,
-    batchNumber TEXT UNIQUE NOT NULL,
-    exportDate  TEXT NOT NULL,
-    exportedBy  TEXT NOT NULL DEFAULT 'System',
-    itemCount   INTEGER NOT NULL DEFAULT 0,
-    totalValue  REAL NOT NULL DEFAULT 0,
-    notes       TEXT,
-    createdAt   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_batch_date ON ExportBatch(exportDate);
-
-  CREATE TABLE IF NOT EXISTS ExportBatchItem (
-    id            TEXT PRIMARY KEY,
-    batchId       TEXT NOT NULL REFERENCES ExportBatch(id),
-    jobId         TEXT NOT NULL REFERENCES Job(id),
-    drawingNumber TEXT NOT NULL,
-    clientCompany TEXT NOT NULL,
-    itemType      TEXT NOT NULL,
-    address       TEXT NOT NULL,
-    quoteValue    REAL,
-    exportedAt    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_batchitem_batch ON ExportBatchItem(batchId);
-  CREATE INDEX IF NOT EXISTS idx_batchitem_job   ON ExportBatchItem(jobId);
-
-  -- One row per Accounts Handover export. Reuses the same BATCH-YYYY-NNN
-  -- sequence the deprecated ExportBatch system used (sequenceDb.nextRefNumber,
-  -- RefSequence WHERE prefix='BATCH') so numbers never collide with any
-  -- historical batches already in a deployed database.
-  CREATE TABLE IF NOT EXISTS BillingExportBatch (
-    id          TEXT PRIMARY KEY,
-    batchNumber TEXT UNIQUE NOT NULL,
-    exportDate  TEXT NOT NULL,
-    exportedBy  TEXT NOT NULL DEFAULT 'System',
-    recordCount INTEGER NOT NULL DEFAULT 0,
-    notes       TEXT,
-    createdAt   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_exportbatch_date ON BillingExportBatch(exportDate);
-
-  -- ── BillingHandoff ──────────────────────────────────────────────
-  -- Replaces the Invoice/ExportBatch workflow above (kept, but deprecated —
-  -- see the comment above the Invoice table). This is a handoff queue, not
-  -- an invoicing system: one row per billable completion event, created
-  -- automatically when a Job (original or revision) reaches ISSUED, and
-  -- cleared by an accounts user once they've raised the invoice externally.
-  -- Duplicate prevention is enforced by a *partial* unique index on
-  -- sourceJobId (added right after the live migrations below), scoped to
-  -- only uncleared rows — at most one *active* handoff per Job at a time,
-  -- but a job that's billed, cleared, reverted, reworked, and completed
-  -- again legitimately produces a second, later handoff once the first is
-  -- a closed historical record. A revision is its own Job row with its own
-  -- id, so it naturally gets its own handoff when it reaches ISSUED — no
-  -- special-casing needed.
-  CREATE TABLE IF NOT EXISTS BillingHandoff (
-    id                    TEXT PRIMARY KEY,
-    sourceJobId           TEXT NOT NULL REFERENCES Job(id),
-    billingEventType      TEXT NOT NULL DEFAULT 'JOB_COMPLETED',  -- JOB_COMPLETED | REVISION_COMPLETED
-    -- Snapshot fields — frozen at handoff creation, same pattern as
-    -- ExportBatchItem, so a later edit to the Job (or a rename cascading
-    -- from clientDb.update()) can't shift what accounts already see.
-    drawingNumber         TEXT NOT NULL,
-    itemType              TEXT NOT NULL,
-    typeOfWorks           TEXT,
-    customTypeDescription TEXT,
-    clientCompany         TEXT NOT NULL,
-    address               TEXT NOT NULL,
-    designer              TEXT,
-    quoteValue            REAL,
-    quoteReference        TEXT,
-    completionDate        TEXT NOT NULL,
-    addedToBillingQueueAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    clearedByAccountsAt   TEXT,
-    clearedBy             TEXT,
-    exportBatchId         TEXT REFERENCES BillingExportBatch(id),
-    notes                 TEXT,
-    createdAt             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    updatedAt             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_handoff_job     ON BillingHandoff(sourceJobId);
-  CREATE INDEX IF NOT EXISTS idx_handoff_cleared ON BillingHandoff(clearedByAccountsAt);
-  CREATE INDEX IF NOT EXISTS idx_handoff_batch   ON BillingHandoff(exportBatchId);
-
-  -- A full point-in-time copy of everything that went into the Accounts
-  -- Handover workbook for one handoff — client info, project info,
-  -- commercial info, operational info, revision history, audit trail.
-  -- Stored as JSON rather than dozens of flat columns: revision history is a
-  -- variable-length list, and several requested fields (priority, surveyor,
-  -- PO number, cost centre, attachments) don't exist as tracked data yet —
-  -- the JSON shape can record "not tracked" for those without a schema
-  -- migration every time the export's content changes. Once written, a
-  -- snapshot is never modified — later edits to the Job must not be able to
-  -- alter a historical exported record.
-  CREATE TABLE IF NOT EXISTS BillingExportSnapshot (
-    id           TEXT PRIMARY KEY,
-    batchId      TEXT NOT NULL REFERENCES BillingExportBatch(id),
-    handoffId    TEXT NOT NULL REFERENCES BillingHandoff(id),
-    snapshotJson TEXT NOT NULL,
-    createdAt    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    UNIQUE(handoffId)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_snapshot_batch ON BillingExportSnapshot(batchId);
-
-  CREATE TABLE IF NOT EXISTS Client (
-    id             TEXT PRIMARY KEY,
-    name           TEXT NOT NULL,
-    nameLower      TEXT NOT NULL,
-    contactName    TEXT,
-    email          TEXT,
-    phone          TEXT,
-    billingAddress TEXT,
-    notes          TEXT,
-    active         INTEGER NOT NULL DEFAULT 1,
-    createdAt      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    updatedAt      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    UNIQUE(nameLower)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_client_name   ON Client(nameLower);
-  CREATE INDEX IF NOT EXISTS idx_client_active ON Client(active);
-
-  CREATE TABLE IF NOT EXISTS ClientHold (
-    id            TEXT PRIMARY KEY,
-    clientId      TEXT NOT NULL REFERENCES Client(id) ON DELETE CASCADE,
-    status        TEXT NOT NULL DEFAULT 'ACTIVE',
-    reason        TEXT NOT NULL,
-    notes         TEXT,
-    addedBy       TEXT NOT NULL DEFAULT 'System',
-    addedAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    removedBy     TEXT,
-    removedAt     TEXT,
-    removedReason TEXT
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_hold_client ON ClientHold(clientId);
-  CREATE INDEX IF NOT EXISTS idx_hold_status ON ClientHold(status);
-
-  CREATE TABLE IF NOT EXISTS Quote (
-    id            TEXT PRIMARY KEY,
-    quoteNumber   TEXT UNIQUE NOT NULL,
-    clientId      TEXT REFERENCES Client(id) ON DELETE SET NULL,
-    clientCompany TEXT NOT NULL,
-    contactName   TEXT,
-    address       TEXT NOT NULL,
-    description   TEXT NOT NULL,
-    quoteValue    REAL NOT NULL DEFAULT 0,
-    quoteDate     TEXT NOT NULL,
-    expiryDate    TEXT,
-    status        TEXT NOT NULL DEFAULT 'DRAFT',
-    notes         TEXT,
-    jobId         TEXT REFERENCES Job(id) ON DELETE SET NULL,
-    createdBy     TEXT NOT NULL DEFAULT 'System',
-    createdAt     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    updatedAt     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_quote_client ON Quote(clientId);
-  CREATE INDEX IF NOT EXISTS idx_quote_status ON Quote(status);
-  CREATE INDEX IF NOT EXISTS idx_quote_date   ON Quote(quoteDate);
-
-  -- Optional itemised lines for the PDF's Description/VAT/Amount table. A
-  -- quote with zero rows here is not a broken or incomplete quote — it
-  -- means "use the single description+quoteValue exactly as before,"
-  -- preserving every existing quote's behaviour untouched. Only quotes that
-  -- explicitly need a multi-line breakdown (matching the reference
-  -- template's two-line example) get rows here. sortOrder is plain integer
-  -- position, not a timestamp, so reordering is a simple renumber.
-  CREATE TABLE IF NOT EXISTS QuoteLineItem (
-    id            TEXT PRIMARY KEY,
-    quoteId       TEXT NOT NULL REFERENCES Quote(id) ON DELETE CASCADE,
-    description   TEXT NOT NULL,
-    amount        REAL NOT NULL DEFAULT 0,
-    vatApplicable INTEGER NOT NULL DEFAULT 1,
-    sortOrder     INTEGER NOT NULL DEFAULT 0,
-    createdAt     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_quotelineitem_quote ON QuoteLineItem(quoteId);
-
-  CREATE TABLE IF NOT EXISTS User (
-    id        TEXT PRIMARY KEY,
-    name      TEXT NOT NULL,
-    email     TEXT,
-    emailLower TEXT,
-    role      TEXT NOT NULL DEFAULT 'ENGINEER',
-    active    INTEGER NOT NULL DEFAULT 1,
-    createdAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    updatedAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_user_role   ON User(role);
-  CREATE INDEX IF NOT EXISTS idx_user_active ON User(active);
-
-  -- Permanent, append-only audit trail of every identity-switch event —
-  -- cold-start session selection, an admin starting or ending
-  -- impersonation, and rejected attempts by a non-admin to switch away
-  -- from themselves. Never deleted, same philosophy as StatusHistory /
-  -- ExportBatch / ClientHold elsewhere in this schema. See
-  -- PROJECT_OVERVIEW.md §27 and lib/auth.ts.
-  CREATE TABLE IF NOT EXISTS IdentitySwitchLog (
-    id            TEXT PRIMARY KEY,
-    action        TEXT NOT NULL,  -- SESSION_STARTED | IMPERSONATION_STARTED | IMPERSONATION_ENDED | IMPERSONATION_REJECTED | LOGOUT
-    realUserId    TEXT,           -- the genuinely authenticated identity at the time of this event (null only for a from-scratch SESSION_STARTED, before any identity existed)
-    realUserName  TEXT,
-    targetUserId  TEXT,           -- who was being switched to / acted as (null for LOGOUT)
-    targetUserName TEXT,
-    detail        TEXT,
-    createdAt     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_identityswitch_real   ON IdentitySwitchLog(realUserId);
-  CREATE INDEX IF NOT EXISTS idx_identityswitch_action ON IdentitySwitchLog(action);
-
-  -- ── Backup system ─────────────────────────────────────────────────
-  -- One row per backup attempt, permanent — never deleted even once the
-  -- underlying file is pruned by the retention policy (fileDeletedAt marks
-  -- that separately). This is the "store reference permanently" guarantee:
-  -- the historical record that a backup ran, when, by whom, and whether it
-  -- succeeded outlives the actual file on disk. See lib/backup-service.ts
-  -- and PROJECT_OVERVIEW.md §23.
-  CREATE TABLE IF NOT EXISTS BackupJob (
-    id              TEXT PRIMARY KEY,
-    status          TEXT NOT NULL DEFAULT 'PENDING',  -- PENDING | RUNNING | COMPLETED | FAILED
-    trigger         TEXT NOT NULL DEFAULT 'MANUAL',   -- MANUAL | SCHEDULED | PRE_RESTORE_SAFETY | RETRY
-    triggeredBy     TEXT NOT NULL,                    -- User.id — not a FK; must survive that user later being deleted
-    triggeredByName TEXT NOT NULL,                     -- snapshot of the name at trigger time, same reasoning
-    folderName      TEXT NOT NULL UNIQUE,              -- backup_YYYY-MM-DD_HH-MM-SS — also the on-disk directory name
-    startedAt       TEXT NOT NULL,
-    completedAt     TEXT,
-    durationMs      INTEGER,
-    sizeBytes       INTEGER,
-    checksum        TEXT,                              -- sha256 of data.json
-    rowCountsJson   TEXT,                               -- {"Job": 154, "Client": 50, ...}
-    errorMessage    TEXT,
-    retryOfId       TEXT REFERENCES BackupJob(id),
-    fileDeletedAt   TEXT,                               -- set when retention policy removes the on-disk files
-    createdAt       TEXT NOT NULL,
-    updatedAt       TEXT NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_backupjob_status    ON BackupJob(status);
-  CREATE INDEX IF NOT EXISTS idx_backupjob_createdat ON BackupJob(createdAt);
-
-  -- Append-only audit trail for every backup/restore action — distinct from
-  -- BackupJob itself so a download or a restore *attempt* (including a
-  -- rejected one, e.g. wrong confirmation phrase) is logged even when no
-  -- BackupJob row changes as a result.
-  CREATE TABLE IF NOT EXISTS BackupAuditLog (
-    id        TEXT PRIMARY KEY,
-    action    TEXT NOT NULL,    -- CREATE_TRIGGERED | CREATE_COMPLETED | CREATE_FAILED | DOWNLOAD_LINK_ISSUED | DOWNLOAD_SERVED | RESTORE_TRIGGERED | RESTORE_REJECTED | RESTORE_COMPLETED | RESTORE_FAILED | RETRY_TRIGGERED | RETENTION_CLEANUP
-    backupId  TEXT,             -- loosely associated — BackupJob rows are permanent so this usually resolves, but no FK so the log is never blocked by it
-    userId    TEXT NOT NULL,
-    userName  TEXT NOT NULL,
-    detail    TEXT,
-    createdAt TEXT NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_backupaudit_backup ON BackupAuditLog(backupId);
-  CREATE INDEX IF NOT EXISTS idx_backupaudit_action ON BackupAuditLog(action);
-
-  -- ── Calendar ──────────────────────────────────────────────────────
-  CREATE TABLE IF NOT EXISTS EventCategory (
-    id    TEXT PRIMARY KEY,
-    name  TEXT UNIQUE NOT NULL,
-    color TEXT NOT NULL,
-    icon  TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS CalendarEvent (
-    id          TEXT PRIMARY KEY,
-    title       TEXT NOT NULL,
-    description TEXT,
-    categoryId  TEXT NOT NULL REFERENCES EventCategory(id),
-    startDate   TEXT NOT NULL,
-    endDate     TEXT NOT NULL,
-    allDay      INTEGER NOT NULL DEFAULT 1,
-    location    TEXT,
-    priority    TEXT NOT NULL DEFAULT 'MEDIUM',
-    status      TEXT NOT NULL DEFAULT 'SCHEDULED',
-    jobId       TEXT REFERENCES Job(id) ON DELETE SET NULL,
-    clientId    TEXT REFERENCES Client(id) ON DELETE SET NULL,
-    createdBy   TEXT NOT NULL,
-    createdAt   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    updatedAt   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_cal_event_start    ON CalendarEvent(startDate);
-  CREATE INDEX IF NOT EXISTS idx_cal_event_end      ON CalendarEvent(endDate);
-  CREATE INDEX IF NOT EXISTS idx_cal_event_category ON CalendarEvent(categoryId);
-  CREATE INDEX IF NOT EXISTS idx_cal_event_job      ON CalendarEvent(jobId);
-  CREATE INDEX IF NOT EXISTS idx_cal_event_client   ON CalendarEvent(clientId);
-
-  CREATE TABLE IF NOT EXISTS CalendarAssignment (
-    id      TEXT PRIMARY KEY,
-    eventId TEXT NOT NULL REFERENCES CalendarEvent(id) ON DELETE CASCADE,
-    userId  TEXT NOT NULL REFERENCES User(id) ON DELETE CASCADE,
-    UNIQUE(eventId, userId)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_cal_assign_event ON CalendarAssignment(eventId);
-  CREATE INDEX IF NOT EXISTS idx_cal_assign_user  ON CalendarAssignment(userId);
-`)
-
-// ── Seed calendar categories ────────────────────────────────────────
-db.exec(`
-  INSERT OR IGNORE INTO EventCategory (id, name, color, icon) VALUES
-    ('cat_site_visit',       'Site Visit',       '#3B82F6', 'map-pin'),
-    ('cat_teams_meeting',    'Teams Meeting',    '#A855F7', 'video'),
-    ('cat_survey',           'Survey',           '#F97316', 'clipboard'),
-    ('cat_installation',     'Installation',     '#22C55E', 'wrench'),
-    ('cat_client_meeting',   'Client Meeting',   '#A855F7', 'users'),
-    ('cat_deadline',         'Deadline',         '#EF4444', 'alert-circle'),
-    ('cat_leave',            'Leave',            '#6B7280', 'calendar-off'),
-    ('cat_internal_meeting', 'Internal Meeting', '#14B8A6', 'message-square');
-`)
-
-// ── Live migrations ─────────────────────────────────────────────────
-
-// 1. designer empty-string probe / full table rebuild for very old schemas
-try {
-  db.transaction(() => {
-    db.prepare("INSERT INTO Job (id,drawingNumber,address,typeOfWorks,clientCompany,requestedBy,designer) VALUES ('__probe__','__probe__','a','b','c','d','')").run()
-    db.prepare("DELETE FROM Job WHERE id='__probe__'").run()
-  })()
-} catch {
-  db.exec(`
-    PRAGMA foreign_keys = OFF;
-    CREATE TABLE IF NOT EXISTS Job_migrate (
-      id TEXT PRIMARY KEY, drawingNumber TEXT UNIQUE NOT NULL,
-      address TEXT NOT NULL, typeOfWorks TEXT NOT NULL,
-      clientCompany TEXT NOT NULL, requestedBy TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'NEW_REQUEST', designer TEXT NOT NULL DEFAULT '',
-      dateCreated TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-      dateCompleted TEXT, notes TEXT, parentJobId TEXT, revisionLetter TEXT,
-      quoteValue REAL, quoteReference TEXT, quoteDate TEXT, commercialNotes TEXT,
-      invoiceId TEXT,
-      createdAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-      updatedAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-    );
-    INSERT INTO Job_migrate (id,drawingNumber,address,typeOfWorks,clientCompany,requestedBy,
-      status,designer,dateCreated,dateCompleted,notes,createdAt,updatedAt)
-      SELECT id,drawingNumber,address,typeOfWorks,clientCompany,requestedBy,
-             status,COALESCE(designer,''),dateCreated,dateCompleted,notes,createdAt,updatedAt FROM Job;
-    DROP TABLE Job; ALTER TABLE Job_migrate RENAME TO Job;
-    CREATE INDEX IF NOT EXISTS idx_job_status   ON Job(status);
-    CREATE INDEX IF NOT EXISTS idx_job_client   ON Job(clientCompany);
-    CREATE INDEX IF NOT EXISTS idx_job_designer ON Job(designer);
-    CREATE INDEX IF NOT EXISTS idx_job_created  ON Job(createdAt);
-    PRAGMA foreign_keys = ON;
-  `)
-}
-
-// 2. Add columns to Job that may be missing on existing databases
-;(function addMissingJobColumns() {
-  const existing = new Set(
-    (db.prepare("PRAGMA table_info(Job)").all() as { name: string }[]).map(c => c.name)
-  )
-  const add = (col: string, def: string) => {
-    if (!existing.has(col)) db.exec(`ALTER TABLE Job ADD COLUMN ${col} ${def}`)
-  }
-  add("itemType",       "TEXT NOT NULL DEFAULT 'DESIGN'")
-  add("parentJobId",    "TEXT REFERENCES Job(id) ON DELETE SET NULL")
-  add("revisionLetter", "TEXT")
-  add("quoteValue",     "REAL")
-  add("quoteReference", "TEXT")
-  add("quoteDate",      "TEXT")
-  add("commercialNotes","TEXT")
-  add("invoiceId",      "TEXT")
-  add("clientId",       "TEXT")
-  add("billingStatus",  "TEXT")
-  add("billingBatchId", "TEXT")
-  add("requestedDate",  "TEXT")
-  add("requiredByDate", "TEXT")
-  // Controlled Type of Works system — typeOfWorks now holds one of the
-  // approved WORKS_TYPES values (or 'Other'). customTypeDescription holds
-  // the free-text description when typeOfWorks = 'Other'. legacyTypeOfWorks
-  // preserves whatever free-text value was actually entered before this
-  // migration ran, for any row whose original value needed remapping — see
-  // migrateTypeOfWorksValues() below and PROJECT_OVERVIEW.md §22. NULL on
-  // any row created after the migration (nothing to preserve).
-  add("customTypeDescription", "TEXT")
-  add("legacyTypeOfWorks",      "TEXT")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_deadline ON Job(requiredByDate)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_clientid ON Job(clientId)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_itemtype ON Job(itemType)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_parent   ON Job(parentJobId)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_invoice ON Job(invoiceId)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_status  ON Job(status)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_client  ON Job(clientCompany)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_designer ON Job(designer)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_created ON Job(createdAt)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_typeofworks ON Job(typeOfWorks)")
-})()
-
-// 2b. Add columns to Quote that may be missing on existing databases
-;(function addMissingQuoteColumns() {
-  const tableExists = (db.prepare(
-    "SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND name='Quote'"
-  ).get() as { n: number }).n > 0
-  if (!tableExists) return
-  const existing = new Set(
-    (db.prepare("PRAGMA table_info(Quote)").all() as { name: string }[]).map(c => c.name)
-  )
-  const add = (col: string, def: string) => {
-    if (!existing.has(col)) db.exec(`ALTER TABLE Quote ADD COLUMN ${col} ${def}`)
-  }
-  add("pdfPath",        "TEXT")
-  add("preparedBy",     "TEXT")
-  // NULL (the default for every existing quote) means "no VAT breakdown on
-  // the PDF, just a single total" — exactly the old behaviour, untouched.
-  // A numeric value (e.g. 20 for standard UK VAT) switches the PDF to the
-  // Subtotal/Taxable/VAT rate/VAT due/TOTAL breakdown matching the
-  // reference template. Nothing about quoteValue's existing meaning
-  // changes — see PROJECT_OVERVIEW.md for the explicit assumption this
-  // rests on.
-  add("vatRate",        "REAL")
-})()
-
-// Add columns to Client that may be missing on existing databases
-;(function addMissingClientColumns() {
-  const tableExists = (db.prepare(
-    "SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND name='Client'"
-  ).get() as { n: number }).n > 0
-  if (!tableExists) return
-  const existing = new Set(
-    (db.prepare("PRAGMA table_info(Client)").all() as { name: string }[]).map(c => c.name)
-  )
-  const add = (col: string, def: string) => {
-    if (!existing.has(col)) db.exec(`ALTER TABLE Client ADD COLUMN ${col} ${def}`)
-  }
-  // Short internal reference code (e.g. "RECPM") shown as "Customer ID" on
-  // quote/invoice PDFs — optional, free text, no format enforced. Distinct
-  // from Client.id (the internal cuid primary key), which is never shown
-  // to a client.
-  add("accountCode", "TEXT")
-})()
-
-// 2c. Add columns to BillingHandoff that may be missing on existing databases
-;(function addMissingBillingHandoffColumns() {
-  const tableExists = (db.prepare(
-    "SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND name='BillingHandoff'"
-  ).get() as { n: number }).n > 0
-  if (!tableExists) return
-  const existing = new Set(
-    (db.prepare("PRAGMA table_info(BillingHandoff)").all() as { name: string }[]).map(c => c.name)
-  )
-  if (!existing.has("exportBatchId")) {
-    db.exec("ALTER TABLE BillingHandoff ADD COLUMN exportBatchId TEXT REFERENCES BillingExportBatch(id)")
-    db.exec("CREATE INDEX IF NOT EXISTS idx_handoff_batch ON BillingHandoff(exportBatchId)")
-  }
-  if (!existing.has("customTypeDescription")) {
-    db.exec("ALTER TABLE BillingHandoff ADD COLUMN customTypeDescription TEXT")
-  }
-})()
-
-// 2e. Add password columns to User table
-;(function addMissingUserColumns() {
-  const existing = new Set(
-    (db.prepare("PRAGMA table_info(User)").all() as { name: string }[]).map(c => c.name)
-  )
-  const add = (col: string, def: string) => {
-    if (!existing.has(col)) db.exec(`ALTER TABLE User ADD COLUMN ${col} ${def}`)
-  }
-  add("passwordHash",      "TEXT")
-  add("mustChangePassword", "INTEGER NOT NULL DEFAULT 0")
-})()
-
-// 2d. Controlled Type of Works migration — see lib/works-type-migration.ts
-// and PROJECT_OVERVIEW.md §22. Only Design/Revision rows are in scope: every
-// other itemType skips the typeOfWorks field entirely in the UI
-// (isNonDrawingType() in lib/constants.ts), so an empty/non-list value there
-// reflects "doesn't apply", not a legacy data-quality issue, and shouldn't
-// be flagged for review. Idempotent by construction: once a row's
-// typeOfWorks is one of the approved values, it's excluded from the
-// candidate set below on every subsequent startup, so this naturally
-// becomes a no-op after the first real run and is always safe to re-run.
-;(function migrateTypeOfWorksValues() {
-  const placeholders = WORKS_TYPES.map(() => "?").join(",")
-  const candidates = db.prepare(`
-    SELECT id, drawingNumber, typeOfWorks FROM Job
-    WHERE itemType IN ('DESIGN','REVISION')
-      AND typeOfWorks NOT IN (${placeholders})
-  `).all(...WORKS_TYPES) as { id: string; drawingNumber: string; typeOfWorks: string }[]
-
-  if (candidates.length === 0) return
-
-  const now = nowIso()
-  db.transaction(() => {
-    for (const job of candidates) {
-      const result = classifyLegacyWorksType(job.typeOfWorks)
-      db.prepare(`
-        UPDATE Job SET typeOfWorks = ?, customTypeDescription = ?, legacyTypeOfWorks = ?, "updatedAt" = ?
-        WHERE id = ?
-      `).run(result.mappedTo, result.customDescription, job.typeOfWorks || null, now, job.id)
-      db.prepare(`
-        INSERT INTO TypeOfWorksMigrationLog
-          (id, jobId, drawingNumber, originalValue, mappedTo, customDescription, matchType, needsReview, migratedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        nanoid(), job.id, job.drawingNumber, job.typeOfWorks || "(empty)",
-        result.mappedTo, result.customDescription, result.matchType, result.needsReview ? 1 : 0, now,
-      )
-    }
-  })()
-
-  const reviewCount = (db.prepare(
-    "SELECT COUNT(*) as n FROM TypeOfWorksMigrationLog WHERE needsReview = 1 AND migratedAt = ?"
-  ).get(now) as { n: number }).n
-  console.log(`[migrateTypeOfWorksValues] Migrated ${candidates.length} job(s); ${reviewCount} flagged for manual review. See TypeOfWorksMigrationLog (WHERE needsReview = 1) for details.`)
-})()
-
-// Recover any BackupJob left stuck in RUNNING from a previous process
-// lifetime. Backups run as a fire-and-forget async task on the same Node
-// process (see lib/backup-service.ts) — there's no separate worker that
-// could ever come back and finish or fail one if the server crashes or
-// restarts mid-backup. Without this, such a job stays "RUNNING" forever and
-// the admin UI would show a backup that's perpetually "in progress" but is
-// actually long dead. Runs on every startup; harmless no-op once nothing is
-// stuck.
-;(function recoverStuckBackupJobs() {
-  const stuck = db.prepare("SELECT id, folderName FROM BackupJob WHERE status = 'RUNNING'").all() as { id: string; folderName: string }[]
-  if (!stuck.length) return
-  const now = nowIso()
-  for (const job of stuck) {
-    db.prepare("UPDATE BackupJob SET status = 'FAILED', errorMessage = ?, completedAt = ?, updatedAt = ? WHERE id = ?")
-      .run("Interrupted by server restart before completion", now, now, job.id)
-  }
-  console.log(`[recoverStuckBackupJobs] Marked ${stuck.length} stuck backup job(s) as FAILED (server restarted mid-backup).`)
-})()
-
-// Replace BillingHandoff's blanket UNIQUE(sourceJobId) with a *partial*
-// unique index that only applies to uncleared rows (CREATE UNIQUE INDEX ...
-// WHERE clearedByAccountsAt IS NULL). A job can legitimately go through
-// Complete -> reverted -> reworked -> Complete again, and once accounts
-// has already cleared the first completion, that cleared row is a
-// permanent audit record (it's linked into a real BillingExportBatch
-// snapshot) — it must never be deleted just because the job's current
-// status changed. But the blanket UNIQUE constraint this table started
-// with does not distinguish cleared from uncleared, so re-completing a job
-// whose only existing handoff was already cleared would silently fail to
-// create a new one (INSERT OR IGNORE swallowing the conflict), and that
-// job would never re-enter the billing queue for its new completion. A
-// partial index is exactly the right shape for "at most one *active*
-// handoff per job, but as many historical cleared ones as its lifecycle
-// actually produces."
-//
-// SQLite can't ALTER TABLE to drop an inline table constraint, so — same
-// pattern as the Job table rebuild above — this probes for the old
-// behaviour (two rows, same sourceJobId, one cleared one not, should both
-// be insertable once migrated) and rebuilds the table only if the probe
-// shows the blanket constraint is still in effect. Foreign keys are
-// disabled only for the probe's own duration since it uses a fabricated
-// job id that doesn't need to reference anything real.
-;(function migrateBillingHandoffUniqueConstraint() {
-  let probeNeedsRebuild = false
-  db.pragma("foreign_keys = OFF")
-  try {
-    db.transaction(() => {
-      const probeJobId = "__handoff_unique_probe__"
-      db.prepare(`
-        INSERT INTO BillingHandoff (id, sourceJobId, drawingNumber, itemType, clientCompany, address, completionDate, clearedByAccountsAt, createdAt, updatedAt)
-        VALUES ('__probe_cleared__', ?, 'x', 'DESIGN', 'x', 'x', ?, ?, ?, ?)
-      `).run(probeJobId, nowIso(), nowIso(), nowIso(), nowIso())
-      db.prepare(`
-        INSERT INTO BillingHandoff (id, sourceJobId, drawingNumber, itemType, clientCompany, address, completionDate, clearedByAccountsAt, createdAt, updatedAt)
-        VALUES ('__probe_active__', ?, 'x', 'DESIGN', 'x', 'x', ?, NULL, ?, ?)
-      `).run(probeJobId, nowIso(), nowIso(), nowIso())
-    })()
-  } catch {
-    probeNeedsRebuild = true
-  } finally {
-    db.exec("DELETE FROM BillingHandoff WHERE sourceJobId = '__handoff_unique_probe__'")
-    db.pragma("foreign_keys = ON")
-  }
-
-  if (probeNeedsRebuild) {
-    db.exec(`
-      PRAGMA foreign_keys = OFF;
-      DROP TABLE IF EXISTS BillingHandoff_migrate;
-      CREATE TABLE BillingHandoff_migrate (
-        id                    TEXT PRIMARY KEY,
-        sourceJobId           TEXT NOT NULL REFERENCES Job(id),
-        billingEventType      TEXT NOT NULL DEFAULT 'JOB_COMPLETED',
-        drawingNumber         TEXT NOT NULL,
-        itemType              TEXT NOT NULL,
-        typeOfWorks           TEXT,
-        customTypeDescription TEXT,
-        clientCompany         TEXT NOT NULL,
-        address               TEXT NOT NULL,
-        designer              TEXT,
-        quoteValue            REAL,
-        quoteReference        TEXT,
-        completionDate        TEXT NOT NULL,
-        addedToBillingQueueAt TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-        clearedByAccountsAt   TEXT,
-        clearedBy             TEXT,
-        exportBatchId         TEXT REFERENCES BillingExportBatch(id),
-        notes                 TEXT,
-        createdAt             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-        updatedAt             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-      );
-      INSERT INTO BillingHandoff_migrate SELECT
-        id, sourceJobId, billingEventType, drawingNumber, itemType, typeOfWorks,
-        customTypeDescription, clientCompany, address, designer, quoteValue,
-        quoteReference, completionDate, addedToBillingQueueAt, clearedByAccountsAt,
-        clearedBy, exportBatchId, notes, createdAt, updatedAt
-      FROM BillingHandoff;
-      DROP TABLE BillingHandoff;
-      ALTER TABLE BillingHandoff_migrate RENAME TO BillingHandoff;
-      CREATE INDEX IF NOT EXISTS idx_handoff_job     ON BillingHandoff(sourceJobId);
-      CREATE INDEX IF NOT EXISTS idx_handoff_cleared ON BillingHandoff(clearedByAccountsAt);
-      CREATE INDEX IF NOT EXISTS idx_handoff_batch   ON BillingHandoff(exportBatchId);
-      PRAGMA foreign_keys = ON;
-    `)
-    console.log("[migrateBillingHandoffUniqueConstraint] Rebuilt BillingHandoff without the blanket UNIQUE(sourceJobId) constraint.")
-  }
-
-  // Whether freshly created or just rebuilt, ensure the partial index
-  // exists — this is the actual enforced invariant going forward: at most
-  // one *uncleared* handoff per job, any number of cleared (historical)
-  // ones.
-  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_handoff_active_unique ON BillingHandoff(sourceJobId) WHERE clearedByAccountsAt IS NULL")
-})()
 
 export interface TypeOfWorksMigrationLogRow {
   id: string; jobId: string; drawingNumber: string
@@ -869,137 +49,8 @@ export const typeOfWorksMigrationLogDb = {
   },
 }
 
-// 3. Migrate old JobRevision rows → child Job rows, then drop the table
-if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND name='JobRevision'").get() as { n: number }).n > 0) {
-  const revs = db.prepare("SELECT * FROM JobRevision ORDER BY jobId, letter").all() as {
-    id: string; jobId: string; letter: string; date: string
-    description: string; designer: string; checker: string; createdAt: string
-  }[]
-  if (revs.length > 0) {
-    db.transaction(() => {
-      for (const rev of revs) {
-        const parent = db.prepare("SELECT * FROM Job WHERE id = ?").get(rev.jobId) as { id: string; drawingNumber: string; address: string; typeOfWorks: string; clientCompany: string; requestedBy: string } | undefined
-        if (!parent) continue
-        const revDn = `${parent.drawingNumber} Rev ${rev.letter}`
-        if (db.prepare("SELECT id FROM Job WHERE drawingNumber = ?").get(revDn)) continue
-        const now = rev.createdAt ?? new Date().toISOString()
-        db.prepare(`INSERT INTO Job (id,drawingNumber,address,typeOfWorks,clientCompany,requestedBy,status,designer,dateCreated,notes,parentJobId,revisionLetter,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-          .run(nanoid(), revDn, parent.address, parent.typeOfWorks, parent.clientCompany, parent.requestedBy, "NEW_REQUEST", rev.designer ?? "", now, rev.description || null, rev.jobId, rev.letter, now, now)
-      }
-    })()
-  }
-  db.exec("DROP TABLE IF EXISTS JobRevision")
-}
-
-// 4. Bootstrap a default Admin user if the User table is empty.
-//    Guarantees there is always at least one active Admin able to manage
-//    other users — this is the seam future real authentication plugs into:
-//    once real login exists, this becomes the first account an installer
-//    sets a password for, instead of a no-op placeholder.
-// Log user state before bootstrap for debugging
-;(function logUserState() {
-  const users = db.prepare("SELECT id, name, email, role FROM User").all() as { id: string; name: string; email: string | null; role: string }[]
-  console.log(`[db] Users before bootstrap: ${users.length} — ${users.map(u => `${u.name} (${u.email ?? "no email"}, ${u.role})`).join(", ") || "none"}`)
-  console.log(`[db] Database was ${DB_EXISTED ? "existing" : "NEWLY CREATED"} at startup`)
-})()
-
-// Ensure the admin@test.com and engineer@test.com accounts always exist
-// with working passwords. Runs on every startup — idempotent.
-;(function bootstrapAccounts() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { hashPassword } = require("@/lib/password") as typeof import("@/lib/password")
-  const now = nowIso()
-
-  const accounts = [
-    { email: "admin@test.com",    name: "Admin",    role: "ADMIN",    password: "admin123" },
-    { email: "engineer@test.com", name: "Engineer", role: "ENGINEER", password: "engineer123" },
-  ]
-
-  for (const acct of accounts) {
-    const existing = db.prepare("SELECT id, passwordHash FROM User WHERE emailLower = ?").get(acct.email) as { id: string; passwordHash: string | null } | undefined
-    if (!existing) {
-      db.prepare(`
-        INSERT INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,1,?,0,?,?)
-      `).run(nanoid(), acct.name, acct.email, acct.email, acct.role, hashPassword(acct.password), now, now)
-      console.log(`[bootstrapAccounts] Created ${acct.email} (password: ${acct.password})`)
-    } else if (!existing.passwordHash) {
-      db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?")
-        .run(hashPassword(acct.password), existing.id)
-      console.log(`[bootstrapAccounts] Set password for ${acct.email}`)
-    }
-  }
-
-  // Any other users without a password get a temp one
-  const noPassword = db.prepare(
-    "SELECT id, name FROM User WHERE passwordHash IS NULL"
-  ).all() as { id: string; name: string }[]
-  for (const u of noPassword) {
-    db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?")
-      .run(hashPassword("changeme"), u.id)
-    console.log(`[bootstrapAccounts] Set temp password for ${u.name} (must change on login)`)
-  }
-})()
-
-// ── Helpers ─────────────────────────────────────────────────────────
-
-function nowIso() { return new Date().toISOString() }
-
-function buildWhere(where: WhereClause = {}): { sql: string; params: unknown[] } {
-  const clauses: string[] = []
-  const params:  unknown[] = []
-  if (where.search) {
-    const s = `%${where.search}%`
-    // customTypeDescription included so an "Other"-type job (where the real
-    // descriptive text lives in that field, not typeOfWorks) stays findable
-    // by what was actually typed — searching just typeOfWorks would only
-    // ever match the literal word "Other" for those rows.
-    clauses.push("(drawingNumber LIKE ? OR address LIKE ? OR clientCompany LIKE ? OR requestedBy LIKE ? OR typeOfWorks LIKE ? OR customTypeDescription LIKE ? OR designer LIKE ?)")
-    params.push(s, s, s, s, s, s, s)
-  }
-  if (where.typeOfWorks)      { clauses.push("typeOfWorks = ?");                    params.push(where.typeOfWorks) }
-  if (where.itemType)         { clauses.push("itemType = ?");                       params.push(where.itemType) }
-  if (where.clientId)         { clauses.push("clientId = ?");                        params.push(where.clientId) }
-  if (where.billingExported)  { clauses.push("billingStatus = 'EXPORTED_TO_ACCOUNTS'") }
-  if (where.billingPending)   { clauses.push("status = 'ISSUED' AND invoiceId IS NULL AND (billingStatus IS NULL OR billingStatus != 'EXPORTED_TO_ACCOUNTS')") }
-  if (where.overdue)          { clauses.push("requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'") }
-  if (where.dueToday)         { clauses.push("requiredByDate IS NOT NULL AND requiredByDate = date('now')") }
-  if (where.dueThisWeek)      { clauses.push("requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days')") }
-  if (where.hasDeadline)      { clauses.push("requiredByDate IS NOT NULL") }
-  if (where.status)           { clauses.push("status = ?");                        params.push(where.status) }
-  if (where.unassigned)       { clauses.push("(designer = '' OR designer IS NULL)") }
-  if (where.hasQuote)         { clauses.push("(quoteValue IS NOT NULL AND quoteValue > 0)") }
-  if (where.invoiced)         { clauses.push("invoiceId IS NOT NULL") }
-  if (where.notInvoiced)      { clauses.push("invoiceId IS NULL") }
-  if (where.parentJobId)      { clauses.push("parentJobId = ?");  params.push(where.parentJobId) }
-  if (where.onlyOriginals)    { clauses.push("parentJobId IS NULL") }
-  if (where.onlyRevisions)    { clauses.push("parentJobId IS NOT NULL") }
-  return { sql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", params }
-}
-
-const SORT_WHITELIST = new Set(["createdAt","drawingNumber","clientCompany","designer","status","dateCreated","quoteValue","itemType","requiredByDate","requestedDate","address"])
-function safeOrder(field: string, dir: string) {
-  const f = SORT_WHITELIST.has(field) ? field : "createdAt"
-  return `ORDER BY "${f}" ${dir === "asc" ? "ASC" : "DESC"}`
-}
-
-// ── Job row type ───────────────────────────────────────────────────
-
-export interface JobRow {
-  id: string; drawingNumber: string; itemType: string; address: string; typeOfWorks: string
-  customTypeDescription: string | null; legacyTypeOfWorks: string | null
-  clientCompany: string; clientId: string | null; requestedBy: string; status: string; designer: string
-  dateCreated: string; dateCompleted: string | null; notes: string | null
-  quoteValue: number | null; quoteReference: string | null
-  quoteDate: string | null; commercialNotes: string | null
-  invoiceId:      string | null
-  billingStatus:  string | null
-  billingBatchId: string | null
-  requestedDate:  string | null
-  requiredByDate: string | null
-  parentJobId: string | null; revisionLetter: string | null
-  createdAt: string; updatedAt: string
-}
+export type { JobRow, CreateJobData, UpdateJobData } from "./job-types"
+import type { JobRow, CreateJobData, UpdateJobData } from "./job-types"
 
 export interface InvoiceRow {
   id: string; invoiceNumber: string; invoiceDate: string
@@ -1015,29 +66,8 @@ export interface InvoiceItemRow {
   drawingNumber: string; description: string | null; value: number
 }
 
-/** One row per billable completion event — the Ready For Invoicing queue. */
-export interface BillingHandoffRow {
-  id: string; sourceJobId: string
-  billingEventType: string   // JOB_COMPLETED | REVISION_COMPLETED
-  drawingNumber: string; itemType: string; typeOfWorks: string | null
-  customTypeDescription: string | null
-  clientCompany: string; address: string; designer: string | null
-  quoteValue: number | null; quoteReference: string | null
-  completionDate: string; addedToBillingQueueAt: string
-  clearedByAccountsAt: string | null; clearedBy: string | null
-  exportBatchId: string | null
-  notes: string | null
-  createdAt: string; updatedAt: string
-}
-
-export interface BillingExportBatchRow {
-  id: string; batchNumber: string; exportDate: string; exportedBy: string
-  recordCount: number; notes: string | null; createdAt: string
-}
-
-export interface BillingExportSnapshotRow {
-  id: string; batchId: string; handoffId: string; snapshotJson: string; createdAt: string
-}
+export type { BillingHandoffRow, BillingExportBatchRow, BillingExportSnapshotRow } from "./billing-types"
+import type { BillingHandoffRow, BillingExportBatchRow, BillingExportSnapshotRow } from "./billing-types"
 
 /** The full Accounts Handover payload built for one handoff at export time —
  *  see billingHandoffDb.buildAccountsHandoverSnapshot(). Named explicitly
@@ -1113,79 +143,15 @@ export interface AccountsHandoverSnapshot {
   notTracked: string[]
 }
 
-export interface StatusHistoryRow {
-  id: string; jobId: string; fromStatus: string | null; toStatus: string
-  changedBy: string; changedAt: string; note: string | null
-}
+export type { StatusHistoryRow } from "./history-types"
+import type { StatusHistoryRow } from "./history-types"
 
-export type Role = "ADMIN" | "ENGINEER"
+export type { Role, UserRow, CreateUserData, UpdateUserData, PublicUserRow } from "./user-types"
+export { withoutPassword } from "./user-types"
 
-export interface UserRow {
-  id: string; name: string; email: string | null; emailLower: string | null
-  role: Role; active: number   // 1 = active, 0 = disabled
-  passwordHash: string | null
-  mustChangePassword: number   // 1 = must set new password before using the app
-  createdAt: string; updatedAt: string
-}
+import type { CreateUserData, UpdateUserData, UserRow } from "./user-types"
 
-export interface CreateUserData {
-  id: string; name: string; email?: string | null; role?: Role
-  passwordHash?: string | null
-  mustChangePassword?: number
-}
-
-export interface UpdateUserData {
-  name?: string; email?: string | null; role?: Role; active?: number
-  passwordHash?: string | null
-  mustChangePassword?: number
-}
-
-export interface CreateJobData {
-  id: string; drawingNumber: string; itemType?: string; address: string; typeOfWorks: string
-  customTypeDescription?: string | null
-  clientCompany: string; requestedBy: string; status: string; designer: string
-  dateCompleted: string | null; notes: string | null
-  quoteValue?: number | null; quoteReference?: string | null
-  quoteDate?: string | null; commercialNotes?: string | null
-  parentJobId?: string | null; revisionLetter?: string | null
-  clientId?: string | null
-  requestedDate?:  string | null
-  requiredByDate?: string | null
-  changedBy?: string
-}
-
-export interface UpdateJobData {
-  address?: string; typeOfWorks?: string; customTypeDescription?: string | null; clientCompany?: string
-  requestedBy?: string; status?: string; designer?: string
-  dateCompleted?: string | null; notes?: string | null
-  quoteValue?: number | null; quoteReference?: string | null
-  quoteDate?: string | null; commercialNotes?: string | null
-  clientId?: string | null
-  requestedDate?:  string | null
-  requiredByDate?: string | null
-  changedBy?: string
-}
-
-export interface WhereClause {
-  search?: string; status?: string
-  unassigned?: boolean; hasQuote?: boolean
-  itemType?: string; clientId?: string
-  typeOfWorks?: string
-  invoiced?: boolean; notInvoiced?: boolean
-  billingExported?: boolean
-  billingPending?:  boolean
-  dueToday?:        boolean    // requiredByDate = today
-  dueThisWeek?:     boolean    // requiredByDate within next 7 days
-  overdue?:         boolean    // requiredByDate < today AND status != ISSUED
-  hasDeadline?:     boolean    // requiredByDate IS NOT NULL
-  parentJobId?: string; onlyOriginals?: boolean; onlyRevisions?: boolean
-}
-
-export interface FindManyOptions {
-  where?: WhereClause
-  orderBy?: { field: string; dir: "asc" | "desc" }
-  skip?: number; take?: number
-}
+// CreateJobData / UpdateJobData — see ./job-types
 
 // ── Job queries ───────────────────────────────────────────────────
 
@@ -2125,42 +1091,8 @@ export const commercialDb = {
 
 // ── Client types ─────────────────────────────────────────────────
 
-export interface ClientRow {
-  id:             string
-  name:           string
-  nameLower:      string
-  contactName:    string | null
-  email:          string | null
-  phone:          string | null
-  billingAddress: string | null
-  notes:          string | null
-  accountCode:    string | null
-  active:         number   // 1 = active, 0 = inactive/archived
-  createdAt:      string
-  updatedAt:      string
-}
-
-export interface CreateClientData {
-  id:              string
-  name:            string
-  contactName?:    string | null
-  email?:          string | null
-  phone?:          string | null
-  billingAddress?: string | null
-  notes?:          string | null
-  accountCode?:    string | null
-}
-
-export interface UpdateClientData {
-  name?:           string
-  contactName?:    string | null
-  email?:          string | null
-  phone?:          string | null
-  billingAddress?: string | null
-  notes?:          string | null
-  accountCode?:    string | null
-  active?:         number
-}
+export type { ClientRow, CreateClientData, UpdateClientData } from "./client-types"
+import type { ClientRow, CreateClientData, UpdateClientData } from "./client-types"
 
 // ── Client queries ────────────────────────────────────────────────
 
@@ -2510,28 +1442,8 @@ export const exportBatchDb = {
 }
 
 
-// ── Client Hold types ─────────────────────────────────────────────
-
-export interface ClientHoldRow {
-  id:            string
-  clientId:      string
-  status:        string   // 'ACTIVE' | 'REMOVED'
-  reason:        string
-  notes:         string | null
-  addedBy:       string
-  addedAt:       string
-  removedBy:     string | null
-  removedAt:     string | null
-  removedReason: string | null
-}
-
-export interface ClientHoldWithClientRow extends ClientHoldRow {
-  clientName:       string
-  activeJobCount:   number
-  quoteValueTotal:  number
-}
-
-// ── Client Hold queries ───────────────────────────────────────────
+export type { ClientHoldRow, ClientHoldWithClientRow } from "./hold-types"
+import type { ClientHoldRow, ClientHoldWithClientRow } from "./hold-types"
 
 export const holdDb = {
   /** Active hold for a client, if any */
@@ -2635,78 +1547,20 @@ export function dbHealthCheck() {
   }
 }
 
-export { db }
-
-// ── Quote types ───────────────────────────────────────────────────
-
-export interface QuoteRow {
-  id:            string
-  quoteNumber:   string
-  clientId:      string | null
-  clientCompany: string
-  contactName:   string | null
-  address:       string
-  description:   string
-  quoteValue:    number
-  quoteDate:     string
-  expiryDate:    string | null
-  status:        string   // DRAFT | SENT | ACCEPTED | REJECTED | EXPIRED
-  notes:         string | null
-  jobId:         string | null
-  createdBy:     string
-  pdfPath:       string | null
-  preparedBy:    string | null
-  /** NULL = no VAT breakdown on the PDF (single total, old behaviour).
-   *  A number (e.g. 20) shows the Subtotal/Taxable/VAT rate/VAT due/TOTAL
-   *  breakdown. See addMissingQuoteColumns()'s comment for the assumption
-   *  this rests on: quoteValue itself is treated as the VAT-exclusive
-   *  subtotal when a rate is set, matching the reference template's
-   *  Subtotal === Taxable presentation. */
-  vatRate:       number | null
-  createdAt:     string
-  updatedAt:     string
-}
-
-export interface CreateQuoteData {
-  clientId?:     string | null
-  clientCompany: string
-  contactName?:  string | null
-  address:       string
-  description:   string
-  quoteValue:    number
-  quoteDate:     string
-  expiryDate?:   string | null
-  status?:       string
-  notes?:        string | null
-  createdBy?:    string
-  vatRate?:      number | null
-}
-
-export interface UpdateQuoteData {
-  clientId?:      string | null
-  clientCompany?: string
-  contactName?:   string | null
-  address?:       string
-  description?:   string
-  quoteValue?:    number
-  quoteDate?:     string
-  expiryDate?:    string | null
-  status?:        string
-  notes?:         string | null
-  jobId?:         string | null
-  pdfPath?:       string | null
-  preparedBy?:    string | null
-  vatRate?:       number | null
-}
-
-export interface QuoteLineItemRow {
-  id: string; quoteId: string; description: string; amount: number
-  vatApplicable: number; sortOrder: number; createdAt: string
-}
-
-export interface CreateQuoteLineItemData {
-  description: string; amount: number; vatApplicable?: boolean; sortOrder?: number
-}
+export type {
+  QuoteRow,
+  CreateQuoteData,
+  UpdateQuoteData,
+  QuoteLineItemRow,
+  CreateQuoteLineItemData,
+} from "./quote-types"
+import type {
+  QuoteRow,
+  CreateQuoteData,
+  UpdateQuoteData,
+  QuoteLineItemRow,
+  CreateQuoteLineItemData,
+} from "./quote-types"
 
 // ── Quote queries ─────────────────────────────────────────────────
 
@@ -2960,34 +1814,15 @@ export function resetAllData(): { jobCount: number; clientCount: number; quoteCo
 
 // ── Backup system ────────────────────────────────────────────────
 
-export type BackupStatus  = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"
-export type BackupTrigger = "MANUAL" | "SCHEDULED" | "PRE_RESTORE_SAFETY" | "RETRY"
-
-export interface BackupJobRow {
-  id: string
-  status: BackupStatus
-  trigger: BackupTrigger
-  triggeredBy: string
-  triggeredByName: string
-  folderName: string
-  startedAt: string
-  completedAt: string | null
-  durationMs: number | null
-  sizeBytes: number | null
-  checksum: string | null
-  rowCountsJson: string | null
-  errorMessage: string | null
-  retryOfId: string | null
-  fileDeletedAt: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-export interface CreateBackupJobData {
-  id: string; folderName: string; trigger: BackupTrigger
-  triggeredBy: string; triggeredByName: string
-  retryOfId?: string | null
-}
+export type {
+  BackupStatus,
+  BackupTrigger,
+  BackupJobRow,
+  CreateBackupJobData,
+  BackupAuditLogRow,
+  CreateBackupAuditLogData,
+} from "./backup-types"
+import type { CreateBackupAuditLogData, CreateBackupJobData, BackupAuditLogRow, BackupJobRow } from "./backup-types"
 
 export const backupJobDb = {
   create(data: CreateBackupJobData): BackupJobRow {
@@ -3052,17 +1887,23 @@ export const backupJobDb = {
   },
 }
 
-export interface BackupAuditLogRow {
-  id: string; action: string; backupId: string | null
-  userId: string; userName: string; detail: string | null; createdAt: string
-}
-
 export const backupAuditDb = {
-  log(data: { action: string; backupId?: string | null; userId: string; userName: string; detail?: string | null }) {
+  log(data: CreateBackupAuditLogData): BackupAuditLogRow {
+    const id = nanoid()
+    const createdAt = nowIso()
     db.prepare(`
       INSERT INTO BackupAuditLog (id, action, backupId, userId, userName, detail, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(nanoid(), data.action, data.backupId ?? null, data.userId, data.userName, data.detail ?? null, nowIso())
+    `).run(id, data.action, data.backupId ?? null, data.userId, data.userName, data.detail ?? null, createdAt)
+    return {
+      id,
+      action: data.action,
+      backupId: data.backupId ?? null,
+      userId: data.userId,
+      userName: data.userName,
+      detail: data.detail ?? null,
+      createdAt,
+    }
   },
 
   findMany(opts: { take?: number } = {}): BackupAuditLogRow[] {
@@ -3077,39 +1918,13 @@ export const backupAuditDb = {
 
 // ── Calendar ────────────────────────────────────────────────────────
 
-export interface EventCategoryRow {
-  id: string; name: string; color: string; icon: string | null
-}
-
-export interface CalendarEventRow {
-  id: string; title: string; description: string | null
-  categoryId: string; startDate: string; endDate: string; allDay: number
-  location: string | null; priority: string; status: string
-  jobId: string | null; clientId: string | null
-  createdBy: string; createdAt: string; updatedAt: string
-}
-
-export interface CalendarEventWithDetails extends CalendarEventRow {
-  categoryName: string; categoryColor: string
-  assignees: { userId: string; userName: string }[]
-  jobDrawingNumber: string | null
-  clientName: string | null
-  createdByName: string
-}
-
-export interface CreateCalendarEventData {
-  id: string; title: string; description?: string | null
-  categoryId: string; startDate: string; endDate: string; allDay?: number
-  location?: string | null; priority?: string; status?: string
-  jobId?: string | null; clientId?: string | null; createdBy: string
-}
-
-export interface UpdateCalendarEventData {
-  title?: string; description?: string | null
-  categoryId?: string; startDate?: string; endDate?: string; allDay?: number
-  location?: string | null; priority?: string; status?: string
-  jobId?: string | null; clientId?: string | null
-}
+export type {
+  EventCategoryRow,
+  CalendarEventRow,
+  CalendarEventWithDetails,
+  CreateCalendarEventData,
+  UpdateCalendarEventData,
+} from "./calendar-types"
 
 export const calendarDb = {
   categories(): EventCategoryRow[] {
@@ -3223,31 +2038,32 @@ export const calendarDb = {
 
 // ── Identity switch audit log ───────────────────────────────────────
 
-export type IdentitySwitchAction = "SESSION_STARTED" | "IMPERSONATION_STARTED" | "IMPERSONATION_ENDED" | "IMPERSONATION_REJECTED" | "LOGOUT"
-
-export interface IdentitySwitchLogRow {
-  id: string; action: IdentitySwitchAction
-  realUserId: string | null; realUserName: string | null
-  targetUserId: string | null; targetUserName: string | null
-  detail: string | null; createdAt: string
-}
+export type { IdentitySwitchAction, IdentitySwitchLogRow, CreateIdentitySwitchLogData } from "./identity-switch-types"
+import type { CreateIdentitySwitchLogData, IdentitySwitchLogRow } from "./identity-switch-types"
 
 export const identitySwitchLogDb = {
-  log(data: {
-    action: IdentitySwitchAction
-    realUserId?: string | null; realUserName?: string | null
-    targetUserId?: string | null; targetUserName?: string | null
-    detail?: string | null
-  }) {
+  log(data: CreateIdentitySwitchLogData): IdentitySwitchLogRow {
+    const id = nanoid()
+    const createdAt = nowIso()
     db.prepare(`
       INSERT INTO IdentitySwitchLog (id, action, realUserId, realUserName, targetUserId, targetUserName, detail, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      nanoid(), data.action,
+      id, data.action,
       data.realUserId ?? null, data.realUserName ?? null,
       data.targetUserId ?? null, data.targetUserName ?? null,
-      data.detail ?? null, nowIso(),
+      data.detail ?? null, createdAt,
     )
+    return {
+      id,
+      action: data.action,
+      realUserId: data.realUserId ?? null,
+      realUserName: data.realUserName ?? null,
+      targetUserId: data.targetUserId ?? null,
+      targetUserName: data.targetUserName ?? null,
+      detail: data.detail ?? null,
+      createdAt,
+    }
   },
 
   findMany(opts: { take?: number } = {}): IdentitySwitchLogRow[] {

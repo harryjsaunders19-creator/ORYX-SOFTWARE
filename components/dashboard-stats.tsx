@@ -7,7 +7,6 @@ import {
   AlertOctagon, ClipboardCheck, AlertTriangle, Clock,
 } from "lucide-react"
 import { useUser } from "@/components/user-context"
-import { useToast } from "@/components/ui/toast"
 import { cn, getDeadlineInfo } from "@/lib/utils"
 import type { StatsData, Job, ClientHoldWithClient } from "@/lib/types"
 
@@ -62,7 +61,6 @@ function SectionHeader({ icon: Icon, accent, title, count, viewAllHref, viewAllL
 
 export function DashboardStats() {
   const { isAdmin } = useUser()
-  const { toast }   = useToast()
 
   const [stats, setStats]               = useState<StatsData | null>(null)
   const [events, setEvents]             = useState<CalEvent[]>([])

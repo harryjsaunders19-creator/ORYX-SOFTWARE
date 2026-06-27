@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { quoteDb, quoteLineItemDb } from "@/lib/db"
+import { quoteService } from "@/lib/services/quote-service"
 import { getCurrentUser } from "@/lib/auth"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
@@ -18,8 +18,11 @@ function parseLineItems(raw: unknown): { description: string; amount: number; va
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+
   const { id } = await params
-  const quote  = quoteDb.findUnique(id)
+  const quote  = await quoteService.findUnique(id)
   if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
   return NextResponse.json(quote)
 }
@@ -79,11 +82,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     // jobId is intentionally not settable here — only /api/quotes/[id]/convert may link a
     // quote to a job, since that route enforces the ACCEPTED-and-not-already-converted rules.
 
-    const updated = quoteDb.update(id, data)
+    const updated = await quoteService.update(id, data)
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     if (submittedLineItems !== null) {
-      quoteLineItemDb.replaceForQuote(id, submittedLineItems)
+      await quoteService.replaceLineItems(id, submittedLineItems)
     }
 
     return NextResponse.json(updated)
@@ -97,7 +100,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
 
   const { id } = await params
-  const quote = quoteDb.findUnique(id)
+  const quote = await quoteService.findUnique(id)
   if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
   if (quote.jobId) {
     return NextResponse.json(
@@ -105,7 +108,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
       { status: 409 },
     )
   }
-  const ok = quoteDb.delete(id)
+  const ok = await quoteService.delete(id)
   if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 })
   return NextResponse.json({ ok: true })
 }

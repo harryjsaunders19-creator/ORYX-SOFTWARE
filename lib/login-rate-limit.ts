@@ -1,0 +1,31 @@
+/**
+ * Simple in-memory rate limiter for login attempts.
+ * Resets after WINDOW_MS. Suitable for a single-process internal app;
+ * use Redis or similar if you run multiple server instances.
+ */
+
+const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+const MAX_ATTEMPTS = 10
+
+const attempts = new Map<string, { count: number; resetAt: number }>()
+
+export function checkLoginRateLimit(key: string): boolean {
+  const now = Date.now()
+  const entry = attempts.get(key)
+
+  if (!entry || now > entry.resetAt) {
+    attempts.set(key, { count: 1, resetAt: now + WINDOW_MS })
+    return true
+  }
+
+  if (entry.count >= MAX_ATTEMPTS) return false
+
+  entry.count++
+  return true
+}
+
+export function remainingLoginAttempts(key: string): number {
+  const entry = attempts.get(key)
+  if (!entry || Date.now() > entry.resetAt) return MAX_ATTEMPTS
+  return Math.max(0, MAX_ATTEMPTS - entry.count)
+}

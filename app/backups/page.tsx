@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
 import {
-  DatabaseBackup, CheckCircle2, XCircle, Clock, Loader2, Play, HardDrive, RefreshCw,
+  DatabaseBackup, CheckCircle2, XCircle, Clock, Loader2, Play, RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RequireRole } from "@/components/require-role"
@@ -175,7 +175,7 @@ function BackupsInner() {
         <div className="bg-sr border border-bd rounded-md p-10 text-center">
           <DatabaseBackup className="h-8 w-8 text-t4 mx-auto mb-3" />
           <p className="text-sm font-medium text-t1 mb-1">No backups yet</p>
-          <p className="text-xs text-t3">The first automated backup will run at ~02:00, or click "Run backup now" to create one immediately.</p>
+          <p className="text-xs text-t3">The first automated backup will run at ~02:00, or click &ldquo;Run backup now&rdquo; to create one immediately.</p>
         </div>
       ) : (
         <div className="bg-sr border border-bd rounded-md overflow-hidden mb-5">

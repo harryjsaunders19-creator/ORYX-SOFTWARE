@@ -20,16 +20,20 @@ const FALLBACK_SECRET = "dev-only-insecure-backup-token-secret-change-in-product
 
 function getSecret(): string {
   const secret = process.env.BACKUP_DOWNLOAD_SECRET
-  if (!secret) {
-    // Loud, not silent — a predictable secret defeats the entire point of a
-    // signed URL. Fine for local dev; must never reach a real deployment.
-    console.warn(
-      "[backup-token] BACKUP_DOWNLOAD_SECRET is not set — falling back to a fixed, publicly-known dev secret. " +
-      "Set BACKUP_DOWNLOAD_SECRET in production or backup download links are forgeable.",
+  if (secret) return secret
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "BACKUP_DOWNLOAD_SECRET must be set in production — backup download links cannot be secured without it.",
     )
-    return FALLBACK_SECRET
   }
-  return secret
+
+  // Local dev only — a predictable secret defeats signed URLs; never use in production.
+  console.warn(
+    "[backup-token] BACKUP_DOWNLOAD_SECRET is not set — falling back to a fixed dev secret. " +
+    "Set BACKUP_DOWNLOAD_SECRET before deploying.",
+  )
+  return FALLBACK_SECRET
 }
 
 function sign(payload: string): string {

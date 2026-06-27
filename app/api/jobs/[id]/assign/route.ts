@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { jobDb } from "@/lib/db"
+import { jobService } from "@/lib/services/job-service"
 import { getCurrentUser } from "@/lib/auth"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
 
     const { id } = await params
-    if (!jobDb.findUnique(id)) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    if (!(await jobService.findUnique(id))) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     let body: { designer?: string; changedBy?: string }
     try { body = await req.json() }
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     if (!designer) return NextResponse.json({ error: "Designer name is required" }, { status: 422 })
 
-    const result = jobDb.assignDesigner(id, designer, changedBy)
+    const result = await jobService.assignDesigner(id, designer, changedBy)
     if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     return NextResponse.json({ job: result.job })

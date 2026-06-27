@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { jobDb, clientDb } from "@/lib/db"
+import { jobService } from "@/lib/services/job-service"
+import { clientService } from "@/lib/services/client-service"
 import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE } from "@/lib/constants"
 import { getCurrentUser, requireRole } from "@/lib/auth"
 
@@ -7,8 +8,11 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+
     const { id } = await params
-    const job = jobDb.findUnique(id)
+    const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json(job)
   } catch (err) {
@@ -34,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       }, { status: 422 })
     }
 
-    const existing = jobDb.findUnique(id)
+    const existing = await jobService.findUnique(id)
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     const allowed = [
@@ -79,11 +83,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       const cid = body.clientId ? String(body.clientId).trim() : null
       data.clientId = cid
       if (cid) {
-        const client = clientDb.findUnique(cid)
+        const client = await clientService.findUnique(cid)
         if (client && !data.clientCompany) data.clientCompany = client.name
       }
     } else if (body.clientCompany && !data.clientId) {
-      const client = clientDb.findByName(String(body.clientCompany))
+      const client = await clientService.findByName(String(body.clientCompany))
       if (client) data.clientId = client.id
     }
 
@@ -106,7 +110,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 })
     }
 
-    const job = jobDb.update(id, data)
+    const job = await jobService.update(id, data)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json(job)
   } catch (err) {
@@ -121,14 +125,14 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
-    if (!jobDb.findUnique(id)) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    if (!(await jobService.findUnique(id))) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const blockers = jobDb.deletionBlockers(id)
+    const blockers = jobService.deletionBlockers(id)
     if (blockers.length > 0) {
       return NextResponse.json({ error: blockers.join(" ") }, { status: 409 })
     }
 
-    const ok = jobDb.delete(id)
+    const ok = await jobService.delete(id)
     if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ ok: true })
   } catch (err) {

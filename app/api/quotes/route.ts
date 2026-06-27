@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { quoteDb, clientDb, quoteLineItemDb } from "@/lib/db"
+import { quoteService } from "@/lib/services/quote-service"
+import { clientService } from "@/lib/services/client-service"
 import { getCurrentUser } from "@/lib/auth"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
@@ -17,16 +18,19 @@ function parseLineItems(raw: unknown): { description: string; amount: number; va
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+
     const sp     = req.nextUrl.searchParams
     const search = sp.get("search") ?? ""
     const status = sp.get("status") ?? ""
     const page   = Math.max(1, parseInt(sp.get("page") ?? "1"))
     const limit  = Math.max(1, Math.min(100, parseInt(sp.get("limit") ?? "25")))
     const opts   = { ...(search && { search }), ...(status && { status }) }
-    const [quotes, total] = [
-      quoteDb.findMany({ ...opts, skip: (page - 1) * limit, take: limit }),
-      quoteDb.count(opts),
-    ]
+    const [quotes, total] = await Promise.all([
+      quoteService.findMany({ ...opts, skip: (page - 1) * limit, take: limit }),
+      quoteService.count(opts),
+    ])
     return NextResponse.json({ quotes, total, page, limit })
   } catch (err) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -70,7 +74,7 @@ export async function POST(req: NextRequest) {
     let clientId: string | null = body.clientId ? String(body.clientId).trim() : null
     const clientCompany = String(body.clientCompany).trim()
     if (!clientId) {
-      const found = clientDb.findByName(clientCompany)
+      const found = await clientService.findByName(clientCompany)
       if (found) clientId = found.id
     }
 
@@ -85,7 +89,7 @@ export async function POST(req: NextRequest) {
       ? Math.round(lineItems.reduce((sum, li) => sum + li.amount, 0) * 100) / 100
       : quoteValue
 
-    const quote = quoteDb.create({
+    const quote = await quoteService.create({
       clientId,
       clientCompany,
       contactName:  body.contactName ? String(body.contactName).trim() : null,
@@ -100,7 +104,7 @@ export async function POST(req: NextRequest) {
       vatRate,
     })
 
-    if (lineItems.length) quoteLineItemDb.replaceForQuote(quote.id, lineItems)
+    if (lineItems.length) await quoteService.replaceLineItems(quote.id, lineItems)
 
     return NextResponse.json(quote, { status: 201 })
   } catch (err) {

@@ -29,7 +29,8 @@
 import fs from "fs"
 import path from "path"
 import crypto from "crypto"
-import { db, backupJobDb, backupAuditDb, type BackupTrigger, type BackupJobRow } from "@/lib/db"
+import { db, type BackupTrigger, type BackupJobRow } from "@/lib/db"
+import { backupRecordService } from "@/lib/services/backup-record-service"
 
 export const BACKUPS_DIR = process.env.BACKUPS_DIR ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "backups")
 export const SCHEMA_VERSION = "2026.06"   // bump manually whenever a structural change would matter to a future restore
@@ -132,13 +133,13 @@ interface RunBackupOpts {
 export async function runBackup(opts: RunBackupOpts): Promise<void> {
   const { jobId, triggeredBy, triggeredByName, trigger } = opts
   const startedAt = Date.now()
-  const job = backupJobDb.findUnique(jobId)
+  const job = await backupRecordService.findUnique(jobId)
   if (!job) return // shouldn't happen — created moments earlier by the caller
 
   const folderPath = path.join(BACKUPS_DIR, job.folderName)
 
   try {
-    backupJobDb.markRunning(jobId)
+    await backupRecordService.markRunning(jobId)
     fs.mkdirSync(folderPath, { recursive: true })
 
     const dataPath = path.join(folderPath, "data.json")
@@ -169,15 +170,15 @@ export async function runBackup(opts: RunBackupOpts): Promise<void> {
     writeJsonFile(path.join(folderPath, "metadata.json"), metadata)
 
     const durationMs = Date.now() - startedAt
-    backupJobDb.markCompleted(jobId, { durationMs, sizeBytes, checksum, rowCounts })
-    backupAuditDb.log({ action: "CREATE_COMPLETED", backupId: jobId, userId: triggeredBy, userName: triggeredByName, detail: `${manifest.totalRows} rows across ${tables.length} tables in ${durationMs}ms` })
+    await backupRecordService.markCompleted(jobId, { durationMs, sizeBytes, checksum, rowCounts })
+    await backupRecordService.logAudit({ action: "CREATE_COMPLETED", backupId: jobId, userId: triggeredBy, userName: triggeredByName, detail: `${manifest.totalRows} rows across ${tables.length} tables in ${durationMs}ms` })
 
     await runRetentionCleanup(triggeredBy, triggeredByName)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error(`[runBackup] Backup ${jobId} failed:`, err)
-    backupJobDb.markFailed(jobId, message)
-    backupAuditDb.log({ action: "CREATE_FAILED", backupId: jobId, userId: triggeredBy, userName: triggeredByName, detail: message })
+    await backupRecordService.markFailed(jobId, message)
+    await backupRecordService.logAudit({ action: "CREATE_FAILED", backupId: jobId, userId: triggeredBy, userName: triggeredByName, detail: message })
   }
 }
 
@@ -189,15 +190,15 @@ export async function runBackup(opts: RunBackupOpts): Promise<void> {
  * single-process app: the HTTP response isn't held open for the duration of
  * the export.
  */
-export function startBackup(opts: { triggeredBy: string; triggeredByName: string; trigger: BackupTrigger; retryOfId?: string }) {
+export async function startBackup(opts: { triggeredBy: string; triggeredByName: string; trigger: BackupTrigger; retryOfId?: string }) {
   const id = crypto.randomUUID()
   const folderName = folderNameFor(new Date())
-  const job = backupJobDb.create({
+  const job = await backupRecordService.create({
     id, folderName, trigger: opts.trigger,
     triggeredBy: opts.triggeredBy, triggeredByName: opts.triggeredByName,
     retryOfId: opts.retryOfId ?? null,
   })
-  backupAuditDb.log({ action: "CREATE_TRIGGERED", backupId: id, userId: opts.triggeredBy, userName: opts.triggeredByName, detail: opts.trigger })
+  await backupRecordService.logAudit({ action: "CREATE_TRIGGERED", backupId: id, userId: opts.triggeredBy, userName: opts.triggeredByName, detail: opts.trigger })
   // Fire and forget — see function comment above.
   void runBackup({ jobId: id, triggeredBy: opts.triggeredBy, triggeredByName: opts.triggeredByName, trigger: opts.trigger })
   return job
@@ -218,17 +219,17 @@ export function backupDataFilePath(job: BackupJobRow): string {
  * automatically after every successful backup; safe to call any time.
  */
 export async function runRetentionCleanup(actorId: string, actorName: string, keepCount: number = DEFAULT_RETENTION_COUNT): Promise<number> {
-  const toPrune = backupJobDb.findBeyondRetention(keepCount)
+  const toPrune = await backupRecordService.findBeyondRetention(keepCount)
   for (const job of toPrune) {
     try {
       fs.rmSync(backupFolderPath(job), { recursive: true, force: true })
-      backupJobDb.markFileDeleted(job.id)
+      await backupRecordService.markFileDeleted(job.id)
     } catch (err) {
       console.error(`[runRetentionCleanup] Failed to prune backup ${job.id}:`, err)
     }
   }
   if (toPrune.length) {
-    backupAuditDb.log({ action: "RETENTION_CLEANUP", userId: actorId, userName: actorName, detail: `Pruned ${toPrune.length} backup file(s) beyond the last ${keepCount}` })
+    await backupRecordService.logAudit({ action: "RETENTION_CLEANUP", userId: actorId, userName: actorName, detail: `Pruned ${toPrune.length} backup file(s) beyond the last ${keepCount}` })
   }
   return toPrune.length
 }

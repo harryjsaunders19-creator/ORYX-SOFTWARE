@@ -13,7 +13,7 @@
  * Returns all child Job rows for this parent (ordered by revisionLetter).
  */
 import { NextRequest, NextResponse } from "next/server"
-import { jobDb } from "@/lib/db"
+import { jobService } from "@/lib/services/job-service"
 import { nextRevisionLetter, REVISION_LETTERS } from "@/lib/constants"
 import { createId } from "@paralleldrive/cuid2"
 import { getCurrentUser } from "@/lib/auth"
@@ -22,9 +22,12 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+
     const { id } = await params
-    if (!jobDb.findUnique(id)) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    const revisions = jobDb.revisionsForJob(id)
+    if (!(await jobService.findUnique(id))) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const revisions = await jobService.revisionsForJob(id)
     return NextResponse.json({ revisions })
   } catch (err) {
     console.error("[GET /api/jobs/[id]/revisions]", err)
@@ -38,7 +41,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
 
     const { id } = await params
-    const parent = jobDb.findUnique(id)
+    const parent = await jobService.findUnique(id)
     if (!parent) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     // Can only create revisions on original jobs, not on revisions-of-revisions
@@ -53,7 +56,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     try { body = await req.json() } catch { /* body is optional */ }
 
     // Find next letter from existing child jobs
-    const existing    = jobDb.revisionsForJob(id)
+    const existing    = await jobService.revisionsForJob(id)
     const usedLetters = existing.map(r => r.revisionLetter).filter(Boolean) as string[]
 
     // Optional explicit letter override
@@ -83,7 +86,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const revDrawingNumber  = `${baseDrawingNumber} Rev ${letter}`
 
     // Inherit site/client details from parent; start fresh with status/designer
-    const revision = jobDb.create({
+    const revision = await jobService.create({
       id:             createId(),
       drawingNumber:  revDrawingNumber,
       itemType:       "REVISION",

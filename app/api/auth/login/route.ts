@@ -2,13 +2,14 @@
  * POST /api/auth/login
  *
  * Validates email + password against bcrypt-hashed passwords stored in the
- * User table. Sets session cookies on success. Returns `mustChangePassword`
- * so the client can redirect to /set-password when needed.
+ * user directory. Sets session cookies on success.
  */
 import { NextRequest, NextResponse } from "next/server"
-import { userDb, identitySwitchLogDb } from "@/lib/db"
+import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
+import { userService } from "@/lib/services/user-service"
 import { SESSION_COOKIE, REAL_SESSION_COOKIE } from "@/lib/auth"
 import { verifyPassword } from "@/lib/password"
+import { checkLoginRateLimit } from "@/lib/login-rate-limit"
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,7 +24,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 422 })
     }
 
-    const user = userDb.findByEmail(email)
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
+    if (!checkLoginRateLimit(`${clientIp}:${email}`)) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please wait 15 minutes and try again." },
+        { status: 429 },
+      )
+    }
+
+    const user = await userService.findByEmail(email)
     if (!user || !user.active) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
@@ -36,7 +45,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
 
-    identitySwitchLogDb.log({
+    await identitySwitchLogService.log({
       action: "SESSION_STARTED",
       realUserId: user.id,
       realUserName: user.name,

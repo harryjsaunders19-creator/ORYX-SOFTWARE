@@ -1,13 +1,9 @@
 /**
  * POST /api/auth/set-password
- *
- * Allows the currently logged-in user to set a new password.
- * Used for the forced password change on first login (mustChangePassword)
- * and for voluntary password changes.
  */
 import { NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
-import { userDb } from "@/lib/db"
+import { userService } from "@/lib/services/user-service"
 import { hashPassword, validatePasswordStrength } from "@/lib/password"
 
 export async function POST(req: NextRequest) {
@@ -35,7 +31,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: strengthError }, { status: 422 })
     }
 
-    userDb.update(user.id, {
+    await userService.update(user.id, {
       passwordHash: hashPassword(password),
       mustChangePassword: 0,
     })

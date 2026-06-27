@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { jobDb, sequenceDb, clientDb } from "@/lib/db"
+import { jobService } from "@/lib/services/job-service"
+import { clientService } from "@/lib/services/client-service"
+import { sequenceDb } from "@/lib/db"
 import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
 import { createId } from "@paralleldrive/cuid2"
 import { VALID_ITEM_TYPES, isValidWorksType, OTHER_WORKS_TYPE } from "@/lib/constants"
@@ -14,6 +16,9 @@ const REF_PREFIXES: Record<string, string> = {
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+
     const sp             = req.nextUrl.searchParams
     const search         = sp.get("search")        ?? ""
     const status         = sp.get("status")        ?? ""
@@ -47,14 +52,14 @@ export async function GET(req: NextRequest) {
     }
 
     if (exportAll) {
-      const jobs = jobDb.findMany({ where, orderBy: { field: sortBy, dir: sortDir } })
+      const jobs = await jobService.findMany({ where, orderBy: { field: sortBy, dir: sortDir } })
       return NextResponse.json({ jobs, total: jobs.length })
     }
 
-    const [jobs, total] = [
-      jobDb.findMany({ where, orderBy: { field: sortBy, dir: sortDir }, skip: (page - 1) * limit, take: limit }),
-      jobDb.count(where),
-    ]
+    const [jobs, total] = await Promise.all([
+      jobService.findMany({ where, orderBy: { field: sortBy, dir: sortDir }, skip: (page - 1) * limit, take: limit }),
+      jobService.count(where),
+    ])
     return NextResponse.json({ jobs, total, page, limit })
   } catch (err) {
     console.error("[GET /api/jobs]", err)
@@ -136,18 +141,17 @@ export async function POST(req: NextRequest) {
     let resolvedClientCompany = String(body.clientCompany ?? "").trim()
 
     if (body.clientId && String(body.clientId).trim()) {
-      const client = clientDb.findUnique(String(body.clientId).trim())
+      const client = await clientService.findUnique(String(body.clientId).trim())
       if (client) {
         resolvedClientId      = client.id
         resolvedClientCompany = client.name   // keep in sync
       }
     } else if (resolvedClientCompany) {
-      // Try to find existing client by name (migration path)
-      const client = clientDb.findByName(resolvedClientCompany)
+      const client = await clientService.findByName(resolvedClientCompany)
       if (client) resolvedClientId = client.id
     }
 
-    const job = jobDb.create({
+    const job = await jobService.create({
       id,
       drawingNumber,
       itemType,

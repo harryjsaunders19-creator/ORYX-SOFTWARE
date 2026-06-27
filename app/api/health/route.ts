@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { dbHealthCheck, jobDb, sequenceDb, historyDb } from "@/lib/db"
+import { dbHealthCheck, sequenceDb } from "@/lib/db"
+import { jobService } from "@/lib/services/job-service"
 import { createId } from "@paralleldrive/cuid2"
 import { requireRole } from "@/lib/auth"
 
@@ -9,7 +10,6 @@ export async function GET() {
 
   const checks: Record<string, { ok: boolean; message: string; detail?: Record<string, unknown> | string | number | null }> = {}
 
-  // 1. Database connection
   try {
     const h = dbHealthCheck()
     checks.database = {
@@ -21,33 +21,35 @@ export async function GET() {
     checks.database = { ok: false, message: "Database error", detail: String(err) }
   }
 
-  // 2. Read
   try {
-    const total = jobDb.count()
+    const total = await jobService.count()
     checks.read = { ok: true, message: `Read OK — ${total} job(s)` }
   } catch (err) {
     checks.read = { ok: false, message: "Read failed", detail: String(err) }
   }
 
-  // 3. Write + delete canary row
+  let testId: string | null = null
   try {
-    const testId = createId()
-    jobDb.create({
-      id: testId, drawingNumber: "99/ORYX/99/999",
+    testId = createId()
+    const testDrawingNumber = `__HEALTH__/${Date.now()}`
+    await jobService.create({
+      id: testId, drawingNumber: testDrawingNumber,
       address: "__health_check__", typeOfWorks: "Access Scaffold",
       clientCompany: "Test", requestedBy: "Test",
       status: "NEW_REQUEST", designer: "Test",
       dateCompleted: null,
       notes: null, changedBy: "HealthCheck",
     })
-    const written = jobDb.findUnique(testId)
-    jobDb.delete(testId)
+    const written = await jobService.findUnique(testId)
     checks.write = { ok: !!written, message: written ? "Write + delete OK" : "Write failed silently" }
   } catch (err) {
     checks.write = { ok: false, message: "Write test failed", detail: String(err) }
+  } finally {
+    if (testId) {
+      try { await jobService.delete(testId) } catch { /* best-effort cleanup */ }
+    }
   }
 
-  // 4. Sequence
   try {
     const seq = sequenceDb.nextSequence("__health__")
     checks.sequence = { ok: typeof seq === "number", message: `Sequence OK (test value: ${seq})` }
@@ -55,7 +57,6 @@ export async function GET() {
     checks.sequence = { ok: false, message: "Sequence failed", detail: String(err) }
   }
 
-  // 5. History table
   try {
     const h = dbHealthCheck()
     checks.history = { ok: true, message: `StatusHistory OK — ${h.historyCount} event(s)` }

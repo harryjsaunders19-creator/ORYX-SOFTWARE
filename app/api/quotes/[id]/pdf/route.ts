@@ -19,7 +19,8 @@
  */
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
-import { quoteDb, quoteLineItemDb, clientDb } from "@/lib/db"
+import { quoteService } from "@/lib/services/quote-service"
+import { clientService } from "@/lib/services/client-service"
 import { PDFDocument, rgb } from "pdf-lib"
 import fontkit from "@pdf-lib/fontkit"
 import { format } from "date-fns"
@@ -106,7 +107,7 @@ export async function POST(_req: Request, { params }: Ctx) {
     if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
 
     const { id } = await params
-    const quote = quoteDb.findUnique(id)
+    const quote = await quoteService.findUnique(id)
     if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
 
     // The PDF's "Prepared by" line always shows the quote's real, persisted
@@ -125,14 +126,14 @@ export async function POST(_req: Request, { params }: Ctx) {
     // a mechanism that's easy to misuse again.
     const preparedBy = quote.createdBy
 
-    const client = quote.clientId ? clientDb.findUnique(quote.clientId) : null
+    const client = quote.clientId ? await clientService.findUnique(quote.clientId) : null
     const customerId = client?.accountCode ?? null
 
     // Line items: real ones if this quote has them, otherwise a single
     // line derived from the existing description+quoteValue — every quote
     // created before this feature existed renders exactly as it always
     // has, just inside the new layout.
-    const realLineItems = quoteLineItemDb.findForQuote(quote.id)
+    const realLineItems = await quoteService.findLineItemsForQuote(quote.id)
     const lineItems = realLineItems.length
       ? realLineItems.map(li => ({ description: li.description, amount: li.amount, vatApplicable: li.vatApplicable === 1 }))
       : [{ description: quote.description, amount: quote.quoteValue, vatApplicable: true }]
@@ -401,7 +402,7 @@ export async function POST(_req: Request, { params }: Ctx) {
     await fs.writeFile(outPath, pdfBytes)
 
     const pdfPath = `/quote-pdfs/${filename}`
-    const updated = quoteDb.update(id, { pdfPath })
+    const updated = await quoteService.update(id, { pdfPath })
 
     return NextResponse.json({ pdfPath, quote: updated }, { status: 201 })
   } catch (err) {

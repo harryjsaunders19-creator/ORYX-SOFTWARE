@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
-import { calendarDb, userDb } from "@/lib/db"
+import { calendarService } from "@/lib/services/calendar-service"
+import { userService } from "@/lib/services/user-service"
 import { createId } from "@paralleldrive/cuid2"
 
 export async function GET(req: NextRequest) {
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "from and to date parameters are required" }, { status: 422 })
     }
 
-    const events = calendarDb.findMany({
+    const events = await calendarService.findMany({
       from, to,
       userId:     sp.get("userId")     ?? undefined,
       categoryId: sp.get("categoryId") ?? undefined,
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const categoryId = typeof body.categoryId === "string" ? body.categoryId : ""
     if (!categoryId) return NextResponse.json({ error: "Category is required" }, { status: 422 })
-    const categories = calendarDb.categories()
+    const categories = await calendarService.categories()
     if (!categories.find(c => c.id === categoryId)) {
       return NextResponse.json({ error: "Invalid category" }, { status: 422 })
     }
@@ -57,7 +58,11 @@ export async function POST(req: NextRequest) {
     if (endDate < startDate) return NextResponse.json({ error: "End date must be on or after start date" }, { status: 422 })
 
     const id = createId()
-    const event = calendarDb.create({
+    const assigneeIds = Array.isArray(body.assigneeIds)
+      ? await userService.filterExistingIds(body.assigneeIds as string[])
+      : undefined
+
+    const full = await calendarService.create({
       id, title, categoryId, startDate, endDate,
       description: body.description  ? String(body.description)  : null,
       allDay:      body.allDay === false ? 0 : 1,
@@ -67,14 +72,8 @@ export async function POST(req: NextRequest) {
       jobId:       body.jobId    ? String(body.jobId)    : null,
       clientId:    body.clientId ? String(body.clientId) : null,
       createdBy:   user.id,
-    })
+    }, assigneeIds)
 
-    if (Array.isArray(body.assigneeIds)) {
-      const validIds = (body.assigneeIds as string[]).filter(id => typeof id === "string" && userDb.findUnique(id))
-      calendarDb.setAssignees(id, validIds)
-    }
-
-    const full = calendarDb.findUnique(id)
     return NextResponse.json(full, { status: 201 })
   } catch (err) {
     console.error("[POST /api/calendar/events]", err)

@@ -15,7 +15,9 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { requireRole } from "@/lib/auth"
-import { jobDb, sequenceDb, clientDb } from "@/lib/db"
+import { jobService } from "@/lib/services/job-service"
+import { clientService } from "@/lib/services/client-service"
+import { sequenceDb } from "@/lib/db"
 import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
 import { createId } from "@paralleldrive/cuid2"
 import { isValidWorksType, OTHER_WORKS_TYPE, VALID_STATUSES } from "@/lib/constants"
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
       }
 
       const buffer = Buffer.from(await file.arrayBuffer())
-      const result = parseSpreadsheet(buffer, file.name)
+      const result = await parseSpreadsheet(buffer, file.name)
 
       if (result.rows.length === 0) {
         return NextResponse.json({ error: "No data rows found in file" }, { status: 422 })
@@ -75,7 +77,7 @@ export async function POST(req: NextRequest) {
       markInternalDuplicates(result.rows)
 
       // Check for duplicates against existing database jobs
-      const existingJobs = jobDb.findMany({ take: 10000 })
+      const existingJobs = await jobService.findMany({ take: 10000 })
       const existingKeys = new Set(existingJobs.map(j => dedupKey({
         address: j.address,
         clientCompany: j.clientCompany,
@@ -182,14 +184,14 @@ export async function POST(req: NextRequest) {
         // Resolve client
         let resolvedClientId: string | null = null
         const resolvedClientCompany = row.clientCompany.trim()
-        const client = clientDb.findByName(resolvedClientCompany)
+        const client = await clientService.findByName(resolvedClientCompany)
         if (client) resolvedClientId = client.id
 
         const quoteValue = row.quoteValue != null && row.quoteValue >= 0
           ? Math.round(row.quoteValue * 100) / 100 : null
 
         try {
-          jobDb.create({
+          await jobService.create({
             id: createId(),
             drawingNumber,
             itemType,

@@ -1,5 +1,6 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { useUser } from "@/components/user-context"
 import { Check, X } from "lucide-react"
@@ -12,6 +13,7 @@ const RULES = [
 ]
 
 export default function SetPasswordPage() {
+  const router = useRouter()
   const { user, loading: sessionLoading } = useUser()
   const [password, setPassword]       = useState("")
   const [confirm,  setConfirm]        = useState("")
@@ -19,12 +21,12 @@ export default function SetPasswordPage() {
   const [loading,  setLoading]        = useState(false)
   const [success,  setSuccess]        = useState(false)
 
-  if (sessionLoading) return null
+  useEffect(() => {
+    if (!sessionLoading && !user) router.replace("/login")
+  }, [sessionLoading, user, router])
 
-  if (!user) {
-    if (typeof window !== "undefined") window.location.href = "/login"
-    return null
-  }
+  if (sessionLoading) return null
+  if (!user) return null
 
   const allRulesPass = RULES.every(r => r.test(password))
   const passwordsMatch = password === confirm && confirm.length > 0

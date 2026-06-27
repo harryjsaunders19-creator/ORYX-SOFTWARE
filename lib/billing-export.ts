@@ -1,98 +1,57 @@
-import * as XLSX from "xlsx"
+import ExcelJS from "exceljs"
 import type { AccountsHandoverSnapshot } from "@/lib/db"
+
+const GBP_FMT = '"£"#,##0.00'
 
 /**
  * Builds the Accounts Handover workbook matching the company's standard
- * template layout exactly. Single sheet named by export year, columns:
- *
- *   A: (empty spacer)
- *   B: Drawing Number
- *   C: (empty spacer)
- *   D: Site Address
- *   E: Type of works
- *   F: Client Company
- *   G: Quote                    (£ currency format)
- *   H: Requested By
- *   I: Date completed
- *   J: Designer completed by
- *
- * Used both at export time (fresh snapshots) and when re-downloading a
- * past batch (snapshots loaded from BillingExportSnapshot).
+ * template layout. Single sheet named by export year.
  */
-export function buildAccountsHandoverWorkbook(
+export async function buildAccountsHandoverWorkbook(
   snapshots: AccountsHandoverSnapshot[],
   meta: { batchNumber: string; exportDate: string; exportedBy: string },
-) {
-  const wb = XLSX.utils.book_new()
-
+): Promise<ExcelJS.Workbook> {
+  const wb = new ExcelJS.Workbook()
   const sheetYear = meta.exportDate.slice(0, 4)
+  const sheet = wb.addWorksheet(sheetYear)
 
-  // Header row — column A and C are intentional spacers matching the template
-  const header: (string | null)[] = [
-    null,                      // A: spacer
-    "Drawing Number",          // B
-    null,                      // C: spacer
-    "Site Address",            // D
-    "Type of works",           // E
-    "Client Company",          // F
-    "Quote",                   // G
-    "Requested By",            // H
-    "Date completed",          // I
-    "Designer completed by",   // J
+  sheet.columns = [
+    { width: 2 },  { width: 22 }, { width: 2 },  { width: 40 },
+    { width: 28 }, { width: 28 }, { width: 14 }, { width: 20 },
+    { width: 16 }, { width: 24 },
   ]
 
-  const dataRows = snapshots.map(s => {
+  sheet.addRow([
+    null, "Drawing Number", null, "Site Address", "Type of works",
+    "Client Company", "Quote", "Requested By", "Date completed", "Designer completed by",
+  ])
+
+  for (const s of snapshots) {
     const typeOfWorks = s.project.typeOfWorks === "Other"
       ? (s.project.otherTypeDescription ?? "Other")
       : (s.project.typeOfWorks ?? "")
 
-    return [
-      null,                                              // A: spacer
-      s.project.drawingNumber,                           // B
-      null,                                              // C: spacer
-      s.project.siteAddress,                             // D
-      typeOfWorks,                                       // E
-      s.client.clientName,                               // F
-      s.commercial.agreedFee ?? s.commercial.quotedFee,  // G: number or null
-      s.request.requestedBy ?? "",                       // H
-      s.project.completionDate || "",                    // I
-      s.design.assignedDesigner ?? "",                   // J
-    ]
-  })
+    const row = sheet.addRow([
+      null,
+      s.project.drawingNumber,
+      null,
+      s.project.siteAddress,
+      typeOfWorks,
+      s.client.clientName,
+      s.commercial.agreedFee ?? s.commercial.quotedFee,
+      s.request.requestedBy ?? "",
+      s.project.completionDate || "",
+      s.design.assignedDesigner ?? "",
+    ])
 
-  const sheet = XLSX.utils.aoa_to_sheet([header, ...dataRows])
-
-  // ── Column widths matching the template's visual proportions ────
-  sheet["!cols"] = [
-    { wch: 2 },    // A: narrow spacer
-    { wch: 22 },   // B: Drawing Number
-    { wch: 2 },    // C: narrow spacer
-    { wch: 40 },   // D: Site Address (wide)
-    { wch: 28 },   // E: Type of works
-    { wch: 28 },   // F: Client Company
-    { wch: 14 },   // G: Quote
-    { wch: 20 },   // H: Requested By
-    { wch: 16 },   // I: Date completed
-    { wch: 24 },   // J: Designer completed by
-  ]
-
-  // ── Number format: Quote column (G) as £ currency ──────────────
-  // Template uses "£"#,##0.00 for the Quote column. SheetJS community
-  // edition doesn't support cell styles, but it does honour the `z`
-  // (number format) property on individual cells.
-  for (let r = 1; r <= dataRows.length; r++) {
-    const addr = XLSX.utils.encode_cell({ r, c: 6 }) // column G
-    const cell = sheet[addr]
-    if (cell && cell.t === "n") {
-      cell.z = "\"£\"#,##0.00"
-    }
+    const quoteCell = row.getCell(7)
+    if (typeof quoteCell.value === "number") quoteCell.numFmt = GBP_FMT
   }
-
-  XLSX.utils.book_append_sheet(wb, sheet, sheetYear)
 
   return wb
 }
 
-export function workbookToBuffer(wb: XLSX.WorkBook): Buffer {
-  return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer
+export async function workbookToBuffer(wb: ExcelJS.Workbook): Promise<Buffer> {
+  const buf = await wb.xlsx.writeBuffer()
+  return Buffer.from(buf)
 }

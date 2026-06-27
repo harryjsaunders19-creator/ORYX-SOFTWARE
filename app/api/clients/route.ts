@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { clientDb } from "@/lib/db"
+import { clientService } from "@/lib/services/client-service"
 import { createId } from "@paralleldrive/cuid2"
 import { getCurrentUser, getCurrentRole } from "@/lib/auth"
 import { canViewClientAnalytics } from "@/lib/permissions"
@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
     const limit      = Math.max(1, Math.min(200, parseInt(sp.get("limit") ?? "50")))
 
     const role = await getCurrentRole()
-    const clients = clientDb.findManyWithMeta({ search, activeOnly, skip: (page - 1) * limit, take: limit })
-    const total   = clientDb.count({ search, activeOnly })
+    const clients = await clientService.findManyWithMeta({ search, activeOnly, skip: (page - 1) * limit, take: limit })
+    const total   = await clientService.count({ search, activeOnly })
 
     const redacted = canViewClientAnalytics(role)
       ? clients
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     if (!name) return NextResponse.json({ error: "Company name is required" }, { status: 422 })
 
     // Duplicate check
-    const existing = clientDb.findByName(name)
+    const existing = await clientService.findByName(name)
     if (existing) {
       return NextResponse.json({
         error:    `A client named "${existing.name}" already exists.`,
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       }, { status: 409 })
     }
 
-    const client = clientDb.create({
+    const client = await clientService.create({
       id:             createId(),
       name,
       contactName:    body.contactName    ? String(body.contactName).trim()    : null,

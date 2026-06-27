@@ -1,4 +1,4 @@
-import { jobDb, sequenceDb, db } from "@/lib/db"
+import { jobDb, db } from "@/lib/db"
 import { createId } from "@paralleldrive/cuid2"
 
 async function main() {

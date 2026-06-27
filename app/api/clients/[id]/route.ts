@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { clientDb } from "@/lib/db"
+import { clientService } from "@/lib/services/client-service"
 import { getCurrentUser, getCurrentRole, requireRole } from "@/lib/auth"
 import { canViewCommercialValues, canViewClientAnalytics } from "@/lib/permissions"
 
@@ -11,17 +11,17 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
 
     const { id } = await params
-    const client = clientDb.findUnique(id)
+    const client = await clientService.findUnique(id)
     if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 })
     const role = await getCurrentRole()
-    const jobs = clientDb.jobsForClient(id, 50)
+    const jobs = clientService.jobsForClient(id, 50)
 
     // Engineers see the client and their jobs but no aggregate stats
     if (!canViewClientAnalytics(role)) {
       return NextResponse.json({ client, stats: null, jobs })
     }
 
-    const rawStats = clientDb.stats(id)
+    const rawStats = clientService.stats(id)
     const stats = { ...rawStats, totalInvoicedValue: canViewCommercialValues(role) ? rawStats.totalInvoicedValue : null }
     return NextResponse.json({ client, stats, jobs })
   } catch (err) {
@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       const name = String(body.name).trim()
       if (!name) return NextResponse.json({ error: "Company name cannot be empty" }, { status: 422 })
       // Duplicate check (excluding self)
-      const existing = clientDb.findByName(name)
+      const existing = await clientService.findByName(name)
       if (existing && existing.id !== id) {
         return NextResponse.json({
           error: `A client named "${existing.name}" already exists.`, existing,
@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       }
     }
 
-    const updated = clientDb.update(id, {
+    const updated = await clientService.update(id, {
       ...(body.name          !== undefined && { name:           String(body.name).trim() }),
       ...(body.contactName   !== undefined && { contactName:    body.contactName   ? String(body.contactName).trim()   : null }),
       ...(body.email         !== undefined && { email:          body.email         ? String(body.email).trim()         : null }),
@@ -77,13 +77,13 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 
     const { id } = await params
     // Archive rather than hard-delete if client has jobs
-    const stats = clientDb.stats(id)
+    const stats = clientService.stats(id)
     if (stats.totalJobs > 0) {
-      const archived = clientDb.archive(id)
+      const archived = await clientService.archive(id)
       if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
       return NextResponse.json({ archived: true, client: archived })
     }
-    const ok = clientDb.delete(id)
+    const ok = await clientService.delete(id)
     if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ deleted: true })
   } catch (err) {

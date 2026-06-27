@@ -1,19 +1,15 @@
 /**
  * POST /api/auth/switch
  *
- * Still no password check for the *first* identity pick in a browser
- * session — there's no credential to verify it against, and that's a real,
- * documented limitation (see PROJECT_OVERVIEW.md §27), not something this
- * route can fix on its own. What this route does enforce: once a real
- * identity exists for this session, switching to a *different* one is
- * impersonation, and impersonation is restricted to admins, checked against
- * the real underlying identity (never the currently-acted-as one), and
- * logged permanently regardless of whether it's allowed or rejected.
+ * Admin impersonation only. Requires an existing authenticated session
+ * (via POST /api/auth/login). Cold-start identity selection without a
+ * password is not allowed — use the login page instead.
  *
  * Body: { userId: string }
  */
 import { NextRequest, NextResponse } from "next/server"
-import { userDb, identitySwitchLogDb } from "@/lib/db"
+import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
+import { userService } from "@/lib/services/user-service"
 import { SESSION_COOKIE, REAL_SESSION_COOKIE, getRealUser } from "@/lib/auth"
 
 export async function POST(req: NextRequest) {
@@ -25,19 +21,14 @@ export async function POST(req: NextRequest) {
     const userId = typeof body.userId === "string" ? body.userId.trim() : ""
     if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 422 })
 
-    const target = userDb.findUnique(userId)
+    const target = await userService.findUnique(userId)
     if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 })
     if (!target.active) return NextResponse.json({ error: "This user has been disabled" }, { status: 403 })
 
     const realUser = await getRealUser()
 
     if (!realUser) {
-      // Cold start — nobody has picked an identity for this browser session
-      // yet. Nothing to authorize against; this becomes the real identity.
-      identitySwitchLogDb.log({ action: "SESSION_STARTED", realUserId: target.id, realUserName: target.name, targetUserId: target.id, targetUserName: target.name })
-      const res = NextResponse.json({ user: target, isImpersonating: false })
-      setSessionCookies(res, target.id, target.id)
-      return res
+      return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
     }
 
     if (realUser.id === target.id) {
@@ -49,7 +40,7 @@ export async function POST(req: NextRequest) {
       const store = req.cookies
       const currentActiveId = store.get(SESSION_COOKIE)?.value
       if (currentActiveId && currentActiveId !== realUser.id) {
-        identitySwitchLogDb.log({ action: "IMPERSONATION_ENDED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name, detail: "Returned to own identity via switch" })
+        await identitySwitchLogService.log({ action: "IMPERSONATION_ENDED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name, detail: "Returned to own identity via switch" })
       }
       const res = NextResponse.json({ user: target, isImpersonating: false })
       setSessionCookies(res, target.id, realUser.id)
@@ -62,11 +53,11 @@ export async function POST(req: NextRequest) {
     // impersonating a non-admin can't use that session to impersonate a
     // third identity; only logging out and back in as the real admin can.
     if (realUser.role !== "ADMIN") {
-      identitySwitchLogDb.log({ action: "IMPERSONATION_REJECTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
+      await identitySwitchLogService.log({ action: "IMPERSONATION_REJECTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
       return NextResponse.json({ error: "Only administrators can switch to another account. Log out and sign back in as yourself if you need a different identity." }, { status: 403 })
     }
 
-    identitySwitchLogDb.log({ action: "IMPERSONATION_STARTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
+    await identitySwitchLogService.log({ action: "IMPERSONATION_STARTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
     const res = NextResponse.json({ user: target, isImpersonating: true, realUser: { id: realUser.id, name: realUser.name } })
     setSessionCookies(res, target.id, realUser.id)
     return res

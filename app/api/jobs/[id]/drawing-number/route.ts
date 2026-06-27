@@ -7,7 +7,9 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { requireRole } from "@/lib/auth"
-import { jobDb, sequenceDb, historyDb } from "@/lib/db"
+import { jobService } from "@/lib/services/job-service"
+import { sequenceDb } from "@/lib/db"
+import { historyService } from "@/lib/services/history-service"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -17,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   try {
     const { id } = await params
-    const job = jobDb.findUnique(id)
+    const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     let body: { drawingNumber?: string }
@@ -34,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     // Check for duplicates
-    const existing = jobDb.findMany({ take: 10000 })
+    const existing = await jobService.findMany({ take: 10000 })
     const duplicate = existing.find(j => j.drawingNumber === newNumber && j.id !== id)
     if (duplicate) {
       return NextResponse.json({
@@ -48,12 +50,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       .run(newNumber, new Date().toISOString(), id)
 
     // Log the change in status history
-    historyDb.addNote(id, `Drawing number changed: ${job.drawingNumber} → ${newNumber}`, auth.user.name)
+    await historyService.addNote(id, `Drawing number changed: ${job.drawingNumber} → ${newNumber}`, auth.user.name)
 
     // Reconcile sequence counter so future numbers don't collide
     sequenceDb.syncFromExistingJobs()
 
-    const updated = jobDb.findUnique(id)
+    const updated = await jobService.syncFromSqlite(id)
     return NextResponse.json(updated)
   } catch (err) {
     console.error("[PATCH /api/jobs/[id]/drawing-number]", err)

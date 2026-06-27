@@ -8,7 +8,7 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth
 
   try {
-    const buf = globalExportToBuffer()
+    const buf = await globalExportToBuffer()
     const filename = `oryx-export-${format(new Date(), "yyyy-MM-dd")}.xlsx`
 
     return new NextResponse(new Uint8Array(buf), {

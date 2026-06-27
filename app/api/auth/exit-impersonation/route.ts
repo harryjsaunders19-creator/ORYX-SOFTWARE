@@ -1,15 +1,8 @@
 /**
  * POST /api/auth/exit-impersonation
- *
- * Returns the active identity to whoever is really, currently authenticated
- * for this browser session — the one-click "stop acting as someone else"
- * action. Always succeeds if a real identity exists (there's no
- * authorization decision here: leaving impersonation is never something
- * that needs permission, only entering it is). If there was no active
- * impersonation in progress, this is a harmless no-op.
  */
 import { NextRequest, NextResponse } from "next/server"
-import { identitySwitchLogDb } from "@/lib/db"
+import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { SESSION_COOKIE, REAL_SESSION_COOKIE, getRealUser } from "@/lib/auth"
 
 export async function POST(req: NextRequest) {
@@ -21,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     const currentActiveId = req.cookies.get(SESSION_COOKIE)?.value
     if (currentActiveId && currentActiveId !== realUser.id) {
-      identitySwitchLogDb.log({
+      await identitySwitchLogService.log({
         action: "IMPERSONATION_ENDED",
         realUserId: realUser.id, realUserName: realUser.name,
         targetUserId: realUser.id, targetUserName: realUser.name,

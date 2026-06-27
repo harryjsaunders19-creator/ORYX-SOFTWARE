@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getCurrentUser, requireRole } from "@/lib/auth"
-import { calendarDb, userDb } from "@/lib/db"
+import type { UpdateCalendarEventData } from "@/lib/db/calendar-types"
+import { calendarService } from "@/lib/services/calendar-service"
+import { userService } from "@/lib/services/user-service"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -10,7 +12,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   try {
     const { id } = await params
-    const event = calendarDb.findUnique(id)
+    const event = await calendarService.findUnique(id)
     if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json(event)
   } catch (err) {
@@ -30,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
 
     if (body.categoryId !== undefined) {
-      const categories = calendarDb.categories()
+      const categories = await calendarService.categories()
       if (!categories.find(c => c.id === String(body.categoryId))) {
         return NextResponse.json({ error: "Invalid category" }, { status: 422 })
       }
@@ -48,15 +50,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       if (body[f] !== undefined) data[f] = body[f]
     }
 
-    const updated = calendarDb.update(id, data)
-    if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const assigneeIds = Array.isArray(body.assigneeIds)
+      ? await userService.filterExistingIds(body.assigneeIds as string[])
+      : undefined
 
-    if (Array.isArray(body.assigneeIds)) {
-      const validIds = (body.assigneeIds as string[]).filter(uid => typeof uid === "string" && userDb.findUnique(uid))
-      calendarDb.setAssignees(id, validIds)
-    }
+    const full = await calendarService.update(id, data as UpdateCalendarEventData, assigneeIds)
+    if (!full) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const full = calendarDb.findUnique(id)
     return NextResponse.json(full)
   } catch (err) {
     console.error("[PATCH /api/calendar/events/[id]]", err)
@@ -70,8 +70,8 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 
   try {
     const { id } = await params
-    if (!calendarDb.findUnique(id)) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    calendarDb.delete(id)
+    if (!(await calendarService.findUnique(id))) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    await calendarService.delete(id)
     return NextResponse.json({ deleted: true })
   } catch (err) {
     console.error("[DELETE /api/calendar/events/[id]]", err)

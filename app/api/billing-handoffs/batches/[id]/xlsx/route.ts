@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { billingHandoffDb } from "@/lib/db"
+import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { buildAccountsHandoverWorkbook, workbookToBuffer } from "@/lib/billing-export"
 import { requireRole } from "@/lib/auth"
 
@@ -11,14 +11,14 @@ export async function GET(_req: Request, { params }: Ctx) {
 
   try {
     const { id } = await params
-    const batch = billingHandoffDb.findBatchUnique(id)
+    const batch = await billingHandoffService.findBatchUnique(id)
     if (!batch) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const snapshots = billingHandoffDb.snapshotsForBatch(id)
-    const wb  = buildAccountsHandoverWorkbook(snapshots, {
+    const snapshots = await billingHandoffService.snapshotsForBatch(id)
+    const wb  = await buildAccountsHandoverWorkbook(snapshots, {
       batchNumber: batch.batchNumber, exportDate: batch.exportDate, exportedBy: batch.exportedBy,
     })
-    const buf = workbookToBuffer(wb)
+    const buf = await workbookToBuffer(wb)
 
     return new NextResponse(new Uint8Array(buf), {
       headers: {

@@ -7,7 +7,7 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { requireRole } from "@/lib/auth"
-import { clientDb } from "@/lib/db"
+import { clientService } from "@/lib/services/client-service"
 import { createId } from "@paralleldrive/cuid2"
 import {
   parseClientSpreadsheet,
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       }
 
       const buffer = Buffer.from(await file.arrayBuffer())
-      const result = parseClientSpreadsheet(buffer, file.name)
+      const result = await parseClientSpreadsheet(buffer, file.name)
 
       if (result.rows.length === 0) {
         return NextResponse.json({ error: "No data rows found in file" }, { status: 422 })
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       markInternalClientDuplicates(result.rows)
 
       // Check against existing clients
-      const existingClients = clientDb.findMany({ take: 10000 })
+      const existingClients = await clientService.findManyWithMeta({ take: 10000 })
       const existingNames = new Set(existingClients.map(c => c.nameLower))
       const existingCodes = new Map(
         existingClients.filter(c => c.accountCode).map(c => [c.accountCode!.toLowerCase(), c.name])
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
         if (!row.name?.trim()) reasons.push("Missing company name")
 
         // Skip if name already exists
-        if (row.name && clientDb.findByName(row.name.trim())) {
+        if (row.name && await clientService.findByName(row.name.trim())) {
           reasons.push("Company name already exists")
         }
 
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-          clientDb.create({
+          await clientService.create({
             id:             createId(),
             name:           row.name.trim(),
             contactName:    row.contactName?.trim() || null,

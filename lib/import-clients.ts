@@ -141,33 +141,20 @@ export interface ParseClientFileResult {
   totalRawRows: number
 }
 
-export function parseClientSpreadsheet(buffer: Buffer, filename: string): ParseClientFileResult {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const XLSX = require("xlsx") as typeof import("xlsx")
-
-  const ext = filename.toLowerCase().split(".").pop()
-  const workbook = ext === "csv"
-    ? XLSX.read(buffer.toString("utf-8"), { type: "string" })
-    : XLSX.read(buffer, { type: "buffer" })
-
-  const sheetName = workbook.SheetNames[0]
-  if (!sheetName) return { headers: [], mapping: {}, unmappedHeaders: [], rows: [], totalRawRows: 0 }
-
-  const sheet = workbook.Sheets[sheetName]
-  const rawData = XLSX.utils.sheet_to_json<(string | number | undefined)[]>(sheet, {
-    header: 1, defval: "", blankrows: false,
-  })
+export async function parseClientSpreadsheet(buffer: Buffer, filename: string): Promise<ParseClientFileResult> {
+  const { readSpreadsheetRows } = await import("@/lib/spreadsheet-read")
+  const rawData = await readSpreadsheetRows(buffer, filename)
 
   if (rawData.length === 0) return { headers: [], mapping: {}, unmappedHeaders: [], rows: [], totalRawRows: 0 }
 
-  const headerRow = rawData[0].map(v => String(v ?? "").trim())
+  const headerRow = rawData[0].map((v: string | number | undefined) => String(v ?? "").trim())
   const { mapping, unmapped } = detectClientHeaderMapping(headerRow)
 
   const dataRows = rawData.slice(1)
   const rows: ParsedClientRow[] = []
   for (let i = 0; i < dataRows.length; i++) {
     const raw = dataRows[i]
-    if (!raw.some(v => v != null && String(v).trim() !== "")) continue
+    if (!raw.some((v: string | number | undefined) => v != null && String(v).trim() !== "")) continue
     rows.push(parseClientRow(raw, mapping, i + 2))
   }
 

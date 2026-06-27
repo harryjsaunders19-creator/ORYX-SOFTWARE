@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { billingHandoffDb } from "@/lib/db"
+import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { requireRole } from "@/lib/auth"
 
 export async function GET() {
@@ -7,7 +7,7 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth
 
   try {
-    const batches = billingHandoffDb.findBatches({ take: 100 })
+    const batches = await billingHandoffService.findBatches({ take: 100 })
     return NextResponse.json({ batches })
   } catch (err) {
     console.error("[GET /api/billing-handoffs/batches]", err)

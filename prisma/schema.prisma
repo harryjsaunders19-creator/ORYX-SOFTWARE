@@ -1,3 +1,12 @@
+// REFERENCE ONLY — this file is NOT used at runtime.
+//
+// The app stores data in SQLite via better-sqlite3 (see lib/db.ts).
+// The real schema, migrations, and queries all live in lib/db/connection.ts
+// and lib/db/schema.ts. This file exists only as a rough table outline for
+// tools that expect a Prisma schema. Do not trust it as the source of truth.
+//
+// Seed scripts: prisma/seed.ts, prisma/uat-seed.ts
+
 generator client {
   provider = "prisma-client-js"
 }

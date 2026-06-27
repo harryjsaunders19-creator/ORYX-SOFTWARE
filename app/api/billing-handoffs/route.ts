@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { billingHandoffDb } from "@/lib/db"
+import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { requireRole } from "@/lib/auth"
 
 export async function GET(req: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     // how) a specific job's completion has been handed off.
     const sourceJobId = sp.get("sourceJobId")
     if (sourceJobId) {
-      const handoff = billingHandoffDb.findBySourceJobId(sourceJobId)
+      const handoff = await billingHandoffService.findBySourceJobId(sourceJobId)
       return NextResponse.json({ handoff })
     }
 
@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
     const cleared = view === "cleared" ? true : view === "awaiting" ? false : undefined
     const limit  = sp.get("limit") ? Math.min(parseInt(sp.get("limit")!), 200) : undefined
 
-    const handoffs = billingHandoffDb.findMany({ cleared, take: limit })
-    const stats    = billingHandoffDb.stats()
+    const handoffs = await billingHandoffService.findMany({ cleared, take: limit })
+    const stats    = await billingHandoffService.stats()
     return NextResponse.json({ handoffs, ...stats })
   } catch (err) {
     console.error("[GET /api/billing-handoffs]", err)

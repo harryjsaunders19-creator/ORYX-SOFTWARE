@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { SESSION_COOKIE, REAL_SESSION_COOKIE, getRealUser } from "@/lib/auth"
-import { identitySwitchLogDb } from "@/lib/db"
+import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 
 export async function POST() {
   const realUser = await getRealUser()
   if (realUser) {
-    identitySwitchLogDb.log({ action: "LOGOUT", realUserId: realUser.id, realUserName: realUser.name })
+    await identitySwitchLogService.log({ action: "LOGOUT", realUserId: realUser.id, realUserName: realUser.name })
   }
   const res = NextResponse.json({ ok: true })
   res.cookies.delete(SESSION_COOKIE)

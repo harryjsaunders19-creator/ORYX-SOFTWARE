@@ -1,29 +1,21 @@
 import { NextResponse } from "next/server"
-import { jobDb, commercialDb, billingHandoffDb, holdDb, quoteDb } from "@/lib/db"
-import { getCurrentRole } from "@/lib/auth"
+import { statsService } from "@/lib/services/stats-service"
+import { getCurrentRole, getCurrentUser } from "@/lib/auth"
 import { canViewCommercialValues } from "@/lib/permissions"
 
 export async function GET() {
   try {
-    const role     = await getCurrentRole()
-    const canView  = canViewCommercialValues(role)
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
 
-    const [byStatus, byItemType, recentJobs, unassigned, totalActiveJobs, totalRevisions,
-           totalQuotedValue, totalIssuedValue, avgJobValue, handoffStats, clientsOnHold, deadlines, qStats] = [
-      jobDb.groupByStatus(),
-      jobDb.groupByItemType(),
-      jobDb.findRecent(6),
-      jobDb.countWhere({ unassigned: true }),
-      jobDb.countWhere({ onlyOriginals: true }),
-      jobDb.countWhere({ onlyRevisions: true }),
-      commercialDb.totalQuotedValue(),
-      commercialDb.totalIssuedValue(),
-      commercialDb.avgJobValue(),
-      billingHandoffDb.stats(),
-      holdDb.activeCount(),
-      jobDb.deadlineStats(),
-      quoteDb.stats(),
-    ]
+    const role    = await getCurrentRole()
+    const canView = canViewCommercialValues(role)
+
+    const {
+      byStatus, byItemType, recentJobs, unassigned, totalActiveJobs, totalRevisions,
+      totalQuotedValue, totalIssuedValue, avgJobValue, handoffStats, clientsOnHold,
+      deadlines, qStats,
+    } = await statsService.dashboard()
 
     const count = (status: string) => byStatus.find(s => s.status === status)?.count ?? 0
     const total = byStatus.reduce((a, b) => a + b.count, 0)
@@ -35,7 +27,6 @@ export async function GET() {
       checking:   count("CHECKING"),
       issued:     count("ISSUED"),
       unassigned,
-      // Commercial Dashboard (Admin-only module)
       totalQuotedValue: canView ? totalQuotedValue : null,
       totalIssuedValue: canView ? totalIssuedValue : null,
       avgJobValue:      canView ? avgJobValue      : null,
@@ -43,11 +34,9 @@ export async function GET() {
       overdueCount:       deadlines.overdueCount,
       dueTodayCount:      deadlines.dueTodayCount,
       dueThisWeekCount:   deadlines.dueThisWeekCount,
-      // Ready For Invoicing (Admin-only module)
       readyForInvoicingCount:   canView ? handoffStats.awaitingCount : null,
       readyForInvoicingValue:   canView ? handoffStats.awaitingValue : null,
       clearedForInvoicingCount: canView ? handoffStats.clearedCount  : null,
-      // Quote module — counts visible to both roles, monetary totals admin-only
       quotesSent:           qStats.sent,
       quotesAccepted:       qStats.accepted,
       quotesRejected:       qStats.rejected,

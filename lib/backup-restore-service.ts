@@ -31,7 +31,8 @@
  */
 import fs from "fs"
 import crypto from "crypto"
-import { db, backupJobDb, backupAuditDb } from "@/lib/db"
+import { db } from "@/lib/db"
+import { backupRecordService } from "@/lib/services/backup-record-service"
 import { backupDataFilePath, runBackup } from "@/lib/backup-service"
 
 export class RestoreError extends Error {}
@@ -67,38 +68,38 @@ export async function restoreFromBackup(opts: RestoreOpts): Promise<RestoreResul
   const { backupId, actorId, actorName, confirmationPhrase } = opts
 
   if (confirmationPhrase !== "RESTORE") {
-    backupAuditDb.log({ action: "RESTORE_REJECTED", backupId, userId: actorId, userName: actorName, detail: "Confirmation phrase did not match" })
+    await backupRecordService.logAudit({ action: "RESTORE_REJECTED", backupId, userId: actorId, userName: actorName, detail: "Confirmation phrase did not match" })
     throw new RestoreError('Confirmation phrase must be exactly "RESTORE".')
   }
 
-  const job = backupJobDb.findUnique(backupId)
+  const job = await backupRecordService.findUnique(backupId)
   if (!job) {
-    backupAuditDb.log({ action: "RESTORE_REJECTED", backupId, userId: actorId, userName: actorName, detail: "Backup not found" })
+    await backupRecordService.logAudit({ action: "RESTORE_REJECTED", backupId, userId: actorId, userName: actorName, detail: "Backup not found" })
     throw new RestoreError("Backup not found.")
   }
   if (job.status !== "COMPLETED") {
-    backupAuditDb.log({ action: "RESTORE_REJECTED", backupId, userId: actorId, userName: actorName, detail: `Backup status is ${job.status}, not COMPLETED` })
+    await backupRecordService.logAudit({ action: "RESTORE_REJECTED", backupId, userId: actorId, userName: actorName, detail: `Backup status is ${job.status}, not COMPLETED` })
     throw new RestoreError(`This backup is ${job.status.toLowerCase()}, not completed — it can't be restored from.`)
   }
   if (job.fileDeletedAt) {
-    backupAuditDb.log({ action: "RESTORE_REJECTED", backupId, userId: actorId, userName: actorName, detail: "Backup file already pruned by retention" })
+    await backupRecordService.logAudit({ action: "RESTORE_REJECTED", backupId, userId: actorId, userName: actorName, detail: "Backup file already pruned by retention" })
     throw new RestoreError("This backup's file has already been removed by the retention policy and can no longer be restored from.")
   }
 
   const dataPath = backupDataFilePath(job)
   if (!fs.existsSync(dataPath)) {
-    backupAuditDb.log({ action: "RESTORE_REJECTED", backupId, userId: actorId, userName: actorName, detail: "data.json missing on disk despite COMPLETED status" })
+    await backupRecordService.logAudit({ action: "RESTORE_REJECTED", backupId, userId: actorId, userName: actorName, detail: "data.json missing on disk despite COMPLETED status" })
     throw new RestoreError("Backup data file is missing on disk. This shouldn't happen — check server logs.")
   }
 
-  backupAuditDb.log({ action: "RESTORE_TRIGGERED", backupId, userId: actorId, userName: actorName })
+  await backupRecordService.logAudit({ action: "RESTORE_TRIGGERED", backupId, userId: actorId, userName: actorName })
 
   // ── Step 1: integrity check BEFORE anything destructive ──────────
   const raw = fs.readFileSync(dataPath, "utf8")
   if (job.checksum) {
     const actual = crypto.createHash("sha256").update(raw).digest("hex")
     if (actual !== job.checksum) {
-      backupAuditDb.log({ action: "RESTORE_FAILED", backupId, userId: actorId, userName: actorName, detail: `Checksum mismatch: expected ${job.checksum}, got ${actual}` })
+      await backupRecordService.logAudit({ action: "RESTORE_FAILED", backupId, userId: actorId, userName: actorName, detail: `Checksum mismatch: expected ${job.checksum}, got ${actual}` })
       throw new RestoreError("This backup's data file does not match its recorded checksum — it may be corrupted or have been modified. Restore aborted before touching any data.")
     }
   }
@@ -107,21 +108,21 @@ export async function restoreFromBackup(opts: RestoreOpts): Promise<RestoreResul
   try {
     parsed = JSON.parse(raw) as Record<string, unknown[]>
   } catch (err) {
-    backupAuditDb.log({ action: "RESTORE_FAILED", backupId, userId: actorId, userName: actorName, detail: `data.json failed to parse: ${err}` })
+    await backupRecordService.logAudit({ action: "RESTORE_FAILED", backupId, userId: actorId, userName: actorName, detail: `data.json failed to parse: ${err}` })
     throw new RestoreError("Backup data file is not valid JSON. Restore aborted before touching any data.")
   }
 
   // ── Step 2: safety backup of CURRENT state — blocking, must succeed ──
   const safetyId = crypto.randomUUID()
   const folderName = `backup_${new Date().toISOString().replace(/[:.]/g, "-")}_pre-restore-safety`
-  const safetyJob = backupJobDb.create({
+  const safetyJob = await backupRecordService.create({
     id: safetyId, folderName, trigger: "PRE_RESTORE_SAFETY",
     triggeredBy: actorId, triggeredByName: actorName,
   })
   await runBackup({ jobId: safetyJob.id, triggeredBy: actorId, triggeredByName: actorName, trigger: "PRE_RESTORE_SAFETY" })
-  const completedSafetyJob = backupJobDb.findUnique(safetyId)
+  const completedSafetyJob = await backupRecordService.findUnique(safetyId)
   if (!completedSafetyJob || completedSafetyJob.status !== "COMPLETED") {
-    backupAuditDb.log({
+    await backupRecordService.logAudit({
       action: "RESTORE_FAILED", backupId, userId: actorId, userName: actorName,
       detail: `Aborted: the pre-restore safety backup itself failed (${completedSafetyJob?.errorMessage ?? "unknown error"}) — refusing to proceed without a safety net`,
     })
@@ -198,7 +199,7 @@ export async function restoreFromBackup(opts: RestoreOpts): Promise<RestoreResul
     })()
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    backupAuditDb.log({ action: "RESTORE_FAILED", backupId, userId: actorId, userName: actorName, detail: message })
+    await backupRecordService.logAudit({ action: "RESTORE_FAILED", backupId, userId: actorId, userName: actorName, detail: message })
     throw err instanceof RestoreError ? err : new RestoreError(`Restore failed: ${message}`)
   } finally {
     // Must run regardless of success or failure — a thrown error inside the
@@ -207,7 +208,7 @@ export async function restoreFromBackup(opts: RestoreOpts): Promise<RestoreResul
     db.pragma("foreign_keys = ON")
   }
 
-  backupAuditDb.log({
+  await backupRecordService.logAudit({
     action: "RESTORE_COMPLETED", backupId, userId: actorId, userName: actorName,
     detail: `Restored ${totalRowsInserted} rows across ${tablesToRestore.length} table(s). Safety backup: ${safetyId}. Backup history tables (${[...SELF_REFERENTIAL_TABLES].join(", ")}) deliberately left untouched.${tablesSkippedNotInCurrentSchema.length ? ` Skipped (no longer in schema): ${tablesSkippedNotInCurrentSchema.join(", ")}.` : ""}`,
   })

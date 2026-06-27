@@ -1,14 +1,11 @@
 /**
  * GET /api/clients/[id]/analytics
- *
- * Admin-only endpoint returning detailed analytics for a single client:
- * completion rate, job breakdown by status, monthly job timeline, and
- * average completion time.
  */
 import { NextRequest, NextResponse } from "next/server"
 import { requireRole } from "@/lib/auth"
-import { clientDb, jobDb } from "@/lib/db"
-import type { JobRow } from "@/lib/db"
+import { clientService } from "@/lib/services/client-service"
+import { jobService } from "@/lib/services/job-service"
+import type { JobRow } from "@/lib/db/job-types"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -31,14 +28,13 @@ function computeAnalytics(jobs: JobRow[]) {
     .filter(j => j.status === "ISSUED")
     .reduce((sum, j) => sum + (j.quoteValue ?? 0), 0)
 
-  // Average completion time (days) for jobs that have both created and completed dates
   const completionTimes: number[] = []
   for (const j of jobs) {
     if (j.status === "ISSUED" && j.dateCompleted && j.dateCreated) {
       const created = new Date(j.dateCreated).getTime()
-      const completed = new Date(j.dateCompleted).getTime()
-      if (!isNaN(created) && !isNaN(completed) && completed >= created) {
-        completionTimes.push(Math.ceil((completed - created) / 86_400_000))
+      const completedAt = new Date(j.dateCompleted).getTime()
+      if (!isNaN(created) && !isNaN(completedAt) && completedAt >= created) {
+        completionTimes.push(Math.ceil((completedAt - created) / 86_400_000))
       }
     }
   }
@@ -46,7 +42,6 @@ function computeAnalytics(jobs: JobRow[]) {
     ? Math.round(completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length)
     : null
 
-  // Monthly timeline (last 12 months)
   const now = new Date()
   const timeline: { month: string; created: number; completed: number }[] = []
   for (let i = 11; i >= 0; i--) {
@@ -83,10 +78,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   try {
     const { id } = await params
-    const client = clientDb.findUnique(id)
+    const client = await clientService.findUnique(id)
     if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const jobs = clientDb.jobsForClient(id, 10000)
+    const jobs = await jobService.findMany({ where: { clientId: id }, take: 10000 })
     const analytics = computeAnalytics(jobs)
 
     return NextResponse.json(analytics)

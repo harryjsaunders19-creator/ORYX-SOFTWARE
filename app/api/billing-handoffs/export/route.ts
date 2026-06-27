@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { billingHandoffDb } from "@/lib/db"
+import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { buildAccountsHandoverWorkbook, workbookToBuffer } from "@/lib/billing-export"
 import { requireRole } from "@/lib/auth"
 
@@ -20,14 +20,14 @@ export async function POST(req: NextRequest) {
     // workbook below is built from the snapshots this call just wrote, so a
     // batch with N records always pairs with a downloaded file describing
     // exactly those N records — never a mismatch.
-    const { batch, snapshots } = billingHandoffDb.createExportBatch({
+    const { batch, snapshots } = await billingHandoffService.createExportBatch({
       handoffIds, exportedBy, exportDate, notes: body.notes ?? null,
     })
 
-    const wb  = buildAccountsHandoverWorkbook(snapshots, {
+    const wb  = await buildAccountsHandoverWorkbook(snapshots, {
       batchNumber: batch.batchNumber, exportDate: batch.exportDate, exportedBy: batch.exportedBy,
     })
-    const buf = workbookToBuffer(wb)
+    const buf = await workbookToBuffer(wb)
 
     return new NextResponse(new Uint8Array(buf), {
       headers: {

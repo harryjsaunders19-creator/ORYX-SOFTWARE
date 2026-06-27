@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { clientDb, holdDb } from "@/lib/db"
+import { holdService } from "@/lib/services/hold-service"
+import { clientService } from "@/lib/services/client-service"
 import { getCurrentUser } from "@/lib/auth"
 
 export async function GET(req: NextRequest) {
@@ -8,9 +9,9 @@ export async function GET(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
     const q      = req.nextUrl.searchParams.get("q") ?? ""
     const limit  = parseInt(req.nextUrl.searchParams.get("limit") ?? "10")
-    const clients = clientDb.search(q, Math.min(limit, 20))
+    const clients = await clientService.search(q, Math.min(limit, 20))
     // Annotate each result with hold status — one batched lookup, not one query per result.
-    const holdReasons = holdDb.activeHoldReasonsFor(clients.map(c => c.id))
+    const holdReasons = await holdService.activeHoldReasonsFor(clients.map(c => c.id))
     const reasonByClientId = new Map(holdReasons.map(h => [h.clientId, h.reason]))
     const clientsWithHold = clients.map(c => ({
       ...c,

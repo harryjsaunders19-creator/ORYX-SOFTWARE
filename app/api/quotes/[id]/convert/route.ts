@@ -5,6 +5,8 @@
  * Returns: { job, quote }
  */
 import { NextRequest, NextResponse } from "next/server"
+import { quoteService } from "@/lib/services/quote-service"
+import { jobService } from "@/lib/services/job-service"
 import { quoteDb, jobDb, sequenceDb, db } from "@/lib/db"
 import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
 import { createId } from "@paralleldrive/cuid2"
@@ -18,7 +20,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
   try {
     const { id } = await params
-    const quote = quoteDb.findUnique(id)
+    const quote = await quoteService.findUnique(id)
     if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
     if (quote.status !== "ACCEPTED")
       return NextResponse.json({ error: "Only accepted quotes can be converted to jobs" }, { status: 422 })
@@ -73,6 +75,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       const updatedQuote = quoteDb.update(id, { jobId })
       return { job, quote: updatedQuote }
     })()
+
+    await jobService.syncFromSqlite(job.id)
+    await quoteService.syncFromSqlite(id)
 
     return NextResponse.json({ job, quote: updatedQuote }, { status: 201 })
   } catch (err) {
