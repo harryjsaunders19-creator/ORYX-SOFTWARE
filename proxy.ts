@@ -9,13 +9,16 @@ const PUBLIC_API_PREFIXES = [
   "/api/auth/login",
   "/api/auth/session",
   "/api/auth/logout",
+  "/api/ping",
 ]
 
 function isPublicApi(pathname: string): boolean {
-  return PUBLIC_API_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + "/"))
+  return PUBLIC_API_PREFIXES.some(
+    prefix => pathname === prefix || pathname.startsWith(prefix + "/"),
+  )
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get(SESSION_COOKIE)?.value
   const hasSession = await hasValidSessionToken(token)
