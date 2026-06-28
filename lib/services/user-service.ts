@@ -4,6 +4,11 @@
  * When SUPABASE_USERS=true:
  *   - Reads come from Supabase (including password_hash for login verification)
  *   - Writes SQLite first, then mirror to Supabase
+ *   - findByEmail / findUnique fall back to SQLite when Supabase returns null
+ *     and automatically mirror the user so future reads succeed from Supabase.
+ *     This makes the first login on a fresh deployment self-healing — the
+ *     SQLite bootstrap accounts (admin@test.com etc.) become reachable even
+ *     before they have been explicitly synced to Supabase.
  *
  * Login remains custom bcrypt + oryx_uid cookies — not Supabase Auth.
  */
@@ -16,30 +21,51 @@ async function mirror(user: UserRow | null) {
   if (user && useSupabaseUsers()) await supabaseUserRepo.upsert(user)
 }
 
+/** Try SQLite as a fallback and best-effort mirror to Supabase. */
+async function sqliteFallback(user: UserRow | null): Promise<UserRow | null> {
+  if (!user) return null
+  try { await supabaseUserRepo.upsert(user) } catch { /* best-effort */ }
+  return user
+}
+
 export const userService = {
   async findMany(opts: { activeOnly?: boolean } = {}): Promise<UserRow[]> {
     if (!useSupabaseUsers()) return userDb.findMany(opts)
-    return supabaseUserRepo.findMany(opts)
+    const rows = await supabaseUserRepo.findMany(opts)
+    // When Supabase is empty (e.g. fresh deploy before first login), fall back to
+    // SQLite so the admin page still shows bootstrap accounts.
+    if (rows.length === 0) return userDb.findMany(opts)
+    return rows
   },
 
   async findUnique(id: string): Promise<UserRow | null> {
     if (!useSupabaseUsers()) return userDb.findUnique(id)
-    return supabaseUserRepo.findUnique(id)
+    const user = await supabaseUserRepo.findUnique(id)
+    if (user) return user
+    return sqliteFallback(userDb.findUnique(id))
   },
 
   async findByEmail(email: string): Promise<UserRow | null> {
     if (!useSupabaseUsers()) return userDb.findByEmail(email)
-    return supabaseUserRepo.findByEmail(email)
+    const user = await supabaseUserRepo.findByEmail(email)
+    if (user) return user
+    // Not in Supabase yet — try SQLite (bootstrap accounts / pre-migration state)
+    // and mirror into Supabase so the next login goes directly through Supabase.
+    return sqliteFallback(userDb.findByEmail(email))
   },
 
   async count(opts: { activeOnly?: boolean } = {}): Promise<number> {
     if (!useSupabaseUsers()) return userDb.count(opts)
-    return supabaseUserRepo.count(opts)
+    const n = await supabaseUserRepo.count(opts)
+    if (n === 0) return userDb.count(opts)
+    return n
   },
 
   async activeAdminCount(): Promise<number> {
     if (!useSupabaseUsers()) return userDb.activeAdminCount()
-    return supabaseUserRepo.activeAdminCount()
+    const n = await supabaseUserRepo.activeAdminCount()
+    if (n === 0) return userDb.activeAdminCount()
+    return n
   },
 
   async create(data: CreateUserData): Promise<UserRow> {
