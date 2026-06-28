@@ -1,7 +1,7 @@
 /**
  * lib/db/stores.ts — table access objects (jobDb, clientDb, …).
  */
-import { db, DB_PATH } from "./connection"
+import { db, DB_PATH, DB_EXISTED } from "./connection"
 import { nowIso, buildWhere, safeOrder, type WhereClause, type FindManyOptions } from "./helpers"
 import { todayIsoDate, addDaysToIsoDate, totalJobCommercialValue } from "@/lib/utils"
 import type {
@@ -794,12 +794,18 @@ export const sequenceDb = {
 // as high as the highest values actually present in the Job table. Protects
 // against duplicate numbers after a database restore, manual SQL inserts, or
 // data migration from another system. Harmless no-op when already in sync.
-;(function syncDrawingSequences() {
-  const { drawingFixups, refFixups } = sequenceDb.syncFromExistingJobs()
-  if (drawingFixups || refFixups) {
-    console.log(`[syncDrawingSequences] Reconciled ${drawingFixups} drawing sequence(s) and ${refFixups} reference sequence(s) to match existing Job data.`)
+// Skipped when the DB is brand-new (tables not yet created) or during the
+// Next.js production build phase where no database is available.
+if (DB_EXISTED) {
+  try {
+    const { drawingFixups, refFixups } = sequenceDb.syncFromExistingJobs()
+    if (drawingFixups || refFixups) {
+      console.log(`[syncDrawingSequences] Reconciled ${drawingFixups} drawing sequence(s) and ${refFixups} reference sequence(s) to match existing Job data.`)
+    }
+  } catch {
+    // Silently skip if tables aren't ready yet (e.g. mid-migration or build time)
   }
-})()
+}
 
 // ── Billing handoff (Ready For Invoicing queue) ─────────────────────
 // Replaces the Invoice/ExportBatch workflow. See the schema comment above
@@ -1284,38 +1290,45 @@ export const clientDb = {
 
 // ── Client migration ──────────────────────────────────────────────
 // Runs once: creates Client records from existing clientCompany strings,
-// then back-populates Job.clientId. Idempotent.
-;(function migrateClientsFromJobs() {
-  const distinct = db.prepare(
-    "SELECT DISTINCT clientCompany FROM Job WHERE clientCompany != '' AND clientId IS NULL ORDER BY clientCompany ASC"
-  ).all() as { clientCompany: string }[]
+// then back-populates Job.clientId. Idempotent. Skipped on a brand-new DB
+// or during the Next.js build phase where no database is available.
+if (DB_EXISTED) {
+  try {
+    ;(function migrateClientsFromJobs() {
+      const distinct = db.prepare(
+        "SELECT DISTINCT clientCompany FROM Job WHERE clientCompany != '' AND clientId IS NULL ORDER BY clientCompany ASC"
+      ).all() as { clientCompany: string }[]
 
-  if (!distinct.length) return
+      if (!distinct.length) return
 
-  db.transaction(() => {
-    for (const { clientCompany } of distinct) {
-      const name = clientCompany.trim()
-      if (!name) continue
-      const nameLower = name.toLowerCase()
-      const now = nowIso()
+      db.transaction(() => {
+        for (const { clientCompany } of distinct) {
+          const name = clientCompany.trim()
+          if (!name) continue
+          const nameLower = name.toLowerCase()
+          const now = nowIso()
 
-      // Find or create client record
-      let client = db.prepare("SELECT id FROM Client WHERE nameLower = ?").get(nameLower) as { id: string } | undefined
-      if (!client) {
-        const newId = nanoid()
-        db.prepare(`
-          INSERT INTO Client (id,name,nameLower,active,createdAt,updatedAt)
-          VALUES (?,?,?,1,?,?)
-        `).run(newId, name, nameLower, now, now)
-        client = { id: newId }
-      }
+          // Find or create client record
+          let client = db.prepare("SELECT id FROM Client WHERE nameLower = ?").get(nameLower) as { id: string } | undefined
+          if (!client) {
+            const newId = nanoid()
+            db.prepare(`
+              INSERT INTO Client (id,name,nameLower,active,createdAt,updatedAt)
+              VALUES (?,?,?,1,?,?)
+            `).run(newId, name, nameLower, now, now)
+            client = { id: newId }
+          }
 
-      // Back-populate clientId on all matching jobs
-      db.prepare("UPDATE Job SET clientId = ? WHERE clientCompany = ? AND clientId IS NULL")
-        .run(client.id, clientCompany)
-    }
-  })()
-})()
+          // Back-populate clientId on all matching jobs
+          db.prepare("UPDATE Job SET clientId = ? WHERE clientCompany = ? AND clientId IS NULL")
+            .run(client.id, clientCompany)
+        }
+      })()
+    })()
+  } catch {
+    // Silently skip if tables aren't ready yet (e.g. mid-migration or build time)
+  }
+}
 
 
 // ── ExportBatch types ─────────────────────────────────────────────
