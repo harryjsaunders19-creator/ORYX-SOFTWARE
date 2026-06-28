@@ -1,7 +1,7 @@
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 
-const LOGO_SRC = "/branding/LOGO3.png"
+const LOGO_SRC = "/branding/LOGO3.webp"
 
 type OryxLogoProps = {
   variant?: "sidebar" | "auth" | "auth-panel" | "login"

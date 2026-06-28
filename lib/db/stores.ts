@@ -12,7 +12,7 @@ import type {
   UpdateCalendarEventData,
 } from "./calendar-types"
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { nanoid } = require("nanoid") as { nanoid: () => string }
+import { createId as nanoid } from "@paralleldrive/cuid2"
 
 export interface TypeOfWorksMigrationLogRow {
   id: string; jobId: string; drawingNumber: string

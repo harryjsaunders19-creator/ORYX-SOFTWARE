@@ -30,7 +30,11 @@ export async function GET(req: NextRequest) {
     const page   = Math.max(1, parseInt(sp.get("page") ?? "1"))
     const limit  = Math.max(1, Math.min(100, parseInt(sp.get("limit") ?? "25")))
     const opts   = { ...(search && { search }), ...(status && { status }) }
-    await quoteService.expirePastDue()
+    // Run expiry in the background — don't block the read response.
+    // Quotes will appear as expired on the *next* page load at worst.
+    quoteService.expirePastDue().catch(err =>
+      console.error("[quotes] background expirePastDue failed:", err),
+    )
     const [quotes, total, expiringSoonCount, expiredClearableCount] = await Promise.all([
       quoteService.findMany({ ...opts, skip: (page - 1) * limit, take: limit }),
       quoteService.count(opts),

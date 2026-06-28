@@ -1,5 +1,5 @@
 "use client"
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
 import type { User, Role } from "@/lib/types"
 import { canAccessModule as canAccessModuleFn } from "@/lib/permissions"
 
@@ -81,22 +81,29 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const role    = user?.role ?? "ENGINEER"   // fail closed — see lib/auth.ts getCurrentRole()
   const isAdmin = role === "ADMIN"
 
-  return (
-    <Ctx.Provider value={{
-      user,
-      userName: user?.name ?? "System",
-      role,
-      isAdmin,
-      loading,
-      mustChangePassword,
-      isImpersonating,
-      realUser,
-      switchUser,
-      exitImpersonation,
-      logout,
-      canAccess: (moduleKey: string) => canAccessModuleFn(role, moduleKey),
-    }}>
-      {children}
-    </Ctx.Provider>
+  // Stable callback — only changes when `role` changes, not on every render.
+  const canAccess = useCallback(
+    (moduleKey: string) => canAccessModuleFn(role, moduleKey),
+    [role],
   )
+
+  // Memoized context value — consumers only re-render when the fields they
+  // care about actually change, not on every parent re-render.
+  const value = useMemo<UserCtx>(() => ({
+    user,
+    userName: user?.name ?? "System",
+    role,
+    isAdmin,
+    loading,
+    mustChangePassword,
+    isImpersonating,
+    realUser,
+    switchUser,
+    exitImpersonation,
+    logout,
+    canAccess,
+  }), [user, role, isAdmin, loading, mustChangePassword, isImpersonating, realUser,
+      switchUser, exitImpersonation, logout, canAccess])
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

@@ -12,7 +12,5 @@ export {
   isSupabaseAdminConfigured,
 } from "./config"
 
-export { createClient as createServerClient } from "./server"
-export { createClient as createBrowserClient } from "./client"
 export { createAdminClient } from "./admin"
 export { useSupabaseClients, useSupabaseJobs, useSupabaseQuotes, useSupabaseStatusHistory, useSupabaseHolds, useSupabaseBilling } from "./feature-flags"

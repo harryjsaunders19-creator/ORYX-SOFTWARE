@@ -13,7 +13,7 @@
  *   Status History, Calendar, Invoicing Queue, Users
  */
 import ExcelJS from "exceljs"
-import { nanoid } from "nanoid"
+import { createId } from "@paralleldrive/cuid2"
 import { parse, isValid } from "date-fns"
 import { JOB_STATUSES, WORK_ITEM_TYPES } from "@/lib/constants"
 import { clientService } from "@/lib/services/client-service"
@@ -122,7 +122,7 @@ async function importClients(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
         result.updated++
       } else {
         const created = await clientService.create({
-          id: nanoid(), name, contactName, phone, email,
+          id: createId(), name, contactName, phone, email,
           billingAddress: billingAddr, notes, accountCode,
         })
         // Keep in-memory maps current for subsequent rows in same file
@@ -196,7 +196,7 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
       } else {
         if (!address) { result.skipped++; continue }
         await jobService.create({
-          id: nanoid(), drawingNumber, itemType,
+          id: createId(), drawingNumber, itemType,
           address, typeOfWorks, clientCompany, clientId,
           requestedBy, status, designer,
           quoteValue: quoteValue ?? null, variationFees: variationFees ?? null,

@@ -23,7 +23,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
   const { id } = await params
-  await quoteService.expirePastDue()
+  // Run expiry in the background — don't block the single-quote read.
+  quoteService.expirePastDue().catch(err =>
+    console.error("[quotes/id] background expirePastDue failed:", err),
+  )
   const quote  = await quoteService.findUnique(id)
   if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
   return NextResponse.json(quote)
