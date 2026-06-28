@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { quoteService } from "@/lib/services/quote-service"
 import { clientService } from "@/lib/services/client-service"
-import { getCurrentUser } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "@/lib/quote-works"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
@@ -19,8 +19,8 @@ function parseLineItems(raw: unknown): { description: string; amount: number; va
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const sp     = req.nextUrl.searchParams
     const search = sp.get("search") ?? ""
@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     let body: Record<string, unknown>
     try { body = await req.json() }

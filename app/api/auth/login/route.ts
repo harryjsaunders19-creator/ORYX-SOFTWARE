@@ -7,9 +7,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { userService } from "@/lib/services/user-service"
-import { SESSION_COOKIE, REAL_SESSION_COOKIE } from "@/lib/auth"
 import { verifyPassword } from "@/lib/password"
 import { checkLoginRateLimit } from "@/lib/login-rate-limit"
+import { setSessionCookies } from "@/lib/auth-cookies"
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,9 +64,7 @@ export async function POST(req: NextRequest) {
       realUser: null,
     })
 
-    const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 30, secure: process.env.COOKIE_SECURE === "true" }
-    res.cookies.set(SESSION_COOKIE, user.id, opts)
-    res.cookies.set(REAL_SESSION_COOKIE, user.id, opts)
+    await setSessionCookies(res, user.id, user.id)
 
     return res
   } catch (err) {

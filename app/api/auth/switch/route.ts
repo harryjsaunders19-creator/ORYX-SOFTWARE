@@ -10,7 +10,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { userService } from "@/lib/services/user-service"
-import { SESSION_COOKIE, REAL_SESSION_COOKIE, getRealUser } from "@/lib/auth"
+import { SESSION_COOKIE, getRealUser } from "@/lib/auth"
+import { setSessionCookies } from "@/lib/auth-cookies"
+import { verifySessionToken } from "@/lib/session-cookie"
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,12 +40,12 @@ export async function POST(req: NextRequest) {
       // one) — otherwise this is just clicking your own name again,
       // which isn't an event worth recording.
       const store = req.cookies
-      const currentActiveId = store.get(SESSION_COOKIE)?.value
+      const currentActiveId = await verifySessionToken(store.get(SESSION_COOKIE)?.value)
       if (currentActiveId && currentActiveId !== realUser.id) {
         await identitySwitchLogService.log({ action: "IMPERSONATION_ENDED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name, detail: "Returned to own identity via switch" })
       }
       const res = NextResponse.json({ user: target, isImpersonating: false })
-      setSessionCookies(res, target.id, realUser.id)
+      await setSessionCookies(res, target.id, realUser.id)
       return res
     }
 
@@ -59,16 +61,10 @@ export async function POST(req: NextRequest) {
 
     await identitySwitchLogService.log({ action: "IMPERSONATION_STARTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
     const res = NextResponse.json({ user: target, isImpersonating: true, realUser: { id: realUser.id, name: realUser.name } })
-    setSessionCookies(res, target.id, realUser.id)
+    await setSessionCookies(res, target.id, realUser.id)
     return res
   } catch (err) {
     console.error("[POST /api/auth/switch]", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-}
-
-function setSessionCookies(res: NextResponse, activeUserId: string, realUserId: string) {
-  const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 30, secure: process.env.COOKIE_SECURE === "true" }
-  res.cookies.set(SESSION_COOKIE, activeUserId, opts)
-  res.cookies.set(REAL_SESSION_COOKIE, realUserId, opts)
 }

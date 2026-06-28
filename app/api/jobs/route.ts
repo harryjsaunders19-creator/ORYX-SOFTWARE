@@ -5,7 +5,7 @@ import { sequenceDb } from "@/lib/db"
 import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
 import { createId } from "@paralleldrive/cuid2"
 import { VALID_ITEM_TYPES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE } from "@/lib/constants"
-import { getCurrentUser } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 import { resolveRequiredByDate } from "@/lib/utils"
 import { applyOptionalMoneyField } from "@/lib/api-money"
 import {
@@ -29,8 +29,8 @@ const REF_PREFIXES = REF_PREFIX_BY_ITEM_TYPE
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const sp             = req.nextUrl.searchParams
     const search         = sp.get("search")        ?? ""
@@ -85,8 +85,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     let body: Record<string, unknown>
     try { body = await req.json() }

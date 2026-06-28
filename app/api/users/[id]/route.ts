@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { userService } from "@/lib/services/user-service"
 import { withoutPassword } from "@/lib/db/user-types"
-import { requireRole, getCurrentUser } from "@/lib/auth"
+import { requireRole } from "@/lib/auth"
 import { isValidRole } from "@/lib/permissions"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -70,8 +70,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     const target = await userService.findUnique(id)
     if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const me = await getCurrentUser()
-    if (me && me.id === id) {
+    if (auth.user.id === id) {
       return NextResponse.json({ error: "You can't delete your own account while logged in." }, { status: 409 })
     }
 

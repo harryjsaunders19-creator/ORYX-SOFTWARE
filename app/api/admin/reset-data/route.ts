@@ -5,7 +5,7 @@
  * Preserves user accounts. Requires ADMIN role + password confirmation.
  */
 import { NextRequest, NextResponse } from "next/server"
-import { requireRole, getCurrentUser } from "@/lib/auth"
+import { requireRole } from "@/lib/auth"
 import { verifyPassword } from "@/lib/password"
 import { resetAllData } from "@/lib/db"
 
@@ -28,18 +28,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Confirmation phrase does not match" }, { status: 422 })
     }
 
-    const user = await getCurrentUser()
-    if (!user || !user.passwordHash) {
+    if (!auth.user.passwordHash) {
       return NextResponse.json({ error: "Authentication failed" }, { status: 401 })
     }
 
-    if (!verifyPassword(password, user.passwordHash)) {
+    if (!verifyPassword(password, auth.user.passwordHash)) {
       return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
     }
 
     const counts = resetAllData()
 
-    console.log(`[RESET ALL DATA] Performed by ${user.name} (${user.email}). Cleared ${counts.jobCount} jobs, ${counts.clientCount} clients, ${counts.quoteCount} quotes.`)
+    console.log(`[RESET ALL DATA] Performed by ${auth.user.name} (${auth.user.email}). Cleared ${counts.jobCount} jobs, ${counts.clientCount} clients, ${counts.quoteCount} quotes.`)
 
     return NextResponse.json({ ok: true, cleared: counts })
   } catch (err) {

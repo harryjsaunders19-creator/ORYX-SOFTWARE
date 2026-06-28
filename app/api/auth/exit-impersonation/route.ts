@@ -3,7 +3,9 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
-import { SESSION_COOKIE, REAL_SESSION_COOKIE, getRealUser } from "@/lib/auth"
+import { SESSION_COOKIE, getRealUser } from "@/lib/auth"
+import { setSessionCookies } from "@/lib/auth-cookies"
+import { verifySessionToken } from "@/lib/session-cookie"
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No active session" }, { status: 401 })
     }
 
-    const currentActiveId = req.cookies.get(SESSION_COOKIE)?.value
+    const currentActiveId = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)
     if (currentActiveId && currentActiveId !== realUser.id) {
       await identitySwitchLogService.log({
         action: "IMPERSONATION_ENDED",
@@ -23,9 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     const res = NextResponse.json({ user: realUser, isImpersonating: false })
-    const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 30 }
-    res.cookies.set(SESSION_COOKIE, realUser.id, opts)
-    res.cookies.set(REAL_SESSION_COOKIE, realUser.id, opts)
+    await setSessionCookies(res, realUser.id, realUser.id)
     return res
   } catch (err) {
     console.error("[POST /api/auth/exit-impersonation]", err)

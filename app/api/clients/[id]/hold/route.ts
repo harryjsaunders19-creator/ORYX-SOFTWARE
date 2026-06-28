@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { holdService } from "@/lib/services/hold-service"
 import { clientService } from "@/lib/services/client-service"
-import { getCurrentUser } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -21,8 +21,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 /** POST: put client on hold */
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const { id } = await params
     if (!(await clientService.findUnique(id))) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -45,8 +45,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 /** DELETE: remove client from hold */
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const { id } = await params
     let body: Record<string, unknown> = {}

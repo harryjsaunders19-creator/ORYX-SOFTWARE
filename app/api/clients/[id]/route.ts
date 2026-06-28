@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clientService } from "@/lib/services/client-service"
-import { getCurrentUser, getCurrentRole, requireRole } from "@/lib/auth"
+import { requireSignIn, requireRole } from "@/lib/auth"
 import { canViewCommercialValues, canViewClientAnalytics } from "@/lib/permissions"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const { id } = await params
     const client = await clientService.findUnique(id)
     if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    const role = await getCurrentRole()
+    const role = auth.user.role as import("@/lib/permissions").Role
     const jobs = clientService.jobsForClient(id, 50)
 
     // Engineers see the client and their jobs but no aggregate stats
@@ -32,8 +32,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const { id } = await params
     let body: Record<string, unknown>

@@ -3,6 +3,7 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
+import { setSessionCookies } from "@/lib/auth-cookies"
 import { userService } from "@/lib/services/user-service"
 import { hashPassword, validatePasswordStrength } from "@/lib/password"
 
@@ -36,7 +37,9 @@ export async function POST(req: NextRequest) {
       mustChangePassword: 0,
     })
 
-    return NextResponse.json({ ok: true })
+    const res = NextResponse.json({ ok: true })
+    await setSessionCookies(res, user.id, user.id)
+    return res
   } catch (err) {
     console.error("[POST /api/auth/set-password]", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

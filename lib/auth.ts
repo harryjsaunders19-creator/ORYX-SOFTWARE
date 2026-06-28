@@ -12,13 +12,24 @@ import { NextResponse } from "next/server"
 import type { UserRow } from "@/lib/db/user-types"
 import type { Role } from "@/lib/permissions"
 import { userService } from "@/lib/services/user-service"
+import { verifySessionToken, SESSION_COOKIE, REAL_SESSION_COOKIE } from "@/lib/session-cookie"
 
-export const SESSION_COOKIE = "oryx_uid"
-export const REAL_SESSION_COOKIE = "oryx_real_uid"
+export { SESSION_COOKIE, REAL_SESSION_COOKIE }
+
+export function passwordChangeRequiredResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "Password change required", mustChangePassword: true },
+    { status: 403 },
+  )
+}
+
+async function userIdFromCookie(name: string): Promise<string | null> {
+  const store = await cookies()
+  return verifySessionToken(store.get(name)?.value)
+}
 
 export async function getCurrentUser(): Promise<UserRow | null> {
-  const store = await cookies()
-  const uid = store.get(SESSION_COOKIE)?.value
+  const uid = await userIdFromCookie(SESSION_COOKIE)
   if (!uid) return null
   const user = await userService.findUnique(uid)
   if (!user || !user.active) return null
@@ -26,8 +37,7 @@ export async function getCurrentUser(): Promise<UserRow | null> {
 }
 
 export async function getRealUser(): Promise<UserRow | null> {
-  const store = await cookies()
-  const uid = store.get(REAL_SESSION_COOKIE)?.value
+  const uid = await userIdFromCookie(REAL_SESSION_COOKIE)
   if (!uid) return null
   const user = await userService.findUnique(uid)
   if (!user || !user.active) return null
@@ -51,8 +61,23 @@ export async function requireRole(roles: Role[]): Promise<RoleCheckResult> {
   if (!user) {
     return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
   }
+  if (user.mustChangePassword === 1) {
+    return passwordChangeRequiredResponse()
+  }
   if (!roles.includes(user.role as Role)) {
     return NextResponse.json({ error: "You don't have permission to access this." }, { status: 403 })
+  }
+  return { user }
+}
+
+/** Sign-in check for routes that any authenticated role may call. */
+export async function requireSignIn(): Promise<RoleCheckResult> {
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+  }
+  if (user.mustChangePassword === 1) {
+    return passwordChangeRequiredResponse()
   }
   return { user }
 }

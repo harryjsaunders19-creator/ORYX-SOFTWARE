@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 import { calendarService } from "@/lib/services/calendar-service"
 
 export async function GET() {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+  const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
   try {
     return NextResponse.json({ categories: await calendarService.categories() })

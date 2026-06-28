@@ -11,14 +11,14 @@ import { quoteDb, jobDb, sequenceDb, db } from "@/lib/db"
 import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
 import { createId } from "@paralleldrive/cuid2"
 import { OTHER_WORKS_TYPE } from "@/lib/constants"
-import { getCurrentUser } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 import { resolveRequiredByDate } from "@/lib/utils"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+  const auth = await requireSignIn()
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
     await quoteService.expirePastDue()

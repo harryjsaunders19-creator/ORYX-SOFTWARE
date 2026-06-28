@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 import { calendarService } from "@/lib/services/calendar-service"
 import { userService } from "@/lib/services/user-service"
 import { createId } from "@paralleldrive/cuid2"
 
 export async function GET(req: NextRequest) {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+  const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
   try {
     const sp   = req.nextUrl.searchParams
@@ -33,8 +33,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+  const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
   try {
     let body: Record<string, unknown>
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       status:      typeof body.status   === "string" ? body.status   : "SCHEDULED",
       jobId:       body.jobId    ? String(body.jobId)    : null,
       clientId:    body.clientId ? String(body.clientId) : null,
-      createdBy:   user.id,
+      createdBy:   auth.user.id,
     }, assigneeIds)
 
     return NextResponse.json(full, { status: 201 })

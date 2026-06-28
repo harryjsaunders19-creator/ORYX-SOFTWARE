@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getCurrentUser, requireRole } from "@/lib/auth"
+import { requireSignIn, requireRole } from "@/lib/auth"
 import type { UpdateCalendarEventData } from "@/lib/db/calendar-types"
 import { calendarService } from "@/lib/services/calendar-service"
 import { userService } from "@/lib/services/user-service"
@@ -7,8 +7,8 @@ import { userService } from "@/lib/services/user-service"
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+  const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
   try {
     const { id } = await params
@@ -22,8 +22,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+  const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
   try {
     const { id } = await params

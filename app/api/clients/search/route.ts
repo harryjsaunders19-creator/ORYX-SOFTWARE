@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { holdService } from "@/lib/services/hold-service"
 import { clientService } from "@/lib/services/client-service"
-import { getCurrentUser } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
     const q      = req.nextUrl.searchParams.get("q") ?? ""
     const limit  = parseInt(req.nextUrl.searchParams.get("limit") ?? "10")
     const clients = await clientService.search(q, Math.min(limit, 20))

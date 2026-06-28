@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clientService } from "@/lib/services/client-service"
 import { createId } from "@paralleldrive/cuid2"
-import { getCurrentUser, getCurrentRole } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 import { canViewClientAnalytics } from "@/lib/permissions"
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const sp         = req.nextUrl.searchParams
     const search     = sp.get("search")     ?? ""
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const page       = Math.max(1, parseInt(sp.get("page")  ?? "1"))
     const limit      = Math.max(1, Math.min(200, parseInt(sp.get("limit") ?? "50")))
 
-    const role = await getCurrentRole()
+    const role = auth.user.role as import("@/lib/permissions").Role
     const clients = await clientService.findManyWithMeta({ search, activeOnly, skip: (page - 1) * limit, take: limit })
     const total   = await clientService.count({ search, activeOnly })
 
@@ -32,8 +32,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     let body: Record<string, unknown>
     try { body = await req.json() }

@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "@/lib/services/job-service"
 import { clientService } from "@/lib/services/client-service"
 import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE } from "@/lib/constants"
-import { getCurrentUser, requireRole } from "@/lib/auth"
+import { requireSignIn, requireRole } from "@/lib/auth"
 import { applyOptionalMoneyField } from "@/lib/api-money"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const { id } = await params
     const job = await jobService.findUnique(id)
@@ -24,8 +24,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const { id } = await params
     let body: Record<string, unknown>

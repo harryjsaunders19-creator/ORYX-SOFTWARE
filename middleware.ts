@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-
-/** Must match SESSION_COOKIE in lib/auth.ts — inlined here because middleware
- *  runs on the Edge runtime and cannot import lib/db / better-sqlite3. */
-const SESSION_COOKIE = "oryx_uid"
+import { SESSION_COOKIE, hasValidSessionToken } from "@/lib/session-cookie"
 
 const PUBLIC_PAGES = new Set(["/login", "/set-password"])
 
@@ -18,9 +15,10 @@ function isPublicApi(pathname: string): boolean {
   return PUBLIC_API_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + "/"))
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const hasSession = !!request.cookies.get(SESSION_COOKIE)?.value
+  const token = request.cookies.get(SESSION_COOKIE)?.value
+  const hasSession = await hasValidSessionToken(token)
 
   if (pathname.startsWith("/api/")) {
     if (isPublicApi(pathname)) return NextResponse.next()

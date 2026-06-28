@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { quoteService } from "@/lib/services/quote-service"
-import { getCurrentUser } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "@/lib/quote-works"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
@@ -19,8 +19,8 @@ function parseLineItems(raw: unknown): { description: string; amount: number; va
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+  const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
   const { id } = await params
   await quoteService.expirePastDue()
@@ -31,8 +31,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const { id } = await params
     let body: Record<string, unknown>
@@ -135,8 +135,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+  const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
   const { id } = await params
   const quote = await quoteService.findUnique(id)

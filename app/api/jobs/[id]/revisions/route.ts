@@ -21,15 +21,15 @@ import { jobService } from "@/lib/services/job-service"
 import { nextRevisionLetter, REVISION_LETTERS } from "@/lib/constants"
 import { canAddRevisionFrom, buildLatestRevisionMap, revisionParentId } from "@/lib/revision-chain"
 import { createId } from "@paralleldrive/cuid2"
-import { getCurrentUser } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 import { defaultRequiredByDate } from "@/lib/utils"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const { id } = await params
     const job = await jobService.findUnique(id)
@@ -46,8 +46,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
     const { id } = await params
     const source = await jobService.findUnique(id)

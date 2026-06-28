@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "@/lib/services/job-service"
 import { historyService } from "@/lib/services/history-service"
-import { getCurrentUser } from "@/lib/auth"
+import { requireSignIn } from "@/lib/auth"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
     const { id } = await params
     const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -23,8 +23,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 // POST lets the client add a freeform note to the history without changing status
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
     const { id } = await params
     const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
