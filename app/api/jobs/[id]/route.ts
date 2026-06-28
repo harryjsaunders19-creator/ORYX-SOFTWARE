@@ -4,6 +4,7 @@ import { clientService } from "@/lib/services/client-service"
 import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE } from "@/lib/constants"
 import { requireSignIn, requireRole } from "@/lib/auth"
 import { applyOptionalMoneyField } from "@/lib/api-money"
+import { resourceResponse } from "@/lib/api-cache"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -15,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const { id } = await params
     const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    return NextResponse.json(job)
+    return resourceResponse(job)
   } catch (err) {
     console.error("[GET /api/jobs/[id]]", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

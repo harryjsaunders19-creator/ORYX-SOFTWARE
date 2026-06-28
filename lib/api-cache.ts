@@ -13,3 +13,14 @@ export function listResponse(body: unknown, status = 200): NextResponse {
   res.headers.set("Cache-Control", "private, max-age=5, stale-while-revalidate=60")
   return res
 }
+
+/**
+ * Like listResponse but for individual resource GET endpoints (job, client,
+ * quote detail pages). Single records change less often than paginated lists
+ * so we can afford a slightly wider stale window.
+ */
+export function resourceResponse(body: unknown, status = 200): NextResponse {
+  const res = NextResponse.json(body, { status })
+  res.headers.set("Cache-Control", "private, max-age=10, stale-while-revalidate=120")
+  return res
+}

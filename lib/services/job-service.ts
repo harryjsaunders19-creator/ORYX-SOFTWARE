@@ -68,7 +68,7 @@ export const jobService = {
   async findManyWithCount(opts: FindManyOptions = {}): Promise<{
     jobs: JobRow[]
     total: number
-    allForRevisions?: JobRow[]
+    allForRevisions?: { id: string; parentJobId: string | null }[]
   }> {
     if (!useSupabaseJobs()) {
       const [jobs, total] = await Promise.all([

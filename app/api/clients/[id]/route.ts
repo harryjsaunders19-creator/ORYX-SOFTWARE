@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { clientService } from "@/lib/services/client-service"
 import { requireSignIn, requireRole } from "@/lib/auth"
 import { canViewCommercialValues, canViewClientAnalytics } from "@/lib/permissions"
+import { resourceResponse } from "@/lib/api-cache"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -18,12 +19,12 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
     // Engineers see the client and their jobs but no aggregate stats
     if (!canViewClientAnalytics(role)) {
-      return NextResponse.json({ client, stats: null, jobs })
+      return resourceResponse({ client, stats: null, jobs })
     }
 
     const rawStats = clientService.stats(id)
     const stats = { ...rawStats, totalInvoicedValue: canViewCommercialValues(role) ? rawStats.totalInvoicedValue : null }
-    return NextResponse.json({ client, stats, jobs })
+    return resourceResponse({ client, stats, jobs })
   } catch (err) {
     console.error("[GET /api/clients/[id]]", err)
     return NextResponse.json({ error: "Failed to load client" }, { status: 500 })

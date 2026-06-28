@@ -86,32 +86,64 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
 
 export const supabaseJobRepo = {
   /**
-   * Returns a page of jobs AND the total count in a single Supabase request
-   * (using `count: "exact"`). For the default drawing-number sort it also
-   * returns `allForRevisions` — the full unsorted set — so callers can
-   * compute canAddRevision in-memory without a second round trip.
+   * Returns a page of jobs AND the total count.
+   *
+   * Drawing-number sort (the default): uses a 2-pass approach to avoid
+   * fetching all columns for every row in the dataset.
+   *   Pass 1 — lightweight SELECT of 5 columns for all matching rows:
+   *     builds the sort order, total count, and canAddRevision data.
+   *   Pass 2 — full SELECT * for only the 25 (or fewer) page rows by ID.
+   *
+   * At 1,000 jobs this reduces data transfer by ~10× compared with a
+   * single SELECT * across the whole table.
+   *
+   * For all other sort fields Supabase handles ordering natively, so a
+   * single paginated query with range() is sufficient.
    */
   async findManyWithCount(opts: FindManyOptions = {}): Promise<{
     jobs: JobRow[]
     total: number
-    allForRevisions?: JobRow[]
+    allForRevisions?: { id: string; parentJobId: string | null }[]
   }> {
     const field = opts.orderBy?.field ?? "drawingNumber"
     const dir   = opts.orderBy?.dir   ?? "asc"
 
     if (isDrawingNumberListSort(field)) {
-      // Must fetch all rows for correct drawing-number sort (revision grouping).
-      // The single `count: "exact"` call avoids a separate COUNT round trip.
-      const { data, count, error } = await applyWhere(
-        table().select("*", { count: "exact" }),
+      // Pass 1: minimal columns — enough for sorting and revision flagging.
+      const { data: sortData, count, error: sortErr } = await applyWhere(
+        table().select("id,drawing_number,parent_job_id,revision_letter,created_at", { count: "exact" }),
         opts.where,
       )
-      if (error) throw error
-      const allRows: JobRow[] = (data ?? []).map(toJobRow)
-      const sorted = sortJobsForList<JobRow>(allRows, dir)
-      const skip = opts.skip ?? 0
-      const jobs = opts.take != null ? sorted.slice(skip, skip + opts.take) : sorted.slice(skip)
-      return { jobs, total: count ?? allRows.length, allForRevisions: allRows }
+      if (sortErr) throw sortErr
+
+      type SortRow = { id: string; drawingNumber: string; parentJobId: string | null; revisionLetter: string | null; createdAt: string }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allSortRows: SortRow[] = (sortData ?? []).map((r: any) => ({
+        id:             r.id             as string,
+        drawingNumber:  r.drawing_number as string,
+        parentJobId:    r.parent_job_id  as string | null,
+        revisionLetter: r.revision_letter as string | null,
+        createdAt:      r.created_at     as string,
+      }))
+
+      const sorted  = sortJobsForList<SortRow>(allSortRows, dir)
+      const skip    = opts.skip ?? 0
+      const page    = opts.take != null ? sorted.slice(skip, skip + opts.take) : sorted.slice(skip)
+      const pageIds = page.map(r => r.id)
+
+      if (!pageIds.length) {
+        return { jobs: [], total: count ?? 0, allForRevisions: allSortRows }
+      }
+
+      // Pass 2: full data for the page rows only (≤ 25 rows).
+      const { data: pageData, error: pageErr } = await table().select("*").in("id", pageIds)
+      if (pageErr) throw pageErr
+
+      // Preserve the sort order established in pass 1.
+      const byId = new Map((pageData ?? []).map(r => [r.id as string, toJobRow(r)]))
+      const jobs  = pageIds.map(id => byId.get(id)).filter((r): r is JobRow => r != null)
+
+      return { jobs, total: count ?? allSortRows.length, allForRevisions: allSortRows }
     }
 
     const col = sortColumn(field)

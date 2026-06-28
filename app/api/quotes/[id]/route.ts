@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { quoteService } from "@/lib/services/quote-service"
 import { requireSignIn } from "@/lib/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "@/lib/quote-works"
+import { resourceResponse } from "@/lib/api-cache"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
 
@@ -29,7 +30,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   )
   const quote  = await quoteService.findUnique(id)
   if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  return NextResponse.json(quote)
+  return resourceResponse(quote)
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
