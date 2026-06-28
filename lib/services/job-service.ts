@@ -17,6 +17,7 @@ import { useSupabaseJobs } from "@/lib/supabase/feature-flags"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { historyService } from "@/lib/services/history-service"
 import { billingHandoffService } from "@/lib/services/billing-handoff-service"
+import { ensureClientInSqlite } from "@/lib/services/client-service"
 
 async function mirror(job: JobRow | null) {
   if (job && useSupabaseJobs()) await supabaseJobRepo.upsert(job)
@@ -39,8 +40,20 @@ async function ensureJobInSqlite(id: string): Promise<boolean> {
   if (jobDb.findUnique(id)) return true
   const job = await supabaseJobRepo.findUnique(id)
   if (!job) return false
+  // Pre-sync dependencies so SQLite FK constraints don't block the insert:
+  // 1. The job's client (Job.clientId is nullable TEXT — no FK in SQLite Job table,
+  //    but other tables like Quote reference Client, so keep it consistent).
+  // 2. The parent job if this is a revision (Job.parentJobId REFERENCES Job(id)).
+  await ensureClientInSqlite(job.clientId)
+  if (job.parentJobId && !jobDb.findUnique(job.parentJobId)) {
+    const parent = await supabaseJobRepo.findUnique(job.parentJobId)
+    if (parent) {
+      await ensureClientInSqlite(parent.clientId)
+      jobDb.rawInsertOrIgnore(parent)
+    }
+  }
   jobDb.rawInsertOrIgnore(job)
-  return true
+  return jobDb.findUnique(id) !== null
 }
 
 export const jobService = {

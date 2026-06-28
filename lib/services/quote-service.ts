@@ -17,9 +17,24 @@ import { quoteDb, quoteLineItemDb } from "@/lib/db/stores"
 import { useSupabaseQuotes } from "@/lib/supabase/feature-flags"
 import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
 import { todayIsoDate, addDaysToIsoDate } from "@/lib/utils"
+import { ensureClientInSqlite } from "@/lib/services/client-service"
 
 async function mirrorQuote(quote: QuoteRow | null) {
   if (quote && useSupabaseQuotes()) await supabaseQuoteRepo.upsert(quote)
+}
+
+/**
+ * Ensures a quote exists in the local SQLite DB by fetching it from Supabase
+ * if missing. On a fresh Vercel container the SQLite Quote table is empty, so
+ * updates would otherwise return null → 404.
+ */
+async function ensureQuoteInSqlite(id: string): Promise<boolean> {
+  if (!useSupabaseQuotes()) return quoteDb.findUnique(id) !== null
+  if (quoteDb.findUnique(id)) return true
+  const quote = await supabaseQuoteRepo.findUnique(id)
+  if (!quote) return false
+  quoteDb.rawInsertOrIgnore(quote)
+  return quoteDb.findUnique(id) !== null
 }
 
 async function mirrorLineItems(quoteId: string) {
@@ -50,12 +65,18 @@ export const quoteService = {
   },
 
   async create(data: CreateQuoteData): Promise<QuoteRow> {
+    // Ensure the client exists in SQLite before writing — Quote.clientId has a
+    // FK constraint on Client.id, and the SQLite Client table is empty on a
+    // fresh Vercel container.
+    await ensureClientInSqlite(data.clientId)
     const quote = quoteDb.create(data)
     await mirrorQuote(quote)
     return quote
   },
 
   async update(id: string, data: UpdateQuoteData): Promise<QuoteRow | null> {
+    // Ensure the quote exists in SQLite (it only lives in Supabase on a fresh container).
+    await ensureQuoteInSqlite(id)
     const quote = quoteDb.update(id, data)
     await mirrorQuote(quote)
     return quote

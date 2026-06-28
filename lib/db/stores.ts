@@ -1309,6 +1309,29 @@ export const clientDb = {
     return db.prepare("DELETE FROM Client WHERE id = ?").run(id).changes > 0
   },
 
+  /** Insert a client row from an external source (e.g. Supabase) without side-effects.
+   *  Uses INSERT OR IGNORE so it is safe to call even when the row already exists. */
+  rawInsertOrIgnore(client: import("@/lib/db/client-types").ClientRow): void {
+    db.prepare(`
+      INSERT OR IGNORE INTO Client
+        (id,name,nameLower,contactName,email,phone,billingAddress,notes,accountCode,active,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      client.id,
+      client.name,
+      client.name.toLowerCase(),
+      client.contactName ?? null,
+      client.email ?? null,
+      client.phone ?? null,
+      client.billingAddress ?? null,
+      client.notes ?? null,
+      client.accountCode ?? null,
+      client.active ?? 1,
+      client.createdAt,
+      client.updatedAt,
+    )
+  },
+
   /** Stats for the client detail page */
   stats(clientId: string): {
     totalJobs:        number
@@ -1773,6 +1796,38 @@ export const quoteDb = {
 
   delete(id: string): boolean {
     return db.prepare("DELETE FROM Quote WHERE id = ?").run(id).changes > 0
+  },
+
+  /** Insert a quote row from an external source (e.g. Supabase) without side-effects.
+   *  Uses INSERT OR IGNORE so it is safe to call even when the row already exists. */
+  rawInsertOrIgnore(quote: import("@/lib/db/quote-types").QuoteRow): void {
+    db.prepare(`
+      INSERT OR IGNORE INTO Quote
+        (id,quoteNumber,clientId,clientCompany,contactName,address,description,
+         typeOfWorks,customTypeDescription,quoteValue,quoteDate,expiryDate,status,
+         notes,jobId,createdBy,vatRate,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      quote.id,
+      quote.quoteNumber,
+      quote.clientId ?? null,
+      quote.clientCompany,
+      quote.contactName ?? null,
+      quote.address,
+      quote.description,
+      quote.typeOfWorks ?? null,
+      quote.customTypeDescription ?? null,
+      quote.quoteValue,
+      quote.quoteDate,
+      quote.expiryDate ?? null,
+      quote.status,
+      quote.notes ?? null,
+      quote.jobId ?? null,
+      quote.createdBy ?? "System",
+      quote.vatRate ?? null,
+      quote.createdAt,
+      quote.updatedAt,
+    )
   },
 
   countExpiredDeletable(): number {

@@ -35,6 +35,24 @@ function withMeta(client: ClientRow): ClientRow & { activeJobCount: number; onHo
 }
 
 /** Mirror a create/update/archive/delete to SQLite so other modules stay in sync. */
+/**
+ * Ensures a client exists in the local SQLite DB by fetching it from Supabase
+ * if missing. Mirrors the ensureJobInSqlite pattern — needed because other tables
+ * (Quote, ClientHold) have FK constraints on Client.id, and on a fresh Vercel
+ * container the SQLite Client table is empty.
+ */
+export async function ensureClientInSqlite(clientId: string | null | undefined): Promise<void> {
+  if (!clientId || !useSupabaseClients()) return
+  if (clientDb.findUnique(clientId)) return
+  try {
+    const client = await supabaseClientRepo.findUnique(clientId)
+    if (client) clientDb.rawInsertOrIgnore(client)
+  } catch {
+    // Non-fatal: worst case the FK constraint fires and we get a 500,
+    // which is more informative than silently swallowing it here.
+  }
+}
+
 function mirrorCreate(data: CreateClientData): ClientRow {
   const existing = clientDb.findUnique(data.id)
   if (existing) return existing
