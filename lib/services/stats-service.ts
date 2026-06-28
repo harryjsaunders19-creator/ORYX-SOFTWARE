@@ -15,9 +15,7 @@ export const statsService = {
       unassigned,
       totalActiveJobs,
       totalRevisions,
-      totalQuotedValue,
-      totalIssuedValue,
-      avgJobValue,
+      jobValues,       // replaces 3 separate totalQuotedValue/totalIssuedValue/avgJobValue calls
       handoffStats,
       clientsOnHold,
       deadlines,
@@ -29,11 +27,9 @@ export const statsService = {
       jobService.countWhere({ unassigned: true }),
       jobService.countWhere({ onlyOriginals: true }),
       jobService.countWhere({ onlyRevisions: true }),
-      jobService.totalQuotedValue(),
-      jobService.totalIssuedValue(),
-      jobService.avgJobValue(),
+      jobService.jobValueStats(),  // single round trip instead of three
       billingHandoffService.stats(),
-      holdService.activeCount(),
+      holdService.allActive(),      // full list — dashboard uses it directly, removes a /api/hold-list call
       jobService.deadlineStats(),
       quoteService.stats(),
     ])
@@ -45,11 +41,12 @@ export const statsService = {
       unassigned,
       totalActiveJobs,
       totalRevisions,
-      totalQuotedValue,
-      totalIssuedValue,
-      avgJobValue,
+      totalQuotedValue: jobValues.totalQuotedValue,
+      totalIssuedValue: jobValues.totalIssuedValue,
+      avgJobValue:      jobValues.avgJobValue,
       handoffStats,
-      clientsOnHold,
+      holds: clientsOnHold,
+      clientsOnHold: clientsOnHold.length,
       deadlines,
       qStats,
     }

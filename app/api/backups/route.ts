@@ -8,8 +8,10 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth
 
   try {
-    const backups = await backupRecordService.findMany({ take: 50 })
-    const auditLog = await backupRecordService.findAuditMany({ take: 20 })
+    const [backups, auditLog] = await Promise.all([
+      backupRecordService.findMany({ take: 50 }),
+      backupRecordService.findAuditMany({ take: 20 }),
+    ])
     return NextResponse.json({ backups, auditLog, backupsDir: BACKUPS_DIR })
   } catch (err) {
     console.error("[GET /api/backups]", err)

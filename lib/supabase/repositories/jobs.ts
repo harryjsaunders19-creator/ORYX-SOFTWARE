@@ -256,12 +256,29 @@ export const supabaseJobRepo = {
     return (data ?? []).reduce((sum: number, row: { quote_value: number | null }) => sum + Number(row.quote_value ?? 0), 0)
   },
 
-  async avgJobValue(): Promise<number> {
-    const { data, error } = await table().select("quote_value").gt("quote_value", 0)
+  /**
+   * Returns totalQuotedValue, totalIssuedValue and avgJobValue in a single
+   * Supabase round trip. Replaces three separate sumQuoteValue/avgJobValue
+   * calls that each fetched the same rows independently.
+   */
+  async jobValueStats(): Promise<{ totalQuotedValue: number; totalIssuedValue: number; avgJobValue: number }> {
+    const { data, error } = await table()
+      .select("quote_value,status")
+      .gt("quote_value", 0)
     if (error) throw error
-    const values = (data ?? []).map((row) => Number(row.quote_value ?? 0))
-    if (!values.length) return 0
-    return values.reduce((a, b) => a + b, 0) / values.length
+    const rows = data ?? []
+    let total = 0, issued = 0, count = 0
+    for (const row of rows) {
+      const v = Number(row.quote_value ?? 0)
+      total += v
+      count++
+      if (row.status === "ISSUED") issued += v
+    }
+    return {
+      totalQuotedValue: total,
+      totalIssuedValue: issued,
+      avgJobValue:      count > 0 ? total / count : 0,
+    }
   },
 
   async totalQuotedValue(): Promise<number> {

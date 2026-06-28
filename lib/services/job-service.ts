@@ -192,16 +192,32 @@ export const jobService = {
 
   async totalQuotedValue(): Promise<number> {
     if (!useSupabaseJobs()) return commercialDb.totalQuotedValue()
-    return supabaseJobRepo.totalQuotedValue()
+    return (await supabaseJobRepo.jobValueStats()).totalQuotedValue
   },
 
   async totalIssuedValue(): Promise<number> {
     if (!useSupabaseJobs()) return commercialDb.totalIssuedValue()
-    return supabaseJobRepo.totalIssuedValue()
+    return (await supabaseJobRepo.jobValueStats()).totalIssuedValue
   },
 
   async avgJobValue(): Promise<number> {
     if (!useSupabaseJobs()) return commercialDb.avgJobValue()
-    return supabaseJobRepo.avgJobValue()
+    return (await supabaseJobRepo.jobValueStats()).avgJobValue
+  },
+
+  /**
+   * Returns totalQuotedValue, totalIssuedValue and avgJobValue in one query.
+   * On the Supabase path this replaces three separate round trips with one.
+   */
+  async jobValueStats(): Promise<{ totalQuotedValue: number; totalIssuedValue: number; avgJobValue: number }> {
+    if (!useSupabaseJobs()) {
+      const [totalQuotedValue, totalIssuedValue, avgJobValue] = await Promise.all([
+        commercialDb.totalQuotedValue(),
+        commercialDb.totalIssuedValue(),
+        commercialDb.avgJobValue(),
+      ])
+      return { totalQuotedValue, totalIssuedValue, avgJobValue }
+    }
+    return supabaseJobRepo.jobValueStats()
   },
 }

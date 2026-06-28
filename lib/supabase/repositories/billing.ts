@@ -114,13 +114,15 @@ export const supabaseBillingRepo = {
   },
 
   async stats(): Promise<{ awaitingCount: number; awaitingValue: number; clearedCount: number }> {
-    const { data: awaitingRows, error: aErr } = await handoffs()
-      .select("quote_value")
-      .is("cleared_by_accounts_at", null)
+    // Run both queries in parallel instead of sequentially.
+    const [
+      { data: awaitingRows, error: aErr },
+      { count: clearedCount, error: cErr },
+    ] = await Promise.all([
+      handoffs().select("quote_value").is("cleared_by_accounts_at", null),
+      handoffs().select("*", { count: "exact", head: true }).not("cleared_by_accounts_at", "is", null),
+    ])
     if (aErr) throw aErr
-    const { count: clearedCount, error: cErr } = await handoffs()
-      .select("*", { count: "exact", head: true })
-      .not("cleared_by_accounts_at", "is", null)
     if (cErr) throw cErr
     const awaitingCount = awaitingRows?.length ?? 0
     const awaitingValue = (awaitingRows ?? []).reduce((sum, r) => sum + Number(r.quote_value ?? 0), 0)

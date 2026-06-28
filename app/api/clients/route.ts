@@ -17,8 +17,10 @@ export async function GET(req: NextRequest) {
     const limit      = Math.max(1, Math.min(200, parseInt(sp.get("limit") ?? "50")))
 
     const role = auth.user.role as import("@/lib/permissions").Role
-    const clients = await clientService.findManyWithMeta({ search, activeOnly, skip: (page - 1) * limit, take: limit })
-    const total   = await clientService.count({ search, activeOnly })
+    const [clients, total] = await Promise.all([
+      clientService.findManyWithMeta({ search, activeOnly, skip: (page - 1) * limit, take: limit }),
+      clientService.count({ search, activeOnly }),
+    ])
 
     const redacted = canViewClientAnalytics(role)
       ? clients

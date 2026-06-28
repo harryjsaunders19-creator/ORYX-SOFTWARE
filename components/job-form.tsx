@@ -66,12 +66,15 @@ function F({ label, required, error, hint, children }: {
 }
 
 export interface JobFormProps {
-  job?:     Job
-  formId:   string
-  onSubmit: (data: JobFormData) => Promise<void>
+  job?:      Job
+  formId:    string
+  onSubmit:  (data: JobFormData) => Promise<void>
+  /** Pre-loaded designer names passed down from the jobs table — avoids a
+   *  redundant /api/jobs/designers fetch when the table already has them. */
+  designers?: string[]
 }
 
-export function JobForm({ job, formId, onSubmit }: JobFormProps) {
+export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const [form, setForm] = useState<JobFormData>(() =>
     job ? {
       itemType:        job.itemType ?? "DESIGN",
@@ -254,7 +257,7 @@ export function JobForm({ job, formId, onSubmit }: JobFormProps) {
             <div className="space-y-3">
               <F label="Designer / Engineer" hint={!job ? "Can be assigned later" : undefined}>
                 <DesignerCombobox value={form.designer} onChange={v => setForm(f => ({ ...f, designer: v }))}
-                  placeholder="Sarah Mitchell (optional)" />
+                  placeholder="Sarah Mitchell (optional)" designers={designers} />
               </F>
               {job && (
                 <F label="Status">

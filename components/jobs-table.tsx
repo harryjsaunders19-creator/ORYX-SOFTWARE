@@ -25,9 +25,13 @@ import {
 import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/components/status-badge"
 import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
-import { AssignDesignerModal } from "@/components/assign-designer-modal"
+import dynamic from "next/dynamic"
 import { InlineStatusSelect, InlineDesignerSelect } from "@/components/inline-edit-selects"
-import { JobForm }       from "@/components/job-form"
+
+// Lazy-load heavy dialog components — only downloaded when the user first
+// opens a create/edit dialog, not on every initial page load.
+const JobForm            = dynamic(() => import("@/components/job-form").then(m => m.JobForm), { ssr: false })
+const AssignDesignerModal = dynamic(() => import("@/components/assign-designer-modal").then(m => m.AssignDesignerModal), { ssr: false })
 import { useToast }      from "@/components/ui/toast"
 import { useUser }       from "@/components/user-context"
 import { JOB_STATUSES, WORK_ITEM_TYPES, WORKS_TYPES, getJobStatus } from "@/lib/constants"
@@ -965,7 +969,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
             <DialogDescription>Drawing number assigned automatically on save.</DialogDescription>
           </DialogHeader>
           <DialogBody>
-            <JobForm key={createOpen ? "open" : "closed"} formId="create-job-form" onSubmit={handleCreate} />
+            <JobForm key={createOpen ? "open" : "closed"} formId="create-job-form" onSubmit={handleCreate} designers={designers} />
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSaving}>Cancel</Button>
@@ -984,7 +988,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
             <DialogDescription>Update job details and status.</DialogDescription>
           </DialogHeader>
           <DialogBody>
-            {editJob && <JobForm key={editJob.id} formId="edit-job-form" job={editJob} onSubmit={handleEdit} />}
+            {editJob && <JobForm key={editJob.id} formId="edit-job-form" job={editJob} onSubmit={handleEdit} designers={designers} />}
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditJob(null)} disabled={editSaving}>Cancel</Button>

@@ -14,7 +14,8 @@ export async function GET() {
 
     const {
       byStatus, byItemType, recentJobs, unassigned, totalActiveJobs, totalRevisions,
-      totalQuotedValue, totalIssuedValue, avgJobValue, handoffStats, clientsOnHold,
+      totalQuotedValue, totalIssuedValue, avgJobValue, handoffStats,
+      holds, clientsOnHold,
       deadlines, qStats,
     } = await statsService.dashboard()
 
@@ -32,6 +33,7 @@ export async function GET() {
       totalIssuedValue: canView ? totalIssuedValue : null,
       avgJobValue:      canView ? avgJobValue      : null,
       clientsOnHold,
+      holds,
       overdueCount:       deadlines.overdueCount,
       dueTodayCount:      deadlines.dueTodayCount,
       dueThisWeekCount:   deadlines.dueThisWeekCount,

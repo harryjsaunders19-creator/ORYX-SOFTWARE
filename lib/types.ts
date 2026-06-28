@@ -279,6 +279,7 @@ export interface StatsData {
   totalIssuedValue: number | null
   avgJobValue:      number | null
   clientsOnHold:        number
+  holds:                ClientHoldWithClient[]
   overdueCount:         number
   dueTodayCount:        number
   dueThisWeekCount:     number

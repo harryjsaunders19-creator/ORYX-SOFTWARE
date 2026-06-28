@@ -82,17 +82,19 @@ export function DashboardStats() {
   const toStr     = format(weekEnd, "yyyy-MM-dd")
 
   const loadAll = useCallback(() => {
+    // /api/stats now includes the full holds list — 3 parallel requests instead of 4.
     Promise.all([
       fetch("/api/stats").then(r => r.ok ? r.json() as Promise<StatsData> : null),
       fetch(`/api/calendar/events?from=${fromStr}&to=${toStr}`).then(r => r.ok ? r.json() as Promise<{ events: CalEvent[] }> : null),
       fetch("/api/jobs?overdue=true&limit=5&sortBy=requiredByDate&sortDir=asc").then(r => r.ok ? r.json() as Promise<{ jobs: Job[] }> : null),
-      fetch("/api/hold-list").then(r => r.ok ? r.json() as Promise<{ holds: ClientHoldWithClient[] }> : null),
     ])
-      .then(([s, e, ov, h]) => {
-        if (s) setStats(s)
+      .then(([s, e, ov]) => {
+        if (s) {
+          setStats(s)
+          setHolds((s.holds ?? []).slice(0, 5))
+        }
         if (e) setEvents(e.events)
         if (ov) setOverdueJobs(ov.jobs)
-        if (h) setHolds(h.holds.slice(0, 5))
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false))

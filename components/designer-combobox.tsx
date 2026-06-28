@@ -9,23 +9,29 @@ interface Props {
   disabled?:  boolean
   className?: string
   autoFocus?: boolean
+  /** Pre-loaded designer names. When provided the component skips its own
+   *  /api/jobs/designers fetch — callers that already have this data (e.g.
+   *  JobsTable) should pass it down to avoid duplicate network requests. */
+  designers?: string[]
 }
 
 /** Free-text designer field with a typeahead dropdown of names already used elsewhere in the
  *  system — picking one is a single click; typing a brand-new name works exactly like a plain
  *  text input, no extra confirmation step (unlike clients, a designer name isn't a backing
  *  record, so there's nothing to "create"). */
-export function DesignerCombobox({ value, onChange, placeholder, disabled, className, autoFocus }: Props) {
-  const [designers, setDesigners] = useState<string[]>([])
-  const [open,       setOpen]      = useState(false)
+export function DesignerCombobox({ value, onChange, placeholder, disabled, className, autoFocus, designers: designersProp }: Props) {
+  const [fetchedDesigners, setFetchedDesigners] = useState<string[]>([])
+  const designers = designersProp ?? fetchedDesigners
+  const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (designersProp) return  // skip fetch when parent already provides the list
     fetch("/api/jobs/designers")
       .then(r => r.json() as Promise<{ designers: string[] }>)
-      .then(d => setDesigners(d.designers))
+      .then(d => setFetchedDesigners(d.designers))
       .catch(() => {})
-  }, [])
+  }, [designersProp])
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
