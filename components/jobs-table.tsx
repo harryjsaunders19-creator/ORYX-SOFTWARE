@@ -228,7 +228,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const [itemTypeFilter, setItemTypeFilter] = useState(() => searchParams.get("itemType") ?? "ALL")
   const [typeOfWorksFilter, setTypeOfWorksFilter] = useState(() => searchParams.get("typeOfWorks") ?? "ALL")
   const [deadlineFilter,  setDeadlineFilter]  = useState(() => searchParams.get("deadline") ?? "ALL")
-  const initUnassigned = searchParams.get("unassigned") === "true"
+  const _initUnassigned = searchParams.get("unassigned") === "true"
   const [page,         setPage]         = useState(1)
   const [sortBy,       setSortBy]       = useState<SortField>("drawingNumber")
   const [sortDir,      setSortDir]      = useState<SortDir>("asc")
@@ -296,7 +296,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json() as JobsResponse
       if (thisId === fetchId.current) setData(json)
-    } catch (err) {
+    } catch {
       if (thisId === fetchId.current) { toast("Failed to load jobs", "error") }
     } finally {
       if (thisId === fetchId.current) setLoading(false)

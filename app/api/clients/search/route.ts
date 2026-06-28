@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       holdReason: reasonByClientId.get(c.id) ?? null,
     }))
     return NextResponse.json({ clients: clientsWithHold })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

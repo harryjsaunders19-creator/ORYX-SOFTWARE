@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       Promise.resolve(quoteService.countExpiredDeletable()),
     ])
     return NextResponse.json({ quotes, total, page, limit, expiringSoonCount, expiredClearableCount })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
     if (lineItems.length) await quoteService.replaceLineItems(quote.id, lineItems)
 
     return NextResponse.json(quote, { status: 201 })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

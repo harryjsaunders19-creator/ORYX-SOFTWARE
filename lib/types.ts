@@ -1,5 +1,3 @@
-import type { WorkItemTypeValue } from "./constants"
-
 export interface Job {
   id:              string
   drawingNumber:   string

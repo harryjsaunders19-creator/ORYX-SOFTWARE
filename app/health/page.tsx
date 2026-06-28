@@ -9,7 +9,7 @@ import {
   DialogTitle, DialogBody,
 } from "@/components/ui/dialog"
 import { RequireRole } from "@/components/require-role"
-import { PageHeader, PageShell, DataPanel, surfaceCard } from "@/components/page-layout"
+import { PageHeader, PageShell, surfaceCard } from "@/components/page-layout"
 import { useToast } from "@/components/ui/toast"
 import { cn } from "@/lib/utils"
 

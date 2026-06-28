@@ -2,7 +2,7 @@
  * lib/db/schema.ts — table definitions and startup migrations.
  * Side-effect module: imported once at app startup via lib/db/index.ts.
  */
-import { db, DB_PATH, DB_EXISTED } from "./connection"
+import { db, DB_EXISTED } from "./connection"
 import { classifyLegacyWorksType } from "@/lib/works-type-migration"
 import { WORKS_TYPES } from "@/lib/constants"
 import { nowIso } from "./helpers"

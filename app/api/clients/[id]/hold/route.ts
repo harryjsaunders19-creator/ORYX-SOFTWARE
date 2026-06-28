@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const hold    = await holdService.activeHoldForClient(id)
     const history = await holdService.historyForClient(id)
     return NextResponse.json({ hold, history })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       notes: body.notes ? String(body.notes).trim() : null,
     })
     return NextResponse.json(hold, { status: 201 })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -56,7 +56,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     const hold = await holdService.removeHold({ clientId: id, removedBy, removedReason })
     if (!hold) return NextResponse.json({ error: "Client is not currently on hold" }, { status: 404 })
     return NextResponse.json(hold)
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

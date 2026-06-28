@@ -21,7 +21,7 @@ import type { Client } from "@/lib/types"
 type ClientWithMeta = Client & { activeJobCount: number; onHold: boolean }
 type ClientsData = { clients: ClientWithMeta[]; total: number }
 
-function ClientForm({ formId, initial, onSubmit, saving }: {
+function ClientForm({ formId, initial, onSubmit, saving: _saving }: {
   formId: string
   initial: Partial<Client>
   onSubmit: (data: Partial<Client>) => Promise<void>

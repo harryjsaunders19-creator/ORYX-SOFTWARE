@@ -129,7 +129,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     return NextResponse.json(updated)
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

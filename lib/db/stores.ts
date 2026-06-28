@@ -68,7 +68,7 @@ export interface InvoiceItemRow {
 }
 
 export type { BillingHandoffRow, BillingExportBatchRow, BillingExportSnapshotRow } from "./billing-types"
-import type { BillingHandoffRow, BillingExportBatchRow, BillingExportSnapshotRow } from "./billing-types"
+import type { BillingHandoffRow, BillingExportBatchRow } from "./billing-types"
 
 /** The full Accounts Handover payload built for one handoff at export time —
  *  see billingHandoffDb.buildAccountsHandoverSnapshot(). Named explicitly

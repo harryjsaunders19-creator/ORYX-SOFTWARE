@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const source = await jobService.findUnique(id)
     if (!source) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const parentId = revisionParentId(source)
+    const _parentId = revisionParentId(source)
     const parent = source.parentJobId
       ? await jobService.findUnique(source.parentJobId)
       : source

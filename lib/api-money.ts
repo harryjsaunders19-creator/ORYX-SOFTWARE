@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { parseOptionalMoney } from "@/lib/utils"
 
 /** Apply an optional money field from a JSON body onto a patch/create payload. */

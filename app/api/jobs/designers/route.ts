@@ -7,7 +7,7 @@ export async function GET() {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
     return NextResponse.json({ designers: jobService.distinctDesigners() })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

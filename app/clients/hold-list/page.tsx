@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import {
-  AlertTriangle, ArrowLeft, ShieldOff, ShieldCheck,
+  ArrowLeft, ShieldCheck,
   Loader2, Building2, Plus,
 } from "lucide-react"
 import { Button }   from "@/components/ui/button"
@@ -22,14 +22,6 @@ import type { ClientHoldWithClient } from "@/lib/types"
 
 type HoldListData = { holds: ClientHoldWithClient[]; total: number }
 
-function HoldBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-dn-bg text-dn text-[11px] font-semibold">
-      <AlertTriangle className="h-3 w-3" />
-      ON HOLD
-    </span>
-  )
-}
 
 export default function HoldListPage() {
   const { userName } = useUser()

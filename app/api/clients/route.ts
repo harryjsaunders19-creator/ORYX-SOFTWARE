@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     const redacted = canViewClientAnalytics(role)
       ? clients
-      : clients.map(({ activeJobCount, ...c }) => ({ ...c, activeJobCount: null }))
+      : clients.map(({ activeJobCount: _ac, ...c }) => ({ ...c, activeJobCount: null }))
 
     return NextResponse.json({ clients: redacted, total, page, limit })
   } catch (err) {

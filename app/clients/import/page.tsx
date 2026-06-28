@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
 import { RequireRole } from "@/components/require-role"
-import { PageHeader, PageShell, BackLink, DataPanel, surfaceCard } from "@/components/page-layout"
+import { PageHeader, PageShell, BackLink } from "@/components/page-layout"
 import { cn } from "@/lib/utils"
 import type { ClientImportField } from "@/lib/import-clients"
 

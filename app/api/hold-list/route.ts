@@ -8,7 +8,7 @@ export async function GET() {
     if (auth instanceof NextResponse) return auth
     const holds = await holdService.allActive()
     return NextResponse.json({ holds, total: holds.length })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

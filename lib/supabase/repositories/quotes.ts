@@ -3,7 +3,6 @@
  */
 import { createAdminClient } from "@/lib/supabase/admin"
 import type {
-  CreateQuoteLineItemData,
   QuoteLineItemRow,
   QuoteListOptions,
   QuoteRow,

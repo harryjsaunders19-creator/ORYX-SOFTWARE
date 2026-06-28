@@ -7,7 +7,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
-import { useUser } from "@/components/user-context"
 import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, BackLink } from "@/components/page-layout"
 import { cn } from "@/lib/utils"
@@ -96,8 +95,6 @@ export default function ImportJobsPage() {
 
 function ImportJobsInner() {
   const { toast } = useToast()
-  const { user } = useUser()
-
   const [step, setStep] = useState<Step>("upload")
   const [dragOver, setDragOver] = useState(false)
   const [uploading, setUploading] = useState(false)

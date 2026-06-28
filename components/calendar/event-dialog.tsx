@@ -7,9 +7,6 @@ import { Input }  from "@/components/ui/input"
 import { Label }  from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
-import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogBody,
 } from "@/components/ui/dialog"
@@ -90,7 +87,7 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
     }
   }, [open, event, defaultDate, defaultCategoryId])
 
-  const selectedType = EVENT_TYPES.find(t => t.id === categoryId) ?? EVENT_TYPES[0]
+  const _selectedType = EVENT_TYPES.find(t => t.id === categoryId) ?? EVENT_TYPES[0]
 
   const handleSave = async () => {
     if (!title.trim()) { toast("Title is required", "error"); return }
