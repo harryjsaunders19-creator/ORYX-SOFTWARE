@@ -18,6 +18,27 @@ import { calendarDb, clientDb, jobDb } from "@/lib/db/stores"
 import { userService } from "@/lib/services/user-service"
 import { useSupabaseCalendar } from "@/lib/supabase/feature-flags"
 import { supabaseCalendarRepo } from "@/lib/supabase/repositories/calendar"
+import { ensureClientInSqlite } from "@/lib/services/client-service"
+import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
+
+/**
+ * Ensures a calendar event exists in local SQLite, fetching from Supabase
+ * if missing. CalendarEvent has FK on EventCategory(id) (pre-seeded ✅)
+ * and nullable FKs on Job(id) and Client(id) which we also sync.
+ */
+async function ensureCalendarEventInSqlite(id: string): Promise<void> {
+  if (!useSupabaseCalendar()) return
+  if (calendarDb.findUnique(id)) return
+  try {
+    const row = await supabaseCalendarRepo.findUnique(id)
+    if (!row) return
+    if (row.clientId) await ensureClientInSqlite(row.clientId)
+    if (row.jobId) await ensureJobInSqliteForBilling(row.jobId)
+    calendarDb.rawInsertOrIgnore(row)
+  } catch {
+    // Non-fatal
+  }
+}
 
 interface AssignmentRow {
   id: string
@@ -124,6 +145,7 @@ export const calendarService = {
     data: UpdateCalendarEventData,
     assigneeIds?: string[],
   ): Promise<CalendarEventWithDetails | null> {
+    await ensureCalendarEventInSqlite(id)
     const updated = calendarDb.update(id, data)
     if (!updated) return null
     if (assigneeIds !== undefined) calendarDb.setAssignees(id, assigneeIds)
@@ -132,6 +154,7 @@ export const calendarService = {
   },
 
   async delete(id: string): Promise<boolean> {
+    await ensureCalendarEventInSqlite(id)
     const ok = calendarDb.delete(id)
     if (ok && useSupabaseCalendar()) await supabaseCalendarRepo.deleteEvent(id)
     return ok

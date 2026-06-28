@@ -1160,6 +1160,24 @@ export const billingHandoffDb = {
     ).get() as { n: number }).n
     return { awaitingCount: awaiting.n, awaitingValue: awaiting.v, clearedCount }
   },
+
+  /** Insert a billing handoff row from an external source (e.g. Supabase) without side-effects. */
+  rawInsertOrIgnore(row: BillingHandoffRow): void {
+    db.prepare(`
+      INSERT OR IGNORE INTO BillingHandoff
+        (id,sourceJobId,billingEventType,drawingNumber,itemType,typeOfWorks,customTypeDescription,
+         clientCompany,address,designer,quoteValue,quoteReference,completionDate,
+         addedToBillingQueueAt,clearedByAccountsAt,clearedBy,exportBatchId,notes,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      row.id, row.sourceJobId, row.billingEventType,
+      row.drawingNumber, row.itemType, row.typeOfWorks ?? null, row.customTypeDescription ?? null,
+      row.clientCompany, row.address, row.designer ?? null,
+      row.quoteValue ?? null, row.quoteReference ?? null, row.completionDate,
+      row.addedToBillingQueueAt, row.clearedByAccountsAt ?? null, row.clearedBy ?? null,
+      row.exportBatchId ?? null, row.notes ?? null, row.createdAt, row.updatedAt,
+    )
+  },
 }
 
 // ── Commercial aggregates ────────────────────────────────────────
@@ -2249,6 +2267,22 @@ export const calendarDb = {
         insert.run(nanoid(), eventId, uid)
       }
     })()
+  },
+
+  /** Insert a calendar event row from an external source (e.g. Supabase) without side-effects. */
+  rawInsertOrIgnore(row: import("@/lib/db/calendar-types").CalendarEventRow): void {
+    db.prepare(`
+      INSERT OR IGNORE INTO CalendarEvent
+        (id,title,description,categoryId,startDate,endDate,allDay,location,priority,status,
+         jobId,clientId,createdBy,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      row.id, row.title, row.description ?? null, row.categoryId,
+      row.startDate, row.endDate, row.allDay ?? 1, row.location ?? null,
+      row.priority ?? "MEDIUM", row.status ?? "SCHEDULED",
+      row.jobId ?? null, row.clientId ?? null, row.createdBy,
+      row.createdAt, row.updatedAt,
+    )
   },
 }
 

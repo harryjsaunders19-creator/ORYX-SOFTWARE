@@ -18,6 +18,7 @@ import { useSupabaseQuotes } from "@/lib/supabase/feature-flags"
 import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
 import { todayIsoDate, addDaysToIsoDate } from "@/lib/utils"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
+import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
 
 async function mirrorQuote(quote: QuoteRow | null) {
   if (quote && useSupabaseQuotes()) await supabaseQuoteRepo.upsert(quote)
@@ -77,6 +78,8 @@ export const quoteService = {
   async update(id: string, data: UpdateQuoteData): Promise<QuoteRow | null> {
     // Ensure the quote exists in SQLite (it only lives in Supabase on a fresh container).
     await ensureQuoteInSqlite(id)
+    // If linking this quote to a job, ensure that job is in SQLite (Quote.jobId FK).
+    if (data.jobId) await ensureJobInSqliteForBilling(data.jobId)
     const quote = quoteDb.update(id, data)
     await mirrorQuote(quote)
     return quote

@@ -16,6 +16,27 @@ import { billingHandoffDb, jobDb, type AccountsHandoverSnapshot } from "@/lib/db
 import { useSupabaseBilling, useSupabaseJobs } from "@/lib/supabase/feature-flags"
 import { supabaseBillingRepo } from "@/lib/supabase/repositories/billing"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
+import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
+
+/**
+ * Ensures one or more billing handoff rows exist in SQLite, fetching from
+ * Supabase if missing. The BillingHandoff table has a NOT NULL FK on Job(id),
+ * so the job must also be in SQLite — ensureJobInSqliteForBilling handles that.
+ */
+async function ensureBillingHandoffsInSqlite(ids: string[]): Promise<void> {
+  if (!useSupabaseBilling()) return
+  const missing = ids.filter(id => !billingHandoffDb.findUnique(id))
+  if (!missing.length) return
+  try {
+    const rows = await supabaseBillingRepo.findManyByIds(missing)
+    for (const row of rows) {
+      await ensureJobInSqliteForBilling(row.sourceJobId)
+      billingHandoffDb.rawInsertOrIgnore(row)
+    }
+  } catch {
+    // Non-fatal
+  }
+}
 
 async function mirrorBatchExport(batchId: string): Promise<void> {
   if (!useSupabaseBilling()) return
@@ -52,6 +73,7 @@ export const billingHandoffService = {
     exportDate: string
     notes?: string | null
   }): Promise<{ batch: BillingExportBatchRow; snapshots: AccountsHandoverSnapshot[] }> {
+    await ensureBillingHandoffsInSqlite(data.handoffIds)
     const result = billingHandoffDb.createExportBatch(data)
     await mirrorBatchExport(result.batch.id)
     return result
@@ -83,6 +105,7 @@ export const billingHandoffService = {
   },
 
   async updateQuoteValue(handoffId: string, quoteValue: number): Promise<BillingHandoffRow | { error: string }> {
+    await ensureBillingHandoffsInSqlite([handoffId])
     const result = billingHandoffDb.updateQuoteValue(handoffId, quoteValue)
     if ("error" in result) return result
     const job = jobDb.findUnique(result.sourceJobId)

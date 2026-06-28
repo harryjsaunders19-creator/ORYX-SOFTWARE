@@ -56,6 +56,9 @@ async function ensureJobInSqlite(id: string): Promise<boolean> {
   return jobDb.findUnique(id) !== null
 }
 
+/** Public export for services that need to pre-sync a job without using jobService (avoids circular deps). */
+export { ensureJobInSqlite as ensureJobInSqliteForBilling }
+
 export const jobService = {
   async findMany(opts: FindManyOptions = {}): Promise<JobRow[]> {
     if (!useSupabaseJobs()) return jobDb.findMany(opts)
