@@ -48,6 +48,13 @@ export const supabaseClientRepo = {
     return data ? toClientRow(data) : null
   },
 
+  async findManyByIds(ids: string[]): Promise<ClientRow[]> {
+    if (!ids.length) return []
+    const { data, error } = await table().select("*").in("id", ids)
+    if (error) throw error
+    return (data ?? []).map(toClientRow)
+  },
+
   async findByName(name: string): Promise<ClientRow | null> {
     const { data, error } = await table().select("*").eq("name_lower", name.trim().toLowerCase()).maybeSingle()
     if (error) throw error

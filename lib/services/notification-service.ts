@@ -14,19 +14,19 @@ const LIMIT = 20
 
 export const notificationService = {
   async list(): Promise<NotificationsPayload> {
-    const [overdueJobs, dueTodayJobs, holds] = await Promise.all([
+    // Fetch jobs that are overdue OR due today in a single query, then split
+    // in JS — replaces two separate Supabase round trips with one.
+    const today = new Date().toISOString().split("T")[0]
+    const [deadlineJobs, holds] = await Promise.all([
       jobService.findMany({
-        where: { overdue: true },
+        where: { overdueOrDueToday: true },
         orderBy: { field: "requiredByDate", dir: "asc" },
-        take: 10,
-      }),
-      jobService.findMany({
-        where: { dueToday: true },
-        orderBy: { field: "requiredByDate", dir: "asc" },
-        take: 10,
+        take: 20,
       }),
       holdService.allActive(),
     ])
+    const overdueJobs  = deadlineJobs.filter(j => j.requiredByDate != null && j.requiredByDate < today)
+    const dueTodayJobs = deadlineJobs.filter(j => j.requiredByDate === today)
 
     const items: AppNotification[] = []
 

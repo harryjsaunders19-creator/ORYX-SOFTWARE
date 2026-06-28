@@ -68,6 +68,9 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
   if (where.overdue) {
     q = q.not("required_by_date", "is", null).lt("required_by_date", todayIsoDate()).neq("status", "ISSUED")
   }
+  if (where.overdueOrDueToday) {
+    q = q.not("required_by_date", "is", null).lte("required_by_date", todayIsoDate()).neq("status", "ISSUED")
+  }
   if (where.dueToday) {
     q = q.not("required_by_date", "is", null).eq("required_by_date", todayIsoDate())
   }
@@ -221,6 +224,65 @@ export const supabaseJobRepo = {
       this.count({ dueThisWeek: true }),
     ])
     return { overdueCount, dueTodayCount, dueThisWeekCount }
+  },
+
+  /**
+   * Single-query replacement for 8 separate Supabase calls on the stats
+   * endpoint: groupByStatus, groupByItemType, countWhere(unassigned),
+   * countWhere(onlyOriginals), countWhere(onlyRevisions), and all three
+   * deadlineStats counts.
+   *
+   * Fetches 5 lightweight columns for every job row and aggregates everything
+   * in JS — far cheaper than 8 independent round trips.
+   */
+  async dashboardCounts(): Promise<{
+    byStatus:         { status: string; count: number }[]
+    byItemType:       { itemType: string; count: number }[]
+    unassigned:       number
+    totalActiveJobs:  number
+    totalRevisions:   number
+    overdueCount:     number
+    dueTodayCount:    number
+    dueThisWeekCount: number
+  }> {
+    const { data, error } = await table().select("status,item_type,parent_job_id,designer,required_by_date")
+    if (error) throw error
+
+    const today   = todayIsoDate()
+    const weekEnd = weekEndIsoDate()
+
+    const statusMap   = new Map<string, number>()
+    const typeMap     = new Map<string, number>()
+    let unassigned = 0, totalActiveJobs = 0, totalRevisions = 0
+    let overdueCount = 0, dueTodayCount = 0, dueThisWeekCount = 0
+
+    for (const row of data ?? []) {
+      statusMap.set(row.status, (statusMap.get(row.status) ?? 0) + 1)
+      const t = row.item_type as string
+      typeMap.set(t, (typeMap.get(t) ?? 0) + 1)
+
+      if (row.parent_job_id) totalRevisions++; else totalActiveJobs++
+
+      if (!row.designer) unassigned++
+
+      if (row.required_by_date && row.status !== "ISSUED") {
+        const d = row.required_by_date as string
+        if (d < today) overdueCount++
+        else if (d === today) dueTodayCount++
+        else if (d > today && d <= weekEnd) dueThisWeekCount++
+      }
+    }
+
+    return {
+      byStatus:         [...statusMap.entries()].map(([status, count]) => ({ status, count })),
+      byItemType:       [...typeMap.entries()].map(([itemType, count]) => ({ itemType, count })),
+      unassigned,
+      totalActiveJobs,
+      totalRevisions,
+      overdueCount,
+      dueTodayCount,
+      dueThisWeekCount,
+    }
   },
 
   async findRecent(take: number) {

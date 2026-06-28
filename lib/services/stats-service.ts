@@ -8,46 +8,35 @@ import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 
 export const statsService = {
   async dashboard() {
-    const [
-      byStatus,
-      byItemType,
-      recentJobs,
-      unassigned,
-      totalActiveJobs,
-      totalRevisions,
-      jobValues,       // replaces 3 separate totalQuotedValue/totalIssuedValue/avgJobValue calls
-      handoffStats,
-      clientsOnHold,
-      deadlines,
-      qStats,
-    ] = await Promise.all([
-      jobService.groupByStatus(),
-      jobService.groupByItemType(),
+    // dashboardCounts() replaces 8 separate job-count queries with one Supabase
+    // call (groupByStatus, groupByItemType, 3×countWhere, 3×deadlineStats counts).
+    const [counts, recentJobs, jobValues, handoffStats, allHolds, qStats] = await Promise.all([
+      jobService.dashboardCounts(),
       jobService.findRecent(6),
-      jobService.countWhere({ unassigned: true }),
-      jobService.countWhere({ onlyOriginals: true }),
-      jobService.countWhere({ onlyRevisions: true }),
-      jobService.jobValueStats(),  // single round trip instead of three
+      jobService.jobValueStats(),
       billingHandoffService.stats(),
-      holdService.allActive(),      // full list — dashboard uses it directly, removes a /api/hold-list call
-      jobService.deadlineStats(),
+      holdService.allActive(),
       quoteService.stats(),
     ])
 
     return {
-      byStatus,
-      byItemType,
+      byStatus:        counts.byStatus,
+      byItemType:      counts.byItemType,
       recentJobs,
-      unassigned,
-      totalActiveJobs,
-      totalRevisions,
+      unassigned:      counts.unassigned,
+      totalActiveJobs: counts.totalActiveJobs,
+      totalRevisions:  counts.totalRevisions,
       totalQuotedValue: jobValues.totalQuotedValue,
       totalIssuedValue: jobValues.totalIssuedValue,
       avgJobValue:      jobValues.avgJobValue,
       handoffStats,
-      holds: clientsOnHold,
-      clientsOnHold: clientsOnHold.length,
-      deadlines,
+      holds:         allHolds,
+      clientsOnHold: allHolds.length,
+      deadlines: {
+        overdueCount:     counts.overdueCount,
+        dueTodayCount:    counts.dueTodayCount,
+        dueThisWeekCount: counts.dueThisWeekCount,
+      },
       qStats,
     }
   },

@@ -12,8 +12,9 @@ export interface WhereClause {
   billingPending?:  boolean
   dueToday?:        boolean
   dueThisWeek?:     boolean
-  overdue?:         boolean
-  hasDeadline?:     boolean
+  overdue?:             boolean
+  overdueOrDueToday?:   boolean
+  hasDeadline?:         boolean
   parentJobId?: string; onlyOriginals?: boolean; onlyRevisions?: boolean
 }
 
@@ -38,7 +39,8 @@ export function buildWhere(where: WhereClause = {}): { sql: string; params: unkn
   if (where.clientId)         { clauses.push("clientId = ?");                        params.push(where.clientId) }
   if (where.billingExported)  { clauses.push("billingStatus = 'EXPORTED_TO_ACCOUNTS'") }
   if (where.billingPending)   { clauses.push("status = 'ISSUED' AND invoiceId IS NULL AND (billingStatus IS NULL OR billingStatus != 'EXPORTED_TO_ACCOUNTS')") }
-  if (where.overdue)          { clauses.push("requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'") }
+  if (where.overdue)            { clauses.push("requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'") }
+  if (where.overdueOrDueToday)  { clauses.push("requiredByDate IS NOT NULL AND requiredByDate <= date('now') AND status != 'ISSUED'") }
   if (where.dueToday)         { clauses.push("requiredByDate IS NOT NULL AND requiredByDate = date('now')") }
   if (where.dueThisWeek)      { clauses.push("requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days')") }
   if (where.hasDeadline)      { clauses.push("requiredByDate IS NOT NULL") }

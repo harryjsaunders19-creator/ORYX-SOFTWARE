@@ -190,6 +190,36 @@ export const jobService = {
     return supabaseJobRepo.deadlineStats()
   },
 
+  /**
+   * Returns all dashboard count aggregates in a single Supabase round trip.
+   * Replaces 8 separate countWhere/groupBy/deadlineStats calls on the stats
+   * endpoint. Falls back to the individual SQLite helpers.
+   */
+  async dashboardCounts(): Promise<{
+    byStatus:         { status: string; count: number }[]
+    byItemType:       { itemType: string; count: number }[]
+    unassigned:       number
+    totalActiveJobs:  number
+    totalRevisions:   number
+    overdueCount:     number
+    dueTodayCount:    number
+    dueThisWeekCount: number
+  }> {
+    if (!useSupabaseJobs()) {
+      const [byStatus, byItemType, unassigned, totalActiveJobs, totalRevisions, deadlines] =
+        await Promise.all([
+          jobDb.groupByStatus(),
+          jobDb.groupByItemType(),
+          jobDb.countWhere({ unassigned: true }),
+          jobDb.countWhere({ onlyOriginals: true }),
+          jobDb.countWhere({ onlyRevisions: true }),
+          jobDb.deadlineStats(),
+        ])
+      return { byStatus, byItemType, unassigned, totalActiveJobs, totalRevisions, ...deadlines }
+    }
+    return supabaseJobRepo.dashboardCounts()
+  },
+
   async totalQuotedValue(): Promise<number> {
     if (!useSupabaseJobs()) return commercialDb.totalQuotedValue()
     return (await supabaseJobRepo.jobValueStats()).totalQuotedValue
