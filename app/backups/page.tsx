@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
 import {
   DatabaseBackup, CheckCircle2, XCircle, Clock, Loader2, Play, RefreshCw,
-  FileJson2, FileSpreadsheet,
+  FileJson2, FileSpreadsheet, Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RequireRole } from "@/components/require-role"
@@ -24,6 +24,9 @@ interface AuditEntry {
   id: string; action: string; backupId: string | null
   userName: string; detail: string | null; createdAt: string
 }
+
+interface SheetResult { created: number; updated: number; skipped: number; errors: string[] }
+interface ImportResult { clients: SheetResult; jobs: SheetResult; quotes: SheetResult }
 
 function formatBytes(bytes: number | null): string {
   if (bytes == null) return "—"
@@ -81,6 +84,8 @@ function BackupsInner() {
   const [starting, setStarting]     = useState(false)
   const [exportingJson, setExportingJson]     = useState(false)
   const [exportingExcel, setExportingExcel]   = useState(false)
+  const [importing, setImporting]             = useState(false)
+  const [importResult, setImportResult]       = useState<ImportResult | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -155,6 +160,21 @@ function BackupsInner() {
     finally { setExportingExcel(false) }
   }
 
+  const importExcel = async (file: File) => {
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const form = new FormData()
+      form.append("file", file)
+      const res = await fetch("/api/import/excel", { method: "POST", body: form })
+      const data = await res.json() as ImportResult & { error?: string }
+      if (!res.ok) { toast(data.error ?? "Import failed", "error"); return }
+      setImportResult(data)
+      toast("Import complete", "success")
+    } catch { toast("Import failed", "error") }
+    finally { setImporting(false) }
+  }
+
   const completed = backups.filter(b => b.status === "COMPLETED")
   const latestCompleted = completed[0]
   const totalRows = latestCompleted?.rowCountsJson
@@ -194,6 +214,23 @@ function BackupsInner() {
               <FileSpreadsheet className="h-3.5 w-3.5" />
               Export Excel
             </Button>
+            <label className={cn(
+              "inline-flex items-center gap-1.5 text-sm font-medium rounded-md px-3 py-1.5 border border-bd cursor-pointer",
+              "bg-sr text-t1 hover:bg-pg transition-colors",
+              importing && "opacity-50 pointer-events-none",
+            )}>
+              {importing
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <Upload className="h-3.5 w-3.5" />}
+              {importing ? "Importing…" : "Import Excel"}
+              <input
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="sr-only"
+                disabled={importing}
+                onChange={e => { const f = e.target.files?.[0]; if (f) importExcel(f); e.target.value = "" }}
+              />
+            </label>
             <Button
               variant="primary"
               size="sm"
@@ -213,6 +250,42 @@ function BackupsInner() {
         <KpiTile label="Rows backed up" value={totalRows?.toLocaleString() ?? "—"} accent="#B45309" />
         <KpiTile label="Storage location" value={<span className="text-sm font-mono font-normal truncate block">{backupsDir || "—"}</span>} accent="#71717A" />
       </div>
+
+      {/* Import result */}
+      {importResult && (
+        <DataPanel className="overflow-hidden mb-5">
+          <div className="px-4 py-3 border-b border-bd flex items-center justify-between">
+            <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Import result</p>
+            <button onClick={() => setImportResult(null)} className="text-xs text-t4 hover:text-t2">Dismiss</button>
+          </div>
+          <div className="divide-y divide-bd">
+            {(["clients", "jobs", "quotes"] as const).map(sheet => {
+              const r = importResult[sheet]
+              const hasErrors = r.errors.length > 0
+              return (
+                <div key={sheet} className="px-4 py-3">
+                  <div className="flex items-center gap-4 mb-1">
+                    <span className="text-xs font-semibold text-t1 capitalize w-16">{sheet}</span>
+                    <span className="text-xs text-ok-tx">{r.created} created</span>
+                    <span className="text-xs text-ac">{r.updated} updated</span>
+                    {r.skipped > 0 && <span className="text-xs text-t4">{r.skipped} skipped</span>}
+                  </div>
+                  {hasErrors && (
+                    <div className="mt-1 space-y-0.5">
+                      {r.errors.slice(0, 5).map((e, i) => (
+                        <p key={i} className="text-[11px] font-mono text-dn-tx">{e}</p>
+                      ))}
+                      {r.errors.length > 5 && (
+                        <p className="text-[11px] text-t4">…and {r.errors.length - 5} more errors</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </DataPanel>
+      )}
 
       {/* Backup history */}
       {loading && backups.length === 0 ? (
