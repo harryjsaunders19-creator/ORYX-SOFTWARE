@@ -849,12 +849,27 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
   const { hashPassword } = require("@/lib/password") as typeof import("@/lib/password")
   const now = nowIso()
 
+  // Pre-computed bcrypt hashes (cost=12) for the bootstrap passwords.
+  // Using constants avoids running bcrypt on every cold start, which saves
+  // ~500ms per container boot on serverless hosts like Vercel.
   const accounts = [
     // Fixed IDs ensure cross-container session continuity on stateless hosts (e.g. Vercel).
     // Every fresh container creates the same user with the same ID, so session cookies
     // remain valid regardless of which container handles the request.
-    { id: "bootstrap-admin-00000001",    email: "admin@test.com",    name: "Admin",    role: "ADMIN",    password: "admin123" },
-    { id: "bootstrap-engineer-00000001", email: "engineer@test.com", name: "Engineer", role: "ENGINEER", password: "engineer123" },
+    {
+      id: "bootstrap-admin-00000001",
+      email: "admin@test.com",
+      name: "Admin",
+      role: "ADMIN",
+      passwordHash: "$2b$12$92nRgb8jPt20D4.fPVhIOudgpnPaAozVDOxbw32dArHspiSFy2OGS", // admin123
+    },
+    {
+      id: "bootstrap-engineer-00000001",
+      email: "engineer@test.com",
+      name: "Engineer",
+      role: "ENGINEER",
+      passwordHash: "$2b$12$NWRIw4dbY47HJRDhOZStaOuY7s4Js.emZPm9QMHJysvYgj1gOrB7u", // engineer123
+    },
   ]
 
   for (const acct of accounts) {
@@ -863,16 +878,16 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
       db.prepare(`
         INSERT INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
         VALUES (?,?,?,?,?,1,?,0,?,?)
-      `).run(acct.id, acct.name, acct.email, acct.email, acct.role, hashPassword(acct.password), now, now)
-      console.log(`[bootstrapAccounts] Created ${acct.email} (password: ${acct.password})`)
+      `).run(acct.id, acct.name, acct.email, acct.email, acct.role, acct.passwordHash, now, now)
+      console.log(`[bootstrapAccounts] Created ${acct.email}`)
     } else if (!existing.passwordHash) {
       db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?")
-        .run(hashPassword(acct.password), existing.id)
+        .run(acct.passwordHash, existing.id)
       console.log(`[bootstrapAccounts] Set password for ${acct.email}`)
     }
   }
 
-  // Any other users without a password get a temp one
+  // Any other users without a password get a temp one (runtime hash is fine here — rare path)
   const noPassword = db.prepare(
     "SELECT id, name FROM User WHERE passwordHash IS NULL"
   ).all() as { id: string; name: string }[]
