@@ -16,6 +16,10 @@ export interface WhereClause {
   overdueOrDueToday?:   boolean
   hasDeadline?:         boolean
   parentJobId?: string; onlyOriginals?: boolean; onlyRevisions?: boolean
+  /** When true, include archived records in results (default: exclude them). */
+  includeArchived?: boolean
+  /** When true, return ONLY archived records. Takes precedence over includeArchived. */
+  onlyArchived?: boolean
 }
 
 export interface FindManyOptions {
@@ -52,6 +56,9 @@ export function buildWhere(where: WhereClause = {}): { sql: string; params: unkn
   if (where.parentJobId)      { clauses.push("parentJobId = ?");  params.push(where.parentJobId) }
   if (where.onlyOriginals)    { clauses.push("parentJobId IS NULL") }
   if (where.onlyRevisions)    { clauses.push("parentJobId IS NOT NULL") }
+  // Soft-delete filter: exclude archived rows by default.
+  if (where.onlyArchived)     { clauses.push("archivedAt IS NOT NULL") }
+  else if (!where.includeArchived) { clauses.push("archivedAt IS NULL") }
   return { sql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", params }
 }
 

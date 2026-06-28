@@ -20,6 +20,8 @@ export interface QuoteRow {
   pdfPath: string | null
   preparedBy: string | null
   vatRate: number | null
+  archivedAt: string | null
+  archivedBy: string | null
   createdAt: string
   updatedAt: string
 }

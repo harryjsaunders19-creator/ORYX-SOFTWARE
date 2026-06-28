@@ -18,6 +18,8 @@ import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { historyService } from "@/lib/services/history-service"
 import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
+import { archiveLogService } from "@/lib/services/archive-log-service"
+import { nowIso } from "@/lib/db/helpers"
 
 async function mirror(job: JobRow | null) {
   if (job && useSupabaseJobs()) await supabaseJobRepo.upsert(job)
@@ -140,6 +142,45 @@ export const jobService = {
 
   deletionBlockers(id: string): string[] {
     return jobDb.deletionBlockers(id)
+  },
+
+  /** Soft-delete a job: marks it as archived. Logs the action. */
+  async archive(id: string, archiverId: string, archiverName: string): Promise<JobRow | null> {
+    await ensureJobInSqlite(id)
+    const job = jobDb.findUnique(id)
+    if (!job) return null
+    const now = nowIso()
+    jobDb.archive(id, archiverId, now)
+    if (useSupabaseJobs()) await supabaseJobRepo.archive(id, archiverId, now)
+    archiveLogService.log({
+      entityType: "job", entityId: id,
+      entityLabel: job.drawingNumber,
+      action: "archive",
+      performedBy: archiverId, performedByName: archiverName,
+    })
+    return jobDb.findUnique(id)
+  },
+
+  /** Restore a previously archived job. */
+  async restore(id: string, restorerId: string, restorerName: string): Promise<JobRow | null> {
+    await ensureJobInSqlite(id)
+    const job = jobDb.findUnique(id)
+    if (!job) return null
+    const now = nowIso()
+    jobDb.restore(id, now)
+    if (useSupabaseJobs()) await supabaseJobRepo.restore(id, now)
+    archiveLogService.log({
+      entityType: "job", entityId: id,
+      entityLabel: job.drawingNumber,
+      action: "restore",
+      performedBy: restorerId, performedByName: restorerName,
+    })
+    return jobDb.findUnique(id)
+  },
+
+  async findArchived(): Promise<JobRow[]> {
+    if (!useSupabaseJobs()) return jobDb.findArchived()
+    return supabaseJobRepo.findArchived()
   },
 
   async delete(id: string): Promise<boolean> {

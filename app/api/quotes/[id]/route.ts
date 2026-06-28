@@ -140,18 +140,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const auth = await requireSignIn()
-    if (auth instanceof NextResponse) return auth
+  if (auth instanceof NextResponse) return auth
 
   const { id } = await params
   const quote = await quoteService.findUnique(id)
   if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  if (quote.jobId) {
-    return NextResponse.json(
-      { error: "This quote has been converted to a job and can't be deleted." },
-      { status: 409 },
-    )
-  }
-  const ok = await quoteService.delete(id)
-  if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  return NextResponse.json({ ok: true })
+
+  const archived = await quoteService.archive(id, auth.user.id, auth.user.name)
+  if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  return NextResponse.json({ ok: true, archived: true, quote: archived })
 }

@@ -29,6 +29,8 @@ export interface JobRow {
   requiredByDate: string | null
   parentJobId: string | null
   revisionLetter: string | null
+  archivedAt: string | null
+  archivedBy: string | null
   createdAt: string
   updatedAt: string
 }

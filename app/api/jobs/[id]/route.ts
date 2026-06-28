@@ -125,22 +125,21 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
   try {
     const auth = await requireRole(["ADMIN"])
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
-    if (!(await jobService.findUnique(id))) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const job = await jobService.findUnique(id)
+    if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const blockers = jobService.deletionBlockers(id)
-    if (blockers.length > 0) {
-      return NextResponse.json({ error: blockers.join(" ") }, { status: 409 })
-    }
+    const archiverId   = auth.user.id
+    const archiverName = auth.user.name
 
-    const ok = await jobService.delete(id)
-    if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    return NextResponse.json({ ok: true })
+    const archived = await jobService.archive(id, archiverId, archiverName)
+    if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    return NextResponse.json({ ok: true, archived: true, job: archived })
   } catch (err) {
     console.error("[DELETE /api/jobs/[id]]", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

@@ -367,7 +367,7 @@ const JobTableRow = memo(
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem danger onSelect={() => onDelete(job)}>
-                      <Trash2 className="h-3.5 w-3.5" /> Delete job
+                      <Trash2 className="h-3.5 w-3.5" /> Archive job
                     </DropdownMenuItem>
                   </>
                 )}
@@ -598,8 +598,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     setDeleting(true)
     try {
       const res = await fetch(`/api/jobs/${deleteJob.id}`, { method: "DELETE" })
-      if (!res.ok) { toast("Failed to delete job", "error"); return }
-      toast(`${deleteJob.drawingNumber} deleted`, "info")
+      if (!res.ok) { toast("Failed to archive job", "error"); return }
+      toast(`${deleteJob.drawingNumber} archived`, "info")
       setDeleteJob(null); setPage(1)
       doFetch({ page: 1, search, statusFilter, itemTypeFilter, typeOfWorksFilter, deadlineFilter, sortBy, sortDir, onlyOriginals, onlyRevisions })
     } finally { setDeleting(false) }
@@ -1035,21 +1035,21 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         </DialogContent>
       </Dialog>
 
-      {/* Delete dialog */}
+      {/* Archive dialog */}
       <Dialog open={!!deleteJob} onOpenChange={o => { if (!o && !deleting) setDeleteJob(null) }}>
         <DialogContent size="sm">
           <DialogHeader>
-            <DialogTitle>Delete job</DialogTitle>
+            <DialogTitle>Archive job</DialogTitle>
             <DialogDescription>
-              Permanently delete{" "}
+              Archive{" "}
               <span className="font-mono font-semibold text-ac">{deleteJob?.drawingNumber}</span>?
-              This cannot be undone.
+              The job will be hidden from active views but can be restored later from the Archived Items page.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteJob(null)} disabled={deleting}>Cancel</Button>
             <Button variant="danger" onClick={handleDelete} loading={deleting} disabled={deleting}>
-              {deleting ? "Deleting…" : "Delete job"}
+              {deleting ? "Archiving…" : "Archive job"}
             </Button>
           </DialogFooter>
         </DialogContent>

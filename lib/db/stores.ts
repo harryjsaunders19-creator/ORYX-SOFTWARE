@@ -399,38 +399,37 @@ export const jobDb = {
   },
 
   groupByItemType(): { itemType: string; count: number }[] {
-    return db.prepare("SELECT itemType, COUNT(*) as count FROM Job GROUP BY itemType").all() as { itemType: string; count: number }[]
+    return db.prepare("SELECT itemType, COUNT(*) as count FROM Job WHERE archivedAt IS NULL GROUP BY itemType").all() as { itemType: string; count: number }[]
   },
 
   deadlineStats(): { overdueCount: number; dueTodayCount: number; dueThisWeekCount: number } {
-    const overdueCount    = (db.prepare("SELECT COUNT(*) as n FROM Job WHERE requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'").get() as { n: number }).n
-    const dueTodayCount   = (db.prepare("SELECT COUNT(*) as n FROM Job WHERE requiredByDate IS NOT NULL AND requiredByDate = date('now')").get() as { n: number }).n
-    const dueThisWeekCount= (db.prepare("SELECT COUNT(*) as n FROM Job WHERE requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days')").get() as { n: number }).n
+    const overdueCount    = (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'").get() as { n: number }).n
+    const dueTodayCount   = (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate = date('now')").get() as { n: number }).n
+    const dueThisWeekCount= (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days')").get() as { n: number }).n
     return { overdueCount, dueTodayCount, dueThisWeekCount }
   },
 
-  /** Overdue jobs for dashboard alert — all non-issued jobs past their deadline */
+  /** Overdue jobs for dashboard alert — all non-issued, non-archived jobs past their deadline */
   overdueJobs(): JobRow[] {
     return db.prepare(
-      "SELECT * FROM Job WHERE requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED' ORDER BY requiredByDate ASC LIMIT 20"
+      "SELECT * FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED' ORDER BY requiredByDate ASC LIMIT 20"
     ).all() as JobRow[]
   },
 
   groupByStatus(): { status: string; count: number }[] {
-    return db.prepare("SELECT status, COUNT(*) as count FROM Job GROUP BY status").all() as { status: string; count: number }[]
+    return db.prepare("SELECT status, COUNT(*) as count FROM Job WHERE archivedAt IS NULL GROUP BY status").all() as { status: string; count: number }[]
   },
 
-  /** Distinct designer names already used on jobs — feeds the inline assign picker so reassigning to
-   *  someone who's worked a job before is a single click instead of re-typing their name. */
+  /** Distinct designer names from active (non-archived) jobs. */
   distinctDesigners(): string[] {
     const rows = db.prepare(
-      "SELECT DISTINCT designer FROM Job WHERE designer IS NOT NULL AND designer != '' ORDER BY designer COLLATE NOCASE ASC"
+      "SELECT DISTINCT designer FROM Job WHERE archivedAt IS NULL AND designer IS NOT NULL AND designer != '' ORDER BY designer COLLATE NOCASE ASC"
     ).all() as { designer: string }[]
     return rows.map(r => r.designer)
   },
 
   countWhere(where: WhereClause & { createdAfter?: string }): number {
-    const clauses: string[] = []; const params: unknown[] = []
+    const clauses: string[] = ["archivedAt IS NULL"]; const params: unknown[] = []
     if (where.status)        { clauses.push("status = ?");                        params.push(where.status) }
     if (where.createdAfter)  { clauses.push("createdAt >= ?");                    params.push(where.createdAfter) }
     if (where.unassigned)    { clauses.push("(designer = '' OR designer IS NULL)") }
@@ -441,33 +440,50 @@ export const jobDb = {
     if (where.overdue)       { clauses.push("requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'") }
     if (where.dueToday)      { clauses.push("requiredByDate IS NOT NULL AND requiredByDate = date('now')") }
     if (where.dueThisWeek)   { clauses.push("requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days')") }
-    const sql = clauses.length ? `SELECT COUNT(*) as n FROM Job WHERE ${clauses.join(" AND ")}` : "SELECT COUNT(*) as n FROM Job"
+    const sql = `SELECT COUNT(*) as n FROM Job WHERE ${clauses.join(" AND ")}`
     return (db.prepare(sql).get(...params) as { n: number }).n
   },
 
   findRecent(take: number) {
     return db.prepare(
       `SELECT id,drawingNumber,itemType,address,status,clientCompany,designer,quoteValue,invoiceId,parentJobId,revisionLetter,dateCreated,createdAt
-       FROM Job ORDER BY dateCreated DESC LIMIT ?`
+       FROM Job WHERE archivedAt IS NULL ORDER BY dateCreated DESC LIMIT ?`
     ).all(take) as Pick<JobRow, "id"|"drawingNumber"|"itemType"|"address"|"status"|"clientCompany"|"designer"|"quoteValue"|"invoiceId"|"parentJobId"|"revisionLetter"|"createdAt">[]
   },
 
-  /** All ISSUED jobs not yet invoiced — the invoice queue */
+  /** All ISSUED, non-archived jobs not yet invoiced — the invoice queue */
   invoiceQueue(): JobRow[] {
     return db.prepare(
-      "SELECT * FROM Job WHERE status = 'ISSUED' AND (invoiceId IS NULL) ORDER BY clientCompany ASC, createdAt ASC"
+      "SELECT * FROM Job WHERE archivedAt IS NULL AND status = 'ISSUED' AND (invoiceId IS NULL) ORDER BY clientCompany ASC, createdAt ASC"
     ).all() as JobRow[]
   },
 
-  /** Billing queue: ISSUED, not invoiced, not already exported */
+  /** Billing queue: ISSUED, not invoiced, not already exported, not archived */
   billingQueue(): JobRow[] {
     return db.prepare(
       `SELECT * FROM Job
-       WHERE status = 'ISSUED'
+       WHERE archivedAt IS NULL
+         AND status = 'ISSUED'
          AND (invoiceId IS NULL)
          AND (billingStatus IS NULL OR billingStatus != 'EXPORTED_TO_ACCOUNTS')
        ORDER BY clientCompany ASC, createdAt ASC`
     ).all() as JobRow[]
+  },
+
+  archive(id: string, archivedBy: string, archivedAt: string): boolean {
+    return db.prepare(
+      "UPDATE Job SET archivedAt = ?, archivedBy = ?, updatedAt = ? WHERE id = ?"
+    ).run(archivedAt, archivedBy, archivedAt, id).changes > 0
+  },
+
+  restore(id: string, restoredAt: string): boolean {
+    return db.prepare(
+      "UPDATE Job SET archivedAt = NULL, archivedBy = NULL, updatedAt = ? WHERE id = ?"
+    ).run(restoredAt, id).changes > 0
+  },
+
+  findArchived(): JobRow[] {
+    return db.prepare("SELECT * FROM Job WHERE archivedAt IS NOT NULL ORDER BY archivedAt DESC").all() as JobRow[]
   },
 }
 
@@ -1293,7 +1309,7 @@ export const clientDb = {
       fields.push('"name" = ?', '"nameLower" = ?')
       params.push(data.name.trim(), data.name.trim().toLowerCase())
     }
-    const simple: (keyof UpdateClientData)[] = ["contactName","email","phone","billingAddress","notes","accountCode","active"]
+    const simple: (keyof UpdateClientData)[] = ["contactName","email","phone","billingAddress","notes","accountCode","active","archivedAt","archivedBy"]
     for (const k of simple) {
       if (data[k] !== undefined) { fields.push(`"${k}" = ?`); params.push(data[k] ?? null) }
     }
@@ -1683,6 +1699,34 @@ export const holdDb = {
 
 
 
+// ── Archive log ────────────────────────────────────────────────────
+
+import type { ArchiveLogRow } from "./archive-types"
+
+export const archiveLogDb = {
+  log(entry: Omit<ArchiveLogRow, "id" | "performedAt"> & { performedAt?: string }): void {
+    const id = nanoid()
+    const now = entry.performedAt ?? nowIso()
+    db.prepare(`
+      INSERT INTO ArchiveLog (id,entityType,entityId,entityLabel,action,performedBy,performedByName,performedAt,reason)
+      VALUES (?,?,?,?,?,?,?,?,?)
+    `).run(id, entry.entityType, entry.entityId, entry.entityLabel, entry.action,
+           entry.performedBy, entry.performedByName, now, entry.reason ?? null)
+  },
+
+  findMany(limit = 200): ArchiveLogRow[] {
+    return db.prepare(
+      "SELECT * FROM ArchiveLog ORDER BY performedAt DESC LIMIT ?"
+    ).all(limit) as ArchiveLogRow[]
+  },
+
+  findForEntity(entityType: string, entityId: string): ArchiveLogRow[] {
+    return db.prepare(
+      "SELECT * FROM ArchiveLog WHERE entityType = ? AND entityId = ? ORDER BY performedAt DESC"
+    ).all(entityType, entityId) as ArchiveLogRow[]
+  },
+}
+
 // ── Health check ──────────────────────────────────────────────────
 
 export function dbHealthCheck() {
@@ -1739,7 +1783,7 @@ export const quoteDb = {
     return (db.prepare("SELECT * FROM Quote WHERE quoteNumber = ?").get(quoteNumber) as QuoteRow) ?? null
   },
 
-  findMany(opts: { search?: string; status?: string; clientId?: string; skip?: number; take?: number } = {}): QuoteRow[] {
+  findMany(opts: { search?: string; status?: string; clientId?: string; skip?: number; take?: number; includeArchived?: boolean; onlyArchived?: boolean } = {}): QuoteRow[] {
     const clauses: string[] = []
     const params: unknown[] = []
     if (opts.search) {
@@ -1749,13 +1793,15 @@ export const quoteDb = {
     }
     if (opts.status)   { clauses.push("status = ?");   params.push(opts.status) }
     if (opts.clientId) { clauses.push("clientId = ?"); params.push(opts.clientId) }
+    if (opts.onlyArchived)             { clauses.push("archivedAt IS NOT NULL") }
+    else if (!opts.includeArchived)    { clauses.push("archivedAt IS NULL") }
     const w      = clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""
     const limit  = opts.take != null ? `LIMIT ${opts.take}` : ""
     const offset = opts.skip != null ? `OFFSET ${opts.skip}` : ""
     return db.prepare(`SELECT * FROM Quote ${w} ORDER BY createdAt DESC ${limit} ${offset}`).all(...params) as QuoteRow[]
   },
 
-  count(opts: { search?: string; status?: string; clientId?: string } = {}): number {
+  count(opts: { search?: string; status?: string; clientId?: string; includeArchived?: boolean; onlyArchived?: boolean } = {}): number {
     const clauses: string[] = []
     const params: unknown[] = []
     if (opts.search) {
@@ -1765,6 +1811,8 @@ export const quoteDb = {
     }
     if (opts.status)   { clauses.push("status = ?");   params.push(opts.status) }
     if (opts.clientId) { clauses.push("clientId = ?"); params.push(opts.clientId) }
+    if (opts.onlyArchived)             { clauses.push("archivedAt IS NOT NULL") }
+    else if (!opts.includeArchived)    { clauses.push("archivedAt IS NULL") }
     const w = clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""
     return (db.prepare(`SELECT COUNT(*) as n FROM Quote ${w}`).get(...params) as { n: number }).n
   },
@@ -1829,6 +1877,22 @@ export const quoteDb = {
     return db.prepare("DELETE FROM Quote WHERE id = ?").run(id).changes > 0
   },
 
+  archive(id: string, archivedBy: string, archivedAt: string): boolean {
+    return db.prepare(
+      "UPDATE Quote SET archivedAt = ?, archivedBy = ?, updatedAt = ? WHERE id = ?"
+    ).run(archivedAt, archivedBy, archivedAt, id).changes > 0
+  },
+
+  restore(id: string, restoredAt: string): boolean {
+    return db.prepare(
+      "UPDATE Quote SET archivedAt = NULL, archivedBy = NULL, updatedAt = ? WHERE id = ?"
+    ).run(restoredAt, id).changes > 0
+  },
+
+  findArchived(): QuoteRow[] {
+    return db.prepare("SELECT * FROM Quote WHERE archivedAt IS NOT NULL ORDER BY archivedAt DESC").all() as QuoteRow[]
+  },
+
   /** Insert a quote row from an external source (e.g. Supabase) without side-effects.
    *  Uses INSERT OR IGNORE so it is safe to call even when the row already exists. */
   rawInsertOrIgnore(quote: import("@/lib/db/quote-types").QuoteRow): void {
@@ -1864,22 +1928,23 @@ export const quoteDb = {
   countExpiredDeletable(): number {
     return (db.prepare(`
       SELECT COUNT(*) as n FROM Quote
-      WHERE status = 'EXPIRED' AND jobId IS NULL
+      WHERE status = 'EXPIRED' AND jobId IS NULL AND archivedAt IS NULL
     `).get() as { n: number }).n
   },
 
-  /** Delete EXPIRED quotes that were never converted to a job. */
-  deleteExpired(): QuoteRow[] {
+  /** Archive EXPIRED quotes that were never converted to a job (soft-delete). */
+  deleteExpired(archivedBy = "System"): QuoteRow[] {
+    const now = nowIso()
     const candidates = db.prepare(`
       SELECT * FROM Quote
-      WHERE status = 'EXPIRED' AND jobId IS NULL
+      WHERE status = 'EXPIRED' AND jobId IS NULL AND archivedAt IS NULL
     `).all() as QuoteRow[]
 
-    const deleted: QuoteRow[] = []
+    const archived: QuoteRow[] = []
     for (const q of candidates) {
-      if (this.delete(q.id)) deleted.push(q)
+      if (this.archive(q.id, archivedBy, now)) archived.push(q)
     }
-    return deleted
+    return archived
   },
 
   /** Mark open quotes past expiryDate as EXPIRED. Idempotent. */

@@ -25,7 +25,16 @@ function lineItemsTable() {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type QuoteQuery = any
 
-function applyQuoteFilters(q: QuoteQuery, opts: QuoteListOptions): QuoteQuery {
+export interface QuoteListOptionsExt extends QuoteListOptions {
+  includeArchived?: boolean
+  onlyArchived?: boolean
+}
+
+function applyQuoteFilters(q: QuoteQuery, opts: QuoteListOptionsExt): QuoteQuery {
+  // Soft-delete filter: exclude archived by default.
+  if (opts.onlyArchived)           q = q.not("archived_at", "is", null)
+  else if (!opts.includeArchived)  q = q.is("archived_at", null)
+
   if (opts.search) {
     const term = opts.search.trim()
     q = q.or(
@@ -85,6 +94,28 @@ export const supabaseQuoteRepo = {
     const { error, count } = await quotesTable().delete({ count: "exact" }).eq("id", id)
     if (error) throw error
     return (count ?? 0) > 0
+  },
+
+  async archive(id: string, archivedBy: string, archivedAt: string): Promise<boolean> {
+    const { error, count } = await quotesTable()
+      .update({ archived_at: archivedAt, archived_by: archivedBy, updated_at: archivedAt }, { count: "exact" })
+      .eq("id", id)
+    if (error) throw error
+    return (count ?? 0) > 0
+  },
+
+  async restore(id: string, restoredAt: string): Promise<boolean> {
+    const { error, count } = await quotesTable()
+      .update({ archived_at: null, archived_by: null, updated_at: restoredAt }, { count: "exact" })
+      .eq("id", id)
+    if (error) throw error
+    return (count ?? 0) > 0
+  },
+
+  async findArchived(): Promise<QuoteRow[]> {
+    const { data, error } = await quotesTable().select("*").not("archived_at", "is", null).order("archived_at", { ascending: false })
+    if (error) throw error
+    return (data ?? []).map(toQuoteRow)
   },
 
   async findLineItemsForQuote(quoteId: string): Promise<QuoteLineItemRow[]> {

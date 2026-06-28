@@ -11,6 +11,8 @@ export interface ClientRow {
   notes:          string | null
   accountCode:    string | null
   active:         number   // 1 = active, 0 = archived
+  archivedAt:     string | null
+  archivedBy:     string | null
   createdAt:      string
   updatedAt:      string
 }
@@ -35,4 +37,6 @@ export interface UpdateClientData {
   notes?:          string | null
   accountCode?:    string | null
   active?:         number
+  archivedAt?:     string | null
+  archivedBy?:     string | null
 }

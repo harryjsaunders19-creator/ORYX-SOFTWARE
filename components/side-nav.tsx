@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, FolderOpen, Activity, Receipt, CalendarDays,
   Building2, AlertTriangle, FileText, Users as UsersIcon, ShieldCheck, DatabaseBackup,
-  Sun, Moon,
+  Sun, Moon, Archive,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/components/user-context"
@@ -20,6 +20,7 @@ const ICONS: Record<string, React.ElementType> = {
   quotes:     FileText,
   calendar:   CalendarDays,
   billing:    Receipt,
+  archived:   Archive,
   users:      UsersIcon,
   backups:    DatabaseBackup,
   health:     Activity,
@@ -29,7 +30,7 @@ const ACTIVE_PREFIX: Record<string, boolean> = {
   "hold-list": true, billing: true,
 }
 
-const ADMIN_KEYS = new Set(["billing", "users", "backups", "health"])
+const ADMIN_KEYS = new Set(["billing", "archived", "users", "backups", "health"])
 
 const SIDEBAR_BG     = "#1C1C1E"
 const SIDEBAR_BORDER = "rgba(255, 255, 255, 0.08)"

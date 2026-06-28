@@ -36,6 +36,10 @@ function withoutCommercialExtras(row: SupabaseJobRow): Omit<SupabaseJobRow, "var
 }
 
 function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
+  // Soft-delete filter: exclude archived by default.
+  if (where.onlyArchived)        q = q.not("archived_at", "is", null)
+  else if (!where.includeArchived) q = q.is("archived_at", null)
+
   if (where.search) {
     const term = where.search.trim()
     q = q.or(
@@ -228,8 +232,30 @@ export const supabaseJobRepo = {
     return (count ?? 0) > 0
   },
 
+  async archive(id: string, archivedBy: string, archivedAt: string): Promise<boolean> {
+    const { error, count } = await table()
+      .update({ archived_at: archivedAt, archived_by: archivedBy, updated_at: archivedAt }, { count: "exact" })
+      .eq("id", id)
+    if (error) throw error
+    return (count ?? 0) > 0
+  },
+
+  async restore(id: string, restoredAt: string): Promise<boolean> {
+    const { error, count } = await table()
+      .update({ archived_at: null, archived_by: null, updated_at: restoredAt }, { count: "exact" })
+      .eq("id", id)
+    if (error) throw error
+    return (count ?? 0) > 0
+  },
+
+  async findArchived(): Promise<JobRow[]> {
+    const { data, error } = await table().select("*").not("archived_at", "is", null).order("archived_at", { ascending: false })
+    if (error) throw error
+    return (data ?? []).map(toJobRow)
+  },
+
   async groupByStatus(): Promise<{ status: string; count: number }[]> {
-    const { data, error } = await table().select("status")
+    const { data, error } = await table().select("status").is("archived_at", null)
     if (error) throw error
     const counts = new Map<string, number>()
     for (const row of data ?? []) {
@@ -239,7 +265,7 @@ export const supabaseJobRepo = {
   },
 
   async groupByItemType(): Promise<{ itemType: string; count: number }[]> {
-    const { data, error } = await table().select("item_type")
+    const { data, error } = await table().select("item_type").is("archived_at", null)
     if (error) throw error
     const counts = new Map<string, number>()
     for (const row of data ?? []) {

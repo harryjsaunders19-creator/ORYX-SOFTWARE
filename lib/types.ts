@@ -27,6 +27,8 @@ export interface Job {
   requiredByDate:  string | null   // ISO date — deadline
   parentJobId:     string | null
   revisionLetter:  string | null
+  archivedAt:      string | null
+  archivedBy:      string | null
   /** List API only — true when this row is the revision anchor (original or latest rev). */
   canAddRevision?: boolean
   createdAt:       string
@@ -62,6 +64,8 @@ export interface Client {
   notes:          string | null
   accountCode:    string | null   // shown as "Customer ID" on quote/invoice PDFs
   active:         number   // 1 = active, 0 = archived
+  archivedAt:     string | null
+  archivedBy:     string | null
   createdAt:      string
   updatedAt:      string
 }
@@ -210,6 +214,8 @@ export interface Quote {
    *  original, still-supported behaviour. A number (e.g. 20) shows the
    *  Subtotal/Taxable/VAT rate/VAT due/TOTAL breakdown. */
   vatRate:       number | null
+  archivedAt:    string | null
+  archivedBy:    string | null
   createdAt:     string
   updatedAt:     string
 }

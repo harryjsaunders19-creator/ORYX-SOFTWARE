@@ -77,10 +77,10 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
-    // Archive rather than hard-delete if client has jobs
+    // Always soft-archive if client has any jobs; hard-delete only when truly empty.
     const stats = clientService.stats(id)
     if (stats.totalJobs > 0) {
-      const archived = await clientService.archive(id)
+      const archived = await clientService.archive(id, auth.user.id, auth.user.name)
       if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
       return NextResponse.json({ archived: true, client: archived })
     }

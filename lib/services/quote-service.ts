@@ -19,6 +19,8 @@ import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
 import { todayIsoDate, addDaysToIsoDate } from "@/lib/utils"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
+import { archiveLogService } from "@/lib/services/archive-log-service"
+import { nowIso } from "@/lib/db/helpers"
 
 async function mirrorQuote(quote: QuoteRow | null) {
   if (quote && useSupabaseQuotes()) await supabaseQuoteRepo.upsert(quote)
@@ -85,18 +87,70 @@ export const quoteService = {
     return quote
   },
 
+  /** Soft-delete a quote: marks it as archived. Logs the action. */
+  async archive(id: string, archiverId: string, archiverName: string): Promise<QuoteRow | null> {
+    const quote = quoteDb.findUnique(id)
+    if (!quote) return null
+    const now = nowIso()
+    quoteDb.archive(id, archiverId, now)
+    const updated = quoteDb.findUnique(id)
+    if (useSupabaseQuotes() && updated) await supabaseQuoteRepo.archive(id, archiverId, now)
+    archiveLogService.log({
+      entityType: "quote", entityId: id,
+      entityLabel: quote.quoteNumber,
+      action: "archive",
+      performedBy: archiverId, performedByName: archiverName,
+    })
+    return updated
+  },
+
+  /** Restore a previously archived quote. */
+  async restore(id: string, restorerId: string, restorerName: string): Promise<QuoteRow | null> {
+    const quote = quoteDb.findUnique(id)
+    if (!quote) return null
+    const now = nowIso()
+    quoteDb.restore(id, now)
+    const updated = quoteDb.findUnique(id)
+    if (useSupabaseQuotes() && updated) await supabaseQuoteRepo.restore(id, now)
+    archiveLogService.log({
+      entityType: "quote", entityId: id,
+      entityLabel: quote.quoteNumber,
+      action: "restore",
+      performedBy: restorerId, performedByName: restorerName,
+    })
+    return updated
+  },
+
+  async findArchived(): Promise<QuoteRow[]> {
+    if (!useSupabaseQuotes()) return quoteDb.findArchived()
+    return supabaseQuoteRepo.findArchived()
+  },
+
   async delete(id: string): Promise<boolean> {
     const ok = quoteDb.delete(id)
     if (ok && useSupabaseQuotes()) await supabaseQuoteRepo.delete(id)
     return ok
   },
 
-  async clearExpired(): Promise<{ deleted: number }> {
-    const removed = quoteDb.deleteExpired()
+  /** Archive all expired quotes that were never converted to a job. */
+  async clearExpired(archiverId = "System", archiverName = "System"): Promise<{ archived: number }> {
+    const removed = quoteDb.deleteExpired(archiverId)
     if (useSupabaseQuotes()) {
-      for (const q of removed) await supabaseQuoteRepo.delete(q.id)
+      for (const q of removed) {
+        const now = q.archivedAt ?? nowIso()
+        await supabaseQuoteRepo.archive(q.id, archiverId, now)
+      }
     }
-    return { deleted: removed.length }
+    for (const q of removed) {
+      archiveLogService.log({
+        entityType: "quote", entityId: q.id,
+        entityLabel: q.quoteNumber,
+        action: "archive",
+        performedBy: archiverId, performedByName: archiverName,
+        reason: "Bulk archive of expired quotes",
+      })
+    }
+    return { archived: removed.length }
   },
 
   countExpiredDeletable(): number {

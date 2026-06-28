@@ -32,6 +32,8 @@ export interface SupabaseJobRow {
   required_by_date: string | null
   parent_job_id: string | null
   revision_letter: string | null
+  archived_at: string | null
+  archived_by: string | null
   created_at: string
   updated_at: string
 }
@@ -71,6 +73,8 @@ export function toJobRow(row: SupabaseJobRow): JobRow {
     requiredByDate: row.required_by_date,
     parentJobId: row.parent_job_id,
     revisionLetter: row.revision_letter,
+    archivedAt: row.archived_at ?? null,
+    archivedBy: row.archived_by ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -106,6 +110,8 @@ export function toSupabaseRow(job: JobRow): SupabaseJobRow {
     required_by_date: dateOnly(job.requiredByDate),
     parent_job_id: job.parentJobId,
     revision_letter: job.revisionLetter,
+    archived_at: job.archivedAt ?? null,
+    archived_by: job.archivedBy ?? null,
     created_at: job.createdAt,
     updated_at: job.updatedAt,
   }

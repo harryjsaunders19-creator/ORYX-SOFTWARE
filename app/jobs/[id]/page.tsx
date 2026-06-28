@@ -125,8 +125,8 @@ export default function JobDetailPage() {
     setDeleting(true)
     try {
       const res = await fetch(`/api/jobs/${id}`, { method: "DELETE" })
-      if (!res.ok) { toast("Delete failed", "error"); return }
-      toast("Job deleted", "info")
+      if (!res.ok) { toast("Archive failed", "error"); return }
+      toast("Job archived", "info")
       // If it was a revision, go back to the parent; otherwise to the jobs list
       router.push(parentJob ? `/jobs/${parentJob.id}` : "/jobs")
     } finally { setDeleting(false) }
@@ -401,7 +401,7 @@ export default function JobDetailPage() {
               <Button variant="ghost" size="sm"
                 className="w-full justify-start text-dn hover:bg-dn-bg"
                 onClick={() => setDelOpen(true)}>
-                <Trash2 className="h-3.5 w-3.5" /> Delete job
+                <Trash2 className="h-3.5 w-3.5" /> Archive job
               </Button>
             </div>
           </DetailPanel>
@@ -444,21 +444,21 @@ export default function JobDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete dialog */}
+      {/* Archive dialog */}
       <Dialog open={delOpen} onOpenChange={o => { if (!o && !deleting) setDelOpen(false) }}>
         <DialogContent size="sm">
           <DialogHeader>
-            <DialogTitle>Delete {isRevision ? "revision" : "job"}</DialogTitle>
+            <DialogTitle>Archive {isRevision ? "revision" : "job"}</DialogTitle>
             <DialogDescription>
-              Permanently delete{" "}
+              Archive{" "}
               <span className="font-mono font-semibold text-ac">{job.drawingNumber}</span>?
-              This cannot be undone.
+              The {isRevision ? "revision" : "job"} will be hidden from active views but can be restored later from the Archived Items page.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDelOpen(false)} disabled={deleting}>Cancel</Button>
             <Button variant="danger" onClick={handleDelete} loading={deleting} disabled={deleting}>
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? "Archiving…" : "Archive"}
             </Button>
           </DialogFooter>
         </DialogContent>

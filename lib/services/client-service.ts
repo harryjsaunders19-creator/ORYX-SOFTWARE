@@ -17,6 +17,7 @@ import { clientDb } from "@/lib/db/stores"
 import type { ClientRow, CreateClientData, UpdateClientData } from "@/lib/db/client-types"
 import { useSupabaseClients } from "@/lib/supabase/feature-flags"
 import { supabaseClientRepo } from "@/lib/supabase/repositories/clients"
+import { archiveLogService } from "@/lib/services/archive-log-service"
 
 function sqliteActiveJobCount(clientId: string): number {
   return (db.prepare("SELECT COUNT(*) as n FROM Job WHERE clientId = ? AND status != 'ISSUED'").get(clientId) as { n: number }).n
@@ -109,8 +110,33 @@ export const clientService = {
     return updated
   },
 
-  async archive(id: string): Promise<ClientRow | null> {
-    return this.update(id, { active: 0 })
+  async archive(id: string, archiverId = "System", archiverName = "System"): Promise<ClientRow | null> {
+    const client = await this.findUnique(id)
+    const now = nowIso()
+    const updated = await this.update(id, { active: 0, archivedAt: now, archivedBy: archiverId })
+    if (updated) {
+      archiveLogService.log({
+        entityType: "client", entityId: id,
+        entityLabel: client?.name ?? id,
+        action: "archive",
+        performedBy: archiverId, performedByName: archiverName,
+      })
+    }
+    return updated
+  },
+
+  async restore(id: string, restorerId = "System", restorerName = "System"): Promise<ClientRow | null> {
+    const client = await this.findUnique(id)
+    const updated = await this.update(id, { active: 1, archivedAt: null, archivedBy: null })
+    if (updated) {
+      archiveLogService.log({
+        entityType: "client", entityId: id,
+        entityLabel: client?.name ?? id,
+        action: "restore",
+        performedBy: restorerId, performedByName: restorerName,
+      })
+    }
+    return updated
   },
 
   async delete(id: string): Promise<boolean> {

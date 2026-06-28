@@ -14,6 +14,8 @@ export interface SupabaseClientRow {
   notes: string | null
   account_code: string | null
   active: boolean
+  archived_at: string | null
+  archived_by: string | null
   created_at: string
   updated_at: string
 }
@@ -30,6 +32,8 @@ export function toClientRow(row: SupabaseClientRow): ClientRow {
     notes: row.notes,
     accountCode: row.account_code,
     active: row.active ? 1 : 0,
+    archivedAt: row.archived_at ?? null,
+    archivedBy: row.archived_by ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -47,6 +51,8 @@ export function toSupabaseInsert(data: CreateClientData, now: string): Omit<Supa
     notes: data.notes?.trim() || null,
     account_code: data.accountCode?.trim() || null,
     active: true,
+    archived_at: null,
+    archived_by: null,
     created_at: now,
     updated_at: now,
   }
@@ -65,5 +71,7 @@ export function toSupabaseUpdate(data: UpdateClientData, existing: ClientRow, no
   if (data.notes !== undefined) patch.notes = data.notes?.trim() || null
   if (data.accountCode !== undefined) patch.account_code = data.accountCode?.trim() || null
   if (data.active !== undefined) patch.active = data.active === 1
+  if (data.archivedAt !== undefined) patch.archived_at = data.archivedAt ?? null
+  if (data.archivedBy !== undefined) patch.archived_by = data.archivedBy ?? null
   return patch
 }

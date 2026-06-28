@@ -445,6 +445,24 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_cal_assign_event ON CalendarAssignment(eventId);
   CREATE INDEX IF NOT EXISTS idx_cal_assign_user  ON CalendarAssignment(userId);
+
+  -- ── Archive audit log ─────────────────────────────────────────────
+  -- Append-only log of every archive and restore action across all entities.
+  -- Never deleted — it's the authoritative "who touched what when" trail.
+  CREATE TABLE IF NOT EXISTS ArchiveLog (
+    id              TEXT PRIMARY KEY,
+    entityType      TEXT NOT NULL,   -- 'job' | 'quote' | 'client'
+    entityId        TEXT NOT NULL,
+    entityLabel     TEXT NOT NULL,   -- human-readable (drawing number, quote number, client name)
+    action          TEXT NOT NULL,   -- 'archive' | 'restore'
+    performedBy     TEXT NOT NULL,   -- userId
+    performedByName TEXT NOT NULL,
+    performedAt     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    reason          TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_archivelog_entity   ON ArchiveLog(entityType, entityId);
+  CREATE INDEX IF NOT EXISTS idx_archivelog_performed ON ArchiveLog(performedAt DESC);
 `)
 
 // ── Seed calendar categories ────────────────────────────────────────
@@ -528,6 +546,9 @@ try {
   add("legacyTypeOfWorks",      "TEXT")
   add("variationFees",          "REAL")
   add("additionalCharges",    "REAL")
+  // Soft-delete columns — NULL means active; set on archive.
+  add("archivedAt", "TEXT")
+  add("archivedBy", "TEXT")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_deadline ON Job(requiredByDate)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_clientid ON Job(clientId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_itemtype ON Job(itemType)")
@@ -564,6 +585,9 @@ try {
   add("vatRate",        "REAL")
   add("typeOfWorks",           "TEXT")
   add("customTypeDescription", "TEXT")
+  // Soft-delete columns — NULL means active; set on archive.
+  add("archivedAt", "TEXT")
+  add("archivedBy", "TEXT")
 })()
 
 // Add columns to Client that may be missing on existing databases
@@ -583,6 +607,9 @@ try {
   // from Client.id (the internal cuid primary key), which is never shown
   // to a client.
   add("accountCode", "TEXT")
+  // Soft-delete columns — NULL means active; set on archive.
+  add("archivedAt", "TEXT")
+  add("archivedBy", "TEXT")
 })()
 
 // 2c. Add columns to BillingHandoff that may be missing on existing databases

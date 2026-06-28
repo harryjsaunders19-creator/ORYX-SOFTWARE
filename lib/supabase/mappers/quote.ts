@@ -23,6 +23,8 @@ export interface SupabaseQuoteRow {
   pdf_path: string | null
   prepared_by: string | null
   vat_rate: number | null
+  archived_at: string | null
+  archived_by: string | null
   created_at: string
   updated_at: string
 }
@@ -63,6 +65,8 @@ export function toQuoteRow(row: SupabaseQuoteRow): QuoteRow {
     pdfPath: row.pdf_path,
     preparedBy: row.prepared_by,
     vatRate: row.vat_rate != null ? Number(row.vat_rate) : null,
+    archivedAt: row.archived_at ?? null,
+    archivedBy: row.archived_by ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -89,6 +93,8 @@ export function toSupabaseQuoteRow(quote: QuoteRow): SupabaseQuoteRow {
     pdf_path: quote.pdfPath,
     prepared_by: quote.preparedBy,
     vat_rate: quote.vatRate,
+    archived_at: quote.archivedAt ?? null,
+    archived_by: quote.archivedBy ?? null,
     created_at: quote.createdAt,
     updated_at: quote.updatedAt,
   }
