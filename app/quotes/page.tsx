@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import {
   Plus, FileText, Download, CheckCircle2, XCircle,
-  Loader2, ArrowRight, Clock, FileDown, Trash2,
+  Loader2, ArrowRight, Clock, FileDown, Trash2, Archive,
 } from "lucide-react"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
@@ -384,7 +384,7 @@ export default function QuotesPage() {
 }
 
 function QuotesInner() {
-  const { userName } = useUser()
+  const { user, userName } = useUser()
   const { toast }    = useToast()
   const searchParams = useSearchParams()
 
@@ -399,6 +399,8 @@ function QuotesInner() {
   const [pdfGenerating, setPdfGenerating] = useState<string | null>(null)
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
+  const [archiveQuote, setArchiveQuote] = useState<Quote | null>(null)
+  const [archiving,    setArchiving]    = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -491,6 +493,20 @@ function QuotesInner() {
       load()
     } catch { toast("Network error", "error") }
     finally { setClearing(false) }
+  }
+
+  const doArchive = async () => {
+    if (!archiveQuote) return
+    setArchiving(true)
+    try {
+      const res = await fetch(`/api/quotes/${archiveQuote.id}`, { method: "DELETE" })
+      const body = await res.json() as { error?: string }
+      if (!res.ok) { toast(body.error ?? "Failed to archive quote", "error"); return }
+      toast(`${archiveQuote.quoteNumber} archived`, "success")
+      setArchiveQuote(null)
+      load()
+    } catch { toast("Network error", "error") }
+    finally { setArchiving(false) }
   }
 
   const expiredClearableCount = data?.expiredClearableCount ?? 0
@@ -672,6 +688,16 @@ function QuotesInner() {
                           Create Job
                         </Button>
                       )}
+                      {!q.jobId && (
+                        <Button
+                          variant="ghost" size="sm"
+                          className="text-t4 hover:text-wn-tx hover:bg-wn-bg"
+                          title="Archive quote"
+                          onClick={() => setArchiveQuote(q)}
+                        >
+                          <Archive className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -720,24 +746,52 @@ function QuotesInner() {
         />
       )}
 
-      <Dialog open={clearConfirmOpen} onOpenChange={o => { if (!o && !clearing) setClearConfirmOpen(false) }}>
+      {/* Archive single quote */}
+      <Dialog open={!!archiveQuote} onOpenChange={o => { if (!o && !archiving) setArchiveQuote(null) }}>
         <DialogContent size="sm">
-          <DialogHeader><DialogTitle>Clear expired quotes?</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Archive quote?</DialogTitle></DialogHeader>
           <DialogBody>
             <p className="text-sm text-t2">
-              Permanently delete{" "}
+              <span className="font-semibold text-t1">{archiveQuote?.quoteNumber}</span>
+              {" "}will be moved to the archive and hidden from the quotes list.
+            </p>
+            <p className="text-xs text-t3 mt-2">
+              You can restore it from the{" "}
+              <span className="font-medium text-t2">Archived Items</span>{" "}page.
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setArchiveQuote(null)} disabled={archiving}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={doArchive} loading={archiving} className="bg-wn hover:bg-wn/90">
+              <Archive className="h-3.5 w-3.5" /> Archive
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear all expired */}
+      <Dialog open={clearConfirmOpen} onOpenChange={o => { if (!o && !clearing) setClearConfirmOpen(false) }}>
+        <DialogContent size="sm">
+          <DialogHeader><DialogTitle>Archive expired quotes?</DialogTitle></DialogHeader>
+          <DialogBody>
+            <p className="text-sm text-t2">
               <span className="font-semibold text-t1">{expiredClearableCount}</span>
               {" "}expired quote{expiredClearableCount !== 1 ? "s" : ""} that{" "}
-              {expiredClearableCount === 1 ? "was" : "were"} never converted to a job.
+              {expiredClearableCount === 1 ? "was" : "were"} never converted to a job will be archived.
             </p>
-            <p className="text-xs text-t3 mt-2">This cannot be undone.</p>
+            <p className="text-xs text-t3 mt-2">
+              They can be restored from the{" "}
+              <span className="font-medium text-t2">Archived Items</span>{" "}page.
+            </p>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setClearConfirmOpen(false)} disabled={clearing}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={clearExpired} loading={clearing} className="bg-dn hover:bg-dn/90">
-              <Trash2 className="h-3.5 w-3.5" /> Delete expired
+            <Button variant="primary" onClick={clearExpired} loading={clearing} className="bg-wn hover:bg-wn/90">
+              <Archive className="h-3.5 w-3.5" /> Archive expired
             </Button>
           </DialogFooter>
         </DialogContent>
