@@ -88,8 +88,8 @@ async function importClients(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 
   // Pre-fetch all clients for matching by accountCode or name
   const allClients = await clientService.findManyWithMeta({ take: 10000 }).catch(() => [])
-  const byAccountCode = new Map(allClients.filter(c => c.accountCode).map(c => [c.accountCode!, c]))
-  const byName        = new Map(allClients.map(c => [c.name.toLowerCase(), c]))
+  const byAccountCode = new Map<string, { id: string; name: string }>(allClients.filter(c => c.accountCode).map(c => [c.accountCode!, c]))
+  const byName        = new Map<string, { id: string; name: string }>(allClients.map(c => [c.name.toLowerCase(), c]))
 
   // Col layout (1-indexed): Company Name, Customer ID, Main Contact, Phone,
   //   Email, Billing Address, Notes, Status, Added
