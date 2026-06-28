@@ -2013,6 +2013,21 @@ export const userDb = {
   delete(id: string): boolean {
     return db.prepare("DELETE FROM User WHERE id = ?").run(id).changes > 0
   },
+
+  /** Insert a user row from an external source (e.g. Supabase) without triggering side-effects.
+   *  Uses INSERT OR IGNORE so it is safe to call even when the row already exists. */
+  rawInsertOrIgnore(user: import("@/lib/db/user-types").UserRow): void {
+    const email = user.email?.trim() || null
+    db.prepare(`
+      INSERT OR IGNORE INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      user.id, user.name, email, email?.toLowerCase() ?? null,
+      user.role ?? "ENGINEER", user.active ?? 1,
+      user.passwordHash ?? null, user.mustChangePassword ?? 0,
+      user.createdAt, user.updatedAt,
+    )
+  },
 }
 
 /** Wipes all jobs, clients, quotes, billing data, and sequences. Preserves users. */

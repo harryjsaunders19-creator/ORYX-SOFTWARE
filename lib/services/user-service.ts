@@ -97,3 +97,22 @@ export const userService = {
     return kept
   },
 }
+
+/**
+ * Ensures a list of users exist in the local SQLite DB, fetching any missing
+ * ones from Supabase. Used by calendar-service before creating assignments —
+ * CalendarAssignment.userId NOT NULL REFERENCES User(id).
+ */
+export async function ensureUsersInSqlite(userIds: string[]): Promise<void> {
+  if (!useSupabaseUsers()) return
+  const missing = userIds.filter(id => !userDb.findUnique(id))
+  if (!missing.length) return
+  try {
+    for (const id of missing) {
+      const user = await supabaseUserRepo.findUnique(id)
+      if (user) userDb.rawInsertOrIgnore(user)
+    }
+  } catch {
+    // Non-fatal
+  }
+}

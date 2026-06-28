@@ -20,6 +20,7 @@ import { useSupabaseCalendar } from "@/lib/supabase/feature-flags"
 import { supabaseCalendarRepo } from "@/lib/supabase/repositories/calendar"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
+import { ensureUsersInSqlite } from "@/lib/services/user-service"
 
 /**
  * Ensures a calendar event exists in local SQLite, fetching from Supabase
@@ -134,6 +135,12 @@ export const calendarService = {
     data: CreateCalendarEventData,
     assigneeIds?: string[],
   ): Promise<CalendarEventWithDetails | null> {
+    // Pre-sync FK dependencies into SQLite before any insert:
+    // - clientId / jobId are nullable but FK-enforced if non-null
+    // - CalendarAssignment.userId NOT NULL REFERENCES User(id)
+    if (data.clientId) await ensureClientInSqlite(data.clientId)
+    if (data.jobId) await ensureJobInSqliteForBilling(data.jobId)
+    if (assigneeIds?.length) await ensureUsersInSqlite(assigneeIds)
     calendarDb.create(data)
     if (assigneeIds?.length) calendarDb.setAssignees(data.id, assigneeIds)
     await mirrorEvent(data.id)
@@ -146,6 +153,9 @@ export const calendarService = {
     assigneeIds?: string[],
   ): Promise<CalendarEventWithDetails | null> {
     await ensureCalendarEventInSqlite(id)
+    if (data.clientId) await ensureClientInSqlite(data.clientId)
+    if (data.jobId) await ensureJobInSqliteForBilling(data.jobId)
+    if (assigneeIds?.length) await ensureUsersInSqlite(assigneeIds)
     const updated = calendarDb.update(id, data)
     if (!updated) return null
     if (assigneeIds !== undefined) calendarDb.setAssignees(id, assigneeIds)
