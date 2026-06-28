@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
 import {
   DatabaseBackup, CheckCircle2, XCircle, Clock, Loader2, Play, RefreshCw,
+  FileJson2, FileSpreadsheet,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RequireRole } from "@/components/require-role"
@@ -73,11 +74,13 @@ export default function BackupsPage() {
 
 function BackupsInner() {
   const { toast } = useToast()
-  const [backups, setBackups]     = useState<BackupJob[]>([])
-  const [auditLog, setAuditLog]   = useState<AuditEntry[]>([])
+  const [backups, setBackups]       = useState<BackupJob[]>([])
+  const [auditLog, setAuditLog]     = useState<AuditEntry[]>([])
   const [backupsDir, setBackupsDir] = useState("")
-  const [loading, setLoading]     = useState(true)
-  const [starting, setStarting]   = useState(false)
+  const [loading, setLoading]       = useState(true)
+  const [starting, setStarting]     = useState(false)
+  const [exportingJson, setExportingJson]     = useState(false)
+  const [exportingExcel, setExportingExcel]   = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -114,6 +117,44 @@ function BackupsInner() {
     finally { setStarting(false) }
   }
 
+  const downloadJson = async () => {
+    setExportingJson(true)
+    try {
+      const res = await fetch("/api/backups/download")
+      if (!res.ok) {
+        const data = await res.json() as { error?: string }
+        toast(data.error ?? "No backup available to download", "error")
+        return
+      }
+      const blob = await res.blob()
+      const cd   = res.headers.get("Content-Disposition") ?? ""
+      const match = cd.match(/filename="([^"]+)"/)
+      const name  = match?.[1] ?? `oryx-backup-${new Date().toISOString().slice(0, 10)}.json`
+      const url   = URL.createObjectURL(blob)
+      const a     = document.createElement("a")
+      a.href = url; a.download = name; a.click()
+      URL.revokeObjectURL(url)
+      toast("JSON backup downloaded", "success")
+    } catch { toast("Download failed", "error") }
+    finally { setExportingJson(false) }
+  }
+
+  const downloadExcel = async () => {
+    setExportingExcel(true)
+    try {
+      const res = await fetch("/api/export/all")
+      if (!res.ok) { toast("Excel export failed", "error"); return }
+      const blob = await res.blob()
+      const name  = `oryx-export-${new Date().toISOString().slice(0, 10)}.xlsx`
+      const url   = URL.createObjectURL(blob)
+      const a     = document.createElement("a")
+      a.href = url; a.download = name; a.click()
+      URL.revokeObjectURL(url)
+      toast("Excel report downloaded", "success")
+    } catch { toast("Download failed", "error") }
+    finally { setExportingExcel(false) }
+  }
+
   const completed = backups.filter(b => b.status === "COMPLETED")
   const latestCompleted = completed[0]
   const totalRows = latestCompleted?.rowCountsJson
@@ -131,7 +172,34 @@ function BackupsInner() {
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
             </Button>
-            <Button variant="primary" size="sm" onClick={startManualBackup} disabled={starting || backups.some(b => b.status === "RUNNING" || b.status === "PENDING")}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={downloadJson}
+              loading={exportingJson}
+              disabled={exportingJson || exportingExcel}
+              title="Download the latest completed backup as a JSON file"
+            >
+              <FileJson2 className="h-3.5 w-3.5" />
+              Export JSON
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={downloadExcel}
+              loading={exportingExcel}
+              disabled={exportingJson || exportingExcel}
+              title="Download all business data as an Excel workbook"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Export Excel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={startManualBackup}
+              disabled={starting || backups.some(b => b.status === "RUNNING" || b.status === "PENDING")}
+            >
               <Play className="h-3.5 w-3.5" />
               {starting ? "Starting…" : "Run backup now"}
             </Button>
