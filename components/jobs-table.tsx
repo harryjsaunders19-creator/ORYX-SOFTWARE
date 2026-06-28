@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback, useRef, memo } from "react"
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format }    from "date-fns"
 import {
@@ -26,6 +26,9 @@ import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/components/status-badge"
 import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
 import dynamic from "next/dynamic"
+import { useMediaQuery } from "@/hooks/use-media-query"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
+import { useApi } from "@/hooks/use-api"
 import { InlineStatusSelect, InlineDesignerSelect } from "@/components/inline-edit-selects"
 
 // Lazy-load heavy dialog components — only downloaded when the user first
@@ -412,12 +415,12 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const { toast }    = useToast()
   const { userName, isAdmin } = useUser()
 
-  const [data,         setData]         = useState<JobsResponse | null>(null)
   const [holdClientIds, setHoldClientIds] = useState<Set<string>>(new Set())
   const [designers,    setDesigners]    = useState<string[]>([])
-  const [loading,      setLoading]      = useState(true)
+  const isMobile       = useMediaQuery("(max-width: 767px)")
   const searchParams = useSearchParams()
   const [search,       setSearch]       = useState(() => searchParams.get("search") ?? "")
+  const debouncedSearch = useDebouncedValue(search, 280)
   const [statusFilter,  setStatusFilter]  = useState(() =>
     isCheckingQueue ? "CHECKING" : (searchParams.get("status")  ?? "ALL"))
   const [onlyOriginals, setOnlyOriginals] = useState(() => searchParams.get("onlyOriginals") === "true")
@@ -439,10 +442,40 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const [assignJob,    setAssignJob]    = useState<Job | null>(null)
   const [creatingRevisionFor, setCreatingRevisionFor] = useState<string | null>(null)
 
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const fetchId     = useRef(0)
+  useEffect(() => { setPage(1) }, [debouncedSearch])
 
-  // Keyboard shortcuts
+  const jobsApiKey = useMemo(() => {
+    const qs = new URLSearchParams({
+      page: String(page), limit: String(LIMIT),
+      sortBy, sortDir,
+      ...(debouncedSearch              && { search: debouncedSearch }),
+      ...(statusFilter !== "ALL"        && { status: statusFilter }),
+      ...(onlyOriginals && { onlyOriginals: "true" }),
+      ...(onlyRevisions && { onlyRevisions: "true" }),
+      ...(itemTypeFilter !== "ALL"      && { itemType: itemTypeFilter }),
+      ...(typeOfWorksFilter !== "ALL"   && { typeOfWorks: typeOfWorksFilter }),
+      ...(deadlineFilter === "overdue"   && { overdue: "true" }),
+      ...(deadlineFilter === "today"     && { dueToday: "true" }),
+      ...(deadlineFilter === "this_week" && { dueThisWeek: "true" }),
+    })
+    return `/api/jobs?${qs}`
+  }, [page, debouncedSearch, statusFilter, itemTypeFilter, typeOfWorksFilter, deadlineFilter, sortBy, sortDir, onlyOriginals, onlyRevisions])
+
+  const { data, error, isLoading, isValidating, mutate } = useApi<JobsResponse>(jobsApiKey)
+  const { data: holdData } = useApi<{ holds: { clientId: string }[] }>("/api/hold-list")
+  const { data: designersData } = useApi<{ designers: string[] }>("/api/jobs/designers")
+
+  useEffect(() => { if (error) toast("Failed to load jobs", "error") }, [error, toast])
+  useEffect(() => {
+    if (holdData) setHoldClientIds(new Set(holdData.holds.map(h => h.clientId)))
+  }, [holdData])
+  useEffect(() => {
+    if (designersData) setDesigners(designersData.designers)
+  }, [designersData])
+
+  const loading = isLoading && !data
+  const refreshing = isValidating && !!data
+  const refresh = useCallback(() => mutate(), [mutate])
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
@@ -452,74 +485,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
   }, [])
-
-  // Load active hold client IDs once on mount so we can show indicators in rows
-  useEffect(() => {
-    fetch("/api/hold-list")
-      .then(r => r.json() as Promise<{ holds: { clientId: string }[] }>)
-      .then(d => setHoldClientIds(new Set(d.holds.map(h => h.clientId))))
-      .catch(() => {})
-  }, [])
-
-  // Load distinct designer names once on mount so the inline assign picker can offer
-  // one-click reassignment to anyone who's already worked a job, no retyping.
-  useEffect(() => {
-    fetch("/api/jobs/designers")
-      .then(r => r.json() as Promise<{ designers: string[] }>)
-      .then(d => setDesigners(d.designers))
-      .catch(() => {})
-  }, [])
-
-  const doFetch = useCallback(async (opts: {
-    page: number; search: string; statusFilter: string; itemTypeFilter?: string; typeOfWorksFilter?: string; deadlineFilter?: string; sortBy: SortField; sortDir: SortDir; onlyOriginals?: boolean; onlyRevisions?: boolean
-  }) => {
-    const thisId = ++fetchId.current
-    setLoading(true)
-    const qs = new URLSearchParams({
-      page: String(opts.page), limit: String(LIMIT),
-      sortBy: opts.sortBy, sortDir: opts.sortDir,
-      ...(opts.search                  && { search: opts.search }),
-      ...(opts.statusFilter !== "ALL"  && { status: opts.statusFilter }),
-      ...(opts.onlyOriginals && { onlyOriginals: "true" }),
-      ...(opts.onlyRevisions && { onlyRevisions: "true" }),
-      ...(opts.itemTypeFilter && opts.itemTypeFilter !== "ALL" && { itemType: opts.itemTypeFilter }),
-      ...(opts.typeOfWorksFilter && opts.typeOfWorksFilter !== "ALL" && { typeOfWorks: opts.typeOfWorksFilter }),
-      ...(opts.deadlineFilter === "overdue"     && { overdue: "true" }),
-      ...(opts.deadlineFilter === "today"       && { dueToday: "true" }),
-      ...(opts.deadlineFilter === "this_week"   && { dueThisWeek: "true" }),
-    })
-    try {
-      const res = await fetch(`/api/jobs?${qs}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json() as JobsResponse
-      if (thisId === fetchId.current) setData(json)
-    } catch {
-      if (thisId === fetchId.current) { toast("Failed to load jobs", "error") }
-    } finally {
-      if (thisId === fetchId.current) setLoading(false)
-    }
-  }, [toast])
-
-  const refresh = useCallback(() =>
-    doFetch({ page, search, statusFilter, itemTypeFilter, typeOfWorksFilter, deadlineFilter, sortBy, sortDir, onlyOriginals, onlyRevisions }),
-    [doFetch, page, search, statusFilter, itemTypeFilter, typeOfWorksFilter, deadlineFilter, sortBy, sortDir, onlyOriginals, onlyRevisions]
-  )
-
-  useEffect(() => {
-    doFetch({ page, search, statusFilter, itemTypeFilter, typeOfWorksFilter, deadlineFilter, sortBy, sortDir, onlyOriginals, onlyRevisions })
-    // search is excluded deliberately — it has its own debounced effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, sortBy, sortDir, statusFilter, itemTypeFilter, typeOfWorksFilter, deadlineFilter, onlyOriginals, onlyRevisions])
-
-  useEffect(() => {
-    if (searchTimer.current) clearTimeout(searchTimer.current)
-    searchTimer.current = setTimeout(() => {
-      setPage(1)
-      doFetch({ page: 1, search, statusFilter, itemTypeFilter, typeOfWorksFilter, deadlineFilter, sortBy, sortDir, onlyOriginals, onlyRevisions })
-    }, 280)
-    return () => { if (searchTimer.current) clearTimeout(searchTimer.current) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search])
 
   const handleSort = (field: SortField) => {
     const dir: SortDir = sortBy === field && sortDir === "desc" ? "asc" : "desc"
@@ -574,8 +539,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       }
       const job = await res.json() as Job
       toast(`${job.drawingNumber} created`, "success")
-      setCreateOpen(false); setPage(1)
-      doFetch({ page: 1, search, statusFilter, itemTypeFilter, typeOfWorksFilter, deadlineFilter, sortBy, sortDir, onlyOriginals, onlyRevisions })
+      setCreateOpen(false); setPage(1); mutate()
     } finally { setCreateSaving(false) }
   }
 
@@ -589,7 +553,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       })
       if (!res.ok) { toast("Failed to save changes", "error"); throw new Error() }
       toast("Changes saved", "success")
-      setEditJob(null); refresh()
+      setEditJob(null); mutate()
     } finally { setEditSaving(false) }
   }
 
@@ -600,14 +564,15 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       const res = await fetch(`/api/jobs/${deleteJob.id}`, { method: "DELETE" })
       if (!res.ok) { toast("Failed to archive job", "error"); return }
       toast(`${deleteJob.drawingNumber} archived`, "info")
-      setDeleteJob(null); setPage(1)
-      doFetch({ page: 1, search, statusFilter, itemTypeFilter, typeOfWorksFilter, deadlineFilter, sortBy, sortDir, onlyOriginals, onlyRevisions })
+      setDeleteJob(null); setPage(1); mutate()
     } finally { setDeleting(false) }
   }
 
-  // Patches a single field on a job and updates the row in place — no full refetch, no modal.
   const patchJobField = useCallback(async (job: Job, field: "status" | "designer", value: string) => {
-    setData(prev => prev ? { ...prev, jobs: prev.jobs.map(j => j.id === job.id ? { ...j, [field]: value } : j) } : prev)
+    await mutate(
+      current => current ? { ...current, jobs: current.jobs.map(j => j.id === job.id ? { ...j, [field]: value } : j) } : current,
+      { revalidate: false },
+    )
     try {
       const res = await fetch(`/api/jobs/${job.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -615,20 +580,22 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       })
       if (!res.ok) {
         toast(field === "status" ? "Failed to change status" : "Failed to assign designer", "error")
-        refresh() // roll back the optimistic update with the real server state
+        await mutate()
         return
       }
       const updated = await res.json() as Job
-      setData(prev => prev ? { ...prev, jobs: prev.jobs.map(j => j.id === job.id ? updated : j) } : prev)
+      await mutate(
+        current => current ? { ...current, jobs: current.jobs.map(j => j.id === job.id ? updated : j) } : current,
+        { revalidate: false },
+      )
       if (field === "designer") {
         setDesigners(prev => value && !prev.includes(value) ? [...prev, value].sort() : prev)
       }
     } catch {
       toast("Network error", "error")
-      refresh()
+      await mutate()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userName])
+  }, [mutate, userName, toast])
 
   // One-click revision — no modal, no fields. Letter is auto-assigned server-side.
   const handleQuickRevision = useCallback(async (job: Job) => {
@@ -645,7 +612,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       const revision = await res.json() as Job
       toast(`${revision.drawingNumber} created`, "success")
       notifyRevisionsChanged(revision.parentJobId ?? revisionParentId(job))
-      refresh()
+      mutate()
     } catch { toast("Network error", "error") }
     finally { setCreatingRevisionFor(null) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -906,7 +873,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       )}
 
       {/* Mobile field view — compact cards for site / phone use */}
-      <div className="md:hidden space-y-2.5 mb-4">
+      {isMobile && (
+      <div className="space-y-2.5 mb-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-28 rounded-xl border border-bd bg-sr skeleton" />
@@ -916,7 +884,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
             <p className="text-sm font-medium text-t1">{hasFilters ? "No jobs match" : "No jobs yet"}</p>
           </div>
         ) : (
-          data.jobs.map(job => (
+          <div className={cn("space-y-2.5 transition-opacity", refreshing && "opacity-60")}>
+          {data.jobs.map(job => (
             <JobMobileCard
               key={job.id}
               job={job}
@@ -924,12 +893,15 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               onOpen={() => router.push(`/jobs/${job.id}`)}
               onStatusChange={value => patchJobField(job, "status", value)}
             />
-          ))
+          ))}
+          </div>
         )}
       </div>
+      )}
 
       {/* Desktop table */}
-      <div className="hidden md:block bg-sr border border-bd rounded-xl shadow-card overflow-hidden">
+      {!isMobile && (
+      <div className={cn("bg-sr border border-bd rounded-xl shadow-card overflow-hidden transition-opacity", refreshing && "opacity-60")}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -975,6 +947,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           </table>
         </div>
       </div>
+      )}
 
       {/* Pagination — shared by mobile cards and desktop table */}
       {data && totalPages > 1 && (
@@ -1060,10 +1033,10 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         onClose={() => setAssignJob(null)}
         onSaved={updated => {
           setAssignJob(null)
-          setData(prev => prev ? {
-            ...prev,
-            jobs: prev.jobs.map(j => j.id === updated.id ? updated : j),
-          } : prev)
+          mutate(
+            current => current ? { ...current, jobs: current.jobs.map(j => j.id === updated.id ? updated : j) } : current,
+            { revalidate: false },
+          )
           setDesigners(prev => updated.designer && !prev.includes(updated.designer)
             ? [...prev, updated.designer].sort() : prev)
         }}

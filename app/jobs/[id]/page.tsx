@@ -1,8 +1,9 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { format } from "date-fns"
+import dynamic from "next/dynamic"
 import { Pencil, Trash2, FileText, UserPlus, GitBranch, Clock, AlertOctagon } from "lucide-react"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
@@ -13,16 +14,29 @@ import {
 import { StatusBadge }        from "@/components/status-badge"
 import { WorkItemTypeBadge }  from "@/components/work-item-type-badge"
 import { StatusWorkflow }     from "@/components/status-workflow"
-import { AssignDesignerModal } from "@/components/assign-designer-modal"
-import { StatusHistory }       from "@/components/status-history"
-import { RevisionsPanel }      from "@/components/revisions-panel"
-import { JobForm }             from "@/components/job-form"
 import { useToast }            from "@/components/ui/toast"
 import { formatGBP, getJobDeadlineInfo, deadlineBadgeClass, parseLocalDate, totalJobCommercialValue } from "@/lib/utils"
 import { useUser }             from "@/components/user-context"
 import { PageShell, DetailPanel, BackLink, PageHeader } from "@/components/page-layout"
 import { OTHER_WORKS_TYPE }    from "@/lib/constants"
 import type { Job, JobFormData, BillingHandoff } from "@/lib/types"
+
+const AssignDesignerModal = dynamic(
+  () => import("@/components/assign-designer-modal").then(m => m.AssignDesignerModal),
+  { ssr: false },
+)
+const StatusHistory = dynamic(
+  () => import("@/components/status-history").then(m => m.StatusHistory),
+  { ssr: false },
+)
+const RevisionsPanel = dynamic(
+  () => import("@/components/revisions-panel").then(m => m.RevisionsPanel),
+  { ssr: false },
+)
+const JobForm = dynamic(
+  () => import("@/components/job-form").then(m => m.JobForm),
+  { ssr: false },
+)
 
 function Skeleton() {
   return (
@@ -65,6 +79,7 @@ export default function JobDetailPage() {
   const [parentJob,  setParentJob]  = useState<Job | null>(null)  // if this is a revision
   const [billingHandoff, setBillingHandoff] = useState<BillingHandoff | null>(null)
   const [loading,    setLoading]    = useState(true)
+  const hasData      = useRef(false)
   const [notFound,   setNotFound]   = useState(false)
   const [editOpen,   setEditOpen]   = useState(false)
   const [editSaving, setEditSaving] = useState(false)
@@ -77,29 +92,27 @@ export default function JobDetailPage() {
   const [dnEditSaving, setDnEditSaving] = useState(false)
 
   const load = async () => {
-    setLoading(true)
+    if (!hasData.current) setLoading(true)
     try {
       const res = await fetch(`/api/jobs/${id}`)
       if (res.status === 404) { setNotFound(true); return }
       if (!res.ok) throw new Error()
       const loaded = await res.json() as Job
       setJob(loaded)
+      hasData.current = true
 
-      // If this is a revision, also load the parent for navigation
-      if (loaded.parentJobId) {
-        const pRes = await fetch(`/api/jobs/${loaded.parentJobId}`)
-        if (pRes.ok) setParentJob(await pRes.json() as Job)
-      } else {
-        setParentJob(null)
-      }
-
-      // Ready For Invoicing status — Admin-only endpoint, so only attempted for admins
-      if (isAdmin) {
-        fetch(`/api/billing-handoffs?sourceJobId=${loaded.id}`)
-          .then(r => r.ok ? r.json() as Promise<{ handoff: BillingHandoff | null }> : null)
-          .then(d => setBillingHandoff(d?.handoff ?? null))
-          .catch(() => {})
-      }
+      // Parent job + billing handoff in parallel after main job is known.
+      const [parentResult, billingResult] = await Promise.all([
+        loaded.parentJobId
+          ? fetch(`/api/jobs/${loaded.parentJobId}`).then(r => r.ok ? r.json() as Promise<Job> : null)
+          : Promise.resolve(null),
+        isAdmin
+          ? fetch(`/api/billing-handoffs?sourceJobId=${loaded.id}`)
+              .then(r => r.ok ? r.json() as Promise<{ handoff: BillingHandoff | null }> : null)
+          : Promise.resolve(null),
+      ])
+      setParentJob(parentResult)
+      setBillingHandoff(billingResult?.handoff ?? null)
     } catch { toast("Failed to load job", "error") }
     finally { setLoading(false) }
   }

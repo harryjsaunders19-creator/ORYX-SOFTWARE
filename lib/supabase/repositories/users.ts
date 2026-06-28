@@ -21,6 +21,13 @@ export const supabaseUserRepo = {
     return data ? toUserRow(data) : null
   },
 
+  async findManyByIds(ids: string[]): Promise<UserRow[]> {
+    if (!ids.length) return []
+    const { data, error } = await table().select("*").in("id", ids)
+    if (error) throw error
+    return (data ?? []).map(toUserRow)
+  },
+
   async findByEmail(email: string): Promise<UserRow | null> {
     const lower = email.trim().toLowerCase()
     if (!lower) return null

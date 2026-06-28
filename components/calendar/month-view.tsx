@@ -1,4 +1,5 @@
 "use client"
+import { useMemo } from "react"
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, format,
@@ -28,14 +29,18 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
   const days       = eachDayOfInterval({ start: gridStart, end: gridEnd })
   const today      = new Date()
 
-  function eventsForDay(day: Date): CalendarEvent[] {
-    const dayStr = format(day, "yyyy-MM-dd")
-    return events.filter(e => {
-      const start = e.startDate.slice(0, 10)
-      const end   = e.endDate.slice(0, 10)
-      return dayStr >= start && dayStr <= end
-    })
-  }
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>()
+    for (const day of days) {
+      const dayStr = format(day, "yyyy-MM-dd")
+      map.set(dayStr, events.filter(e => {
+        const start = e.startDate.slice(0, 10)
+        const end   = e.endDate.slice(0, 10)
+        return dayStr >= start && dayStr <= end
+      }))
+    }
+    return map
+  }, [days, events])
 
   function eventTime(e: CalendarEvent): string | undefined {
     if (e.allDay) return undefined
@@ -59,7 +64,7 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
         {days.map((day, i) => {
           const inMonth  = isSameMonth(day, currentDate)
           const isToday  = isSameDay(day, today)
-          const dayEvents = eventsForDay(day)
+          const dayEvents = eventsByDay.get(format(day, "yyyy-MM-dd")) ?? []
           const visible  = dayEvents.slice(0, MAX_VISIBLE)
           const overflow = dayEvents.length - MAX_VISIBLE
 

@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { useUser } from "@/components/user-context"
 import { SideNav } from "@/components/side-nav"
 import { AppTopBar, APP_SIDEBAR_W, APP_TOP_BAR_H } from "@/components/app-top-bar"
+import { AppShellSkeleton } from "@/components/app-shell-skeleton"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, mustChangePassword } = useUser()
@@ -26,9 +27,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>
   }
 
-  if (loading) return null
-  if (!user) return null
-  if (mustChangePassword) return null
+  if (loading) return <AppShellSkeleton />
+  if (!user) return <AppShellSkeleton />
+  if (mustChangePassword) return <AppShellSkeleton />
 
   return (
     <div className="min-h-screen bg-pg">

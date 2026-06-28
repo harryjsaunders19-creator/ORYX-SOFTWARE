@@ -45,6 +45,18 @@ export const userService = {
     return sqliteFallback(userDb.findUnique(id))
   },
 
+  async findManyByIds(ids: string[]): Promise<UserRow[]> {
+    const unique = [...new Set(ids.filter(Boolean))]
+    if (!unique.length) return []
+    if (!useSupabaseUsers()) return userDb.findManyByIds(unique)
+    const rows = await supabaseUserRepo.findManyByIds(unique)
+    if (rows.length >= unique.length) return rows
+    const found = new Set(rows.map(r => r.id))
+    const missing = unique.filter(id => !found.has(id))
+    const fromSqlite = userDb.findManyByIds(missing)
+    return [...rows, ...fromSqlite]
+  },
+
   async findByEmail(email: string): Promise<UserRow | null> {
     if (!useSupabaseUsers()) return userDb.findByEmail(email)
     const user = await supabaseUserRepo.findByEmail(email)

@@ -1,12 +1,10 @@
 import type { Metadata } from "next"
-import "@fontsource/inter/400.css"
-import "@fontsource/inter/500.css"
-import "@fontsource/inter/600.css"
-import "@fontsource/jetbrains-mono/500.css"
 import "./globals.css"
+import { inter, jetbrainsMono } from "@/app/fonts"
 import { ToastProvider }  from "@/components/ui/toast"
 import { UserProvider }   from "@/components/user-context"
 import { ThemeProvider }  from "@/components/theme-provider"
+import { SWRProvider }    from "@/components/swr-provider"
 import { AppShell }       from "@/components/app-shell"
 
 export const metadata: Metadata = {
@@ -34,12 +32,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           document.documentElement.classList.add("dark")}catch(e){}})()
         `}} />
       </head>
-      <body style={{ height: "100%", margin: 0 }}>
+      <body className={`${inter.variable} ${jetbrainsMono.variable}`} style={{ height: "100%", margin: 0 }}>
         <ThemeProvider>
           <UserProvider>
-            <ToastProvider>
-              <AppShell>{children}</AppShell>
-            </ToastProvider>
+            <SWRProvider>
+              <ToastProvider>
+                <AppShell>{children}</AppShell>
+              </ToastProvider>
+            </SWRProvider>
           </UserProvider>
         </ThemeProvider>
       </body>

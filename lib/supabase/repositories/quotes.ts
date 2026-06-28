@@ -2,6 +2,8 @@
  * lib/supabase/repositories/quotes.ts
  */
 import { createAdminClient } from "@/lib/supabase/admin"
+import { aggSum } from "@/lib/supabase/aggregates"
+import { QUOTE_STATUSES } from "@/lib/types"
 import type {
   QuoteLineItemRow,
   QuoteListOptions,
@@ -176,36 +178,39 @@ export const supabaseQuoteRepo = {
     acceptedValue: number
     conversionRate: number
   }> {
-    const { data, error } = await quotesTable().select("status, quote_value")
-    if (error) throw error
-    const rows = new Map<string, { n: number; v: number }>()
-    for (const row of data ?? []) {
-      const status = row.status as string
-      const cur = rows.get(status) ?? { n: 0, v: 0 }
-      cur.n += 1
-      cur.v += Number(row.quote_value ?? 0)
-      rows.set(status, cur)
-    }
-    const cnt = (s: string) => rows.get(s)?.n ?? 0
-    const val = (s: string) => rows.get(s)?.v ?? 0
+    const statuses = QUOTE_STATUSES.map(s => s.value)
+    const rows = await Promise.all(
+      statuses.map(async status => {
+        const [countRes, sumRes] = await Promise.all([
+          quotesTable()
+            .select("*", { count: "exact", head: true })
+            .eq("status", status)
+            .is("archived_at", null),
+          quotesTable()
+            .select("quote_value.sum()")
+            .eq("status", status)
+            .is("archived_at", null)
+            .maybeSingle(),
+        ])
+        if (countRes.error) throw countRes.error
+        if (sumRes.error) throw sumRes.error
+        return { status, n: countRes.count ?? 0, v: aggSum(sumRes.data) }
+      }),
+    )
+    const cnt = (s: string) => rows.find(r => r.status === s)?.n ?? 0
+    const val = (s: string) => rows.find(r => r.status === s)?.v ?? 0
     const accepted = cnt("ACCEPTED")
     const rejected = cnt("REJECTED")
-    const decided = accepted + rejected
-    let total = 0
-    let totalValue = 0
-    for (const { n, v } of rows.values()) {
-      total += n
-      totalValue += v
-    }
+    const decided  = accepted + rejected
     return {
-      total,
-      draft: cnt("DRAFT"),
-      sent: cnt("SENT"),
+      total:          rows.reduce((a, b) => a + b.n, 0),
+      draft:          cnt("DRAFT"),
+      sent:           cnt("SENT"),
       accepted,
       rejected,
-      expired: cnt("EXPIRED"),
-      totalValue,
-      acceptedValue: val("ACCEPTED"),
+      expired:        cnt("EXPIRED"),
+      totalValue:     rows.reduce((a, b) => a + b.v, 0),
+      acceptedValue:  val("ACCEPTED"),
       conversionRate: decided > 0 ? accepted / decided : 0,
     }
   },

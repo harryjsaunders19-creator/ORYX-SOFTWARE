@@ -32,11 +32,8 @@
 
 @theme {
   /* ── Fonts ─────────────────────────────────────────── */
-  /* Self-hosted via @fontsource/inter + @fontsource/jetbrains-mono
-     (imported in app/layout.tsx) — real @font-face rules declared under
-     these exact family names, bundled as real files with no dependency on
-     Google's font CDN being reachable at build OR runtime, in any
-     environment. */
+  /* Loaded via next/font/google in app/fonts.ts — bundled at build time,
+     no runtime dependency on Google's font CDN. */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 

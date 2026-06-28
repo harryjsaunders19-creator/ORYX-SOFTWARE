@@ -2,7 +2,7 @@
  * Calendar during Supabase migration.
  *
  * When SUPABASE_CALENDAR=true:
- *   - Reads come from Supabase (enriched with SQLite user/job/client names)
+ *   - Reads come from Supabase (enriched with bulk-fetched user/job/client names)
  *   - Writes SQLite first, then mirror event + assignments
  */
 import { db } from "@/lib/db/connection"
@@ -14,19 +14,16 @@ import type {
   EventCategoryRow,
   UpdateCalendarEventData,
 } from "@/lib/db/calendar-types"
-import { calendarDb, clientDb, jobDb } from "@/lib/db/stores"
+import { calendarDb } from "@/lib/db/stores"
 import { userService } from "@/lib/services/user-service"
+import { jobService } from "@/lib/services/job-service"
+import { clientService } from "@/lib/services/client-service"
 import { useSupabaseCalendar } from "@/lib/supabase/feature-flags"
 import { supabaseCalendarRepo } from "@/lib/supabase/repositories/calendar"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
 import { ensureUsersInSqlite } from "@/lib/services/user-service"
 
-/**
- * Ensures a calendar event exists in local SQLite, fetching from Supabase
- * if missing. CalendarEvent has FK on EventCategory(id) (pre-seeded ✅)
- * and nullable FKs on Job(id) and Client(id) which we also sync.
- */
 async function ensureCalendarEventInSqlite(id: string): Promise<void> {
   if (!useSupabaseCalendar()) return
   if (calendarDb.findUnique(id)) return
@@ -47,44 +44,6 @@ interface AssignmentRow {
   userId: string
 }
 
-async function assigneeDetails(userIds: string[]): Promise<{ userId: string; userName: string }[]> {
-  const details = await Promise.all(
-    userIds.map(async (userId) => {
-      const u = await userService.findUnique(userId)
-      return u ? { userId, userName: u.name } : null
-    }),
-  )
-  return details
-    .filter((a): a is { userId: string; userName: string } => a != null)
-    .sort((a, b) => a.userName.localeCompare(b.userName))
-}
-
-async function getAssigneesForEvent(eventId: string): Promise<{ userId: string; userName: string }[]> {
-  if (!useSupabaseCalendar()) return calendarDb.getAssignees(eventId)
-  const userIds = await supabaseCalendarRepo.getAssignmentUserIds(eventId)
-  return assigneeDetails(userIds)
-}
-
-function enrichEvent(
-  row: CalendarEventRow,
-  categoryMap: Map<string, EventCategoryRow>,
-  assignees: { userId: string; userName: string }[],
-  createdByName: string,
-): CalendarEventWithDetails {
-  const cat = categoryMap.get(row.categoryId)
-  const job = row.jobId ? jobDb.findUnique(row.jobId) : null
-  const client = row.clientId ? clientDb.findUnique(row.clientId) : null
-  return {
-    ...row,
-    categoryName: cat?.name ?? "",
-    categoryColor: cat?.color ?? "#6B7280",
-    assignees,
-    jobDrawingNumber: job?.drawingNumber ?? null,
-    clientName: client?.name ?? null,
-    createdByName,
-  }
-}
-
 async function categoryMap(): Promise<Map<string, EventCategoryRow>> {
   const cats = useSupabaseCalendar()
     ? await supabaseCalendarRepo.listCategories()
@@ -103,6 +62,51 @@ async function mirrorEvent(eventId: string): Promise<void> {
   await supabaseCalendarRepo.replaceAssignments(eventId, assignmentRows)
 }
 
+/** Enrich Supabase calendar rows with names — bulk queries, no per-row N+1. */
+async function enrichMany(
+  rows: CalendarEventRow[],
+  cats: Map<string, EventCategoryRow>,
+): Promise<CalendarEventWithDetails[]> {
+  if (!rows.length) return []
+
+  const eventIds = rows.map(r => r.id)
+  const jobIds = [...new Set(rows.map(r => r.jobId).filter((id): id is string => !!id))]
+  const clientIds = [...new Set(rows.map(r => r.clientId).filter((id): id is string => !!id))]
+
+  const [assignmentMap, jobs, clients] = await Promise.all([
+    supabaseCalendarRepo.getAssignmentsForEvents(eventIds),
+    jobService.findManyByIds(jobIds),
+    clientService.findManyByIds(clientIds),
+  ])
+
+  const allUserIds = [...new Set([
+    ...rows.map(r => r.createdBy),
+    ...[...assignmentMap.values()].flat(),
+  ])]
+  const users = await userService.findManyByIds(allUserIds)
+  const userNameById = new Map(users.map(u => [u.id, u.name]))
+  const jobById = new Map(jobs.map(j => [j.id, j]))
+  const clientById = new Map(clients.map(c => [c.id, c]))
+
+  return rows.map(row => {
+    const cat = cats.get(row.categoryId)
+    const assigneeIds = assignmentMap.get(row.id) ?? []
+    const assignees = assigneeIds
+      .map(userId => ({ userId, userName: userNameById.get(userId) ?? "" }))
+      .filter(a => a.userName)
+      .sort((a, b) => a.userName.localeCompare(b.userName))
+    return {
+      ...row,
+      categoryName: cat?.name ?? "",
+      categoryColor: cat?.color ?? "#6B7280",
+      assignees,
+      jobDrawingNumber: row.jobId ? jobById.get(row.jobId)?.drawingNumber ?? null : null,
+      clientName: row.clientId ? clientById.get(row.clientId)?.name ?? null : null,
+      createdByName: userNameById.get(row.createdBy) ?? "",
+    }
+  })
+}
+
 export const calendarService = {
   async categories(): Promise<EventCategoryRow[]> {
     if (!useSupabaseCalendar()) return calendarDb.categories()
@@ -112,14 +116,8 @@ export const calendarService = {
   async findMany(opts: CalendarEventListOptions): Promise<CalendarEventWithDetails[]> {
     const cats = await categoryMap()
     if (!useSupabaseCalendar()) return calendarDb.findMany(opts)
-
     const rows = await supabaseCalendarRepo.findMany(opts)
-    return Promise.all(
-      rows.map(async (row) => {
-        const creator = await userService.findUnique(row.createdBy)
-        return enrichEvent(row, cats, await getAssigneesForEvent(row.id), creator?.name ?? "")
-      }),
-    )
+    return enrichMany(rows, cats)
   },
 
   async findUnique(id: string): Promise<CalendarEventWithDetails | null> {
@@ -128,16 +126,14 @@ export const calendarService = {
 
     const row = await supabaseCalendarRepo.findUnique(id)
     if (!row) return null
-    return enrichEvent(row, cats, await getAssigneesForEvent(id), (await userService.findUnique(row.createdBy))?.name ?? "")
+    const [enriched] = await enrichMany([row], cats)
+    return enriched ?? null
   },
 
   async create(
     data: CreateCalendarEventData,
     assigneeIds?: string[],
   ): Promise<CalendarEventWithDetails | null> {
-    // Pre-sync FK dependencies into SQLite before any insert:
-    // - clientId / jobId are nullable but FK-enforced if non-null
-    // - CalendarAssignment.userId NOT NULL REFERENCES User(id)
     if (data.clientId) await ensureClientInSqlite(data.clientId)
     if (data.jobId) await ensureJobInSqliteForBilling(data.jobId)
     if (assigneeIds?.length) await ensureUsersInSqlite(assigneeIds)

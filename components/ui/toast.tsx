@@ -30,10 +30,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setItems(p => p.filter(t => t.id !== id)), 4000)
   }, [])
 
-  const dismiss = (id: string) => setItems(p => p.filter(t => t.id !== id))
+  const dismiss = React.useCallback((id: string) => setItems(p => p.filter(t => t.id !== id)), [])
+
+  const ctxValue = React.useMemo(() => ({ toast }), [toast])
 
   return (
-    <Ctx.Provider value={{ toast }}>
+    <Ctx.Provider value={ctxValue}>
       {children}
       <div
         aria-live="polite"

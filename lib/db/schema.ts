@@ -559,6 +559,8 @@ try {
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_designer ON Job(designer)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_created ON Job(createdAt)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_typeofworks ON Job(typeOfWorks)")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_job_archived ON Job(archivedAt)")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_job_status_archived ON Job(status, archivedAt)")
 })()
 
 // 2b. Add columns to Quote that may be missing on existing databases
@@ -588,6 +590,8 @@ try {
   // Soft-delete columns — NULL means active; set on archive.
   add("archivedAt", "TEXT")
   add("archivedBy", "TEXT")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_quote_archived ON Quote(archivedAt)")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_quote_status_archived ON Quote(status, archivedAt)")
 })()
 
 // Add columns to Client that may be missing on existing databases
@@ -610,9 +614,8 @@ try {
   // Soft-delete columns — NULL means active; set on archive.
   add("archivedAt", "TEXT")
   add("archivedBy", "TEXT")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_client_archived ON Client(archivedAt)")
 })()
-
-// 2c. Add columns to BillingHandoff that may be missing on existing databases
 ;(function addMissingBillingHandoffColumns() {
   const tableExists = (db.prepare(
     "SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND name='BillingHandoff'"

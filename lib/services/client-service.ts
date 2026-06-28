@@ -83,6 +83,13 @@ export const clientService = {
     return supabaseClientRepo.findUnique(id)
   },
 
+  async findManyByIds(ids: string[]): Promise<ClientRow[]> {
+    const unique = [...new Set(ids.filter(Boolean))]
+    if (!unique.length) return []
+    if (!useSupabaseClients()) return clientDb.findManyByIds(unique)
+    return supabaseClientRepo.findManyByIds(unique)
+  },
+
   async findByName(name: string): Promise<ClientRow | null> {
     if (!useSupabaseClients()) return clientDb.findByName(name)
     return supabaseClientRepo.findByName(name)

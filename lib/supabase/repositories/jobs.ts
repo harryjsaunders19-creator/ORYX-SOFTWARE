@@ -4,6 +4,8 @@
  * Supabase-backed job reads and row mirrors. Used when SUPABASE_JOBS=true.
  */
 import { createAdminClient } from "@/lib/supabase/admin"
+import { aggAvg, aggSum } from "@/lib/supabase/aggregates"
+import { VALID_ITEM_TYPES, VALID_STATUSES } from "@/lib/constants"
 import type { JobRow } from "@/lib/db/job-types"
 import type { FindManyOptions, WhereClause } from "@/lib/db/helpers"
 import { isDrawingNumberListSort, sortJobsForList } from "@/lib/job-list-sort"
@@ -255,24 +257,23 @@ export const supabaseJobRepo = {
   },
 
   async groupByStatus(): Promise<{ status: string; count: number }[]> {
-    const { data, error } = await table().select("status").is("archived_at", null)
-    if (error) throw error
-    const counts = new Map<string, number>()
-    for (const row of data ?? []) {
-      counts.set(row.status, (counts.get(row.status) ?? 0) + 1)
-    }
-    return [...counts.entries()].map(([status, count]) => ({ status, count }))
+    const rows = await Promise.all(
+      VALID_STATUSES.map(async status => ({
+        status,
+        count: await this.count({ status }),
+      })),
+    )
+    return rows.filter(r => r.count > 0)
   },
 
   async groupByItemType(): Promise<{ itemType: string; count: number }[]> {
-    const { data, error } = await table().select("item_type").is("archived_at", null)
-    if (error) throw error
-    const counts = new Map<string, number>()
-    for (const row of data ?? []) {
-      const key = row.item_type as string
-      counts.set(key, (counts.get(key) ?? 0) + 1)
-    }
-    return [...counts.entries()].map(([itemType, count]) => ({ itemType, count }))
+    const rows = await Promise.all(
+      VALID_ITEM_TYPES.map(async itemType => ({
+        itemType,
+        count: await this.count({ itemType }),
+      })),
+    )
+    return rows.filter(r => r.count > 0)
   },
 
   async deadlineStats(): Promise<{ overdueCount: number; dueTodayCount: number; dueThisWeekCount: number }> {
@@ -285,13 +286,8 @@ export const supabaseJobRepo = {
   },
 
   /**
-   * Single-query replacement for 8 separate Supabase calls on the stats
-   * endpoint: groupByStatus, groupByItemType, countWhere(unassigned),
-   * countWhere(onlyOriginals), countWhere(onlyRevisions), and all three
-   * deadlineStats counts.
-   *
-   * Fetches 5 lightweight columns for every job row and aggregates everything
-   * in JS — far cheaper than 8 independent round trips.
+   * Dashboard aggregates via parallel head-only count queries — O(1) row
+   * transfer per metric instead of scanning the full jobs table in Node.
    */
   async dashboardCounts(): Promise<{
     byStatus:         { status: string; count: number }[]
@@ -303,37 +299,29 @@ export const supabaseJobRepo = {
     dueTodayCount:    number
     dueThisWeekCount: number
   }> {
-    const { data, error } = await table().select("status,item_type,parent_job_id,designer,required_by_date")
-    if (error) throw error
-
-    const today   = todayIsoDate()
-    const weekEnd = weekEndIsoDate()
-
-    const statusMap   = new Map<string, number>()
-    const typeMap     = new Map<string, number>()
-    let unassigned = 0, totalActiveJobs = 0, totalRevisions = 0
-    let overdueCount = 0, dueTodayCount = 0, dueThisWeekCount = 0
-
-    for (const row of data ?? []) {
-      statusMap.set(row.status, (statusMap.get(row.status) ?? 0) + 1)
-      const t = row.item_type as string
-      typeMap.set(t, (typeMap.get(t) ?? 0) + 1)
-
-      if (row.parent_job_id) totalRevisions++; else totalActiveJobs++
-
-      if (!row.designer) unassigned++
-
-      if (row.required_by_date && row.status !== "ISSUED") {
-        const d = row.required_by_date as string
-        if (d < today) overdueCount++
-        else if (d === today) dueTodayCount++
-        else if (d > today && d <= weekEnd) dueThisWeekCount++
-      }
-    }
+    const [
+      byStatus,
+      byItemType,
+      unassigned,
+      totalActiveJobs,
+      totalRevisions,
+      overdueCount,
+      dueTodayCount,
+      dueThisWeekCount,
+    ] = await Promise.all([
+      this.groupByStatus(),
+      this.groupByItemType(),
+      this.count({ unassigned: true }),
+      this.count({ onlyOriginals: true }),
+      this.count({ onlyRevisions: true }),
+      this.count({ overdue: true }),
+      this.count({ dueToday: true }),
+      this.count({ dueThisWeek: true }),
+    ])
 
     return {
-      byStatus:         [...statusMap.entries()].map(([status, count]) => ({ status, count })),
-      byItemType:       [...typeMap.entries()].map(([itemType, count]) => ({ itemType, count })),
+      byStatus,
+      byItemType,
       unassigned,
       totalActiveJobs,
       totalRevisions,
@@ -369,35 +357,30 @@ export const supabaseJobRepo = {
 
   async sumQuoteValue(where: WhereClause = {}): Promise<number> {
     const { data, error } = await applyWhere(
-      table().select("quote_value").gt("quote_value", 0),
+      table().select("quote_value.sum()"),
       where,
-    )
+    ).gt("quote_value", 0).maybeSingle()
     if (error) throw error
-    return (data ?? []).reduce((sum: number, row: { quote_value: number | null }) => sum + Number(row.quote_value ?? 0), 0)
+    return aggSum(data)
   },
 
   /**
-   * Returns totalQuotedValue, totalIssuedValue and avgJobValue in a single
-   * Supabase round trip. Replaces three separate sumQuoteValue/avgJobValue
-   * calls that each fetched the same rows independently.
+   * Returns totalQuotedValue, totalIssuedValue and avgJobValue via SQL
+   * aggregates — no full-table row transfer.
    */
   async jobValueStats(): Promise<{ totalQuotedValue: number; totalIssuedValue: number; avgJobValue: number }> {
-    const { data, error } = await table()
-      .select("quote_value,status")
-      .gt("quote_value", 0)
-    if (error) throw error
-    const rows = data ?? []
-    let total = 0, issued = 0, count = 0
-    for (const row of rows) {
-      const v = Number(row.quote_value ?? 0)
-      total += v
-      count++
-      if (row.status === "ISSUED") issued += v
-    }
+    const [quoted, issued, avgRow] = await Promise.all([
+      table().select("quote_value.sum()").is("archived_at", null).gt("quote_value", 0).maybeSingle(),
+      table().select("quote_value.sum()").is("archived_at", null).gt("quote_value", 0).eq("status", "ISSUED").maybeSingle(),
+      table().select("quote_value.avg()").is("archived_at", null).gt("quote_value", 0).maybeSingle(),
+    ])
+    if (quoted.error) throw quoted.error
+    if (issued.error) throw issued.error
+    if (avgRow.error) throw avgRow.error
     return {
-      totalQuotedValue: total,
-      totalIssuedValue: issued,
-      avgJobValue:      count > 0 ? total / count : 0,
+      totalQuotedValue: aggSum(quoted.data),
+      totalIssuedValue: aggSum(issued.data),
+      avgJobValue:      aggAvg(avgRow.data),
     }
   },
 

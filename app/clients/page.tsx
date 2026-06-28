@@ -1,9 +1,9 @@
 "use client"
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, memo, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { format } from "date-fns"
-import { Plus, RotateCcw, Building2, ChevronRight, Archive, Upload } from "lucide-react"
+import { Plus, RotateCcw, Building2, ChevronRight, Archive, Upload, ChevronLeft } from "lucide-react"
 import { useUser } from "@/components/user-context"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
@@ -15,11 +15,67 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/toast"
 import { cn }       from "@/lib/utils"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
+import { useApi } from "@/hooks/use-api"
 import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/components/page-layout"
 import type { Client } from "@/lib/types"
 
+const CLIENT_LIMIT = 50
+
 type ClientWithMeta = Client & { activeJobCount: number; onHold: boolean }
-type ClientsData = { clients: ClientWithMeta[]; total: number }
+type ClientsData = { clients: ClientWithMeta[]; total: number; page?: number; limit?: number }
+
+const ClientTableRow = memo(function ClientTableRow({
+  client: c,
+  isAdmin,
+  onEdit,
+  onRestore,
+  onArchive,
+}: {
+  client: ClientWithMeta
+  isAdmin: boolean
+  onEdit: (c: ClientWithMeta) => void
+  onRestore: (c: Client) => void
+  onArchive: (c: ClientWithMeta) => void
+}) {
+  return (
+    <tr className={cn("border-b border-bd last:border-0 hover:bg-pg", !c.active && "opacity-60")}>
+      <td className="px-4 py-3">
+        <Link href={`/clients/${c.id}`} prefetch={false} className="font-medium text-t1 hover:text-ac flex items-center gap-1.5">
+          {c.name}
+          {!c.active && <span className="text-[10px] bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>}
+          {c.onHold && <span className="text-[10px] bg-dn-bg text-dn rounded-full px-2 font-medium whitespace-nowrap">On Hold</span>}
+          <ChevronRight className="h-3 w-3 text-t4" />
+        </Link>
+      </td>
+      <td className="px-4 py-3 text-xs text-t3">{c.contactName ?? "—"}</td>
+      <td className="px-4 py-3 text-xs text-t3">{c.email ?? "—"}</td>
+      <td className="px-4 py-3 text-xs text-t3">{c.phone ?? "—"}</td>
+      {isAdmin && (
+        <td className="px-4 py-3 text-right">
+          <span className={cn("text-xs font-semibold tabular-nums", c.activeJobCount > 0 ? "text-t2" : "text-t4")}>
+            {c.activeJobCount}
+          </span>
+        </td>
+      )}
+      <td className="px-4 py-3 text-xs text-t4 tabular-nums whitespace-nowrap">{format(new Date(c.createdAt), "d MMM yyyy")}</td>
+      {isAdmin && (
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1 justify-end">
+            <Button variant="ghost" size="sm" onClick={() => onEdit(c)}>Edit</Button>
+            {!c.active ? (
+              <Button variant="ghost" size="icon-sm" onClick={() => onRestore(c)} title="Restore" className="text-t4 hover:text-ac"><RotateCcw className="h-3.5 w-3.5" /></Button>
+            ) : (
+              <Button variant="ghost" size="icon-sm" onClick={() => onArchive(c)} title="Archive client" className="text-t4 hover:text-wn-tx hover:bg-wn-bg">
+                <Archive className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        </td>
+      )}
+    </tr>
+  )
+})
 
 function ClientForm({ formId, initial, onSubmit, saving: _saving }: {
   formId: string
@@ -86,10 +142,10 @@ function ClientsInner() {
   const { toast } = useToast()
   const { isAdmin } = useUser()
   const searchParams = useSearchParams()
-  const [data,       setData]       = useState<ClientsData | null>(null)
   const [search,     setSearch]     = useState(() => searchParams.get("search") ?? "")
+  const debouncedSearch = useDebouncedValue(search, 280)
   const [showAll,    setShowAll]    = useState(false)
-  const [loading,    setLoading]    = useState(true)
+  const [page,       setPage]       = useState(1)
   const [createOpen, setCreateOpen] = useState(false)
   const [editClient, setEditClient] = useState<Client | null>(null)
   const [saving,     setSaving]     = useState(false)
@@ -97,16 +153,24 @@ function ClientsInner() {
   const [archiveClient, setArchiveClient] = useState<ClientWithMeta | null>(null)
   const [archiving,     setArchiving]     = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const qs = new URLSearchParams({ search, active: showAll ? "false" : "true", limit: "200" })
-      setData(await fetch(`/api/clients?${qs}`).then(r => r.json()) as ClientsData)
-    } catch { toast("Failed to load", "error") }
-    finally  { setLoading(false) }
-  }, [search, showAll, toast])
+  useEffect(() => { setPage(1) }, [debouncedSearch, showAll])
 
-  useEffect(() => { load() }, [load])
+  const apiKey = `/api/clients?${new URLSearchParams({
+    search: debouncedSearch,
+    active: showAll ? "false" : "true",
+    page: String(page),
+    limit: String(CLIENT_LIMIT),
+  })}`
+  const { data, error, isLoading, isValidating, mutate } = useApi<ClientsData>(apiKey)
+
+  useEffect(() => { if (error) toast("Failed to load", "error") }, [error, toast])
+
+  const loading = isLoading && !data
+  const refreshing = isValidating && !!data
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / CLIENT_LIMIT)) : 1
+
+  const handleEditOpen = useCallback((c: ClientWithMeta) => { setEditClient(c); setDupError(null) }, [])
+  const handleArchiveOpen = useCallback((c: ClientWithMeta) => setArchiveClient(c), [])
 
   const doCreate = async (d: Partial<Client>) => {
     setSaving(true); setDupError(null)
@@ -116,7 +180,7 @@ function ClientsInner() {
       if (res.status === 409) { setDupError({ msg: body.error ?? "Duplicate", existing: body.existing! }); return }
       if (!res.ok) { toast(body.error ?? "Failed", "error"); return }
       toast(`${(body as Client).name} created`, "success")
-      setCreateOpen(false); load()
+      setCreateOpen(false); mutate()
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }
@@ -129,14 +193,14 @@ function ClientsInner() {
       const body = await res.json() as Client & { error?: string; existing?: Client }
       if (res.status === 409) { setDupError({ msg: body.error ?? "Duplicate", existing: body.existing! }); return }
       if (!res.ok) { toast(body.error ?? "Failed", "error"); return }
-      toast("Saved", "success"); setEditClient(null); load()
+      toast("Saved", "success"); setEditClient(null); mutate()
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }
 
   const doRestore = async (c: Client) => {
     await fetch(`/api/clients/${c.id}`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ active: true }) })
-    toast(`${c.name} restored`, "success"); load()
+    toast(`${c.name} restored`, "success"); mutate()
   }
 
   return (
@@ -183,7 +247,7 @@ function ClientsInner() {
         </DataPanel>
       ) : (
         <DataPanel>
-          <table className="w-full text-sm">
+          <table className={cn("w-full text-sm transition-opacity", refreshing && "opacity-60")}>
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Company</th>
@@ -197,50 +261,36 @@ function ClientsInner() {
             </thead>
             <tbody>
               {data.clients.map(c => (
-                <tr key={c.id} className={cn("border-b border-bd last:border-0 hover:bg-pg", !c.active && "opacity-60")}>
-                  <td className="px-4 py-3">
-                    <Link href={`/clients/${c.id}`} className="font-medium text-t1 hover:text-ac flex items-center gap-1.5">
-                      {c.name}
-                      {!c.active && <span className="text-[10px] bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>}
-                      {c.onHold && <span className="text-[10px] bg-dn-bg text-dn rounded-full px-2 font-medium whitespace-nowrap">On Hold</span>}
-                      <ChevronRight className="h-3 w-3 text-t4" />
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-t3">{c.contactName ?? "—"}</td>
-                  <td className="px-4 py-3 text-xs text-t3">{c.email ?? "—"}</td>
-                  <td className="px-4 py-3 text-xs text-t3">{c.phone ?? "—"}</td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-right">
-                      <span className={cn("text-xs font-semibold tabular-nums", c.activeJobCount > 0 ? "text-t2" : "text-t4")}>
-                        {c.activeJobCount}
-                      </span>
-                    </td>
-                  )}
-                  <td className="px-4 py-3 text-xs text-t4 tabular-nums whitespace-nowrap">{format(new Date(c.createdAt), "d MMM yyyy")}</td>
-                  {isAdmin && (
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 justify-end">
-                        <Button variant="ghost" size="sm" onClick={() => { setEditClient(c); setDupError(null) }}>Edit</Button>
-                        {!c.active ? (
-                          <Button variant="ghost" size="icon-sm" onClick={() => doRestore(c)} title="Restore" className="text-t4 hover:text-ac"><RotateCcw className="h-3.5 w-3.5" /></Button>
-                        ) : (
-                          <Button
-                            variant="ghost" size="icon-sm"
-                            onClick={() => setArchiveClient(c)}
-                            title="Archive client"
-                            className="text-t4 hover:text-wn-tx hover:bg-wn-bg"
-                          >
-                            <Archive className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                </tr>
+                <ClientTableRow
+                  key={c.id}
+                  client={c}
+                  isAdmin={isAdmin}
+                  onEdit={handleEditOpen}
+                  onRestore={doRestore}
+                  onArchive={handleArchiveOpen}
+                />
               ))}
             </tbody>
           </table>
         </DataPanel>
+      )}
+
+      {data && totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 mt-3 border border-bd rounded-xl bg-sr shadow-card">
+          <p className="text-xs text-t3">
+            {((page - 1) * CLIENT_LIMIT) + 1}–{Math.min(page * CLIENT_LIMIT, data.total)} of{" "}
+            <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="text-xs text-t3 tabular-nums px-2">{page} / {totalPages}</span>
+            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Create */}
@@ -322,7 +372,7 @@ function ClientsInner() {
                   body.deleted ? `${archiveClient.name} removed` : `${archiveClient.name} archived`,
                   "success",
                 )
-                setArchiveClient(null); load()
+                setArchiveClient(null); mutate()
               } catch { toast("Network error", "error") }
               finally { setArchiving(false) }
             }}>

@@ -1,5 +1,5 @@
 "use client"
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, memo, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { format } from "date-fns"
@@ -25,6 +25,8 @@ import { OTHER_WORKS_TYPE } from "@/lib/constants"
 import { inferQuoteWorksFromDescription, quoteWorksDisplayLabel } from "@/lib/quote-works"
 import { TypeOfWorksCombobox } from "@/components/type-of-works-combobox"
 import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/components/page-layout"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
+import { useApi } from "@/hooks/use-api"
 import { QUOTE_STATUSES } from "@/lib/types"
 import type { Quote, Client } from "@/lib/types"
 
@@ -383,14 +385,100 @@ export default function QuotesPage() {
   )
 }
 
+function QuoteTableRow({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
+  quote: Quote
+  pdfGenerating: string | null
+  onGeneratePdf: (q: Quote) => void
+  onEdit: (q: Quote) => void
+  onSetStatus: (q: Quote, status: string) => void
+  onConvert: (q: Quote) => void
+  onArchive: (q: Quote) => void
+}) {
+  return (
+    <tr className="border-b border-bd last:border-0 hover:bg-pg">
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className="font-mono text-[11px] font-semibold text-ac">{q.quoteNumber}</span>
+      </td>
+      <td className="px-4 py-3 max-w-[140px]">
+        <p className="text-xs font-medium text-t1 truncate">{q.clientCompany}</p>
+        {q.contactName && <p className="text-xs text-t3 truncate">{q.contactName}</p>}
+      </td>
+      <td className="px-4 py-3 max-w-[220px]">
+        <p className="text-xs text-t2 truncate">
+          {quoteWorksDisplayLabel(q.typeOfWorks, q.customTypeDescription, q.description)}
+        </p>
+      </td>
+      <td className="px-4 py-3 text-right whitespace-nowrap">
+        <p className="text-xs font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
+        {q.vatRate != null && <p className="text-[10px] text-t4">+{q.vatRate}% VAT</p>}
+      </td>
+      <td className="px-4 py-3 whitespace-nowrap">
+        <p className="text-xs text-t3 tabular-nums">{format(parseLocalDate(q.quoteDate), "d MMM yyyy")}</p>
+      </td>
+      <td className="px-4 py-3 whitespace-nowrap">
+        <QuoteExpiryCell quote={q} />
+      </td>
+      <td className="px-4 py-3 whitespace-nowrap">
+        <QuoteStatusBadge status={q.status} />
+        {q.jobId && (
+          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="block text-[10px] text-ac hover:underline mt-0.5">
+            View job →
+          </Link>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-1 justify-end flex-wrap">
+          {q.pdfPath ? (
+            <a href={q.pdfPath} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg" title="Open PDF">
+              <FileDown className="h-3.5 w-3.5" />
+            </a>
+          ) : (
+            <button onClick={() => onGeneratePdf(q)} disabled={pdfGenerating === q.id}
+              className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg disabled:opacity-50"
+              title="Generate PDF">
+              {pdfGenerating === q.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            </button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => onEdit(q)}>Edit</Button>
+          {q.status === "DRAFT" && (
+            <Button variant="ghost" size="sm" onClick={() => onSetStatus(q, "SENT")}>
+              <Clock className="h-3.5 w-3.5" /> Sent
+            </Button>
+          )}
+          {(q.status === "DRAFT" || q.status === "SENT")
+            && getQuoteExpiryInfo(q.expiryDate, q.status).severity !== "expired" && (
+            <>
+              <Button variant="ghost" size="sm" className="text-ok-tx hover:bg-ok-bg" onClick={() => onSetStatus(q, "ACCEPTED")}>
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-dn hover:bg-dn-bg" onClick={() => onSetStatus(q, "REJECTED")}>
+                <XCircle className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
+          {q.status === "ACCEPTED" && !q.jobId && (
+            <Button variant="primary" size="sm" onClick={() => onConvert(q)}>Create Job</Button>
+          )}
+          {!q.jobId && (
+            <Button variant="ghost" size="sm" className="text-t4 hover:text-wn-tx hover:bg-wn-bg" title="Archive quote" onClick={() => onArchive(q)}>
+              <Archive className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      </td>
+    </tr>
+  )
+}
+const MemoQuoteTableRow = memo(QuoteTableRow)
+
 function QuotesInner() {
   const { user, userName } = useUser()
   const { toast }    = useToast()
   const searchParams = useSearchParams()
 
-  const [data,       setData]       = useState<QuotesData | null>(null)
-  const [loading,    setLoading]    = useState(true)
   const [search,     setSearch]     = useState(() => searchParams.get("search") ?? "")
+  const debouncedSearch = useDebouncedValue(search, 280)
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [createOpen, setCreateOpen] = useState(false)
   const [editQuote,  setEditQuote]  = useState<Quote | null>(null)
@@ -402,20 +490,21 @@ function QuotesInner() {
   const [archiveQuote, setArchiveQuote] = useState<Quote | null>(null)
   const [archiving,    setArchiving]    = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const qs = new URLSearchParams({
-        ...(search && { search }),
-        ...(statusFilter !== "ALL" && { status: statusFilter }),
-        limit: "100",
-      })
-      setData(await fetch(`/api/quotes?${qs}`).then(r => r.json()) as QuotesData)
-    } catch { toast("Failed to load quotes", "error") }
-    finally { setLoading(false) }
-  }, [search, statusFilter, toast])
+  const apiKey = `/api/quotes?${new URLSearchParams({
+    ...(debouncedSearch && { search: debouncedSearch }),
+    ...(statusFilter !== "ALL" && { status: statusFilter }),
+    limit: "100",
+  })}`
+  const { data, error, isLoading, isValidating, mutate } = useApi<QuotesData>(apiKey)
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (error) toast("Failed to load quotes", "error") }, [error, toast])
+
+  const loading = isLoading && !data
+  const refreshing = isValidating && !!data
+
+  const handleEdit = useCallback((q: Quote) => setEditQuote(q), [])
+  const handleConvert = useCallback((q: Quote) => setConvertQuote(q), [])
+  const handleArchiveOpen = useCallback((q: Quote) => setArchiveQuote(q), [])
 
   const doCreate = async (form: QuoteFormData) => {
     setSaving(true)
@@ -428,7 +517,7 @@ function QuotesInner() {
       if (!res.ok) { toast(body.error ?? "Failed to create quote", "error"); return }
       toast(`${body.quoteNumber} created`, "success")
       setCreateOpen(false)
-      load()
+      mutate()
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }
@@ -445,7 +534,7 @@ function QuotesInner() {
       if (!res.ok) { toast(body.error ?? "Failed to save", "error"); return }
       toast("Quote updated", "success")
       setEditQuote(null)
-      load()
+      mutate()
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }
@@ -459,24 +548,33 @@ function QuotesInner() {
       const body = await res.json() as { error?: string }
       if (!res.ok) { toast(body.error ?? "Failed to update status", "error"); return }
       toast(`${quote.quoteNumber} marked ${statusMeta(status).label}`, status === "ACCEPTED" ? "success" : "info")
-      load()
+      mutate()
     } catch { toast("Network error", "error") }
   }
 
   const generatePdf = async (quote: Quote) => {
     setPdfGenerating(quote.id)
     try {
-      // Deliberately sending no body here: the PDF always shows the
-      // quote's real, persisted creator (quote.createdBy) — not whoever
-      // happens to be the currently logged-in user when this button is
-      // clicked, which is what was happening before and is exactly the
-      // "every quote shows the same name" bug this was built to avoid.
       const res = await fetch(`/api/quotes/${quote.id}/pdf`, { method: "POST" })
-      const body = await res.json() as { pdfPath?: string; error?: string }
-      if (!res.ok || !body.pdfPath) { toast(body.error ?? "PDF generation failed", "error"); return }
-      window.open(body.pdfPath, "_blank")
+      const body = await res.json() as { status?: string; error?: string }
+      if (!res.ok) { toast(body.error ?? "PDF generation failed", "error"); return }
+
+      const pollForPdf = async (): Promise<string | null> => {
+        for (let attempt = 0; attempt < 60; attempt++) {
+          await new Promise(r => setTimeout(r, 500))
+          const pollRes = await fetch(`/api/quotes/${quote.id}/pdf`)
+          const pollBody = await pollRes.json() as { status: string; pdfPath?: string; error?: string }
+          if (!pollRes.ok) return null
+          if (pollBody.status === "ready" && pollBody.pdfPath) return pollBody.pdfPath
+        }
+        return null
+      }
+
+      const pdfPath = await pollForPdf()
+      if (!pdfPath) { toast("PDF generation timed out", "error"); return }
+      window.open(pdfPath, "_blank")
       toast(`PDF generated for ${quote.quoteNumber}`, "success")
-      load()
+      mutate()
     } catch { toast("Network error", "error") }
     finally { setPdfGenerating(null) }
   }
@@ -490,7 +588,7 @@ function QuotesInner() {
       const n = body.archived ?? 0
       toast(`Archived ${n} expired quote${n === 1 ? "" : "s"}`, "success")
       setClearConfirmOpen(false)
-      load()
+      mutate()
     } catch { toast("Network error", "error") }
     finally { setClearing(false) }
   }
@@ -504,7 +602,7 @@ function QuotesInner() {
       if (!res.ok) { toast(body.error ?? "Failed to archive quote", "error"); return }
       toast(`${archiveQuote.quoteNumber} archived`, "success")
       setArchiveQuote(null)
-      load()
+      mutate()
     } catch { toast("Network error", "error") }
     finally { setArchiving(false) }
   }
@@ -605,7 +703,7 @@ function QuotesInner() {
           />
         </DataPanel>
       ) : (
-        <DataPanel className="overflow-x-auto">
+        <DataPanel className={cn("overflow-x-auto transition-opacity", refreshing && "opacity-60")}>
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
@@ -621,86 +719,16 @@ function QuotesInner() {
             </thead>
             <tbody>
               {data.quotes.map(q => (
-                <tr key={q.id} className="border-b border-bd last:border-0 hover:bg-pg">
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="font-mono text-[11px] font-semibold text-ac">{q.quoteNumber}</span>
-                  </td>
-                  <td className="px-4 py-3 max-w-[140px]">
-                    <p className="text-xs font-medium text-t1 truncate">{q.clientCompany}</p>
-                    {q.contactName && <p className="text-xs text-t3 truncate">{q.contactName}</p>}
-                  </td>
-                  <td className="px-4 py-3 max-w-[220px]">
-                    <p className="text-xs text-t2 truncate">
-                      {quoteWorksDisplayLabel(q.typeOfWorks, q.customTypeDescription, q.description)}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <p className="text-xs font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
-                    {q.vatRate != null && <p className="text-[10px] text-t4">+{q.vatRate}% VAT</p>}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <p className="text-xs text-t3 tabular-nums">{format(parseLocalDate(q.quoteDate), "d MMM yyyy")}</p>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <QuoteExpiryCell quote={q} />
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <QuoteStatusBadge status={q.status} />
-                    {q.jobId && (
-                      <Link href={`/jobs/${q.jobId}`} className="block text-[10px] text-ac hover:underline mt-0.5">
-                        View job →
-                      </Link>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 justify-end flex-wrap">
-                      {q.pdfPath ? (
-                        <a href={q.pdfPath} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg" title="Open PDF">
-                          <FileDown className="h-3.5 w-3.5" />
-                        </a>
-                      ) : (
-                        <button onClick={() => generatePdf(q)} disabled={pdfGenerating === q.id}
-                          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg disabled:opacity-50"
-                          title="Generate PDF">
-                          {pdfGenerating === q.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                        </button>
-                      )}
-                      <Button variant="ghost" size="sm" onClick={() => setEditQuote(q)}>Edit</Button>
-                      {q.status === "DRAFT" && (
-                        <Button variant="ghost" size="sm" onClick={() => setStatus(q, "SENT")}>
-                          <Clock className="h-3.5 w-3.5" /> Sent
-                        </Button>
-                      )}
-                      {(q.status === "DRAFT" || q.status === "SENT")
-                        && getQuoteExpiryInfo(q.expiryDate, q.status).severity !== "expired" && (
-                        <>
-                          <Button variant="ghost" size="sm" className="text-ok-tx hover:bg-ok-bg" onClick={() => setStatus(q, "ACCEPTED")}>
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-dn hover:bg-dn-bg" onClick={() => setStatus(q, "REJECTED")}>
-                            <XCircle className="h-3.5 w-3.5" />
-                          </Button>
-                        </>
-                      )}
-                      {q.status === "ACCEPTED" && !q.jobId && (
-                        <Button variant="primary" size="sm" onClick={() => setConvertQuote(q)}>
-                          Create Job
-                        </Button>
-                      )}
-                      {!q.jobId && (
-                        <Button
-                          variant="ghost" size="sm"
-                          className="text-t4 hover:text-wn-tx hover:bg-wn-bg"
-                          title="Archive quote"
-                          onClick={() => setArchiveQuote(q)}
-                        >
-                          <Archive className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                <MemoQuoteTableRow
+                  key={q.id}
+                  quote={q}
+                  pdfGenerating={pdfGenerating}
+                  onGeneratePdf={generatePdf}
+                  onEdit={handleEdit}
+                  onSetStatus={setStatus}
+                  onConvert={handleConvert}
+                  onArchive={handleArchiveOpen}
+                />
               ))}
             </tbody>
           </table>
@@ -742,7 +770,7 @@ function QuotesInner() {
         <CreateJobFromQuoteModal
           quote={convertQuote}
           onClose={() => setConvertQuote(null)}
-          onConverted={() => { setConvertQuote(null); load() }}
+          onConverted={() => { setConvertQuote(null); mutate() }}
         />
       )}
 

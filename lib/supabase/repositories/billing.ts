@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { aggSum } from "@/lib/supabase/aggregates"
 import type {
   BillingExportBatchRow,
   BillingExportSnapshotRow,
@@ -114,19 +115,23 @@ export const supabaseBillingRepo = {
   },
 
   async stats(): Promise<{ awaitingCount: number; awaitingValue: number; clearedCount: number }> {
-    // Run both queries in parallel instead of sequentially.
     const [
-      { data: awaitingRows, error: aErr },
+      { count: awaitingCount, error: aCountErr },
+      { data: sumRow, error: aSumErr },
       { count: clearedCount, error: cErr },
     ] = await Promise.all([
-      handoffs().select("quote_value").is("cleared_by_accounts_at", null),
+      handoffs().select("*", { count: "exact", head: true }).is("cleared_by_accounts_at", null),
+      handoffs().select("quote_value.sum()").is("cleared_by_accounts_at", null).maybeSingle(),
       handoffs().select("*", { count: "exact", head: true }).not("cleared_by_accounts_at", "is", null),
     ])
-    if (aErr) throw aErr
+    if (aCountErr) throw aCountErr
+    if (aSumErr) throw aSumErr
     if (cErr) throw cErr
-    const awaitingCount = awaitingRows?.length ?? 0
-    const awaitingValue = (awaitingRows ?? []).reduce((sum, r) => sum + Number(r.quote_value ?? 0), 0)
-    return { awaitingCount, awaitingValue, clearedCount: clearedCount ?? 0 }
+    return {
+      awaitingCount: awaitingCount ?? 0,
+      awaitingValue: aggSum(sumRow),
+      clearedCount:  clearedCount ?? 0,
+    }
   },
 
   async upsertBatch(row: BillingExportBatchRow): Promise<void> {

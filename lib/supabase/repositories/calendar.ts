@@ -95,6 +95,23 @@ export const supabaseCalendarRepo = {
     return (data ?? []).map((r: { user_id: string }) => r.user_id)
   },
 
+  /** Bulk-fetch all assignments for a set of events — one query instead of N. */
+  async getAssignmentsForEvents(eventIds: string[]): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>()
+    if (!eventIds.length) return map
+    const { data, error } = await assignments()
+      .select("event_id, user_id")
+      .in("event_id", eventIds)
+    if (error) throw error
+    for (const row of data ?? []) {
+      const eid = row.event_id as string
+      const list = map.get(eid) ?? []
+      list.push(row.user_id as string)
+      map.set(eid, list)
+    }
+    return map
+  },
+
   async replaceAssignments(eventId: string, rows: CalendarAssignmentRow[]): Promise<void> {
     const { error: delErr } = await assignments().delete().eq("event_id", eventId)
     if (delErr) throw delErr

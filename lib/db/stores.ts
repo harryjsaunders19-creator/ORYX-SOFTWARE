@@ -1273,6 +1273,12 @@ export const clientDb = {
     return (db.prepare("SELECT * FROM Client WHERE id = ?").get(id) as ClientRow) ?? null
   },
 
+  findManyByIds(ids: string[]): ClientRow[] {
+    if (!ids.length) return []
+    const placeholders = ids.map(() => "?").join(",")
+    return db.prepare(`SELECT * FROM Client WHERE id IN (${placeholders})`).all(...ids) as ClientRow[]
+  },
+
   findByName(name: string): ClientRow | null {
     return (db.prepare("SELECT * FROM Client WHERE nameLower = ?").get(name.trim().toLowerCase()) as ClientRow) ?? null
   },
@@ -2024,6 +2030,12 @@ export const userDb = {
     return (db.prepare("SELECT * FROM User WHERE id = ?").get(id) as UserRow) ?? null
   },
 
+  findManyByIds(ids: string[]): UserRow[] {
+    if (!ids.length) return []
+    const placeholders = ids.map(() => "?").join(",")
+    return db.prepare(`SELECT * FROM User WHERE id IN (${placeholders})`).all(...ids) as UserRow[]
+  },
+
   findByEmail(email: string): UserRow | null {
     const lower = email.trim().toLowerCase()
     if (!lower) return null
@@ -2270,7 +2282,28 @@ export const calendarDb = {
       ORDER BY e.startDate ASC, e.title ASC
     `).all(...params) as (CalendarEventRow & { categoryName: string; categoryColor: string; jobDrawingNumber: string | null; clientName: string | null; createdByName: string })[]
 
-    return rows.map(r => ({ ...r, assignees: this.getAssignees(r.id) }))
+    const assigneeMap = this.getAssigneesForEvents(rows.map(r => r.id))
+    return rows.map(r => ({ ...r, assignees: assigneeMap.get(r.id) ?? [] }))
+  },
+
+  /** Bulk-fetch assignees for many events in one query — avoids N+1. */
+  getAssigneesForEvents(eventIds: string[]): Map<string, { userId: string; userName: string }[]> {
+    const map = new Map<string, { userId: string; userName: string }[]>()
+    if (!eventIds.length) return map
+    const placeholders = eventIds.map(() => "?").join(",")
+    const rows = db.prepare(`
+      SELECT ca.eventId, ca.userId, u.name as userName
+      FROM CalendarAssignment ca
+      JOIN User u ON u.id = ca.userId
+      WHERE ca.eventId IN (${placeholders})
+      ORDER BY u.name ASC
+    `).all(...eventIds) as { eventId: string; userId: string; userName: string }[]
+    for (const row of rows) {
+      const list = map.get(row.eventId) ?? []
+      list.push({ userId: row.userId, userName: row.userName })
+      map.set(row.eventId, list)
+    }
+    return map
   },
 
   findUnique(id: string): CalendarEventWithDetails | null {
