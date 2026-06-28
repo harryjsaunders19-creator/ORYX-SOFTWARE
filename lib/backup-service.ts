@@ -32,11 +32,11 @@ import crypto from "crypto"
 import { db, type BackupTrigger, type BackupJobRow } from "@/lib/db"
 import { backupRecordService } from "@/lib/services/backup-record-service"
 
-export const BACKUPS_DIR = process.env.BACKUPS_DIR ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "backups")
+export const BACKUPS_DIR =
+  process.env.BACKUPS_DIR ??
+  (process.env.VERCEL ? "/tmp/backups" : path.join(/*turbopackIgnore: true*/ process.cwd(), "backups"))
 export const SCHEMA_VERSION = "2026.06"   // bump manually whenever a structural change would matter to a future restore
 export const DEFAULT_RETENTION_COUNT = 30
-
-fs.mkdirSync(BACKUPS_DIR, { recursive: true })
 
 function yieldToEventLoop(): Promise<void> {
   return new Promise(resolve => setImmediate(resolve))
@@ -140,6 +140,7 @@ export async function runBackup(opts: RunBackupOpts): Promise<void> {
 
   try {
     await backupRecordService.markRunning(jobId)
+    fs.mkdirSync(BACKUPS_DIR, { recursive: true })
     fs.mkdirSync(folderPath, { recursive: true })
 
     const dataPath = path.join(folderPath, "data.json")
