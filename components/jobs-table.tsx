@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, memo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format }    from "date-fns"
 import {
@@ -120,14 +120,14 @@ function SortTh({ field, label, current, dir, onSort, className }: {
   )
 }
 
-function JobMobileCard({
+const JobMobileCard = memo(function JobMobileCard({
   job,
-  holdClientIds,
+  isOnHold,
   onOpen,
   onStatusChange,
 }: {
   job: Job
-  holdClientIds: Set<string>
+  isOnHold: boolean
   onOpen: () => void
   onStatusChange: (status: string) => void
 }) {
@@ -163,7 +163,7 @@ function JobMobileCard({
           <p className="text-sm font-medium text-t1 mt-1 line-clamp-2">{job.address}</p>
           <p className="text-xs text-t3 mt-0.5 truncate">{job.clientCompany}</p>
         </div>
-        {job.clientId && holdClientIds.has(job.clientId) && (
+        {isOnHold && (
           <AlertTriangle className="h-4 w-4 text-dn shrink-0" aria-label="Client on hold" />
         )}
       </div>
@@ -195,7 +195,200 @@ function JobMobileCard({
       )}
     </div>
   )
+})
+
+type JobWithRevision = Job & { canAddRevision?: boolean }
+
+interface JobTableRowProps {
+  job:                  JobWithRevision
+  isOnHold:             boolean
+  designers:            string[]
+  isAdmin:              boolean
+  creatingRevisionFor:  string | null
+  onPatchField:         (job: JobWithRevision, field: "status" | "designer", value: string) => void
+  onEdit:               (job: JobWithRevision) => void
+  onDelete:             (job: JobWithRevision) => void
+  onAssign:             (job: JobWithRevision) => void
+  onQuickRevision:      (job: JobWithRevision) => void
+  onNavigate:           (path: string) => void
 }
+
+// Memoized desktop table row. Re-renders only when the job data itself changes
+// (e.g. after an inline status/designer edit), not when parent state like
+// search filters or page number changes.
+const JobTableRow = memo(
+  function JobTableRow({
+    job, isOnHold, designers, isAdmin, creatingRevisionFor,
+    onPatchField, onEdit, onDelete, onAssign, onQuickRevision, onNavigate,
+  }: JobTableRowProps) {
+    const dl = getJobDeadlineInfo(job)
+    const showDeadlineFlag = dl.severity === "overdue" || dl.severity === "today" || dl.severity === "soon"
+
+    return (
+      <tr
+        onClick={() => onNavigate(`/jobs/${job.id}`)}
+        className={cn(
+          "border-b border-bd last:border-0 cursor-pointer group",
+          JOB_ROW_BG[job.status] ?? "",
+          JOB_ROW_BORDER[job.status] ?? "",
+          "hover:brightness-[0.98]",
+        )}
+      >
+        <td className="px-4 py-3.5 whitespace-nowrap">
+          <span className="flex items-center gap-1.5">
+            {job.revisionLetter && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-ac-bg text-ach shrink-0">
+                Rev {job.revisionLetter}
+              </span>
+            )}
+            <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
+            {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
+              <WorkItemTypeBadge itemType={job.itemType} size="sm" />
+            )}
+          </span>
+        </td>
+
+        <td className="px-4 py-3.5 max-w-[220px]">
+          <p className="text-sm font-medium text-t1 truncate" title={job.address}>{job.address}</p>
+        </td>
+
+        <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
+          <TypeOfWorksBadge typeOfWorks={job.typeOfWorks} customTypeDescription={job.customTypeDescription} size="sm" />
+        </td>
+
+        <td className={cn("px-4 py-3.5 max-w-[170px]", COL_CLIENT)}>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {isOnHold && (
+              <span title="Client on hold"><AlertTriangle className="h-3 w-3 text-dn shrink-0" /></span>
+            )}
+            <p className="text-xs font-medium text-t1 truncate">{job.clientCompany}</p>
+            {isOnHold && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx whitespace-nowrap">
+                On Hold
+              </span>
+            )}
+          </div>
+        </td>
+
+        <td className={cn("px-4 py-3.5 max-w-[150px]", COL_REQUESTED_BY)}>
+          <p className="text-xs text-t3 truncate flex items-center gap-1.5">
+            <UserCircle2 className="h-3 w-3 text-t4 shrink-0" />
+            {job.requestedBy || <span className="italic text-t4">—</span>}
+          </p>
+        </td>
+
+        <td className={cn("px-4 py-3.5 whitespace-nowrap text-right", COL_QUOTATION)}>
+          <p className="text-xs tabular-nums font-medium text-t2">
+            {totalJobCommercialValue(job) != null
+              ? formatGBP(totalJobCommercialValue(job))
+              : job.quoteValue != null
+                ? formatGBP(job.quoteValue)
+                : <span className="text-t4">—</span>}
+          </p>
+          {(job.variationFees != null || job.additionalCharges != null) && job.quoteValue != null && (
+            <p className="text-[10px] text-t4 tabular-nums">incl. extras</p>
+          )}
+          {job.quoteReference && (
+            <p className="text-[10px] font-mono text-t4 tabular-nums">{job.quoteReference}</p>
+          )}
+        </td>
+
+        <td className="px-4 py-3.5 whitespace-nowrap min-w-[148px]" onClick={e => e.stopPropagation()}>
+          <InlineStatusSelect
+            status={job.status}
+            onChange={value => onPatchField(job, "status", value)}
+            size="lg"
+          />
+          {showDeadlineFlag && (
+            <p className={cn(
+              "mt-1 inline-flex items-center gap-1 text-[10px] font-medium",
+              dl.severity === "overdue" ? "text-dn-tx" : "text-wn-tx",
+            )}>
+              {dl.severity === "overdue" && <Clock className="h-2.5 w-2.5 shrink-0" />}
+              {dl.label}
+            </p>
+          )}
+        </td>
+
+        <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_DESIGNER)} onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-1.5">
+            <PenTool className="h-3 w-3 text-t4 shrink-0" />
+            <InlineDesignerSelect
+              designer={job.designer}
+              designers={designers}
+              onChange={value => onPatchField(job, "designer", value)}
+              onRequestNew={() => onAssign(job)}
+            />
+          </div>
+        </td>
+
+        <td className="px-3 py-3.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-1.5">
+            {job.canAddRevision && (
+              <Button
+                variant="outline"
+                size="sm"
+                loading={creatingRevisionFor === job.id}
+                onClick={() => onQuickRevision(job)}
+                title="Create the next revision in this chain"
+                className="shrink-0"
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+                Add revision
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    "h-7 w-7 rounded flex items-center justify-center text-t4 hover:text-t2 hover:bg-pg",
+                    "invisible group-hover:visible data-[state=open]:visible data-[state=open]:bg-pg data-[state=open]:text-t2",
+                  )}
+                  title="Quick actions"
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => onEdit(job)}>
+                  <Pencil className="h-3.5 w-3.5 text-t4" /> Edit job
+                </DropdownMenuItem>
+                {job.clientId && (
+                  <DropdownMenuItem onSelect={() => onNavigate(`/clients/${job.clientId}`)}>
+                    <Building2 className="h-3.5 w-3.5 text-t4" /> View client
+                  </DropdownMenuItem>
+                )}
+                {job.quoteReference && (
+                  <DropdownMenuItem onSelect={() => onNavigate(`/quotes?search=${encodeURIComponent(job.quoteReference!)}`)}>
+                    <FileText className="h-3.5 w-3.5 text-t4" /> Open quote
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem danger onSelect={() => onDelete(job)}>
+                      <Trash2 className="h-3.5 w-3.5" /> Delete job
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </td>
+      </tr>
+    )
+  },
+  // Custom comparator: skip re-render unless the job data or display-critical
+  // props change. Callbacks are intentionally excluded — they can be stale
+  // without causing data corruption because patchJobField uses functional state
+  // updates and refresh is idempotent.
+  (prev, next) =>
+    prev.job === next.job &&
+    prev.isOnHold === next.isOnHold &&
+    prev.creatingRevisionFor === next.creatingRevisionFor &&
+    prev.designers === next.designers &&
+    prev.isAdmin === next.isAdmin,
+)
 
 function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
@@ -413,7 +606,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   }
 
   // Patches a single field on a job and updates the row in place — no full refetch, no modal.
-  const patchJobField = async (job: Job, field: "status" | "designer", value: string) => {
+  const patchJobField = useCallback(async (job: Job, field: "status" | "designer", value: string) => {
     setData(prev => prev ? { ...prev, jobs: prev.jobs.map(j => j.id === job.id ? { ...j, [field]: value } : j) } : prev)
     try {
       const res = await fetch(`/api/jobs/${job.id}`, {
@@ -434,10 +627,11 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       toast("Network error", "error")
       refresh()
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userName])
 
   // One-click revision — no modal, no fields. Letter is auto-assigned server-side.
-  const handleQuickRevision = async (job: Job) => {
+  const handleQuickRevision = useCallback(async (job: Job) => {
     setCreatingRevisionFor(job.id)
     try {
       const res = await fetch(`/api/jobs/${job.id}/revisions`, {
@@ -454,7 +648,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       refresh()
     } catch { toast("Network error", "error") }
     finally { setCreatingRevisionFor(null) }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userName])
 
   const handleExport = async () => {
     const qs = new URLSearchParams({
@@ -725,7 +920,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
             <JobMobileCard
               key={job.id}
               job={job}
-              holdClientIds={holdClientIds}
+              isOnHold={!!(job.clientId && holdClientIds.has(job.clientId))}
               onOpen={() => router.push(`/jobs/${job.id}`)}
               onStatusChange={value => patchJobField(job, "status", value)}
             />
@@ -760,181 +955,22 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               {loading ? <SkeletonRows /> :
                !data || data.jobs.length === 0 ? (
                 <EmptyState hasFilters={hasFilters || isCheckingQueue} onCreate={() => setCreateOpen(true)} onClear={clearAllFilters} />
-               ) : data.jobs.map(job => {
-                const dl = getJobDeadlineInfo(job)
-                const showDeadlineFlag = dl.severity === "overdue" || dl.severity === "today" || dl.severity === "soon"
-                return (
-                <tr
+               ) : data.jobs.map(job => (
+                <JobTableRow
                   key={job.id}
-                  onClick={() => router.push(`/jobs/${job.id}`)}
-                  className={cn(
-                    "border-b border-bd last:border-0 cursor-pointer group",
-                    JOB_ROW_BG[job.status] ?? "",
-                    JOB_ROW_BORDER[job.status] ?? "",
-                    "hover:brightness-[0.98]",
-                  )}
-                >
-                  {/* Drawing No. — most prominent column; carries the revision marker and a
-                      compact item-type indicator (Site Visit/Survey/Inspection/Revision) so
-                      that information isn't lost now it's no longer its own column. Nothing
-                      shown for plain Design jobs, the common case, to keep the cell quiet. */}
-                  <td className="px-4 py-3.5 whitespace-nowrap">
-                    <span className="flex items-center gap-1.5">
-                      {job.revisionLetter && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-ac-bg text-ach shrink-0">
-                          Rev {job.revisionLetter}
-                        </span>
-                      )}
-                      <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
-                      {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
-                        <WorkItemTypeBadge itemType={job.itemType} size="sm" />
-                      )}
-                    </span>
-                  </td>
-
-                  {/* Address — truncated with a native title tooltip for the full text */}
-                  <td className="px-4 py-3.5 max-w-[220px]">
-                    <p className="text-sm font-medium text-t1 truncate" title={job.address}>{job.address}</p>
-                  </td>
-
-                  {/* Type of Works — controlled-list badge */}
-                  <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
-                    <TypeOfWorksBadge typeOfWorks={job.typeOfWorks} customTypeDescription={job.customTypeDescription} size="sm" />
-                  </td>
-
-                  {/* Client — hold warning folded in here rather than a separate column */}
-                  <td className={cn("px-4 py-3.5 max-w-[170px]", COL_CLIENT)}>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {job.clientId && holdClientIds.has(job.clientId) && (
-                        <span title="Client on hold"><AlertTriangle className="h-3 w-3 text-dn shrink-0" /></span>
-                      )}
-                      <p className="text-xs font-medium text-t1 truncate">{job.clientCompany}</p>
-                      {job.clientId && holdClientIds.has(job.clientId) && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx whitespace-nowrap">
-                          On Hold
-                        </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Requested By — who asked for the work; static text (not editable inline),
-                      visually distinct from Designer below via a muted "who asked" person icon
-                      so the two roles can't be confused at a glance. */}
-                  <td className={cn("px-4 py-3.5 max-w-[150px]", COL_REQUESTED_BY)}>
-                    <p className="text-xs text-t3 truncate flex items-center gap-1.5">
-                      <UserCircle2 className="h-3 w-3 text-t4 shrink-0" />
-                      {job.requestedBy || <span className="italic text-t4">—</span>}
-                    </p>
-                  </td>
-
-                  {/* Quotation — value (existing behaviour) plus reference, stacked */}
-                  <td className={cn("px-4 py-3.5 whitespace-nowrap text-right", COL_QUOTATION)}>
-                    <p className="text-xs tabular-nums font-medium text-t2">
-                      {totalJobCommercialValue(job) != null
-                        ? formatGBP(totalJobCommercialValue(job))
-                        : job.quoteValue != null
-                          ? formatGBP(job.quoteValue)
-                          : <span className="text-t4">—</span>}
-                    </p>
-                    {(job.variationFees != null || job.additionalCharges != null) && job.quoteValue != null && (
-                      <p className="text-[10px] text-t4 tabular-nums">incl. extras</p>
-                    )}
-                    {job.quoteReference && (
-                      <p className="text-[10px] font-mono text-t4 tabular-nums">{job.quoteReference}</p>
-                    )}
-                  </td>
-
-                  {/* Completion Status — the visually dominant column. A deadline flag is
-                      folded in directly underneath, only when overdue/due today/due soon —
-                      this is the one place deadline urgency still surfaces in the table now
-                      that Created/Deadline are no longer separate columns. */}
-                  <td className="px-4 py-3.5 whitespace-nowrap min-w-[148px]" onClick={e => e.stopPropagation()}>
-                    <InlineStatusSelect
-                      status={job.status}
-                      onChange={value => patchJobField(job, "status", value)}
-                      size="lg"
-                    />
-                    {showDeadlineFlag && (
-                      <p className={cn(
-                        "mt-1 inline-flex items-center gap-1 text-[10px] font-medium",
-                        dl.severity === "overdue" ? "text-dn-tx" : "text-wn-tx",
-                      )}>
-                        {dl.severity === "overdue" && <Clock className="h-2.5 w-2.5 shrink-0" />}
-                        {dl.label}
-                      </p>
-                    )}
-                  </td>
-
-                  {/* Designer — who completed/is responsible for the design; the inline select
-                      keeps a distinct "PenTool" icon so it reads as the "who did the work" role,
-                      contrasting with Requested By's UserCircle2 "who asked" icon above. */}
-                  <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_DESIGNER)} onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-1.5">
-                      <PenTool className="h-3 w-3 text-t4 shrink-0" />
-                      <InlineDesignerSelect
-                        designer={job.designer}
-                        designers={designers}
-                        onChange={value => patchJobField(job, "designer", value)}
-                        onRequestNew={() => setAssignJob(job)}
-                      />
-                    </div>
-                  </td>
-
-                  <td className="px-3 py-3.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-1.5">
-                      {job.canAddRevision && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          loading={creatingRevisionFor === job.id}
-                          onClick={() => handleQuickRevision(job)}
-                          title="Create the next revision in this chain"
-                          className="shrink-0"
-                        >
-                          <GitBranch className="h-3.5 w-3.5" />
-                          Add revision
-                        </Button>
-                      )}
-                      <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          className={cn(
-                            "h-7 w-7 rounded flex items-center justify-center text-t4 hover:text-t2 hover:bg-pg",
-                            "invisible group-hover:visible data-[state=open]:visible data-[state=open]:bg-pg data-[state=open]:text-t2",
-                          )}
-                          title="Quick actions"
-                        >
-                          <MoreHorizontal className="h-3.5 w-3.5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setEditJob(job)}>
-                          <Pencil className="h-3.5 w-3.5 text-t4" /> Edit job
-                        </DropdownMenuItem>
-                        {job.clientId && (
-                          <DropdownMenuItem onSelect={() => router.push(`/clients/${job.clientId}`)}>
-                            <Building2 className="h-3.5 w-3.5 text-t4" /> View client
-                          </DropdownMenuItem>
-                        )}
-                        {job.quoteReference && (
-                          <DropdownMenuItem onSelect={() => router.push(`/quotes?search=${encodeURIComponent(job.quoteReference!)}`)}>
-                            <FileText className="h-3.5 w-3.5 text-t4" /> Open quote
-                          </DropdownMenuItem>
-                        )}
-                        {isAdmin && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem danger onSelect={() => setDeleteJob(job)}>
-                              <Trash2 className="h-3.5 w-3.5" /> Delete job
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </td>
-                </tr>
-              )})}
+                  job={job}
+                  isOnHold={!!(job.clientId && holdClientIds.has(job.clientId))}
+                  designers={designers}
+                  isAdmin={isAdmin}
+                  creatingRevisionFor={creatingRevisionFor}
+                  onPatchField={patchJobField}
+                  onEdit={setEditJob}
+                  onDelete={setDeleteJob}
+                  onAssign={setAssignJob}
+                  onQuickRevision={handleQuickRevision}
+                  onNavigate={router.push}
+                />
+              ))}
             </tbody>
           </table>
         </div>

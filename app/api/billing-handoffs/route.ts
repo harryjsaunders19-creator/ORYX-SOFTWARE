@@ -21,8 +21,10 @@ export async function GET(req: NextRequest) {
     const cleared = view === "cleared" ? true : view === "awaiting" ? false : undefined
     const limit  = sp.get("limit") ? Math.min(parseInt(sp.get("limit")!), 200) : undefined
 
-    const handoffs = await billingHandoffService.findMany({ cleared, take: limit })
-    const stats    = await billingHandoffService.stats()
+    const [handoffs, stats] = await Promise.all([
+      billingHandoffService.findMany({ cleared, take: limit }),
+      billingHandoffService.stats(),
+    ])
     return NextResponse.json({ handoffs, ...stats })
   } catch (err) {
     console.error("[GET /api/billing-handoffs]", err)
