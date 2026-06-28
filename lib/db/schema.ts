@@ -850,8 +850,11 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
   const now = nowIso()
 
   const accounts = [
-    { email: "admin@test.com",    name: "Admin",    role: "ADMIN",    password: "admin123" },
-    { email: "engineer@test.com", name: "Engineer", role: "ENGINEER", password: "engineer123" },
+    // Fixed IDs ensure cross-container session continuity on stateless hosts (e.g. Vercel).
+    // Every fresh container creates the same user with the same ID, so session cookies
+    // remain valid regardless of which container handles the request.
+    { id: "bootstrap-admin-00000001",    email: "admin@test.com",    name: "Admin",    role: "ADMIN",    password: "admin123" },
+    { id: "bootstrap-engineer-00000001", email: "engineer@test.com", name: "Engineer", role: "ENGINEER", password: "engineer123" },
   ]
 
   for (const acct of accounts) {
@@ -860,7 +863,7 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
       db.prepare(`
         INSERT INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
         VALUES (?,?,?,?,?,1,?,0,?,?)
-      `).run(nanoid(), acct.name, acct.email, acct.email, acct.role, hashPassword(acct.password), now, now)
+      `).run(acct.id, acct.name, acct.email, acct.email, acct.role, hashPassword(acct.password), now, now)
       console.log(`[bootstrapAccounts] Created ${acct.email} (password: ${acct.password})`)
     } else if (!existing.passwordHash) {
       db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?")
