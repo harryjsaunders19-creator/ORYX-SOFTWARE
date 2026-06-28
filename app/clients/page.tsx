@@ -3,7 +3,7 @@ import { Suspense, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { format } from "date-fns"
-import { Plus, RotateCcw, Building2, ChevronRight, Trash2, Upload } from "lucide-react"
+import { Plus, RotateCcw, Building2, ChevronRight, Archive, Upload } from "lucide-react"
 import { useUser } from "@/components/user-context"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
@@ -94,8 +94,8 @@ function ClientsInner() {
   const [editClient, setEditClient] = useState<Client | null>(null)
   const [saving,     setSaving]     = useState(false)
   const [dupError,   setDupError]   = useState<{ msg: string; existing: Client } | null>(null)
-  const [deleteClient, setDeleteClient] = useState<ClientWithMeta | null>(null)
-  const [deleting,     setDeleting]     = useState(false)
+  const [archiveClient, setArchiveClient] = useState<ClientWithMeta | null>(null)
+  const [archiving,     setArchiving]     = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -221,10 +221,18 @@ function ClientsInner() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
                         <Button variant="ghost" size="sm" onClick={() => { setEditClient(c); setDupError(null) }}>Edit</Button>
-                        {!c.active && (
+                        {!c.active ? (
                           <Button variant="ghost" size="icon-sm" onClick={() => doRestore(c)} title="Restore" className="text-t4 hover:text-ac"><RotateCcw className="h-3.5 w-3.5" /></Button>
+                        ) : (
+                          <Button
+                            variant="ghost" size="icon-sm"
+                            onClick={() => setArchiveClient(c)}
+                            title="Archive client"
+                            className="text-t4 hover:text-wn-tx hover:bg-wn-bg"
+                          >
+                            <Archive className="h-3.5 w-3.5" />
+                          </Button>
                         )}
-                        <Button variant="ghost" size="icon-sm" onClick={() => setDeleteClient(c)} title="Delete" className="text-t4 hover:text-dn"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </td>
                   )}
@@ -279,43 +287,46 @@ function ClientsInner() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
-      <Dialog open={!!deleteClient} onOpenChange={o => { if (!o && !deleting) setDeleteClient(null) }}>
+      {/* Archive confirmation */}
+      <Dialog open={!!archiveClient} onOpenChange={o => { if (!o && !archiving) setArchiveClient(null) }}>
         <DialogContent size="sm">
           <DialogHeader>
-            <DialogTitle>Delete client</DialogTitle>
+            <DialogTitle>Archive client?</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <p className="text-sm text-t2 mb-3">
-              Are you sure you want to delete <span className="font-semibold text-t1">{deleteClient?.name}</span>?
+            <p className="text-sm text-t2">
+              <span className="font-semibold text-t1">{archiveClient?.name}</span>
+              {" "}will be moved to the archive and hidden from the active client list.
             </p>
-            {deleteClient && deleteClient.activeJobCount > 0 && (
-              <div className="p-3 bg-wn-bg border border-wn-bd rounded-md text-xs text-wn-tx mb-3"
-                style={{ backgroundColor: "var(--color-wn-bg)", border: "1px solid var(--color-wn-bd)", borderRadius: "8px", padding: "12px" }}>
-                This client has {deleteClient.activeJobCount} active job{deleteClient.activeJobCount !== 1 ? "s" : ""}. The client will be archived rather than permanently deleted so job references are preserved.
+            {archiveClient && archiveClient.activeJobCount > 0 && (
+              <div className="mt-3 p-3 bg-wn-bg border border-wn-bd rounded-md text-xs text-wn-tx">
+                This client has {archiveClient.activeJobCount} active job{archiveClient.activeJobCount !== 1 ? "s" : ""}.
+                Job references will be preserved.
               </div>
             )}
-            <p className="text-xs text-t3">
-              {deleteClient && deleteClient.activeJobCount > 0
-                ? "The client will be marked as archived and hidden from the active list."
-                : "This action is permanent and cannot be undone."}
+            <p className="text-xs text-t3 mt-2">
+              You can restore the client from the{" "}
+              <span className="font-medium text-t2">Archived Items</span>{" "}page.
             </p>
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteClient(null)} disabled={deleting}>Cancel</Button>
-            <Button variant="danger" loading={deleting} disabled={deleting} onClick={async () => {
-              if (!deleteClient) return
-              setDeleting(true)
+            <Button variant="outline" onClick={() => setArchiveClient(null)} disabled={archiving}>Cancel</Button>
+            <Button variant="primary" loading={archiving} disabled={archiving} className="bg-wn hover:bg-wn/90" onClick={async () => {
+              if (!archiveClient) return
+              setArchiving(true)
               try {
-                const res = await fetch(`/api/clients/${deleteClient.id}`, { method: "DELETE" })
+                const res = await fetch(`/api/clients/${archiveClient.id}`, { method: "DELETE" })
                 const body = await res.json() as { archived?: boolean; deleted?: boolean; error?: string }
-                if (!res.ok) { toast(body.error ?? "Failed to delete client", "error"); return }
-                toast(body.archived ? `${deleteClient.name} archived` : `${deleteClient.name} deleted`, "success")
-                setDeleteClient(null); load()
+                if (!res.ok) { toast(body.error ?? "Failed to archive client", "error"); return }
+                toast(
+                  body.deleted ? `${archiveClient.name} removed` : `${archiveClient.name} archived`,
+                  "success",
+                )
+                setArchiveClient(null); load()
               } catch { toast("Network error", "error") }
-              finally { setDeleting(false) }
+              finally { setArchiving(false) }
             }}>
-              {deleting ? "Deleting…" : "Delete"}
+              <Archive className="h-3.5 w-3.5" /> Archive
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -485,10 +485,10 @@ function QuotesInner() {
     setClearing(true)
     try {
       const res = await fetch("/api/quotes/expired", { method: "DELETE" })
-      const body = await res.json() as { deleted?: number; error?: string }
-      if (!res.ok) { toast(body.error ?? "Failed to clear expired quotes", "error"); return }
-      const n = body.deleted ?? 0
-      toast(`Removed ${n} expired quote${n === 1 ? "" : "s"}`, "success")
+      const body = await res.json() as { archived?: number; error?: string }
+      if (!res.ok) { toast(body.error ?? "Failed to archive expired quotes", "error"); return }
+      const n = body.archived ?? 0
+      toast(`Archived ${n} expired quote${n === 1 ? "" : "s"}`, "success")
       setClearConfirmOpen(false)
       load()
     } catch { toast("Network error", "error") }

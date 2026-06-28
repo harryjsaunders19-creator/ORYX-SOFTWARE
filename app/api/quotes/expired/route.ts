@@ -9,7 +9,7 @@ export async function DELETE() {
 
     await quoteService.expirePastDue()
     const { archived } = await quoteService.clearExpired(auth.user.id, auth.user.name)
-    return NextResponse.json({ deleted: archived, archived })
+    return NextResponse.json({ archived })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
