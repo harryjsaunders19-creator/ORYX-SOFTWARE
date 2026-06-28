@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test:e2e:setup": "playwright install chromium",
     "test:e2e": "playwright test",
-    "postinstall": "playwright install chromium",
+    "postinstall": "node -e \"if(!process.env.CI && !process.env.VERCEL) require('child_process').execSync('playwright install chromium', {stdio:'inherit'})\"",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:seed:uat": "node -e \"require('fs').rmSync('.data/oryx.db',{force:true}); require('fs').rmSync('.data/oryx.db-shm',{force:true}); require('fs').rmSync('.data/oryx.db-wal',{force:true}); require('fs').rmSync('backups',{recursive:true,force:true})\" && npx tsx prisma/uat-seed.ts",
     "db:reset": "node -e \"require('fs').rmSync('.data/oryx.db',{force:true}); require('fs').rmSync('.data/oryx.db-shm',{force:true}); require('fs').rmSync('.data/oryx.db-wal',{force:true})\" && npx tsx prisma/seed.ts",
