@@ -1648,6 +1648,19 @@ export const holdDb = {
     `).run(data.removedBy, now, data.removedReason?.trim() ?? null, existing.id)
     return db.prepare("SELECT * FROM ClientHold WHERE id = ?").get(existing.id) as ClientHoldRow
   },
+
+  /** Insert a hold row from an external source (e.g. Supabase) without side-effects. */
+  rawInsertOrIgnore(hold: import("@/lib/db/hold-types").ClientHoldRow): void {
+    db.prepare(`
+      INSERT OR IGNORE INTO ClientHold
+        (id,clientId,status,reason,notes,addedBy,addedAt,removedBy,removedAt,removedReason)
+      VALUES (?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      hold.id, hold.clientId, hold.status, hold.reason,
+      hold.notes ?? null, hold.addedBy, hold.addedAt,
+      hold.removedBy ?? null, hold.removedAt ?? null, hold.removedReason ?? null,
+    )
+  },
 }
 
 
