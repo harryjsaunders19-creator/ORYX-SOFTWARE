@@ -7,6 +7,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { userService } from "@/lib/services/user-service"
+import { supabaseUserRepo } from "@/lib/supabase/repositories/users"
+import { useSupabaseUsers } from "@/lib/supabase/feature-flags"
 import { verifyPassword } from "@/lib/password"
 import { checkLoginRateLimit } from "@/lib/login-rate-limit"
 import { setSessionCookies } from "@/lib/auth-cookies"
@@ -43,6 +45,22 @@ export async function POST(req: NextRequest) {
 
     if (!verifyPassword(password, user.passwordHash)) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
+    }
+
+    // When Supabase is the primary user store, ensure this user exists there
+    // before issuing a session cookie. On Vercel every request may land on a
+    // fresh serverless container with an empty /tmp SQLite, so the session
+    // must be resolvable via Supabase on subsequent requests.
+    if (useSupabaseUsers()) {
+      try {
+        await supabaseUserRepo.upsert(user)
+      } catch (err) {
+        console.error("[login] Failed to sync user to Supabase — session would not survive across serverless containers:", err)
+        return NextResponse.json(
+          { error: "Database sync error. Check SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL environment variables, and ensure migration 008_users.sql has been run in Supabase." },
+          { status: 503 },
+        )
+      }
     }
 
     await identitySwitchLogService.log({
