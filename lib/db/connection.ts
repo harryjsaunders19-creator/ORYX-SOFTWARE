@@ -5,9 +5,15 @@ import Database from "better-sqlite3"
 import path from "path"
 import fs from "fs"
 
+// On Vercel the project root (/var/task) is read-only; /tmp is the only
+// writable location. Default there automatically so DB_PATH env var is
+// optional — but an explicit DB_PATH always takes precedence.
+const _defaultDbDir = process.env.VERCEL
+  ? "/tmp"
+  : path.join(/* turbopackIgnore: true */ process.cwd(), ".data")
 const DB_DIR  = process.env.DB_PATH
   ? path.dirname(process.env.DB_PATH)
-  : path.join(/* turbopackIgnore: true */ process.cwd(), ".data")
+  : _defaultDbDir
 const DB_PATH = process.env.DB_PATH ?? path.join(DB_DIR, "oryx.db")
 const DB_EXISTED = fs.existsSync(DB_PATH)
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
