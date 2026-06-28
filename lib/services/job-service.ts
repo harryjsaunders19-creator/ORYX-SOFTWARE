@@ -60,6 +60,26 @@ async function ensureJobInSqlite(id: string): Promise<boolean> {
 export { ensureJobInSqlite as ensureJobInSqliteForBilling }
 
 export const jobService = {
+  /**
+   * Returns a page of jobs + total in ONE Supabase request.
+   * When sorting by drawing number (default) also returns `allForRevisions`
+   * so the caller can compute canAddRevision without a second round trip.
+   */
+  async findManyWithCount(opts: FindManyOptions = {}): Promise<{
+    jobs: JobRow[]
+    total: number
+    allForRevisions?: JobRow[]
+  }> {
+    if (!useSupabaseJobs()) {
+      const [jobs, total] = await Promise.all([
+        jobDb.findMany(opts),
+        jobDb.count(opts.where ?? {}),
+      ])
+      return { jobs, total }
+    }
+    return supabaseJobRepo.findManyWithCount(opts)
+  },
+
   async findMany(opts: FindManyOptions = {}): Promise<JobRow[]> {
     if (!useSupabaseJobs()) return jobDb.findMany(opts)
     return supabaseJobRepo.findMany(opts)

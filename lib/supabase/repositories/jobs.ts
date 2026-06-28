@@ -82,32 +82,51 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
 }
 
 export const supabaseJobRepo = {
-  async findMany(opts: FindManyOptions = {}): Promise<JobRow[]> {
+  /**
+   * Returns a page of jobs AND the total count in a single Supabase request
+   * (using `count: "exact"`). For the default drawing-number sort it also
+   * returns `allForRevisions` — the full unsorted set — so callers can
+   * compute canAddRevision in-memory without a second round trip.
+   */
+  async findManyWithCount(opts: FindManyOptions = {}): Promise<{
+    jobs: JobRow[]
+    total: number
+    allForRevisions?: JobRow[]
+  }> {
     const field = opts.orderBy?.field ?? "drawingNumber"
-    const dir = opts.orderBy?.dir ?? "asc"
+    const dir   = opts.orderBy?.dir   ?? "asc"
 
     if (isDrawingNumberListSort(field)) {
-      const { data, error } = await applyWhere(table().select("*"), opts.where)
+      // Must fetch all rows for correct drawing-number sort (revision grouping).
+      // The single `count: "exact"` call avoids a separate COUNT round trip.
+      const { data, count, error } = await applyWhere(
+        table().select("*", { count: "exact" }),
+        opts.where,
+      )
       if (error) throw error
-      const rows: JobRow[] = (data ?? []).map(toJobRow)
-      const sorted = sortJobsForList<JobRow>(rows, dir)
+      const allRows: JobRow[] = (data ?? []).map(toJobRow)
+      const sorted = sortJobsForList<JobRow>(allRows, dir)
       const skip = opts.skip ?? 0
-      if (opts.take != null) return sorted.slice(skip, skip + opts.take)
-      if (skip) return sorted.slice(skip)
-      return sorted
+      const jobs = opts.take != null ? sorted.slice(skip, skip + opts.take) : sorted.slice(skip)
+      return { jobs, total: count ?? allRows.length, allForRevisions: allRows }
     }
 
     const col = sortColumn(field)
     const asc = dir === "asc"
-    let q = applyWhere(table().select("*"), opts.where).order(col, { ascending: asc })
+    let q = applyWhere(table().select("*", { count: "exact" }), opts.where).order(col, { ascending: asc })
     if (opts.skip != null && opts.take != null) {
       q = q.range(opts.skip, opts.skip + opts.take - 1)
     } else if (opts.take != null) {
       q = q.limit(opts.take)
     }
-    const { data, error } = await q
+    const { data, count, error } = await q
     if (error) throw error
-    return (data ?? []).map(toJobRow)
+    return { jobs: (data ?? []).map(toJobRow), total: count ?? 0 }
+  },
+
+  async findMany(opts: FindManyOptions = {}): Promise<JobRow[]> {
+    const { jobs } = await this.findManyWithCount(opts)
+    return jobs
   },
 
   async count(where: WhereClause = {}): Promise<number> {

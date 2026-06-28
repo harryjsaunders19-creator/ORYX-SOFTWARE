@@ -12,18 +12,21 @@ import { applyOptionalMoneyField } from "@/lib/api-money"
 import {
   buildLatestRevisionMap,
   canAddRevisionFrom,
-  collectRevisionParentIds,
 } from "@/lib/revision-chain"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 
-async function attachRevisionFlags<T extends { id: string; parentJobId: string | null }>(jobs: T[]) {
-  const parentIds = collectRevisionParentIds(jobs)
-  const latest = await jobService.findLatestRevisionsForParents(parentIds)
-  const latestMap = buildLatestRevisionMap(latest)
-  return jobs.map(job => ({
-    ...job,
-    canAddRevision: canAddRevisionFrom(job, latestMap),
-  }))
+/**
+ * Compute canAddRevision without an extra DB round trip.
+ * `allJobs` is the full unsliced list (available when fetching all for sort);
+ * falls back to the page slice which is safe when revisions are rare.
+ */
+function flagRevisions<T extends { id: string; parentJobId: string | null }>(
+  pageJobs: T[],
+  allJobs?: T[],
+): (T & { canAddRevision: boolean })[] {
+  const source = allJobs ?? pageJobs
+  const latestMap = buildLatestRevisionMap(source.filter(j => j.parentJobId !== null))
+  return pageJobs.map(job => ({ ...job, canAddRevision: canAddRevisionFrom(job, latestMap) }))
 }
 
 // Reference-number prefixes for non-drawing item types — sourced from WORK_ITEM_TYPES
@@ -67,17 +70,21 @@ export async function GET(req: NextRequest) {
     }
 
     if (exportAll) {
-      const jobs = await attachRevisionFlags(
-        await jobService.findMany({ where, orderBy: { field: sortBy, dir: sortDir } }),
-      )
+      const { jobs: rawJobs, allForRevisions } = await jobService.findManyWithCount({
+        where,
+        orderBy: { field: sortBy, dir: sortDir },
+      })
+      const jobs = flagRevisions(rawJobs, allForRevisions)
       return listResponse({ jobs, total: jobs.length })
     }
 
-    const [rawJobs, total] = await Promise.all([
-      jobService.findMany({ where, orderBy: { field: sortBy, dir: sortDir }, skip: (page - 1) * limit, take: limit }),
-      jobService.count(where),
-    ])
-    const jobs = await attachRevisionFlags(rawJobs)
+    const { jobs: rawJobs, total, allForRevisions } = await jobService.findManyWithCount({
+      where,
+      orderBy: { field: sortBy, dir: sortDir },
+      skip: (page - 1) * limit,
+      take: limit,
+    })
+    const jobs = flagRevisions(rawJobs, allForRevisions)
     return listResponse({ jobs, total, page, limit })
   } catch (err) {
     console.error("[GET /api/jobs]", err)
