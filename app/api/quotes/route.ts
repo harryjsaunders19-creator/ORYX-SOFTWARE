@@ -3,6 +3,7 @@ import { quoteService } from "@/lib/services/quote-service"
 import { clientService } from "@/lib/services/client-service"
 import { requireSignIn } from "@/lib/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "@/lib/quote-works"
+import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
 
@@ -45,6 +46,8 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
+
+    await ensureSequencesSeeded()
 
     let body: Record<string, unknown>
     try { body = await req.json() }

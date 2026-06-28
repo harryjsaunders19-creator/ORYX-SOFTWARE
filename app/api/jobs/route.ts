@@ -13,6 +13,7 @@ import {
   canAddRevisionFrom,
   collectRevisionParentIds,
 } from "@/lib/revision-chain"
+import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 
 async function attachRevisionFlags<T extends { id: string; parentJobId: string | null }>(jobs: T[]) {
   const parentIds = collectRevisionParentIds(jobs)
@@ -142,6 +143,10 @@ export async function POST(req: NextRequest) {
       const err = applyOptionalMoneyField(body, field, commercial)
       if (err) return err
     }
+
+    // Seed sequence counters from Supabase once per container so we never
+    // generate a drawing number that already exists in Supabase.
+    await ensureSequencesSeeded()
 
     // Generate reference number based on item type
     let drawingNumber: string

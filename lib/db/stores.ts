@@ -722,6 +722,26 @@ export const sequenceDb = {
     return row?.sequence ?? 0
   },
 
+  /** Seed (or bump up) the drawing sequence for a year-month from an external source (e.g. Supabase). */
+  seedSequence(yearMonth: string, value: number): void {
+    const existing = db.prepare("SELECT sequence FROM DrawingSequence WHERE yearMonth = ?").get(yearMonth) as { sequence: number } | undefined
+    if (!existing) {
+      db.prepare("INSERT INTO DrawingSequence (id,yearMonth,sequence) VALUES (?,?,?)").run(nanoid(), yearMonth, value)
+    } else if (existing.sequence < value) {
+      db.prepare("UPDATE DrawingSequence SET sequence = ? WHERE yearMonth = ?").run(value, yearMonth)
+    }
+  },
+
+  /** Seed (or bump up) the ref sequence for a prefix/year from an external source (e.g. Supabase). */
+  seedRefSequence(prefix: string, year: number, value: number): void {
+    const existing = db.prepare("SELECT seq FROM RefSequence WHERE prefix = ? AND year = ?").get(prefix, year) as { seq: number } | undefined
+    if (!existing) {
+      db.prepare("INSERT INTO RefSequence (id,prefix,year,seq) VALUES (?,?,?,?)").run(nanoid(), prefix, year, value)
+    } else if (existing.seq < value) {
+      db.prepare("UPDATE RefSequence SET seq = ? WHERE prefix = ? AND year = ?").run(value, prefix, year)
+    }
+  },
+
   /**
    * Scans every Job.drawingNumber in the database, extracts the YYMM key
    * and sequence number from each, and ensures the DrawingSequence counter

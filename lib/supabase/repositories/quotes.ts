@@ -178,4 +178,24 @@ export const supabaseQuoteRepo = {
       conversionRate: decided > 0 ? accepted / decided : 0,
     }
   },
+
+  /** Returns the highest quote/batch sequence per prefix+year (e.g. Q/2026 → 12). */
+  async maxQuoteRefSequences(): Promise<{ prefix: string; year: number; maxSeq: number }[]> {
+    const { data, error } = await quotesTable().select("quote_number")
+    if (error) return []
+    const maxByKey = new Map<string, number>()
+    for (const row of (data ?? [])) {
+      const match = (row.quote_number as string | null)?.match(/^([A-Z]+)-(\d{4})-(\d+)$/)
+      if (!match) continue
+      const [, prefix, yearStr, nnn] = match
+      const mapKey = `${prefix}||${yearStr}`
+      const seq = parseInt(nnn, 10)
+      const prev = maxByKey.get(mapKey) ?? 0
+      if (seq > prev) maxByKey.set(mapKey, seq)
+    }
+    return Array.from(maxByKey.entries()).map(([mapKey, maxSeq]) => {
+      const [prefix, yearStr] = mapKey.split("||")
+      return { prefix, year: parseInt(yearStr, 10), maxSeq }
+    })
+  },
 }

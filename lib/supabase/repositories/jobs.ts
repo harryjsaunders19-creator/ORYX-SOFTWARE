@@ -252,4 +252,41 @@ export const supabaseJobRepo = {
   async totalIssuedValue(): Promise<number> {
     return this.sumQuoteValue({ status: "ISSUED" })
   },
+
+  /** Returns the highest drawing sequence per year-month key (e.g. "2606" → 14). */
+  async maxDrawingSequences(): Promise<{ yearMonth: string; maxSeq: number }[]> {
+    const { data, error } = await table().select("drawing_number").like("drawing_number", "%/ORYX/%")
+    if (error) return []
+    const maxByKey = new Map<string, number>()
+    for (const row of (data ?? [])) {
+      const match = (row.drawing_number as string).match(/^(\d{2})\/ORYX\/(\d{2})\/(\d+)/)
+      if (!match) continue
+      const [, yy, mm, nnn] = match
+      const key = `${yy}${mm}`
+      const seq = parseInt(nnn, 10)
+      const prev = maxByKey.get(key) ?? 0
+      if (seq > prev) maxByKey.set(key, seq)
+    }
+    return Array.from(maxByKey.entries()).map(([yearMonth, maxSeq]) => ({ yearMonth, maxSeq }))
+  },
+
+  /** Returns the highest ref sequence per prefix+year (e.g. SV/2026 → 5). */
+  async maxRefSequences(): Promise<{ prefix: string; year: number; maxSeq: number }[]> {
+    const { data, error } = await table().select("drawing_number").not("drawing_number", "like", "%/ORYX/%")
+    if (error) return []
+    const maxByKey = new Map<string, number>()
+    for (const row of (data ?? [])) {
+      const match = (row.drawing_number as string | null)?.match(/^([A-Z]+)-(\d{4})-(\d+)$/)
+      if (!match) continue
+      const [, prefix, yearStr, nnn] = match
+      const mapKey = `${prefix}||${yearStr}`
+      const seq = parseInt(nnn, 10)
+      const prev = maxByKey.get(mapKey) ?? 0
+      if (seq > prev) maxByKey.set(mapKey, seq)
+    }
+    return Array.from(maxByKey.entries()).map(([mapKey, maxSeq]) => {
+      const [prefix, yearStr] = mapKey.split("||")
+      return { prefix, year: parseInt(yearStr, 10), maxSeq }
+    })
+  },
 }
