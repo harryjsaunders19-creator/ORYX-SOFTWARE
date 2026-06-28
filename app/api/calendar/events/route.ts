@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { listResponse } from "@/lib/api-cache"
 import { requireSignIn } from "@/lib/auth"
 import { calendarService } from "@/lib/services/calendar-service"
 import { userService } from "@/lib/services/user-service"
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
       clientId:   sp.get("clientId")   ?? undefined,
     })
 
-    return NextResponse.json({ events })
+    return listResponse({ events })
   } catch (err) {
     console.error("[GET /api/calendar/events]", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

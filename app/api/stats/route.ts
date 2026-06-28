@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { listResponse } from "@/lib/api-cache"
 import { statsService } from "@/lib/services/stats-service"
 import { requireSignIn } from "@/lib/auth"
 import { canViewCommercialValues } from "@/lib/permissions"
@@ -20,7 +21,7 @@ export async function GET() {
     const count = (status: string) => byStatus.find(s => s.status === status)?.count ?? 0
     const total = byStatus.reduce((a, b) => a + b.count, 0)
 
-    return NextResponse.json({
+    return listResponse({
       total, totalActiveJobs, totalRevisions,
       newRequest: count("NEW_REQUEST"),
       inDesign:   count("IN_DESIGN"),

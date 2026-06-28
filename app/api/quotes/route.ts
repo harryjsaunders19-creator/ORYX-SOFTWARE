@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { listResponse } from "@/lib/api-cache"
 import { quoteService } from "@/lib/services/quote-service"
 import { clientService } from "@/lib/services/client-service"
 import { requireSignIn } from "@/lib/auth"
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
       quoteService.countExpiringSoon(),
       Promise.resolve(quoteService.countExpiredDeletable()),
     ])
-    return NextResponse.json({ quotes, total, page, limit, expiringSoonCount, expiredClearableCount })
+    return listResponse({ quotes, total, page, limit, expiringSoonCount, expiredClearableCount })
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

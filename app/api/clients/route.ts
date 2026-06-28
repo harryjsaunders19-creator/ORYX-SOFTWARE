@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { listResponse } from "@/lib/api-cache"
 import { clientService } from "@/lib/services/client-service"
 import { createId } from "@paralleldrive/cuid2"
 import { requireSignIn } from "@/lib/auth"
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
       ? clients
       : clients.map(({ activeJobCount: _ac, ...c }) => ({ ...c, activeJobCount: null }))
 
-    return NextResponse.json({ clients: redacted, total, page, limit })
+    return listResponse({ clients: redacted, total, page, limit })
   } catch (err) {
     console.error("[GET /api/clients]", err)
     return NextResponse.json({ error: "Failed to load clients" }, { status: 500 })

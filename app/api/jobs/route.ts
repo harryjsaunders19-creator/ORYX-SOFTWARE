@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { listResponse } from "@/lib/api-cache"
 import { jobService } from "@/lib/services/job-service"
 import { clientService } from "@/lib/services/client-service"
 import { sequenceDb } from "@/lib/db"
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest) {
       const jobs = await attachRevisionFlags(
         await jobService.findMany({ where, orderBy: { field: sortBy, dir: sortDir } }),
       )
-      return NextResponse.json({ jobs, total: jobs.length })
+      return listResponse({ jobs, total: jobs.length })
     }
 
     const [rawJobs, total] = await Promise.all([
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
       jobService.count(where),
     ])
     const jobs = await attachRevisionFlags(rawJobs)
-    return NextResponse.json({ jobs, total, page, limit })
+    return listResponse({ jobs, total, page, limit })
   } catch (err) {
     console.error("[GET /api/jobs]", err)
     return NextResponse.json({ error: "Failed to load jobs" }, { status: 500 })
