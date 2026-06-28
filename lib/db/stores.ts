@@ -372,6 +372,32 @@ export const jobDb = {
     return db.prepare("DELETE FROM Job WHERE id = ?").run(id).changes > 0
   },
 
+  /**
+   * Insert a job row verbatim from Supabase into SQLite without side-effects
+   * (no StatusHistory entry, no BillingHandoff). Used to sync jobs down from
+   * Supabase so FK constraints and subsequent SQLite writes work on Vercel,
+   * where the ephemeral /tmp SQLite starts empty on cold boot.
+   */
+  rawInsertOrIgnore(job: import("@/lib/db/job-types").JobRow): void {
+    db.prepare(`
+      INSERT OR IGNORE INTO Job
+        (id,drawingNumber,itemType,address,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
+         status,designer,dateCompleted,notes,quoteValue,quoteReference,quoteDate,commercialNotes,
+         variationFees,additionalCharges,parentJobId,revisionLetter,requestedDate,requiredByDate,
+         dateCreated,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      job.id, job.drawingNumber, job.itemType, job.address, job.typeOfWorks,
+      job.customTypeDescription ?? null, job.clientCompany, job.clientId ?? null, job.requestedBy,
+      job.status, job.designer ?? "", job.dateCompleted ?? null, job.notes ?? null,
+      job.quoteValue ?? null, job.quoteReference ?? null, job.quoteDate ?? null,
+      job.commercialNotes ?? null, job.variationFees ?? null, job.additionalCharges ?? null,
+      job.parentJobId ?? null, job.revisionLetter ?? null,
+      job.requestedDate ?? null, job.requiredByDate ?? null,
+      job.dateCreated, job.createdAt, job.updatedAt,
+    )
+  },
+
   groupByItemType(): { itemType: string; count: number }[] {
     return db.prepare("SELECT itemType, COUNT(*) as count FROM Job GROUP BY itemType").all() as { itemType: string; count: number }[]
   },

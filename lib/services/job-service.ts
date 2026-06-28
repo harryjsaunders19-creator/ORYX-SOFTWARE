@@ -27,6 +27,22 @@ async function mirrorHistory(jobId: string) {
   await billingHandoffService.syncJobHandoffs(jobId)
 }
 
+/**
+ * Ensures a job exists in the local SQLite DB by fetching it from Supabase
+ * if missing. On Vercel the ephemeral /tmp SQLite starts empty, so jobs
+ * created in earlier containers only exist in Supabase. Syncing down before
+ * writes lets all the normal SQLite-side-effect paths (status history, FK
+ * constraints for revisions, billing handoff) work correctly.
+ */
+async function ensureJobInSqlite(id: string): Promise<boolean> {
+  if (!useSupabaseJobs()) return jobDb.findUnique(id) !== null
+  if (jobDb.findUnique(id)) return true
+  const job = await supabaseJobRepo.findUnique(id)
+  if (!job) return false
+  jobDb.rawInsertOrIgnore(job)
+  return true
+}
+
 export const jobService = {
   async findMany(opts: FindManyOptions = {}): Promise<JobRow[]> {
     if (!useSupabaseJobs()) return jobDb.findMany(opts)
@@ -60,6 +76,8 @@ export const jobService = {
   },
 
   async create(data: CreateJobData): Promise<JobRow> {
+    // If this is a revision, its parentJobId must exist in SQLite for FK constraints.
+    if (data.parentJobId) await ensureJobInSqlite(data.parentJobId)
     const job = jobDb.create(data)
     await mirror(job)
     await mirrorHistory(job.id)
@@ -67,6 +85,7 @@ export const jobService = {
   },
 
   async update(id: string, data: UpdateJobData): Promise<JobRow | null> {
+    await ensureJobInSqlite(id)
     const job = jobDb.update(id, data)
     await mirror(job)
     if (job) await mirrorHistory(id)
@@ -74,6 +93,7 @@ export const jobService = {
   },
 
   async assignDesigner(id: string, designer: string, changedBy: string): Promise<{ job: JobRow } | null> {
+    await ensureJobInSqlite(id)
     const result = jobDb.assignDesigner(id, designer, changedBy)
     if (result) {
       await mirror(result.job)
@@ -87,6 +107,7 @@ export const jobService = {
   },
 
   async delete(id: string): Promise<boolean> {
+    await ensureJobInSqlite(id)
     const ok = jobDb.delete(id)
     if (ok) {
       if (useSupabaseJobs()) await supabaseJobRepo.delete(id)
