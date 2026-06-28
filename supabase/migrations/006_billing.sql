@@ -19,6 +19,7 @@ create index if not exists idx_billing_export_batches_date on public.billing_exp
 
 alter table public.billing_export_batches enable row level security;
 
+drop policy if exists "Service role full access on billing_export_batches" on public.billing_export_batches;
 create policy "Service role full access on billing_export_batches"
   on public.billing_export_batches for all to service_role
   using (true) with check (true);
@@ -61,6 +62,7 @@ create trigger billing_handoffs_updated_at
 
 alter table public.billing_handoffs enable row level security;
 
+drop policy if exists "Service role full access on billing_handoffs" on public.billing_handoffs;
 create policy "Service role full access on billing_handoffs"
   on public.billing_handoffs for all to service_role
   using (true) with check (true);
@@ -78,6 +80,7 @@ create index if not exists idx_billing_export_snapshots_batch on public.billing_
 
 alter table public.billing_export_snapshots enable row level security;
 
+drop policy if exists "Service role full access on billing_export_snapshots" on public.billing_export_snapshots;
 create policy "Service role full access on billing_export_snapshots"
   on public.billing_export_snapshots for all to service_role
   using (true) with check (true);

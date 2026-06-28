@@ -21,6 +21,7 @@ create index if not exists idx_identity_switch_logs_created on public.identity_s
 
 alter table public.identity_switch_logs enable row level security;
 
+drop policy if exists "Service role full access on identity_switch_logs" on public.identity_switch_logs;
 create policy "Service role full access on identity_switch_logs"
   on public.identity_switch_logs for all to service_role
   using (true) with check (true);

@@ -28,6 +28,7 @@ create trigger app_users_updated_at
 
 alter table public.app_users enable row level security;
 
+drop policy if exists "Service role full access on app_users" on public.app_users;
 create policy "Service role full access on app_users"
   on public.app_users for all to service_role
   using (true) with check (true);

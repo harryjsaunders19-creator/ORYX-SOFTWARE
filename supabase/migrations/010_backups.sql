@@ -34,6 +34,7 @@ create trigger backup_jobs_updated_at
 
 alter table public.backup_jobs enable row level security;
 
+drop policy if exists "Service role full access on backup_jobs" on public.backup_jobs;
 create policy "Service role full access on backup_jobs"
   on public.backup_jobs for all to service_role
   using (true) with check (true);
@@ -54,6 +55,7 @@ create index if not exists idx_backup_audit_logs_created on public.backup_audit_
 
 alter table public.backup_audit_logs enable row level security;
 
+drop policy if exists "Service role full access on backup_audit_logs" on public.backup_audit_logs;
 create policy "Service role full access on backup_audit_logs"
   on public.backup_audit_logs for all to service_role
   using (true) with check (true);

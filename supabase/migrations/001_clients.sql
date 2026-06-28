@@ -43,6 +43,7 @@ create trigger clients_updated_at
 -- Tighten policies when Supabase Auth replaces cookie auth.
 alter table public.clients enable row level security;
 
+drop policy if exists "Service role full access on clients" on public.clients;
 create policy "Service role full access on clients"
   on public.clients
   for all

@@ -53,12 +53,14 @@ create trigger calendar_events_updated_at
 
 alter table public.calendar_events enable row level security;
 
+drop policy if exists "Service role full access on calendar_events" on public.calendar_events;
 create policy "Service role full access on calendar_events"
   on public.calendar_events for all to service_role
   using (true) with check (true);
 
 alter table public.event_categories enable row level security;
 
+drop policy if exists "Service role full access on event_categories" on public.event_categories;
 create policy "Service role full access on event_categories"
   on public.event_categories for all to service_role
   using (true) with check (true);
@@ -75,6 +77,7 @@ create index if not exists idx_calendar_assignments_user on public.calendar_assi
 
 alter table public.calendar_assignments enable row level security;
 
+drop policy if exists "Service role full access on calendar_assignments" on public.calendar_assignments;
 create policy "Service role full access on calendar_assignments"
   on public.calendar_assignments for all to service_role
   using (true) with check (true);

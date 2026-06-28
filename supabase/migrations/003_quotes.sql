@@ -39,6 +39,7 @@ create trigger quotes_updated_at
 
 alter table public.quotes enable row level security;
 
+drop policy if exists "Service role full access on quotes" on public.quotes;
 create policy "Service role full access on quotes"
   on public.quotes
   for all
@@ -60,6 +61,7 @@ create index if not exists idx_quote_line_items_quote_id on public.quote_line_it
 
 alter table public.quote_line_items enable row level security;
 
+drop policy if exists "Service role full access on quote_line_items" on public.quote_line_items;
 create policy "Service role full access on quote_line_items"
   on public.quote_line_items
   for all

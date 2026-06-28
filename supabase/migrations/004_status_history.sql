@@ -19,6 +19,7 @@ create index if not exists idx_status_history_changed_at on public.status_histor
 
 alter table public.status_history enable row level security;
 
+drop policy if exists "Service role full access on status_history" on public.status_history;
 create policy "Service role full access on status_history"
   on public.status_history
   for all

@@ -22,6 +22,7 @@ create index if not exists idx_client_holds_status on public.client_holds (statu
 
 alter table public.client_holds enable row level security;
 
+drop policy if exists "Service role full access on client_holds" on public.client_holds;
 create policy "Service role full access on client_holds"
   on public.client_holds
   for all

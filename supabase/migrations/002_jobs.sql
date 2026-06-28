@@ -53,6 +53,7 @@ create trigger jobs_updated_at
 
 alter table public.jobs enable row level security;
 
+drop policy if exists "Service role full access on jobs" on public.jobs;
 create policy "Service role full access on jobs"
   on public.jobs
   for all
