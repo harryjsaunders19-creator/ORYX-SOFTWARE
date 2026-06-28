@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 const LOGO_SRC = "/branding/LOGO3.png"
 
 type OryxLogoProps = {
-  variant?: "sidebar" | "auth" | "auth-panel"
+  variant?: "sidebar" | "auth" | "auth-panel" | "login"
   className?: string
   priority?: boolean
 }
@@ -24,6 +24,11 @@ const VARIANTS = {
     width: 280,
     height: 100,
     className: "w-full max-w-[260px] h-auto",
+  },
+  login: {
+    width: 180,
+    height: 66,
+    className: "w-[140px] h-auto",
   },
 } as const
 

@@ -272,11 +272,8 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
         <div className="relative z-10">
           <OryxLogo variant="auth-panel" className="mb-8" priority />
           <h2 className="text-3xl font-bold tracking-tight leading-tight max-w-sm">
-            Oryx Design Operations Portal
+            ORYX Scaffold Design Dashboard
           </h2>
-          <p className="text-white/75 text-sm mt-4 max-w-md leading-relaxed">
-            Scaffold design job tracking, client management, and accounts handoff — built for Oryx Design Ltd.
-          </p>
         </div>
         <p className="text-xs text-white/50 relative z-10">Oryx Design Ltd · Scaffold Consultancy</p>
         <div
