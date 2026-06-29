@@ -11,6 +11,10 @@ export async function buildAccountsHandoverWorkbook(
   snapshots: AccountsHandoverSnapshot[],
   meta: { batchNumber: string; exportDate: string; exportedBy: string },
 ): Promise<ExcelJS.Workbook> {
+  if (!snapshots.length) {
+    throw new Error("No export rows to write — snapshots are empty")
+  }
+
   const wb = new ExcelJS.Workbook()
   const sheetYear = meta.exportDate.slice(0, 4)
   const sheet = wb.addWorksheet(sheetYear)

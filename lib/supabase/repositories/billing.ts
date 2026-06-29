@@ -97,6 +97,16 @@ export const supabaseBillingRepo = {
     if (error) throw error
   },
 
+  async upsertManyHandoffs(rows: BillingHandoffRow[]): Promise<void> {
+    if (!rows.length) return
+    const CHUNK = 50
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const slice = rows.slice(i, i + CHUNK)
+      const { error } = await handoffs().upsert(slice.map(toSupabaseBillingHandoffRow), { onConflict: "id" })
+      if (error) throw error
+    }
+  },
+
   async replaceHandoffsForJob(jobId: string, rows: BillingHandoffRow[]): Promise<void> {
     const { error: delError } = await handoffs().delete().eq("source_job_id", jobId)
     if (delError) throw delError
@@ -169,8 +179,12 @@ export const supabaseBillingRepo = {
 
   async upsertSnapshots(rows: BillingExportSnapshotRow[]): Promise<void> {
     if (!rows.length) return
-    const { error } = await snapshots().upsert(rows.map(toSupabaseBillingExportSnapshotRow), { onConflict: "id" })
-    if (error) throw error
+    const CHUNK = 50
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const slice = rows.slice(i, i + CHUNK)
+      const { error } = await snapshots().upsert(slice.map(toSupabaseBillingExportSnapshotRow), { onConflict: "id" })
+      if (error) throw error
+    }
   },
 
   async snapshotsForBatch(batchId: string): Promise<AccountsHandoverSnapshot[]> {

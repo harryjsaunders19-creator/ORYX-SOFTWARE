@@ -3,6 +3,9 @@ import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { buildAccountsHandoverWorkbook, workbookToBuffer } from "@/lib/billing-export"
 import { requireRole } from "@/lib/auth"
 
+/** Large exports sync many handoffs + snapshots to Supabase — allow up to 60s. */
+export const maxDuration = 60
+
 export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
   if (auth instanceof NextResponse) return auth
@@ -15,14 +18,13 @@ export async function POST(req: NextRequest) {
     const exportedBy = body.exportedBy ? String(body.exportedBy) : "System"
     const exportDate = new Date().toISOString().slice(0, 10)
 
-    // This both creates the permanent batch + snapshot records and clears the
-    // handoffs, atomically — see billingHandoffDb.createExportBatch(). The
-    // workbook below is built from the snapshots this call just wrote, so a
-    // batch with N records always pairs with a downloaded file describing
-    // exactly those N records — never a mismatch.
     const { batch, snapshots } = await billingHandoffService.createExportBatch({
       handoffIds, exportedBy, exportDate, notes: body.notes ?? null,
     })
+
+    if (!snapshots.length) {
+      return NextResponse.json({ error: "Export produced no rows" }, { status: 500 })
+    }
 
     const wb  = await buildAccountsHandoverWorkbook(snapshots, {
       batchNumber: batch.batchNumber, exportDate: batch.exportDate, exportedBy: batch.exportedBy,
@@ -35,10 +37,12 @@ export async function POST(req: NextRequest) {
         "Content-Disposition": `attachment; filename="accounts-handover-${batch.batchNumber}.xlsx"`,
         "X-Batch-Number": batch.batchNumber,
         "X-Batch-Id": batch.id,
+        "X-Record-Count": String(snapshots.length),
       },
     })
   } catch (err) {
     console.error("[POST /api/billing-handoffs/export]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    const message = err instanceof Error ? err.message : "Internal server error"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

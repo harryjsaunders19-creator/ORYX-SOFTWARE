@@ -3,7 +3,7 @@
  *
  * When SUPABASE_BILLING=true:
  *   - Reads come from Supabase
- *   - Writes run SQLite first (complex export/snapshot logic), then mirror
+ *   - Export batch creation runs in SQLite (snapshot logic), then mirrors to Supabase
  */
 import { db } from "@/lib/db/connection"
 import type {
@@ -18,32 +18,53 @@ import { supabaseBillingRepo } from "@/lib/supabase/repositories/billing"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
 
+const SYNC_CHUNK = 25
+
 /**
- * Ensures one or more billing handoff rows exist in SQLite, fetching from
- * Supabase if missing. The BillingHandoff table has a NOT NULL FK on Job(id),
- * so the job must also be in SQLite — ensureJobInSqliteForBilling handles that.
+ * Copies billing handoffs (and their source jobs) from Supabase into the
+ * ephemeral SQLite DB so createExportBatch / buildAccountsHandoverSnapshot
+ * can run unchanged on Vercel.
  */
 async function ensureBillingHandoffsInSqlite(ids: string[]): Promise<void> {
   if (!useSupabaseBilling()) return
-  const missing = ids.filter(id => !billingHandoffDb.findUnique(id))
-  if (!missing.length) return
-  try {
-    const rows = await supabaseBillingRepo.findManyByIds(missing)
-    for (const row of rows) {
-      await ensureJobInSqliteForBilling(row.sourceJobId)
-      billingHandoffDb.rawInsertOrIgnore(row)
+
+  const rows = await supabaseBillingRepo.findManyByIds(ids)
+  const byId = new Map(rows.map(r => [r.id, r]))
+  const missing = ids.filter(id => !byId.has(id))
+  if (missing.length) {
+    throw new Error(`${missing.length} item(s) not found in the billing queue`)
+  }
+
+  const jobIds = [...new Set(rows.map(r => r.sourceJobId))]
+  for (let i = 0; i < jobIds.length; i += SYNC_CHUNK) {
+    const chunk = jobIds.slice(i, i + SYNC_CHUNK)
+    const ok = await Promise.all(chunk.map(jid => ensureJobInSqliteForBilling(jid)))
+    const failed = chunk.filter((_, idx) => !ok[idx])
+    if (failed.length) {
+      throw new Error(`Could not load ${failed.length} job(s) needed for export — try again in a moment`)
     }
-  } catch {
-    // Non-fatal
+  }
+
+  db.transaction(() => {
+    for (const row of rows) billingHandoffDb.rawInsertOrIgnore(row)
+  })()
+
+  const synced = billingHandoffDb.findManyByIds(ids)
+  if (synced.length !== ids.length) {
+    throw new Error("Failed to prepare billing items for export")
   }
 }
 
 async function mirrorBatchExport(batchId: string): Promise<void> {
   if (!useSupabaseBilling()) return
   const batch = billingHandoffDb.findBatchUnique(batchId)
-  if (batch) await supabaseBillingRepo.upsertBatch(batch)
+  if (!batch) throw new Error("Export batch missing after create")
+
+  await supabaseBillingRepo.upsertBatch(batch)
+
   const handoffs = billingHandoffDb.handoffsForBatch(batchId)
-  for (const h of handoffs) await supabaseBillingRepo.upsertHandoff(h)
+  await supabaseBillingRepo.upsertManyHandoffs(handoffs)
+
   const snapshotRows = db.prepare("SELECT * FROM BillingExportSnapshot WHERE batchId = ?").all(batchId) as BillingExportSnapshotRow[]
   await supabaseBillingRepo.upsertSnapshots(snapshotRows)
 }
@@ -75,7 +96,18 @@ export const billingHandoffService = {
   }): Promise<{ batch: BillingExportBatchRow; snapshots: AccountsHandoverSnapshot[] }> {
     await ensureBillingHandoffsInSqlite(data.handoffIds)
     const result = billingHandoffDb.createExportBatch(data)
-    await mirrorBatchExport(result.batch.id)
+    if (!result.snapshots.length) {
+      throw new Error("Export produced no snapshot rows")
+    }
+
+    try {
+      await mirrorBatchExport(result.batch.id)
+    } catch (err) {
+      // SQLite commit already succeeded — return snapshots so the immediate
+      // XLSX download still works even if Supabase mirror is slow/fails.
+      console.error("[createExportBatch] Supabase mirror failed:", err)
+    }
+
     return result
   },
 
@@ -96,7 +128,16 @@ export const billingHandoffService = {
 
   async snapshotsForBatch(batchId: string): Promise<AccountsHandoverSnapshot[]> {
     if (!useSupabaseBilling()) return billingHandoffDb.snapshotsForBatch(batchId)
-    return supabaseBillingRepo.snapshotsForBatch(batchId)
+
+    const fromSupabase = await supabaseBillingRepo.snapshotsForBatch(batchId)
+    if (fromSupabase.length) return fromSupabase
+
+    // Recovery path: batch cleared in Supabase but snapshot rows never mirrored.
+    const handoffs = await supabaseBillingRepo.handoffsForBatch(batchId)
+    if (!handoffs.length) return []
+
+    await ensureBillingHandoffsInSqlite(handoffs.map(h => h.id))
+    return handoffs.map(h => billingHandoffDb.buildAccountsHandoverSnapshot(h))
   },
 
   async stats(): Promise<{ awaitingCount: number; awaitingValue: number; clearedCount: number }> {

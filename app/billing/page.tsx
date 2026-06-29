@@ -18,7 +18,22 @@ import type { BillingHandoff, BillingExportBatch } from "@/lib/types"
 type View = "awaiting" | "cleared" | "history"
 
 async function downloadResponse(res: Response, fallbackName: string) {
+  const contentType = res.headers.get("Content-Type") ?? ""
+  if (!contentType.includes("spreadsheetml") && !contentType.includes("octet-stream")) {
+    const body = await res.text()
+    let message = `Download failed (${res.status})`
+    try {
+      const parsed = JSON.parse(body) as { error?: string }
+      if (parsed.error) message = parsed.error
+    } catch { /* not JSON */ }
+    throw new Error(message)
+  }
+
   const blob = await res.blob()
+  if (blob.size < 512) {
+    throw new Error("Downloaded file is empty or too small — export may have failed")
+  }
+
   const disposition = res.headers.get("Content-Disposition") ?? ""
   const match = disposition.match(/filename="([^"]+)"/)
   const filename = match?.[1] ?? fallbackName
@@ -52,10 +67,13 @@ function ExportModal({ count, onClose, onExported }: {
         return
       }
       const batchNumber = res.headers.get("X-Batch-Number") ?? ""
+      const recordCount = parseInt(res.headers.get("X-Record-Count") ?? "0", 10)
       await downloadResponse(res, "accounts-handover.xlsx")
-      toast(`${batchNumber} exported — ${count} item${count === 1 ? "" : "s"} cleared`, "success")
+      toast(`${batchNumber} exported — ${recordCount || count} item${count === 1 ? "" : "s"} cleared`, "success")
       onExported(batchNumber)
-    } catch { toast("Network error", "error") }
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Network error", "error")
+    }
     finally { setSaving(false) }
   }
 
@@ -193,9 +211,15 @@ function BatchRow({ batch }: { batch: BillingExportBatch }) {
     setDownloading(true)
     try {
       const res = await fetch(`/api/billing-handoffs/batches/${batch.id}/xlsx`)
-      if (!res.ok) { toast("Failed to download", "error"); return }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "Failed to download", "error")
+        return
+      }
       await downloadResponse(res, `${batch.batchNumber}.xlsx`)
-    } catch { toast("Network error", "error") }
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Network error", "error")
+    }
     finally { setDownloading(false) }
   }
   return (
