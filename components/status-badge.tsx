@@ -16,12 +16,12 @@ export const JOB_BADGE_CLASSES: Record<string, string> = {
   ISSUED:      "bg-ok-bg text-ok-tx border border-ok-bd",
 }
 
-// Row background tints — strong enough to scan down a long list, still quiet.
+// Row background tints — dedicated *-row tokens (globals.css), full opacity.
 export const JOB_ROW_BG: Record<string, string> = {
-  NEW_REQUEST: "",
-  IN_DESIGN:   "bg-yl-bg/75",
-  CHECKING:    "bg-wn-bg/85",
-  ISSUED:      "bg-ok-bg/80",
+  NEW_REQUEST: "bg-gy-row",
+  IN_DESIGN:   "bg-yl-row",
+  CHECKING:    "bg-wn-row",
+  ISSUED:      "bg-ok-row",
 }
 
 // Left-edge stripe gives instant status recognition even before reading the badge.

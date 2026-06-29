@@ -103,6 +103,14 @@
   --color-gy-bd:  #E4E4E7;
   --color-gy-tx:  #3F3F46;
 
+  /* Job table row tints — stronger than badge backgrounds so status is
+     scannable down a long list on white sr surfaces. Badge pills keep the
+     paler *-bg tokens above; rows use these instead. */
+  --color-gy-row: #F0F0F2;
+  --color-yl-row: #FEF08A;
+  --color-wn-row: #FEECC8;
+  --color-ok-row: #DCFCE7;
+
   /* Data visualisation — same family as everything above, no separate rainbow */
   --color-chart-1: #18181B;  /* ink — primary series */
   --color-chart-2: #4640DE;  /* indigo — secondary series / target */
@@ -205,6 +213,10 @@ html.dark {
   --color-gy-bg:  rgba(161, 161, 170, 0.12);
   --color-gy-bd:  rgba(161, 161, 170, 0.25);
   --color-gy-tx:  #D4D4D8;
+  --color-gy-row: rgba(161, 161, 170, 0.18);
+  --color-yl-row: rgba(234, 179, 8, 0.22);
+  --color-wn-row: rgba(245, 158, 11, 0.20);
+  --color-ok-row: rgba(34, 197, 94, 0.20);
   --color-chart-1: #FAFAFA;
   --color-chart-2: #6C63FF;
   --color-chart-3: #2DD4BF;
