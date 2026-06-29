@@ -14,11 +14,17 @@ create table if not exists public.client_holds (
   added_at       timestamptz not null default now(),
   removed_by     text,
   removed_at     timestamptz,
-  removed_reason text
+  removed_reason text,
+  updated_at     timestamptz not null default now()
 );
 
 create index if not exists idx_client_holds_client_id on public.client_holds (client_id);
 create index if not exists idx_client_holds_status on public.client_holds (status);
+
+drop trigger if exists client_holds_updated_at on public.client_holds;
+create trigger client_holds_updated_at
+  before update on public.client_holds
+  for each row execute function public.set_updated_at();
 
 alter table public.client_holds enable row level security;
 

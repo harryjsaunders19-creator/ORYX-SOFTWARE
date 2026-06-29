@@ -200,15 +200,17 @@ create policy "Service role full access on status_history"
 -- 005: CLIENT HOLDS
 -- =============================================================================
 create table if not exists public.client_holds (
-  id         text primary key,
-  client_id  text not null references public.clients (id) on delete cascade,
-  status     text not null default 'ACTIVE',
-  reason     text not null,
-  started_at timestamptz not null default now(),
-  ended_at   timestamptz,
-  created_by text not null default 'System',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  id             text primary key,
+  client_id      text not null references public.clients (id) on delete cascade,
+  status         text not null default 'ACTIVE',
+  reason         text not null,
+  notes          text,
+  added_by       text not null default 'System',
+  added_at       timestamptz not null default now(),
+  removed_by     text,
+  removed_at     timestamptz,
+  removed_reason text,
+  updated_at     timestamptz not null default now()
 );
 
 create index if not exists idx_client_holds_client_id on public.client_holds (client_id);
