@@ -10,6 +10,10 @@ import type { JobRow } from "@/lib/db/job-types"
 import type { FindManyOptions, WhereClause } from "@/lib/db/helpers"
 import { isDrawingNumberListSort, sortJobsForList } from "@/lib/job-list-sort"
 import {
+  jobsArchivedFilterEnabled,
+  noteJobsArchivedFromError,
+} from "@/lib/supabase/archived-filter"
+import {
   sortColumn,
   todayIsoDate,
   toJobRow,
@@ -38,9 +42,11 @@ function withoutCommercialExtras(row: SupabaseJobRow): Omit<SupabaseJobRow, "var
 }
 
 function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
-  // Soft-delete filter: exclude archived by default.
-  if (where.onlyArchived)        q = q.not("archived_at", "is", null)
-  else if (!where.includeArchived) q = q.is("archived_at", null)
+  // Soft-delete filter: exclude archived by default (requires 011_soft_delete.sql).
+  if (jobsArchivedFilterEnabled()) {
+    if (where.onlyArchived)        q = q.not("archived_at", "is", null)
+    else if (!where.includeArchived) q = q.is("archived_at", null)
+  }
 
   if (where.search) {
     const term = where.search.trim()
@@ -171,10 +177,12 @@ export const supabaseJobRepo = {
   },
 
   async count(where: WhereClause = {}): Promise<number> {
-    const { count, error } = await applyWhere(
-      table().select("*", { count: "exact", head: true }),
-      where,
-    )
+    const run = () =>
+      applyWhere(table().select("*", { count: "exact", head: true }), where)
+    let { count, error } = await run()
+    if (error && noteJobsArchivedFromError(error)) {
+      ;({ count, error } = await run())
+    }
     if (error) throw error
     return count ?? 0
   },
@@ -369,11 +377,27 @@ export const supabaseJobRepo = {
    * aggregates — no full-table row transfer.
    */
   async jobValueStats(): Promise<{ totalQuotedValue: number; totalIssuedValue: number; avgJobValue: number }> {
-    const [quoted, issued, avgRow] = await Promise.all([
-      table().select("quote_value.sum()").is("archived_at", null).gt("quote_value", 0).maybeSingle(),
-      table().select("quote_value.sum()").is("archived_at", null).gt("quote_value", 0).eq("status", "ISSUED").maybeSingle(),
-      table().select("quote_value.avg()").is("archived_at", null).gt("quote_value", 0).maybeSingle(),
+    const base = () => table().select("quote_value.sum()").gt("quote_value", 0)
+    const withArchived = (q: ReturnType<typeof base>) =>
+      jobsArchivedFilterEnabled() ? q.is("archived_at", null) : q
+
+    let [quoted, issued, avgRow] = await Promise.all([
+      withArchived(base()).maybeSingle(),
+      withArchived(base()).eq("status", "ISSUED").maybeSingle(),
+      jobsArchivedFilterEnabled()
+        ? table().select("quote_value.avg()").is("archived_at", null).gt("quote_value", 0).maybeSingle()
+        : table().select("quote_value.avg()").gt("quote_value", 0).maybeSingle(),
     ])
+
+    const err = quoted.error ?? issued.error ?? avgRow.error
+    if (err && noteJobsArchivedFromError(err)) {
+      ;[quoted, issued, avgRow] = await Promise.all([
+        base().maybeSingle(),
+        base().eq("status", "ISSUED").maybeSingle(),
+        table().select("quote_value.avg()").gt("quote_value", 0).maybeSingle(),
+      ])
+    }
+
     if (quoted.error) throw quoted.error
     if (issued.error) throw issued.error
     if (avgRow.error) throw avgRow.error

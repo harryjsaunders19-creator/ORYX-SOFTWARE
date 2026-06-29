@@ -73,7 +73,7 @@ export function DashboardStats() {
   const [overdueJobs, setOverdueJobs]   = useState<Job[]>([])
   const [holds, setHolds]               = useState<ClientHoldWithClient[]>([])
   const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState(false)
+  const [error, setError]               = useState<string | null>(null)
 
   const today     = new Date()
   const weekStart = startOfWeek(today, { weekStartsOn: 1 })
@@ -82,10 +82,15 @@ export function DashboardStats() {
   const toStr     = format(weekEnd, "yyyy-MM-dd")
 
   const loadAll = useCallback(() => {
-    setError(false)
-    // /api/stats now includes the full holds list — 3 parallel requests instead of 4.
+    setError(null)
     Promise.all([
-      fetch("/api/stats").then(r => r.ok ? r.json() as Promise<StatsData> : Promise.reject(new Error("stats"))),
+      fetch("/api/stats").then(async r => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({})) as { error?: string; detail?: string }
+          throw new Error(body.detail ?? body.error ?? `Stats request failed (${r.status})`)
+        }
+        return r.json() as Promise<StatsData>
+      }),
       fetch(`/api/calendar/events?from=${fromStr}&to=${toStr}`).then(r => r.ok ? r.json() as Promise<{ events: CalEvent[] }> : null),
       fetch("/api/jobs?overdue=true&limit=5&sortBy=requiredByDate&sortDir=asc").then(r => r.ok ? r.json() as Promise<{ jobs: Job[] }> : null),
     ])
@@ -95,7 +100,7 @@ export function DashboardStats() {
         if (e) setEvents(e.events)
         if (ov) setOverdueJobs(ov.jobs)
       })
-      .catch(() => setError(true))
+      .catch(err => setError(err instanceof Error ? err.message : "Failed to load dashboard data"))
       .finally(() => setLoading(false))
   }, [fromStr, toStr])
 
@@ -105,8 +110,9 @@ export function DashboardStats() {
   const teamsMeetings = events.filter(e => e.categoryId === TEAMS_MEETING_ID)
 
   if (error) return (
-    <div className="bg-dn-bg border border-dn-bd rounded-md p-4 text-sm text-dn-tx">
-      Failed to load dashboard data. On Vercel, ensure Supabase credentials are configured and migrations have been run.
+    <div className="bg-dn-bg border border-dn-bd rounded-md p-4 text-sm text-dn-tx space-y-2">
+      <p className="font-medium">Failed to load dashboard data.</p>
+      <p className="text-xs text-t3">{error}</p>
     </div>
   )
   if (loading) return (

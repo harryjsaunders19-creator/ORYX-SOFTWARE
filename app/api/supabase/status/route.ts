@@ -86,6 +86,19 @@ export async function GET() {
         tableCount("billing_handoffs"),
       ])
 
+      // archived_at columns (011_soft_delete.sql) — stats breaks without these
+      try {
+        const { error: archErr } = await createAdminClient()
+          .from("jobs")
+          .select("archived_at")
+          .limit(1)
+        if (archErr && /archived_at/i.test(archErr.message)) {
+          issues.push(
+            "Missing archived_at on jobs — run supabase/migrations/011_soft_delete.sql in Supabase SQL Editor (this breaks the dashboard).",
+          )
+        }
+      } catch { /* ignore */ }
+
       if (!clients.ready) issues.push(`clients table: ${clients.error ?? "not found"} — run 001_clients.sql`)
       if (!jobs.ready) issues.push(`jobs table: ${jobs.error ?? "not found"} — run 002_jobs.sql`)
       if (!quotes.ready) issues.push(`quotes table: ${quotes.error ?? "not found"} — run 003_quotes.sql`)

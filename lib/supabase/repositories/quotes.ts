@@ -10,6 +10,10 @@ import type {
   QuoteRow,
 } from "@/lib/db/quote-types"
 import {
+  quotesArchivedFilterEnabled,
+  noteQuotesArchivedFromError,
+} from "@/lib/supabase/archived-filter"
+import {
   toQuoteLineItemRow,
   toQuoteRow,
   toSupabaseLineItemRow,
@@ -33,9 +37,11 @@ export interface QuoteListOptionsExt extends QuoteListOptions {
 }
 
 function applyQuoteFilters(q: QuoteQuery, opts: QuoteListOptionsExt): QuoteQuery {
-  // Soft-delete filter: exclude archived by default.
-  if (opts.onlyArchived)           q = q.not("archived_at", "is", null)
-  else if (!opts.includeArchived)  q = q.is("archived_at", null)
+  // Soft-delete filter (requires 011_soft_delete.sql).
+  if (quotesArchivedFilterEnabled()) {
+    if (opts.onlyArchived)           q = q.not("archived_at", "is", null)
+    else if (!opts.includeArchived)  q = q.is("archived_at", null)
+  }
 
   if (opts.search) {
     const term = opts.search.trim()
@@ -181,17 +187,22 @@ export const supabaseQuoteRepo = {
     const statuses = QUOTE_STATUSES.map(s => s.value)
     const rows = await Promise.all(
       statuses.map(async status => {
-        const [countRes, sumRes] = await Promise.all([
-          quotesTable()
-            .select("*", { count: "exact", head: true })
-            .eq("status", status)
-            .is("archived_at", null),
-          quotesTable()
-            .select("quote_value.sum()")
-            .eq("status", status)
-            .is("archived_at", null)
-            .maybeSingle(),
-        ])
+        const runCount = () =>
+          applyQuoteFilters(
+            quotesTable().select("*", { count: "exact", head: true }),
+            { status },
+          )
+        const runSum = () =>
+          applyQuoteFilters(
+            quotesTable().select("quote_value.sum()"),
+            { status },
+          ).maybeSingle()
+
+        let [countRes, sumRes] = await Promise.all([runCount(), runSum()])
+        const err = countRes.error ?? sumRes.error
+        if (err && noteQuotesArchivedFromError(err)) {
+          ;[countRes, sumRes] = await Promise.all([runCount(), runSum()])
+        }
         if (countRes.error) throw countRes.error
         if (sumRes.error) throw sumRes.error
         return { status, n: countRes.count ?? 0, v: aggSum(sumRes.data) }
