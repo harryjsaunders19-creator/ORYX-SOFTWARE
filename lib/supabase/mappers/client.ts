@@ -39,7 +39,11 @@ export function toClientRow(row: SupabaseClientRow): ClientRow {
   }
 }
 
-export function toSupabaseInsert(data: CreateClientData, now: string): Omit<SupabaseClientRow, "created_at" | "updated_at"> & { created_at: string; updated_at: string } {
+export function toSupabaseInsert(
+  data: CreateClientData,
+  now: string,
+  active = true,
+): Omit<SupabaseClientRow, "created_at" | "updated_at"> & { created_at: string; updated_at: string } {
   return {
     id: data.id,
     name: data.name.trim(),
@@ -50,7 +54,7 @@ export function toSupabaseInsert(data: CreateClientData, now: string): Omit<Supa
     billing_address: data.billingAddress?.trim() || null,
     notes: data.notes?.trim() || null,
     account_code: data.accountCode?.trim() || null,
-    active: true,
+    active,
     archived_at: null,
     archived_by: null,
     created_at: now,

@@ -167,8 +167,18 @@ function BackupsInner() {
       const form = new FormData()
       form.append("file", file)
       const res = await fetch("/api/import/excel", { method: "POST", body: form })
-      const data = await res.json() as ImportResult & { error?: string }
-      if (!res.ok) { toast(data.error ?? "Import failed", "error"); return }
+      const raw = await res.text()
+      let data: ImportResult & { error?: string }
+      try {
+        data = JSON.parse(raw) as ImportResult & { error?: string }
+      } catch {
+        const hint = res.status === 504 || res.status === 408
+          ? " — the import timed out; try a smaller file or retry after deploy"
+          : ""
+        toast(`Import failed (HTTP ${res.status})${hint}`, "error")
+        return
+      }
+      if (!res.ok) { toast(data.error ?? `Import failed (HTTP ${res.status})`, "error"); return }
       setImportResult(data)
       const total = data.clients.created + data.clients.updated
         + data.jobs.created + data.jobs.updated

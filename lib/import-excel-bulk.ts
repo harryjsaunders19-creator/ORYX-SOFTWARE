@@ -1,19 +1,91 @@
 /**
  * Fast bulk import path for Supabase-backed deployments.
  * Writes jobs/quotes to Supabase in batches (source of truth on Vercel),
- * then mirrors to SQLite for local side-effects (billing handoffs, etc.).
+ * then mirrors to SQLite locally for side-effects (billing handoffs, etc.).
  */
 import { db } from "@/lib/db/connection"
 import { nowIso } from "@/lib/db/helpers"
-import type { JobRow } from "@/lib/db/job-types"
-import type { QuoteRow } from "@/lib/db/quote-types"
-import { jobDb, quoteDb } from "@/lib/db/stores"
-import { billingHandoffService } from "@/lib/services/billing-handoff-service"
-import { useSupabaseBilling, useSupabaseJobs, useSupabaseQuotes } from "@/lib/supabase/feature-flags"
+import type { ClientRow, CreateClientData } from "@/lib/db/client-types"
+import type { JobRow, UpdateJobData } from "@/lib/db/job-types"
+import type { QuoteRow, UpdateQuoteData } from "@/lib/db/quote-types"
+import { clientDb, jobDb, quoteDb } from "@/lib/db/stores"
+import {
+  useSupabaseClients,
+  useSupabaseJobs,
+  useSupabaseQuotes,
+} from "@/lib/supabase/feature-flags"
+import { supabaseClientRepo } from "@/lib/supabase/repositories/clients"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
 
 const CHUNK = 100
+
+/** On Vercel, SQLite is ephemeral — Supabase is the only durable store. */
+function mirrorBulkToSqlite(): boolean {
+  return !process.env.VERCEL
+}
+
+export function mergeJobForImport(job: JobRow, data: UpdateJobData): JobRow {
+  const now = nowIso()
+  return {
+    ...job,
+    address: data.address ?? job.address,
+    typeOfWorks: data.typeOfWorks ?? job.typeOfWorks,
+    clientCompany: data.clientCompany ?? job.clientCompany,
+    clientId: data.clientId !== undefined ? data.clientId : job.clientId,
+    requestedBy: data.requestedBy ?? job.requestedBy,
+    status: data.status ?? job.status,
+    designer: data.designer ?? job.designer,
+    dateCompleted: data.dateCompleted !== undefined ? data.dateCompleted : job.dateCompleted,
+    notes: data.notes !== undefined ? data.notes : job.notes,
+    quoteValue: data.quoteValue !== undefined ? data.quoteValue : job.quoteValue,
+    quoteReference: data.quoteReference !== undefined ? data.quoteReference : job.quoteReference,
+    variationFees: data.variationFees !== undefined ? data.variationFees : job.variationFees,
+    requiredByDate: data.requiredByDate !== undefined ? data.requiredByDate : job.requiredByDate,
+    updatedAt: now,
+  }
+}
+
+export function mergeQuoteForImport(quote: QuoteRow, data: UpdateQuoteData): QuoteRow {
+  const now = nowIso()
+  return {
+    ...quote,
+    clientId: data.clientId !== undefined ? data.clientId : quote.clientId,
+    clientCompany: data.clientCompany ?? quote.clientCompany,
+    contactName: data.contactName !== undefined ? data.contactName : quote.contactName,
+    address: data.address ?? quote.address,
+    description: data.description ?? quote.description,
+    quoteValue: data.quoteValue ?? quote.quoteValue,
+    vatRate: data.vatRate !== undefined ? data.vatRate : quote.vatRate,
+    quoteDate: data.quoteDate ?? quote.quoteDate,
+    expiryDate: data.expiryDate !== undefined ? data.expiryDate : quote.expiryDate,
+    status: data.status ?? quote.status,
+    notes: data.notes !== undefined ? data.notes : quote.notes,
+    updatedAt: now,
+  }
+}
+
+export function buildClientRowFromImport(
+  data: CreateClientData & { active: number },
+): ClientRow {
+  const now = nowIso()
+  return {
+    id: data.id,
+    name: data.name,
+    nameLower: data.name.toLowerCase(),
+    contactName: data.contactName ?? null,
+    email: data.email ?? null,
+    phone: data.phone ?? null,
+    billingAddress: data.billingAddress ?? null,
+    notes: data.notes ?? null,
+    accountCode: data.accountCode ?? null,
+    active: data.active,
+    archivedAt: null,
+    archivedBy: null,
+    createdAt: now,
+    updatedAt: now,
+  }
+}
 
 export function buildJobRowFromImport(data: {
   id: string
@@ -116,6 +188,31 @@ export function buildQuoteRowFromImport(data: {
   }
 }
 
+export async function bulkImportClients(
+  items: Array<CreateClientData & { active: number }>,
+): Promise<ClientRow[]> {
+  if (!items.length) return []
+
+  const rows = items.map(buildClientRowFromImport)
+  const now = nowIso()
+
+  if (useSupabaseClients()) {
+    for (let i = 0; i < items.length; i += CHUNK) {
+      await supabaseClientRepo.upsertMany(items.slice(i, i + CHUNK), now)
+    }
+  }
+
+  if (mirrorBulkToSqlite()) {
+    db.transaction(() => {
+      for (const row of rows) {
+        clientDb.rawInsertOrIgnore(row)
+      }
+    })()
+  }
+
+  return rows
+}
+
 export async function bulkImportJobs(jobs: JobRow[]): Promise<void> {
   if (!jobs.length) return
 
@@ -125,6 +222,8 @@ export async function bulkImportJobs(jobs: JobRow[]): Promise<void> {
     }
   }
 
+  if (!mirrorBulkToSqlite()) return
+
   db.transaction(() => {
     for (const job of jobs) {
       jobDb.rawInsertOrIgnore(job)
@@ -133,13 +232,6 @@ export async function bulkImportJobs(jobs: JobRow[]): Promise<void> {
       }
     }
   })()
-
-  if (useSupabaseBilling()) {
-    const issued = jobs.filter(j => j.status === "ISSUED")
-    for (const job of issued) {
-      await billingHandoffService.syncJobHandoffs(job.id)
-    }
-  }
 }
 
 export async function bulkImportQuotes(quotes: QuoteRow[]): Promise<void> {
@@ -151,6 +243,8 @@ export async function bulkImportQuotes(quotes: QuoteRow[]): Promise<void> {
     }
   }
 
+  if (!mirrorBulkToSqlite()) return
+
   db.transaction(() => {
     for (const quote of quotes) {
       quoteDb.rawInsertOrIgnore(quote)
@@ -159,5 +253,5 @@ export async function bulkImportQuotes(quotes: QuoteRow[]): Promise<void> {
 }
 
 export function shouldUseBulkImport(): boolean {
-  return useSupabaseJobs() || useSupabaseQuotes()
+  return useSupabaseClients() || useSupabaseJobs() || useSupabaseQuotes()
 }

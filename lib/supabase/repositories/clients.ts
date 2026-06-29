@@ -82,6 +82,15 @@ export const supabaseClientRepo = {
     return toClientRow(inserted)
   },
 
+  async upsertMany(items: Array<CreateClientData & { active?: number }>, now: string): Promise<void> {
+    if (!items.length) return
+    const rows = items.map(item =>
+      toSupabaseInsert(item, now, (item.active ?? 1) === 1),
+    )
+    const { error } = await table().upsert(rows, { onConflict: "id" })
+    if (error) throw error
+  },
+
   async update(id: string, data: UpdateClientData, existing: ClientRow, now: string): Promise<ClientRow | null> {
     const patch = toSupabaseUpdate(data, existing, now)
     if (Object.keys(patch).length <= 1) return existing

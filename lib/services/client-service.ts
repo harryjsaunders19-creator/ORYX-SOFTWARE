@@ -68,6 +68,11 @@ function mirrorUpdate(id: string, data: UpdateClientData): ClientRow | null {
 }
 
 export const clientService = {
+  async findMany(opts: { search?: string; activeOnly?: boolean; skip?: number; take?: number } = {}): Promise<ClientRow[]> {
+    if (!useSupabaseClients()) return clientDb.findMany(opts)
+    return supabaseClientRepo.findMany(opts)
+  },
+
   async findManyWithMeta(opts: { search?: string; activeOnly?: boolean; skip?: number; take?: number } = {}) {
     if (!useSupabaseClients()) {
       return clientDb.findManyWithMeta(opts)
