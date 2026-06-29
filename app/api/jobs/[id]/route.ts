@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "@/lib/services/job-service"
 import { clientService } from "@/lib/services/client-service"
-import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE } from "@/lib/constants"
+import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE, type JobStatusValue } from "@/lib/constants"
 import { requireSignIn, requireRole } from "@/lib/auth"
 import { applyOptionalMoneyField } from "@/lib/api-money"
 import { resourceResponse } from "@/lib/api-cache"
@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
 
     // Validate status if provided
-    if (body.status && !VALID_STATUSES.includes(body.status as "NEW_REQUEST"|"IN_DESIGN"|"CHECKING"|"ISSUED")) {
+    if (body.status && !VALID_STATUSES.includes(body.status as JobStatusValue)) {
       return NextResponse.json({
         error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
       }, { status: 422 })

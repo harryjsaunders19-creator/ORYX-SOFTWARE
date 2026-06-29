@@ -287,6 +287,7 @@ export interface StatsData {
   newRequest:       number
   inDesign:         number
   checking:         number
+  readyToSend:      number
   issued:           number
   unassigned:       number
   // Commercial (Admin-only) — null when redacted for a role that can't view commercial values

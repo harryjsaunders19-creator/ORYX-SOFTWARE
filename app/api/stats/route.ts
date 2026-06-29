@@ -28,6 +28,7 @@ export async function GET() {
       newRequest: count("NEW_REQUEST"),
       inDesign:   count("IN_DESIGN"),
       checking:   count("CHECKING"),
+      readyToSend: count("READY_TO_SEND"),
       issued:     count("ISSUED"),
       unassigned,
       totalQuotedValue: canView ? totalQuotedValue : null,

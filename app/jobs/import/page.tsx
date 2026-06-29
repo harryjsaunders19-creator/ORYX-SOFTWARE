@@ -418,8 +418,9 @@ function ImportJobsInner() {
                             "inline-block px-2 py-0.5 rounded-full text-[10px] font-medium",
                             row.status === "NEW_REQUEST" ? "bg-gy-bg text-gy-tx" :
                             row.status === "IN_DESIGN"   ? "bg-yl-bg text-yl-tx" :
-                            row.status === "CHECKING"    ? "bg-wn-bg text-wn-tx" :
-                            row.status === "ISSUED"      ? "bg-ok-bg text-ok-tx" :
+                            row.status === "CHECKING"        ? "bg-wn-bg text-wn-tx" :
+                            row.status === "READY_TO_SEND"   ? "bg-rs-bg text-rs-tx" :
+                            row.status === "ISSUED"          ? "bg-ok-bg text-ok-tx" :
                             "bg-pg text-t3",
                           )}>
                             {getJobStatus(row.status).shortLabel}

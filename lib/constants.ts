@@ -1,18 +1,17 @@
 // ── Job statuses ─────────────────────────────────────────────────
 // Labels below are the simplified, accounts/ops-facing terminology. The
-// underlying stored values (NEW_REQUEST/IN_DESIGN/CHECKING/ISSUED) are
-// deliberately left unchanged — they're referenced throughout the schema,
-// every status filter, StatusHistory's permanent audit rows, and the
-// ISSUED-gated billing-handoff and deadline-exclusion logic (§11/§19 of
-// PROJECT_OVERVIEW.md). Renaming the values themselves would be a real data
-// migration for what is, here, purely a display-text change — so only
-// `label`/`shortLabel` changed; `value` and `dot` (colour) are updated to
-// match the new 4-colour system but the string values stay stable.
+// underlying stored values (NEW_REQUEST/IN_DESIGN/CHECKING/READY_TO_SEND/ISSUED)
+// are deliberately left unchanged in meaning where possible — they're referenced
+// throughout the schema, every status filter, StatusHistory's permanent audit rows,
+// and the ISSUED-gated billing-handoff and deadline-exclusion logic (§11/§19 of
+// PROJECT_OVERVIEW.md). Renaming existing values would be a real data migration;
+// new statuses are appended to the workflow before Complete (ISSUED).
 export const JOB_STATUSES = [
-  { value: "NEW_REQUEST", label: "New Request",       shortLabel: "New",      dot: "bg-gy" },
-  { value: "IN_DESIGN",   label: "In Progress",        shortLabel: "Progress", dot: "bg-yl" },
-  { value: "CHECKING",    label: "Requires Checking",  shortLabel: "Checking", dot: "bg-wn" },
-  { value: "ISSUED",      label: "Complete",           shortLabel: "Complete", dot: "bg-ok-ic" },
+  { value: "NEW_REQUEST",   label: "New Request",       shortLabel: "New",      dot: "bg-gy" },
+  { value: "IN_DESIGN",     label: "In Progress",        shortLabel: "Progress", dot: "bg-yl" },
+  { value: "CHECKING",      label: "Requires Checking",  shortLabel: "Checking", dot: "bg-wn" },
+  { value: "READY_TO_SEND", label: "Ready to Send",      shortLabel: "Send",     dot: "bg-rs-ic" },
+  { value: "ISSUED",        label: "Complete",           shortLabel: "Complete", dot: "bg-ok-ic" },
 ] as const
 
 export type JobStatusValue = (typeof JOB_STATUSES)[number]["value"]

@@ -84,16 +84,11 @@
   --color-wn-tx:  #78350F;
   --color-wn-ic:  #B45309;   /* icon */
 
-  /* Job status taxonomy — Yellow and Grey, added for the 4-state simplified
-     status system (New Request / In Progress / Requires Checking / Complete).
-     Requires Checking and Complete intentionally reuse wn/ok above — for a
-     status specifically, "needs attention" and "done" really do carry the
-     same meaning as warning/success, so borrowing those tokens is accurate
-     rather than a collision. Yellow has no existing equivalent (amber/wn was
-     already spoken for by Requires Checking) and is deliberately a more
-     saturated, visibly-yellow tint rather than copying wn's pale-cream
-     formula — at the same low saturation, yellow and amber are too close in
-     hue to tell apart at a glance, defeating the point of a 4-colour system. */
+  /* Job status taxonomy — Yellow, Grey, and Ready-to-Send sky blue for the
+     5-state workflow (New Request / In Progress / Requires Checking /
+     Ready to Send / Complete). Requires Checking and Complete reuse wn/ok
+     above; Ready to Send uses rs (sky blue) — distinct from green Complete
+     and amber Checking, reads as "packaged and awaiting delivery". */
   --color-yl:     #CA8A04;
   --color-yl-bg:  #FEF9C3;
   --color-yl-bd:  #FDE047;
@@ -103,12 +98,20 @@
   --color-gy-bd:  #E4E4E7;
   --color-gy-tx:  #3F3F46;
 
+  /* Ready to Send — sky blue, between Checking (amber) and Complete (green) */
+  --color-rs:     #0369A1;
+  --color-rs-bg:  #E0F2FE;
+  --color-rs-bd:  #7DD3FC;
+  --color-rs-tx:  #0C4A6E;
+  --color-rs-ic:  #0284C7;
+
   /* Job table row tints — stronger than badge backgrounds so status is
      scannable down a long list on white sr surfaces. Badge pills keep the
      paler *-bg tokens above; rows use these instead. */
   --color-gy-row: #F0F0F2;
   --color-yl-row: #FEF08A;
   --color-wn-row: #FDBA74;
+  --color-rs-row: #BAE6FD;
   --color-ok-row: #DCFCE7;
 
   /* Data visualisation — same family as everything above, no separate rainbow */
@@ -213,9 +216,15 @@ html.dark {
   --color-gy-bg:  rgba(161, 161, 170, 0.12);
   --color-gy-bd:  rgba(161, 161, 170, 0.25);
   --color-gy-tx:  #D4D4D8;
+  --color-rs:     #38BDF8;
+  --color-rs-bg:  rgba(56, 189, 248, 0.12);
+  --color-rs-bd:  rgba(56, 189, 248, 0.30);
+  --color-rs-tx:  #BAE6FD;
+  --color-rs-ic:  #38BDF8;
   --color-gy-row: rgba(161, 161, 170, 0.18);
   --color-yl-row: rgba(234, 179, 8, 0.22);
   --color-wn-row: rgba(251, 146, 60, 0.32);
+  --color-rs-row: rgba(56, 189, 248, 0.18);
   --color-ok-row: rgba(34, 197, 94, 0.20);
   --color-chart-1: #FAFAFA;
   --color-chart-2: #6C63FF;

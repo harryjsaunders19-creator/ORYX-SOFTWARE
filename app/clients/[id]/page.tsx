@@ -20,7 +20,7 @@ import type { Client, ClientStats, ClientHold, Job } from "@/lib/types"
 interface ClientDetail { client: Client; stats: ClientStats | null; jobs: Job[] }
 
 interface ClientAnalytics {
-  totalJobs: number; completed: number; inProgress: number; checking: number; newRequest: number
+  totalJobs: number; completed: number; inProgress: number; checking: number; readyToSend: number; newRequest: number
   completionRate: number; designs: number; revisions: number; siteVisits: number; surveys: number; inspections: number; catiiiDesignChecks: number
   totalQuoted: number; completedQuoted: number; avgCompletionDays: number | null
   timeline: { month: string; created: number; completed: number }[]
@@ -248,6 +248,7 @@ export default function ClientDetailPage() {
                   { label: "New Request", count: analytics.newRequest, color: "var(--color-gy)" },
                   { label: "In Progress", count: analytics.inProgress, color: "var(--color-yl)" },
                   { label: "Requires Checking", count: analytics.checking, color: "var(--color-wn)" },
+                  { label: "Ready to Send", count: analytics.readyToSend, color: "var(--color-rs-ic)" },
                   { label: "Complete", count: analytics.completed, color: "var(--color-ok-ic)" },
                 ] as const).map(s => (
                   <div key={s.label} className="flex items-center gap-3">

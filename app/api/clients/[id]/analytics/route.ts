@@ -14,6 +14,7 @@ function computeAnalytics(jobs: JobRow[]) {
   const completed = jobs.filter(j => j.status === "ISSUED").length
   const inProgress = jobs.filter(j => j.status === "IN_DESIGN").length
   const checking = jobs.filter(j => j.status === "CHECKING").length
+  const readyToSend = jobs.filter(j => j.status === "READY_TO_SEND").length
   const newRequest = jobs.filter(j => j.status === "NEW_REQUEST").length
   const completionRate = totalJobs > 0 ? Math.round((completed / totalJobs) * 100) : 0
 
@@ -59,6 +60,7 @@ function computeAnalytics(jobs: JobRow[]) {
     completed,
     inProgress,
     checking,
+    readyToSend,
     newRequest,
     completionRate,
     designs,
