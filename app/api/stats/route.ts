@@ -3,6 +3,7 @@ import { listResponse } from "@/lib/api-cache"
 import { statsService } from "@/lib/services/stats-service"
 import { requireSignIn } from "@/lib/auth"
 import { canViewCommercialValues } from "@/lib/permissions"
+import { errorMessage } from "@/lib/error-message"
 
 export async function GET() {
   try {
@@ -52,7 +53,7 @@ export async function GET() {
     })
   } catch (err) {
     console.error("[GET /api/stats]", err)
-    const detail = err instanceof Error ? err.message : String(err)
+    const detail = errorMessage(err)
     return NextResponse.json({ error: "Internal server error", detail }, { status: 500 })
   }
 }

@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { useUser } from "@/components/user-context"
 import { cn, getDeadlineInfo } from "@/lib/utils"
+import { apiErrorDetail } from "@/lib/error-message"
 import type { StatsData, Job, ClientHoldWithClient } from "@/lib/types"
 
 const SITE_VISIT_ID = "cat_site_visit"
@@ -86,8 +87,8 @@ export function DashboardStats() {
     Promise.all([
       fetch("/api/stats").then(async r => {
         if (!r.ok) {
-          const body = await r.json().catch(() => ({})) as { error?: string; detail?: string }
-          throw new Error(body.detail ?? body.error ?? `Stats request failed (${r.status})`)
+          const body = await r.json().catch(() => null)
+          throw new Error(apiErrorDetail(body, r.status))
         }
         return r.json() as Promise<StatsData>
       }),

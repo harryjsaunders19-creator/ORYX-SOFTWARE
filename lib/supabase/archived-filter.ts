@@ -11,8 +11,13 @@ export function isMissingColumnError(
   if (!error?.message) return false
   const msg = error.message.toLowerCase()
   const col = column.toLowerCase()
+  if (error.code === "42703" && msg.includes(col)) return true
   if (error.code === "PGRST204" && msg.includes(col)) return true
-  return msg.includes(col) && (msg.includes("column") || msg.includes("schema cache"))
+  return msg.includes(col) && (
+    msg.includes("column")
+    || msg.includes("schema cache")
+    || msg.includes("does not exist")
+  )
 }
 
 /** false = column confirmed missing; undefined = not yet probed */
