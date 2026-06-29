@@ -89,6 +89,7 @@ export const quoteService = {
 
   /** Soft-delete a quote: marks it as archived. Logs the action. */
   async archive(id: string, archiverId: string, archiverName: string): Promise<QuoteRow | null> {
+    if (!(await ensureQuoteInSqlite(id))) return null
     const quote = quoteDb.findUnique(id)
     if (!quote) return null
     const now = nowIso()
@@ -106,6 +107,7 @@ export const quoteService = {
 
   /** Restore a previously archived quote. */
   async restore(id: string, restorerId: string, restorerName: string): Promise<QuoteRow | null> {
+    if (!(await ensureQuoteInSqlite(id))) return null
     const quote = quoteDb.findUnique(id)
     if (!quote) return null
     const now = nowIso()

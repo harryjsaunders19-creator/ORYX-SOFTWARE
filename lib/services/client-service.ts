@@ -132,6 +132,13 @@ export const clientService = {
     return updated
   },
 
+  async findArchived(): Promise<ClientRow[]> {
+    if (!useSupabaseClients()) {
+      return clientDb.findMany({ activeOnly: false }).filter(c => c.active === 0)
+    }
+    return supabaseClientRepo.findArchived()
+  },
+
   async restore(id: string, restorerId = "System", restorerName = "System"): Promise<ClientRow | null> {
     const client = await this.findUnique(id)
     const updated = await this.update(id, { active: 1, archivedAt: null, archivedBy: null })

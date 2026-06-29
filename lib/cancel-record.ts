@@ -16,11 +16,11 @@ function toCancelRecord(entry: {
 }
 
 /** Attach latest ArchiveLog cancellation metadata to archived jobs. */
-export function attachCancelRecords<T extends Archivable>(
+export async function attachCancelRecords<T extends Archivable>(
   jobs: T[],
-): (T & { cancelRecord: CancelRecord | null })[] {
+): Promise<(T & { cancelRecord: CancelRecord | null })[]> {
   const archivedIds = jobs.filter(j => j.archivedAt).map(j => j.id)
-  const logMap = archiveLogService.findLatestArchiveForJobs(archivedIds)
+  const logMap = await archiveLogService.findLatestArchiveForJobs(archivedIds)
   return jobs.map(job => ({
     ...job,
     cancelRecord: job.archivedAt
@@ -29,8 +29,8 @@ export function attachCancelRecords<T extends Archivable>(
   }))
 }
 
-export function cancelRecordForJob(jobId: string): CancelRecord | null {
-  const entries = archiveLogService.findForEntity("job", jobId)
+export async function cancelRecordForJob(jobId: string): Promise<CancelRecord | null> {
+  const entries = await archiveLogService.findForEntity("job", jobId)
   const latest = entries.find(e => e.action === "archive")
   return latest ? toCancelRecord(latest) : null
 }

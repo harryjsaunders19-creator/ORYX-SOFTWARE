@@ -94,4 +94,13 @@ export const supabaseClientRepo = {
     if (error) throw error
     return (count ?? 0) > 0
   },
+
+  async findArchived(): Promise<ClientRow[]> {
+    const { data, error } = await table()
+      .select("*")
+      .eq("active", false)
+      .order("archived_at", { ascending: false, nullsFirst: false })
+    if (error) throw error
+    return (data ?? []).map(toClientRow)
+  },
 }

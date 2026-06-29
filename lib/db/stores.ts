@@ -1710,14 +1710,18 @@ export const holdDb = {
 import type { ArchiveLogRow } from "./archive-types"
 
 export const archiveLogDb = {
-  log(entry: Omit<ArchiveLogRow, "id" | "performedAt"> & { performedAt?: string }): void {
-    const id = nanoid()
-    const now = entry.performedAt ?? nowIso()
+  insert(row: ArchiveLogRow): void {
     db.prepare(`
       INSERT INTO ArchiveLog (id,entityType,entityId,entityLabel,action,performedBy,performedByName,performedAt,reason)
       VALUES (?,?,?,?,?,?,?,?,?)
-    `).run(id, entry.entityType, entry.entityId, entry.entityLabel, entry.action,
-           entry.performedBy, entry.performedByName, now, entry.reason ?? null)
+    `).run(row.id, row.entityType, row.entityId, row.entityLabel, row.action,
+           row.performedBy, row.performedByName, row.performedAt, row.reason ?? null)
+  },
+
+  log(entry: Omit<ArchiveLogRow, "id" | "performedAt"> & { performedAt?: string }): void {
+    const id = nanoid()
+    const now = entry.performedAt ?? nowIso()
+    this.insert({ ...entry, id, performedAt: now, reason: entry.reason ?? null })
   },
 
   findMany(limit = 200): ArchiveLogRow[] {

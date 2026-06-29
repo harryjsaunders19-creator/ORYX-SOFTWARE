@@ -259,8 +259,14 @@ export const supabaseJobRepo = {
   },
 
   async findArchived(): Promise<JobRow[]> {
-    const { data, error } = await table().select("*").not("archived_at", "is", null).order("archived_at", { ascending: false })
-    if (error) throw error
+    const { data, error } = await table()
+      .select("*")
+      .not("archived_at", "is", null)
+      .order("archived_at", { ascending: false })
+    if (error) {
+      if (noteJobsArchivedFromError(error)) return []
+      throw error
+    }
     return (data ?? []).map(toJobRow)
   },
 

@@ -18,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
     const payload = job.archivedAt
-      ? { ...job, cancelRecord: cancelRecordForJob(id) }
+      ? { ...job, cancelRecord: await cancelRecordForJob(id) }
       : job
     return resourceResponse(payload)
   } catch (err) {

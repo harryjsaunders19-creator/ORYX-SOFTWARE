@@ -7,7 +7,7 @@ export async function GET() {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
 
-    const entries = archiveLogService.findMany(500)
+    const entries = await archiveLogService.findMany(500)
     return NextResponse.json(entries)
   } catch (err) {
     console.error("[GET /api/archive-log]", err)

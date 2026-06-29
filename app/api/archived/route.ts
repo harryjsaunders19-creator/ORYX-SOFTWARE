@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { requireSignIn } from "@/lib/auth"
 import { jobService } from "@/lib/services/job-service"
 import { quoteService } from "@/lib/services/quote-service"
-import { clientDb } from "@/lib/db/stores"
+import { clientService } from "@/lib/services/client-service"
 import { attachCancelRecords } from "@/lib/cancel-record"
 
 export async function GET() {
@@ -10,17 +10,14 @@ export async function GET() {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
 
-    const [jobs, quotes] = await Promise.all([
+    const [jobs, quotes, clients] = await Promise.all([
       jobService.findArchived(),
       quoteService.findArchived(),
+      clientService.findArchived(),
     ])
 
-    // Clients use the existing active=0 mechanism; fetch all and filter
-    const allClients = clientDb.findMany({ activeOnly: false })
-    const clients = allClients.filter(c => c.active === 0)
-
     return NextResponse.json({
-      jobs: attachCancelRecords(jobs),
+      jobs: await attachCancelRecords(jobs),
       quotes,
       clients,
     })

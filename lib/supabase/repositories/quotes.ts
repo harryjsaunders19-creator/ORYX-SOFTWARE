@@ -121,8 +121,14 @@ export const supabaseQuoteRepo = {
   },
 
   async findArchived(): Promise<QuoteRow[]> {
-    const { data, error } = await quotesTable().select("*").not("archived_at", "is", null).order("archived_at", { ascending: false })
-    if (error) throw error
+    const { data, error } = await quotesTable()
+      .select("*")
+      .not("archived_at", "is", null)
+      .order("archived_at", { ascending: false })
+    if (error) {
+      if (noteQuotesArchivedFromError(error)) return []
+      throw error
+    }
     return (data ?? []).map(toQuoteRow)
   },
 
