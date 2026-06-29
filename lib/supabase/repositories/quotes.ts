@@ -12,7 +12,6 @@ import type {
 import {
   quotesArchivedFilterEnabled,
   noteQuotesArchivedFromError,
-  isMissingColumnError,
 } from "@/lib/supabase/archived-filter"
 import {
   toQuoteLineItemRow,
@@ -106,12 +105,7 @@ export const supabaseQuoteRepo = {
   },
 
   async upsert(quote: QuoteRow): Promise<void> {
-    const row = toSupabaseQuoteRow(quote)
-    let { error } = await quotesTable().upsert(row, { onConflict: "id" })
-    if (error && isMissingColumnError(error, "archived_at")) {
-      const { archived_at: _a, archived_by: _b, ...withoutArchived } = row
-      ;({ error } = await quotesTable().upsert(withoutArchived, { onConflict: "id" }))
-    }
+    const { error } = await quotesTable().upsert(toSupabaseQuoteRow(quote), { onConflict: "id" })
     if (error) throw error
   },
 
@@ -143,9 +137,30 @@ export const supabaseQuoteRepo = {
       .not("archived_at", "is", null)
       .order("archived_at", { ascending: false })
     if (error) {
-      if (noteQuotesArchivedFromError(error)) return []
+      if (noteQuotesArchivedFromError(error)) {
+        console.error("[supabaseQuoteRepo.findArchived] archived_at column missing — run 011_soft_delete.sql")
+        return []
+      }
       throw error
     }
+    return (data ?? []).map(toQuoteRow)
+  },
+
+  /** EXPIRED quotes never converted to a job — candidates for bulk archive. */
+  async findExpiredArchivable(): Promise<QuoteRow[]> {
+    const run = () =>
+      applyQuoteFilters(
+        quotesTable()
+          .select("*")
+          .eq("status", "EXPIRED")
+          .is("job_id", null),
+        { includeArchived: false },
+      )
+    let { data, error } = await run()
+    if (error && noteQuotesArchivedFromError(error)) {
+      ;({ data, error } = await run())
+    }
+    if (error) throw error
     return (data ?? []).map(toQuoteRow)
   },
 

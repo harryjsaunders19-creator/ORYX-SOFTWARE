@@ -1,8 +1,11 @@
 /**
  * Soft-delete columns (archived_at) were added in 011_soft_delete.sql.
  * When that migration was skipped, PostgREST queries filtering on archived_at
- * fail and break /api/stats. We detect once and skip the filter thereafter.
+ * fail. We probe once per request on archive routes and cache the result for
+ * the lifetime of the serverless instance.
  */
+import { createAdminClient } from "@/lib/supabase/admin"
+import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
 
 export function isMissingColumnError(
   error: { code?: string; message?: string } | null | undefined,
@@ -20,7 +23,7 @@ export function isMissingColumnError(
   )
 }
 
-/** false = column confirmed missing; undefined = not yet probed */
+/** false = column confirmed missing; undefined = not yet probed; true = present */
 let jobsArchivedAtSupported: boolean | undefined
 let quotesArchivedAtSupported: boolean | undefined
 
@@ -30,6 +33,14 @@ export function jobsArchivedFilterEnabled(): boolean {
 
 export function quotesArchivedFilterEnabled(): boolean {
   return quotesArchivedAtSupported !== false
+}
+
+export function jobsArchivedAtAvailable(): boolean {
+  return jobsArchivedAtSupported === true
+}
+
+export function quotesArchivedAtAvailable(): boolean {
+  return quotesArchivedAtSupported === true
 }
 
 export function disableJobsArchivedFilter(): void {
@@ -54,4 +65,16 @@ export function noteQuotesArchivedFromError(error: { code?: string; message?: st
     return true
   }
   return false
+}
+
+/** Re-detect archived_at on jobs/quotes — call before archive reads/writes on Vercel. */
+export async function probeArchivedColumns(): Promise<void> {
+  if (!isSupabaseAdminConfigured()) return
+  const sb = createAdminClient()
+  const [{ error: jobErr }, { error: quoteErr }] = await Promise.all([
+    sb.from("jobs").select("archived_at").limit(1),
+    sb.from("quotes").select("archived_at").limit(1),
+  ])
+  jobsArchivedAtSupported = !jobErr || !isMissingColumnError(jobErr, "archived_at")
+  quotesArchivedAtSupported = !quoteErr || !isMissingColumnError(quoteErr, "archived_at")
 }

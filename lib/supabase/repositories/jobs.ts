@@ -10,7 +10,6 @@ import type { JobRow } from "@/lib/db/job-types"
 import type { FindManyOptions, WhereClause } from "@/lib/db/helpers"
 import { isDrawingNumberListSort, sortJobsForList } from "@/lib/job-list-sort"
 import {
-  isMissingColumnError,
   jobsArchivedFilterEnabled,
   noteJobsArchivedFromError,
 } from "@/lib/supabase/archived-filter"
@@ -234,11 +233,6 @@ export const supabaseJobRepo = {
     if (isMissingCommercialExtrasColumn(error)) {
       ;({ error } = await table().upsert(withoutCommercialExtras(row), { onConflict: "id" }))
     }
-    if (error && isMissingColumnError(error, "archived_at")) {
-      noteJobsArchivedFromError(error)
-      const { archived_at: _a, archived_by: _b, ...withoutArchived } = row
-      ;({ error } = await table().upsert(withoutArchived, { onConflict: "id" }))
-    }
     if (error) throw error
   },
 
@@ -270,7 +264,10 @@ export const supabaseJobRepo = {
       .not("archived_at", "is", null)
       .order("archived_at", { ascending: false })
     if (error) {
-      if (noteJobsArchivedFromError(error)) return []
+      if (noteJobsArchivedFromError(error)) {
+        console.error("[supabaseJobRepo.findArchived] archived_at column missing — run 011_soft_delete.sql")
+        return []
+      }
       throw error
     }
     return (data ?? []).map(toJobRow)

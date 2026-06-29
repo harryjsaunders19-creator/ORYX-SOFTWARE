@@ -21,6 +21,7 @@ import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
 import { archiveLogService } from "@/lib/services/archive-log-service"
 import { nowIso } from "@/lib/db/helpers"
+import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
 
 async function mirrorQuote(quote: QuoteRow | null) {
   if (quote && useSupabaseQuotes()) await supabaseQuoteRepo.upsert(quote)
@@ -90,13 +91,37 @@ export const quoteService = {
 
   /** Soft-delete a quote: marks it as archived. Logs the action. */
   async archive(id: string, archiverId: string, archiverName: string): Promise<QuoteRow | null> {
+    const now = nowIso()
+
+    if (useSupabaseQuotes()) {
+      await probeArchivedColumns()
+      const remote = await supabaseQuoteRepo.findUnique(id)
+      if (!remote) return null
+      const ok = await supabaseQuoteRepo.archive(id, archiverId, now)
+      if (!ok) return null
+      const updated = await supabaseQuoteRepo.findUnique(id)
+      try {
+        await ensureQuoteInSqlite(id)
+        quoteDb.archive(id, archiverId, now)
+      } catch (err) {
+        console.warn("[quoteService.archive] SQLite mirror failed:", err)
+      }
+      if (updated) {
+        archiveLogService.log({
+          entityType: "quote", entityId: id,
+          entityLabel: remote.quoteNumber,
+          action: "archive",
+          performedBy: archiverId, performedByName: archiverName,
+        })
+      }
+      return updated
+    }
+
     if (!(await ensureQuoteInSqlite(id))) return null
     const quote = quoteDb.findUnique(id)
     if (!quote) return null
-    const now = nowIso()
     quoteDb.archive(id, archiverId, now)
     const updated = quoteDb.findUnique(id)
-    await mirrorQuote(updated)
     if (updated) {
       archiveLogService.log({
         entityType: "quote", entityId: id,
@@ -110,13 +135,36 @@ export const quoteService = {
 
   /** Restore a previously archived quote. */
   async restore(id: string, restorerId: string, restorerName: string): Promise<QuoteRow | null> {
+    const now = nowIso()
+
+    if (useSupabaseQuotes()) {
+      const remote = await supabaseQuoteRepo.findUnique(id)
+      if (!remote) return null
+      const ok = await supabaseQuoteRepo.restore(id, now)
+      if (!ok) return null
+      const updated = await supabaseQuoteRepo.findUnique(id)
+      try {
+        await ensureQuoteInSqlite(id)
+        quoteDb.restore(id, now)
+      } catch (err) {
+        console.warn("[quoteService.restore] SQLite mirror failed:", err)
+      }
+      if (updated) {
+        archiveLogService.log({
+          entityType: "quote", entityId: id,
+          entityLabel: remote.quoteNumber,
+          action: "restore",
+          performedBy: restorerId, performedByName: restorerName,
+        })
+      }
+      return updated
+    }
+
     if (!(await ensureQuoteInSqlite(id))) return null
     const quote = quoteDb.findUnique(id)
     if (!quote) return null
-    const now = nowIso()
     quoteDb.restore(id, now)
     const updated = quoteDb.findUnique(id)
-    await mirrorQuote(updated)
     if (updated) {
       archiveLogService.log({
         entityType: "quote", entityId: id,
@@ -141,10 +189,18 @@ export const quoteService = {
 
   /** Archive all expired quotes that were never converted to a job. */
   async clearExpired(archiverId = "System", archiverName = "System"): Promise<{ archived: number }> {
-    const removed = quoteDb.deleteExpired(archiverId)
-    for (const q of removed) {
-      await mirrorQuote(q)
+    await this.expirePastDue()
+
+    if (useSupabaseQuotes()) {
+      const expired = await supabaseQuoteRepo.findExpiredArchivable()
+      let archived = 0
+      for (const q of expired) {
+        if (await this.archive(q.id, archiverId, archiverName)) archived++
+      }
+      return { archived }
     }
+
+    const removed = quoteDb.deleteExpired(archiverId)
     for (const q of removed) {
       archiveLogService.log({
         entityType: "quote", entityId: q.id,

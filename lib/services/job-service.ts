@@ -20,6 +20,7 @@ import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { archiveLogService } from "@/lib/services/archive-log-service"
 import { nowIso } from "@/lib/db/helpers"
+import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
 
 async function mirror(job: JobRow | null) {
   if (job && useSupabaseJobs()) await supabaseJobRepo.upsert(job)
@@ -146,13 +147,36 @@ export const jobService = {
 
   /** Soft-delete a job: marks it as archived. Logs the action. */
   async archive(id: string, archiverId: string, archiverName: string, reason: string): Promise<JobRow | null> {
+    const now = nowIso()
+
+    if (useSupabaseJobs()) {
+      await probeArchivedColumns()
+      const remote = await supabaseJobRepo.findUnique(id)
+      if (!remote) return null
+      const ok = await supabaseJobRepo.archive(id, archiverId, now)
+      if (!ok) return null
+      const updated = await supabaseJobRepo.findUnique(id)
+      try {
+        await ensureJobInSqlite(id)
+        jobDb.archive(id, archiverId, now)
+      } catch (err) {
+        console.warn("[jobService.archive] SQLite mirror failed:", err)
+      }
+      archiveLogService.log({
+        entityType: "job", entityId: id,
+        entityLabel: remote.drawingNumber,
+        action: "archive",
+        performedBy: archiverId, performedByName: archiverName,
+        reason,
+      })
+      return updated
+    }
+
     await ensureJobInSqlite(id)
     const job = jobDb.findUnique(id)
     if (!job) return null
-    const now = nowIso()
     jobDb.archive(id, archiverId, now)
     const updated = jobDb.findUnique(id)
-    await mirror(updated)
     archiveLogService.log({
       entityType: "job", entityId: id,
       entityLabel: job.drawingNumber,
@@ -165,13 +189,34 @@ export const jobService = {
 
   /** Restore a previously archived job. */
   async restore(id: string, restorerId: string, restorerName: string): Promise<JobRow | null> {
+    const now = nowIso()
+
+    if (useSupabaseJobs()) {
+      const remote = await supabaseJobRepo.findUnique(id)
+      if (!remote) return null
+      const ok = await supabaseJobRepo.restore(id, now)
+      if (!ok) return null
+      const updated = await supabaseJobRepo.findUnique(id)
+      try {
+        await ensureJobInSqlite(id)
+        jobDb.restore(id, now)
+      } catch (err) {
+        console.warn("[jobService.restore] SQLite mirror failed:", err)
+      }
+      archiveLogService.log({
+        entityType: "job", entityId: id,
+        entityLabel: remote.drawingNumber,
+        action: "restore",
+        performedBy: restorerId, performedByName: restorerName,
+      })
+      return updated
+    }
+
     await ensureJobInSqlite(id)
     const job = jobDb.findUnique(id)
     if (!job) return null
-    const now = nowIso()
     jobDb.restore(id, now)
     const updated = jobDb.findUnique(id)
-    await mirror(updated)
     archiveLogService.log({
       entityType: "job", entityId: id,
       entityLabel: job.drawingNumber,

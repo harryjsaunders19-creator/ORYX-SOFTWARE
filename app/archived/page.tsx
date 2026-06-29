@@ -18,6 +18,7 @@ interface ArchivedData {
   jobs:    Job[]
   quotes:  Quote[]
   clients: Client[]
+  warnings?: string[]
 }
 
 function fmtDate(iso: string | null | undefined) {
@@ -40,6 +41,7 @@ function ArchivedInner() {
   const [data, setData]     = useState<ArchivedData | null>(null)
   const [log, setLog]       = useState<ArchiveLogRow[]>([])
   const [loading, setLoading]   = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"jobs" | "quotes" | "clients" | "log">("jobs")
 
   const [restoring, setRestoring] = useState<string | null>(null)
@@ -47,14 +49,23 @@ function ArchivedInner() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setFetchError(null)
     try {
       const [arRes, logRes] = await Promise.all([
         fetch("/api/archived"),
         fetch("/api/archive-log"),
       ])
-      if (arRes.ok)  setData(await arRes.json() as ArchivedData)
+      if (arRes.ok) {
+        setData(await arRes.json() as ArchivedData)
+      } else {
+        const body = await arRes.json().catch(() => null) as { detail?: string; error?: string } | null
+        setFetchError(body?.detail ?? body?.error ?? "Failed to load archived items")
+        setData(null)
+      }
       if (logRes.ok) setLog(await logRes.json() as ArchiveLogRow[])
-    } catch { /* ignore */ }
+    } catch {
+      setFetchError("Network error loading archived items")
+    }
     finally { setLoading(false) }
   }, [])
 
@@ -97,6 +108,21 @@ function ArchivedInner() {
         title="Archived Items"
         description="Cancelled jobs are kept here so drawing numbers stay on record. Gaps in the active sequence (e.g. 001, 003) mean a number was cancelled — check this page to see which. Restore any item to return it to active views."
       />
+
+      {fetchError && (
+        <div className="mb-4 bg-dn-bg border border-dn-bd rounded-md p-4 text-sm text-dn-tx">
+          <p className="font-medium">Could not load archived items.</p>
+          <p className="text-xs text-t3 mt-1">{fetchError}</p>
+        </div>
+      )}
+
+      {!!data?.warnings?.length && (
+        <div className="mb-4 bg-wn-bg border border-wn-bd rounded-md p-4 text-sm text-wn-tx space-y-1">
+          {data.warnings.map(w => (
+            <p key={w} className="text-xs">{w}</p>
+          ))}
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-bd mb-4">

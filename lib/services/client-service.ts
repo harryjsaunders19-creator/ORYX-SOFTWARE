@@ -19,6 +19,7 @@ import { useSupabaseClients, useSupabaseJobs } from "@/lib/supabase/feature-flag
 import { supabaseClientRepo } from "@/lib/supabase/repositories/clients"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { archiveLogService } from "@/lib/services/archive-log-service"
+import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
 
 function sqliteActiveJobCount(clientId: string): number {
   return (db.prepare("SELECT COUNT(*) as n FROM Job WHERE clientId = ? AND status != 'ISSUED'").get(clientId) as { n: number }).n
@@ -126,6 +127,7 @@ export const clientService = {
     if (!useSupabaseClients()) {
       updated = clientDb.update(id, { active: 0, archivedAt: now, archivedBy: archiverId })
     } else {
+      await probeArchivedColumns()
       updated = await supabaseClientRepo.archive(id, archiverId, now)
       if (updated) {
         await ensureClientInSqlite(id)
