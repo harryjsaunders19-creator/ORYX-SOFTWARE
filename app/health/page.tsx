@@ -201,8 +201,8 @@ function ResetDataSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password, confirmPhrase: phrase }),
       })
-      const body = await res.json() as { ok?: boolean; cleared?: { jobCount: number; clientCount: number; quoteCount: number }; error?: string }
-      if (!res.ok) { setError(body.error ?? "Reset failed"); return }
+      const body = await res.json() as { ok?: boolean; cleared?: { jobCount: number; clientCount: number; quoteCount: number }; error?: string; detail?: string }
+      if (!res.ok) { setError(body.detail ?? body.error ?? "Reset failed"); return }
 
       setOpen(false)
       setPassword("")

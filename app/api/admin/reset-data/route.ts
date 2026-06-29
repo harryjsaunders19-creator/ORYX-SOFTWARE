@@ -3,11 +3,13 @@
  *
  * Wipes all jobs, clients, quotes, billing data, and sequences.
  * Preserves user accounts. Requires ADMIN role + password confirmation.
+ * When Supabase is linked, clears Supabase first then the local SQLite mirror.
  */
 import { NextRequest, NextResponse } from "next/server"
 import { requireRole } from "@/lib/auth"
 import { verifyPassword } from "@/lib/password"
-import { resetAllData } from "@/lib/db"
+import { errorMessage } from "@/lib/error-message"
+import { resetSystemData } from "@/lib/services/reset-data-service"
 
 export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
@@ -36,13 +38,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
     }
 
-    const counts = resetAllData()
+    const counts = await resetSystemData()
 
     console.log(`[RESET ALL DATA] Performed by ${auth.user.name} (${auth.user.email}). Cleared ${counts.jobCount} jobs, ${counts.clientCount} clients, ${counts.quoteCount} quotes.`)
 
     return NextResponse.json({ ok: true, cleared: counts })
   } catch (err) {
     console.error("[POST /api/admin/reset-data]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Reset failed", detail: errorMessage(err) },
+      { status: 500 },
+    )
   }
 }

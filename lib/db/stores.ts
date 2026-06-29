@@ -2165,6 +2165,7 @@ export function resetAllData(): { jobCount: number; clientCount: number; quoteCo
     db.prepare("DELETE FROM DrawingSequence").run()
     db.prepare("DELETE FROM RefSequence").run()
     db.prepare("DELETE FROM ClientHold").run()
+    db.prepare("DELETE FROM ArchiveLog").run()
     db.prepare("DELETE FROM Client").run()
 
     return { jobCount, clientCount, quoteCount }
