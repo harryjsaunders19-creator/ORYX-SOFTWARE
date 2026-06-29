@@ -21,20 +21,17 @@ import { jobService } from "@/lib/services/job-service"
 import { quoteService } from "@/lib/services/quote-service"
 import type { ClientRow } from "@/lib/db/client-types"
 import { sheetDataRows } from "@/lib/excel-import-rows"
-import type { JobRow, UpdateJobData } from "@/lib/db/job-types"
-import type { QuoteRow, UpdateQuoteData } from "@/lib/db/quote-types"
 import {
+  buildClientRowFromImport,
   buildJobRowFromImport,
   buildQuoteRowFromImport,
   bulkImportClients,
   bulkImportJobs,
   bulkImportQuotes,
-  mergeJobForImport,
-  mergeQuoteForImport,
+  formatImportError,
   shouldUseBulkImport,
 } from "@/lib/import-excel-bulk"
 import { useSupabaseClients, useSupabaseJobs, useSupabaseQuotes } from "@/lib/supabase/feature-flags"
-import type { CreateClientData, UpdateClientData } from "@/lib/db/client-types"
 
 // ── Label → internal code maps ────────────────────────────────────────────────
 
@@ -110,7 +107,14 @@ export interface ImportResult {
 async function importClients(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
   const result: SheetResult = { created: 0, updated: 0, skipped: 0, errors: [] }
 
-  const allClients = await clientService.findMany({ take: 10000 }).catch(() => [])
+  let allClients: ClientRow[]
+  try {
+    allClients = await clientService.findManyWithMeta({ take: 10000 })
+  } catch (err) {
+    result.errors.push(`Could not load existing clients: ${formatImportError(err)}`)
+    return result
+  }
+
   const byAccountCode = new Map<string, ClientRow>()
   const byName = new Map<string, ClientRow>()
   for (const c of allClients) {
@@ -118,8 +122,9 @@ async function importClients(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
     byName.set(c.name.toLowerCase(), c)
   }
 
-  const toCreate: Array<CreateClientData & { active: number }> = []
-  const updates: Array<{ id: string; name: string; data: UpdateClientData }> = []
+  const toUpsert: ClientRow[] = []
+  let createCount = 0
+  let updateCount = 0
 
   for (const row of sheetDataRows(sheet)) {
     const name = str(row.getCell(1))
@@ -139,55 +144,60 @@ async function importClients(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
       byName.get(name.toLowerCase()) ??
       null
 
-    if (existing) {
-      updates.push({
-        id: existing.id,
-        name,
-        data: {
-          name, contactName, phone, email,
-          billingAddress: billingAddr, notes, accountCode, active,
-        },
-      })
-    } else {
-      toCreate.push({
-        id: createId(), name, contactName, phone, email,
-        billingAddress: billingAddr, notes, accountCode, active,
-      })
-    }
+    if (existing) updateCount++
+    else createCount++
+
+    toUpsert.push(buildClientRowFromImport({
+      id: existing?.id ?? createId(),
+      name, contactName, phone, email,
+      billingAddress: billingAddr, notes, accountCode, active,
+    }))
   }
 
-  if (useSupabaseClients() && toCreate.length) {
+  if (!toUpsert.length) return result
+
+  if (useSupabaseClients()) {
     try {
-      const created = await bulkImportClients(toCreate)
-      result.created += created.length
-      for (const c of created) {
-        if (c.accountCode) byAccountCode.set(c.accountCode, c)
-        byName.set(c.name.toLowerCase(), c)
-      }
+      await bulkImportClients(toUpsert)
+      result.created += createCount
+      result.updated += updateCount
     } catch (err) {
-      result.errors.push(`Bulk client import: ${err instanceof Error ? err.message : String(err)}`)
-      result.skipped += toCreate.length
+      result.errors.push(`Bulk client import: ${formatImportError(err)}`)
+      result.skipped += createCount + updateCount
     }
-  } else {
-    for (const data of toCreate) {
-      try {
-        const created = await clientService.create(data)
-        if (data.accountCode) byAccountCode.set(data.accountCode, created)
-        byName.set(data.name.toLowerCase(), created)
+    return result
+  }
+
+  for (const client of toUpsert) {
+    const existing = byName.get(client.name.toLowerCase())
+    try {
+      if (existing) {
+        await clientService.update(existing.id, {
+          name: client.name,
+          contactName: client.contactName,
+          phone: client.phone,
+          email: client.email,
+          billingAddress: client.billingAddress,
+          notes: client.notes,
+          accountCode: client.accountCode,
+          active: client.active,
+        })
+        result.updated++
+      } else {
+        await clientService.create({
+          id: client.id,
+          name: client.name,
+          contactName: client.contactName,
+          phone: client.phone,
+          email: client.email,
+          billingAddress: client.billingAddress,
+          notes: client.notes,
+          accountCode: client.accountCode,
+        })
         result.created++
-      } catch (err) {
-        result.errors.push(`Client "${data.name}": ${err instanceof Error ? err.message : String(err)}`)
-        result.skipped++
       }
-    }
-  }
-
-  for (const { id, name, data } of updates) {
-    try {
-      await clientService.update(id, data)
-      result.updated++
     } catch (err) {
-      result.errors.push(`Client "${name}": ${err instanceof Error ? err.message : String(err)}`)
+      result.errors.push(`Client "${client.name}": ${formatImportError(err)}`)
       result.skipped++
     }
   }
@@ -200,14 +210,27 @@ async function importClients(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
   const result: SheetResult = { created: 0, updated: 0, skipped: 0, errors: [] }
 
-  const allJobs = await jobService.findMany({ take: 50000 }).catch(() => [] as Awaited<ReturnType<typeof jobService.findMany>>)
+  let allJobs: Awaited<ReturnType<typeof jobService.findMany>>
+  try {
+    allJobs = await jobService.findMany({ take: 50000 })
+  } catch (err) {
+    result.errors.push(`Could not load existing jobs: ${formatImportError(err)}`)
+    return result
+  }
   const jobByDrawingNumber = new Map(allJobs.map(j => [j.drawingNumber.toUpperCase(), j]))
 
-  const allClients = await clientService.findMany({ take: 10000 }).catch(() => [])
+  let allClients: Awaited<ReturnType<typeof clientService.findManyWithMeta>>
+  try {
+    allClients = await clientService.findManyWithMeta({ take: 10000 })
+  } catch (err) {
+    result.errors.push(`Could not load clients for job linking: ${formatImportError(err)}`)
+    return result
+  }
   const clientByName = new Map(allClients.map(c => [c.name.toLowerCase(), c]))
 
-  const toCreate: ReturnType<typeof buildJobRowFromImport>[] = []
-  const updates: Array<{ existing: JobRow; drawingNumber: string; data: UpdateJobData }> = []
+  const rows: ReturnType<typeof buildJobRowFromImport>[] = []
+  let createCount = 0
+  let updateCount = 0
 
   for (const row of sheetDataRows(sheet)) {
     const drawingNumber = str(row.getCell(1))
@@ -234,53 +257,68 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
     const clientId = client?.id ?? null
 
     const existing = jobByDrawingNumber.get(drawingNumber.toUpperCase())
-    if (existing) {
-      updates.push({
-        existing,
-        drawingNumber,
-        data: {
-          address, typeOfWorks, clientCompany, clientId,
-          requestedBy, status, designer,
-          quoteValue, variationFees, quoteReference,
-          requiredByDate, dateCompleted, notes,
-          changedBy: "Excel Import",
-        },
-      })
-    } else {
-      if (!address) { result.skipped++; continue }
-      toCreate.push(buildJobRowFromImport({
-        id: createId(),
-        drawingNumber,
-        itemType,
-        address,
-        typeOfWorks,
-        clientCompany,
-        clientId,
-        requestedBy,
-        status,
-        designer,
-        quoteValue: quoteValue ?? null,
-        variationFees: variationFees ?? null,
-        quoteReference,
-        requiredByDate,
-        dateCreated,
-        dateCompleted,
-        notes,
-      }))
-    }
+    if (!existing && !address) { result.skipped++; continue }
+
+    if (existing) updateCount++
+    else createCount++
+
+    rows.push(buildJobRowFromImport({
+      id: existing?.id ?? createId(),
+      drawingNumber,
+      itemType,
+      address,
+      typeOfWorks,
+      clientCompany,
+      clientId,
+      requestedBy,
+      status,
+      designer,
+      quoteValue: quoteValue ?? null,
+      variationFees: variationFees ?? null,
+      quoteReference,
+      requiredByDate,
+      dateCreated,
+      dateCompleted,
+      notes,
+    }))
   }
 
-  if (useSupabaseJobs() && toCreate.length) {
+  if (!rows.length) return result
+
+  if (useSupabaseJobs()) {
     try {
-      await bulkImportJobs(toCreate)
-      result.created += toCreate.length
+      await bulkImportJobs(rows)
+      result.created += createCount
+      result.updated += updateCount
     } catch (err) {
-      result.errors.push(`Bulk job import: ${err instanceof Error ? err.message : String(err)}`)
-      result.skipped += toCreate.length
+      result.errors.push(`Bulk job import: ${formatImportError(err)}`)
+      result.skipped += createCount + updateCount
     }
-  } else {
-    for (const job of toCreate) {
-      try {
+    return result
+  }
+
+  for (const job of rows) {
+    const existing = jobByDrawingNumber.get(job.drawingNumber.toUpperCase())
+    try {
+      if (existing) {
+        await jobService.update(existing.id, {
+          address: job.address,
+          typeOfWorks: job.typeOfWorks,
+          clientCompany: job.clientCompany,
+          clientId: job.clientId,
+          requestedBy: job.requestedBy,
+          status: job.status,
+          designer: job.designer,
+          quoteValue: job.quoteValue,
+          variationFees: job.variationFees,
+          quoteReference: job.quoteReference,
+          requiredByDate: job.requiredByDate,
+          dateCompleted: job.dateCompleted,
+          notes: job.notes,
+          changedBy: "Excel Import",
+        })
+        result.updated++
+      } else {
         await jobService.create({
           id: job.id,
           drawingNumber: job.drawingNumber,
@@ -301,30 +339,10 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
           changedBy: "Excel Import",
         })
         result.created++
-      } catch (err) {
-        result.errors.push(`Job "${job.drawingNumber}": ${err instanceof Error ? err.message : String(err)}`)
-        result.skipped++
       }
-    }
-  }
-
-  if (useSupabaseJobs() && updates.length) {
-    try {
-      await bulkImportJobs(updates.map(({ existing, data }) => mergeJobForImport(existing, data)))
-      result.updated += updates.length
     } catch (err) {
-      result.errors.push(`Bulk job update: ${err instanceof Error ? err.message : String(err)}`)
-      result.skipped += updates.length
-    }
-  } else {
-    for (const { existing, drawingNumber, data } of updates) {
-      try {
-        await jobService.update(existing.id, data)
-        result.updated++
-      } catch (err) {
-        result.errors.push(`Job "${drawingNumber}": ${err instanceof Error ? err.message : String(err)}`)
-        result.skipped++
-      }
+      result.errors.push(`Job "${job.drawingNumber}": ${formatImportError(err)}`)
+      result.skipped++
     }
   }
 
@@ -336,14 +354,27 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 async function importQuotes(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
   const result: SheetResult = { created: 0, updated: 0, skipped: 0, errors: [] }
 
-  const allQuotes = await quoteService.findMany({ take: 50000 }).catch(() => [] as Awaited<ReturnType<typeof quoteService.findMany>>)
+  let allQuotes: Awaited<ReturnType<typeof quoteService.findMany>>
+  try {
+    allQuotes = await quoteService.findMany({ take: 50000 })
+  } catch (err) {
+    result.errors.push(`Could not load existing quotes: ${formatImportError(err)}`)
+    return result
+  }
   const quoteByNumber = new Map(allQuotes.map(q => [q.quoteNumber, q]))
 
-  const allClients = await clientService.findMany({ take: 10000 }).catch(() => [])
+  let allClients: Awaited<ReturnType<typeof clientService.findManyWithMeta>>
+  try {
+    allClients = await clientService.findManyWithMeta({ take: 10000 })
+  } catch (err) {
+    result.errors.push(`Could not load clients for quote linking: ${formatImportError(err)}`)
+    return result
+  }
   const clientByName = new Map(allClients.map(c => [c.name.toLowerCase(), c]))
 
-  const toCreate: ReturnType<typeof buildQuoteRowFromImport>[] = []
-  const updates: Array<{ existing: QuoteRow; quoteNumber: string; data: UpdateQuoteData }> = []
+  const rows: ReturnType<typeof buildQuoteRowFromImport>[] = []
+  let createCount = 0
+  let updateCount = 0
 
   for (const row of sheetDataRows(sheet)) {
     const quoteNumber = str(row.getCell(1))
@@ -365,48 +396,62 @@ async function importQuotes(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
     const client = clientByName.get(clientCompany.toLowerCase())
 
     const existing = quoteByNumber.get(quoteNumber)
-    if (existing) {
-      updates.push({
-        existing,
-        quoteNumber,
-        data: {
-          clientId: client?.id ?? null,
-          clientCompany, contactName, address, description,
-          quoteValue, vatRate, quoteDate, expiryDate, status, notes,
-        },
-      })
-    } else {
-      if (!address || !description) { result.skipped++; continue }
-      toCreate.push(buildQuoteRowFromImport({
-        id: createId(),
-        quoteNumber,
-        clientId: client?.id ?? null,
-        clientCompany,
-        contactName,
-        address,
-        description,
-        quoteValue,
-        quoteDate,
-        expiryDate,
-        status,
-        notes,
-        createdBy: "Excel Import",
-        vatRate: vatRate ?? null,
-      }))
-    }
+    if (!existing && (!address || !description)) { result.skipped++; continue }
+
+    if (existing) updateCount++
+    else createCount++
+
+    rows.push(buildQuoteRowFromImport({
+      id: existing?.id ?? createId(),
+      quoteNumber,
+      clientId: client?.id ?? null,
+      clientCompany,
+      contactName,
+      address,
+      description,
+      quoteValue,
+      quoteDate,
+      expiryDate,
+      status,
+      notes,
+      createdBy: "Excel Import",
+      vatRate: vatRate ?? null,
+    }))
   }
 
-  if (useSupabaseQuotes() && toCreate.length) {
+  if (!rows.length) return result
+
+  if (useSupabaseQuotes()) {
     try {
-      await bulkImportQuotes(toCreate)
-      result.created += toCreate.length
+      await bulkImportQuotes(rows)
+      result.created += createCount
+      result.updated += updateCount
     } catch (err) {
-      result.errors.push(`Bulk quote import: ${err instanceof Error ? err.message : String(err)}`)
-      result.skipped += toCreate.length
+      result.errors.push(`Bulk quote import: ${formatImportError(err)}`)
+      result.skipped += createCount + updateCount
     }
-  } else {
-    for (const quote of toCreate) {
-      try {
+    return result
+  }
+
+  for (const quote of rows) {
+    const existing = quoteByNumber.get(quote.quoteNumber)
+    try {
+      if (existing) {
+        await quoteService.update(existing.id, {
+          clientId: quote.clientId,
+          clientCompany: quote.clientCompany,
+          contactName: quote.contactName,
+          address: quote.address,
+          description: quote.description,
+          quoteValue: quote.quoteValue,
+          vatRate: quote.vatRate,
+          quoteDate: quote.quoteDate,
+          expiryDate: quote.expiryDate,
+          status: quote.status,
+          notes: quote.notes,
+        })
+        result.updated++
+      } else {
         await quoteService.create({
           id: quote.id,
           quoteNumber: quote.quoteNumber,
@@ -424,30 +469,10 @@ async function importQuotes(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
           createdBy: quote.createdBy,
         })
         result.created++
-      } catch (err) {
-        result.errors.push(`Quote "${quote.quoteNumber}": ${err instanceof Error ? err.message : String(err)}`)
-        result.skipped++
       }
-    }
-  }
-
-  if (useSupabaseQuotes() && updates.length) {
-    try {
-      await bulkImportQuotes(updates.map(({ existing, data }) => mergeQuoteForImport(existing, data)))
-      result.updated += updates.length
     } catch (err) {
-      result.errors.push(`Bulk quote update: ${err instanceof Error ? err.message : String(err)}`)
-      result.skipped += updates.length
-    }
-  } else {
-    for (const { existing, quoteNumber, data } of updates) {
-      try {
-        await quoteService.update(existing.id, data)
-        result.updated++
-      } catch (err) {
-        result.errors.push(`Quote "${quoteNumber}": ${err instanceof Error ? err.message : String(err)}`)
-        result.skipped++
-      }
+      result.errors.push(`Quote "${quote.quoteNumber}": ${formatImportError(err)}`)
+      result.skipped++
     }
   }
 

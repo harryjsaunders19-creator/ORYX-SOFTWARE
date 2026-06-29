@@ -6,7 +6,7 @@
  */
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isMissingColumnError } from "@/lib/supabase/archived-filter"
-import { toClientRow, toSupabaseInsert, toSupabaseUpdate } from "@/lib/supabase/mappers/client"
+import { toClientRow, toSupabaseInsert, toSupabaseRow, toSupabaseUpdate } from "@/lib/supabase/mappers/client"
 import type { ClientRow, CreateClientData, UpdateClientData } from "@/lib/db/client-types"
 
 function table() {
@@ -82,12 +82,15 @@ export const supabaseClientRepo = {
     return toClientRow(inserted)
   },
 
-  async upsertMany(items: Array<CreateClientData & { active?: number }>, now: string): Promise<void> {
-    if (!items.length) return
-    const rows = items.map(item =>
-      toSupabaseInsert(item, now, (item.active ?? 1) === 1),
-    )
-    const { error } = await table().upsert(rows, { onConflict: "id" })
+  /** Bulk import — upsert by name_lower so retries merge instead of failing. */
+  async upsertMany(clients: ClientRow[]): Promise<void> {
+    if (!clients.length) return
+    const rows = clients.map(toSupabaseRow)
+    let { error } = await table().upsert(rows, { onConflict: "name_lower" })
+    if (error && isMissingColumnError(error, "archived_at")) {
+      const slim = rows.map(({ archived_at: _a, archived_by: _b, ...rest }) => rest)
+      ;({ error } = await table().upsert(slim, { onConflict: "name_lower" }))
+    }
     if (error) throw error
   },
 

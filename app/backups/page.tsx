@@ -172,13 +172,20 @@ function BackupsInner() {
       try {
         data = JSON.parse(raw) as ImportResult & { error?: string }
       } catch {
-        const hint = res.status === 504 || res.status === 408
-          ? " — the import timed out; try a smaller file or retry after deploy"
-          : ""
-        toast(`Import failed (HTTP ${res.status})${hint}`, "error")
+        const timedOut = res.status === 504 || /timeout|timed out/i.test(raw)
+        toast(
+          timedOut
+            ? "Import timed out — try a smaller file or retry after deploy finishes"
+            : `Import failed (${res.status})`,
+          "error",
+        )
         return
       }
-      if (!res.ok) { toast(data.error ?? `Import failed (HTTP ${res.status})`, "error"); return }
+      if (!res.ok) {
+        toast(data.error ?? `Import failed (${res.status})`, "error")
+        if (data.clients || data.jobs || data.quotes) setImportResult(data)
+        return
+      }
       setImportResult(data)
       const total = data.clients.created + data.clients.updated
         + data.jobs.created + data.jobs.updated
@@ -188,7 +195,9 @@ function BackupsInner() {
       } else {
         toast(`Import complete — ${total.toLocaleString()} records`, "success")
       }
-    } catch { toast("Import failed", "error") }
+    } catch {
+      toast("Import failed — network error", "error")
+    }
     finally { setImporting(false) }
   }
 

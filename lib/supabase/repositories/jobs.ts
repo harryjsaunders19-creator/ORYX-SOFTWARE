@@ -246,6 +246,17 @@ export const supabaseJobRepo = {
     if (error) throw error
   },
 
+  /** Excel import — upsert by drawing_number so a retry after partial import still succeeds. */
+  async upsertManyForImport(jobs: JobRow[]): Promise<void> {
+    if (!jobs.length) return
+    const rows = jobs.map(toSupabaseRow)
+    let { error } = await table().upsert(rows, { onConflict: "drawing_number" })
+    if (isMissingCommercialExtrasColumn(error)) {
+      ;({ error } = await table().upsert(rows.map(withoutCommercialExtras), { onConflict: "drawing_number" }))
+    }
+    if (error) throw error
+  },
+
   async delete(id: string): Promise<boolean> {
     const { error, count } = await table().delete({ count: "exact" }).eq("id", id)
     if (error) throw error
