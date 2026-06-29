@@ -24,6 +24,16 @@ function fmtDate(iso: string | null | undefined) {
   try { return format(parseISO(iso), "d MMM yyyy HH:mm") } catch { return iso }
 }
 
+function fmtCancelLine(job: Job) {
+  const when = fmtDate(job.archivedAt)
+  const rec = job.cancelRecord
+  if (rec) {
+    const reason = rec.reason ? ` — ${rec.reason}` : ""
+    return `Cancelled ${when} by ${rec.performedByName}${reason}`
+  }
+  return `Cancelled ${when}`
+}
+
 function ArchivedInner() {
   const { toast } = useToast()
   const [data, setData]     = useState<ArchivedData | null>(null)
@@ -84,7 +94,7 @@ function ArchivedInner() {
     <PageShell>
       <PageHeader
         title="Archived Items"
-        description="Records hidden from active views. Restore any item to make it active again."
+        description="Cancelled jobs are kept here so drawing numbers stay on record. Gaps in the active sequence (e.g. 001, 003) mean a number was cancelled — check this page to see which. Restore any item to return it to active views."
       />
 
       {/* Tab bar */}
@@ -119,12 +129,19 @@ function ArchivedInner() {
             data?.jobs.length ? (
               <div className="divide-y divide-bd rounded-lg border border-bd overflow-hidden">
                 {data.jobs.map(job => (
-                  <div key={job.id} className="flex items-center justify-between gap-4 px-4 py-3 bg-panel">
+                  <div key={job.id} className="flex items-center justify-between gap-4 px-4 py-3 bg-panel opacity-90">
                     <div className="min-w-0">
-                      <p className="font-mono text-sm font-semibold text-t1 truncate">{job.drawingNumber}</p>
-                      <p className="text-xs text-t3 truncate">{job.address} · {job.clientCompany}</p>
-                      <p className="text-xs text-t4 mt-0.5">
-                        Archived {fmtDate(job.archivedAt)}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-mono text-sm font-semibold text-t3 line-through truncate">
+                          {job.drawingNumber}
+                        </p>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx border border-dn-bd shrink-0">
+                          Cancelled
+                        </span>
+                      </div>
+                      <p className="text-xs text-t4 line-through truncate">{job.address} · {job.clientCompany}</p>
+                      <p className="text-xs text-t3 mt-0.5">
+                        {fmtCancelLine(job)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -141,7 +158,7 @@ function ArchivedInner() {
                 ))}
               </div>
             ) : (
-              <EmptyPanel icon={Briefcase} title="No archived jobs" description="Jobs you archive will appear here." />
+              <EmptyPanel icon={Briefcase} title="No cancelled jobs" description="Jobs you cancel will appear here with their drawing number and reason on record." />
             )
           )}
 
@@ -212,7 +229,13 @@ function ArchivedInner() {
                     <div className="min-w-0 text-sm">
                       <span className="font-medium text-t1">{entry.performedByName}</span>
                       {" "}
-                      <span className="text-t3">{entry.action === "archive" ? "archived" : "restored"}</span>
+                      <span className="text-t3">
+                        {entry.entityType === "job" && entry.action === "archive"
+                          ? "cancelled"
+                          : entry.action === "archive"
+                          ? "archived"
+                          : "restored"}
+                      </span>
                       {" "}
                       <span className="font-mono text-ac">{entry.entityLabel}</span>
                       {" "}

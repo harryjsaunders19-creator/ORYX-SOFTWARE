@@ -145,7 +145,7 @@ export const jobService = {
   },
 
   /** Soft-delete a job: marks it as archived. Logs the action. */
-  async archive(id: string, archiverId: string, archiverName: string): Promise<JobRow | null> {
+  async archive(id: string, archiverId: string, archiverName: string, reason: string): Promise<JobRow | null> {
     await ensureJobInSqlite(id)
     const job = jobDb.findUnique(id)
     if (!job) return null
@@ -157,6 +157,7 @@ export const jobService = {
       entityLabel: job.drawingNumber,
       action: "archive",
       performedBy: archiverId, performedByName: archiverName,
+      reason,
     })
     return jobDb.findUnique(id)
   },

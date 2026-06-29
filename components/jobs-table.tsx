@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
@@ -370,7 +371,7 @@ const JobTableRow = memo(
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem danger onSelect={() => onDelete(job)}>
-                      <Trash2 className="h-3.5 w-3.5" /> Archive job
+                      <Trash2 className="h-3.5 w-3.5" /> Cancel job
                     </DropdownMenuItem>
                   </>
                 )}
@@ -438,6 +439,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const [editJob,      setEditJob]      = useState<Job | null>(null)
   const [editSaving,   setEditSaving]   = useState(false)
   const [deleteJob,    setDeleteJob]    = useState<Job | null>(null)
+  const [cancelReason, setCancelReason] = useState("")
   const [deleting,     setDeleting]     = useState(false)
   const [assignJob,    setAssignJob]    = useState<Job | null>(null)
   const [creatingRevisionFor, setCreatingRevisionFor] = useState<string | null>(null)
@@ -559,12 +561,28 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
 
   const handleDelete = async () => {
     if (!deleteJob) return
+    const reason = cancelReason.trim()
+    if (reason.length < 3) {
+      toast("Please enter a cancellation reason (at least 3 characters)", "error")
+      return
+    }
     setDeleting(true)
     try {
-      const res = await fetch(`/api/jobs/${deleteJob.id}`, { method: "DELETE" })
-      if (!res.ok) { toast("Failed to archive job", "error"); return }
-      toast(`${deleteJob.drawingNumber} archived`, "info")
-      setDeleteJob(null); setPage(1); mutate()
+      const res = await fetch(`/api/jobs/${deleteJob.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "Failed to cancel job", "error")
+        return
+      }
+      toast(`${deleteJob.drawingNumber} moved to Archive`, "info")
+      setDeleteJob(null)
+      setCancelReason("")
+      setPage(1)
+      mutate()
     } finally { setDeleting(false) }
   }
 
@@ -1008,21 +1026,42 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         </DialogContent>
       </Dialog>
 
-      {/* Archive dialog */}
-      <Dialog open={!!deleteJob} onOpenChange={o => { if (!o && !deleting) setDeleteJob(null) }}>
+      {/* Cancel dialog */}
+      <Dialog open={!!deleteJob} onOpenChange={o => {
+        if (!o && !deleting) { setDeleteJob(null); setCancelReason("") }
+      }}>
         <DialogContent size="sm">
           <DialogHeader>
-            <DialogTitle>Archive job</DialogTitle>
+            <DialogTitle>Cancel job</DialogTitle>
             <DialogDescription>
-              Archive{" "}
+              Cancel{" "}
               <span className="font-mono font-semibold text-ac">{deleteJob?.drawingNumber}</span>?
-              The job will be hidden from active views but can be restored later from the Archived Items page.
+              The job moves to <strong>Archived Items</strong>. Its drawing number is kept on record and will not be reused. You can restore it later from Archive.
             </DialogDescription>
           </DialogHeader>
+          <DialogBody>
+            <label className="block text-xs font-medium text-t2 mb-1.5">
+              Reason for cancellation <span className="text-dn">*</span>
+            </label>
+            <Textarea
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              placeholder="e.g. Client withdrew, duplicate entry, project cancelled…"
+              rows={3}
+              autoFocus
+            />
+          </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteJob(null)} disabled={deleting}>Cancel</Button>
-            <Button variant="danger" onClick={handleDelete} loading={deleting} disabled={deleting}>
-              {deleting ? "Archiving…" : "Archive job"}
+            <Button variant="outline" onClick={() => { setDeleteJob(null); setCancelReason("") }} disabled={deleting}>
+              Keep job
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleDelete}
+              loading={deleting}
+              disabled={deleting || cancelReason.trim().length < 3}
+            >
+              {deleting ? "Cancelling…" : "Cancel job"}
             </Button>
           </DialogFooter>
         </DialogContent>

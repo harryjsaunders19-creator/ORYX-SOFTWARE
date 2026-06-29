@@ -1731,6 +1731,22 @@ export const archiveLogDb = {
       "SELECT * FROM ArchiveLog WHERE entityType = ? AND entityId = ? ORDER BY performedAt DESC"
     ).all(entityType, entityId) as ArchiveLogRow[]
   },
+
+  /** Latest archive action per entity id (for cancelled-job metadata on list views). */
+  findLatestArchiveForEntities(entityType: string, entityIds: string[]): Map<string, ArchiveLogRow> {
+    const result = new Map<string, ArchiveLogRow>()
+    if (!entityIds.length) return result
+    const placeholders = entityIds.map(() => "?").join(",")
+    const rows = db.prepare(
+      `SELECT * FROM ArchiveLog
+       WHERE entityType = ? AND entityId IN (${placeholders}) AND action = 'archive'
+       ORDER BY performedAt DESC`
+    ).all(entityType, ...entityIds) as ArchiveLogRow[]
+    for (const row of rows) {
+      if (!result.has(row.entityId)) result.set(row.entityId, row)
+    }
+    return result
+  },
 }
 
 // ── Health check ──────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { requireSignIn } from "@/lib/auth"
 import { jobService } from "@/lib/services/job-service"
 import { quoteService } from "@/lib/services/quote-service"
 import { clientDb } from "@/lib/db/stores"
+import { attachCancelRecords } from "@/lib/cancel-record"
 
 export async function GET() {
   try {
@@ -18,7 +19,11 @@ export async function GET() {
     const allClients = clientDb.findMany({ activeOnly: false })
     const clients = allClients.filter(c => c.active === 0)
 
-    return NextResponse.json({ jobs, quotes, clients })
+    return NextResponse.json({
+      jobs: attachCancelRecords(jobs),
+      quotes,
+      clients,
+    })
   } catch (err) {
     console.error("[GET /api/archived]", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

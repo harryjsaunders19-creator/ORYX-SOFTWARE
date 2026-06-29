@@ -31,8 +31,17 @@ export interface Job {
   archivedBy:      string | null
   /** List API only — true when this row is the revision anchor (original or latest rev). */
   canAddRevision?: boolean
+  /** Set when archived — latest cancellation record from ArchiveLog. */
+  cancelRecord?:    CancelRecord | null
   createdAt:       string
   updatedAt:       string
+}
+
+/** Cancellation metadata attached to archived jobs. */
+export interface CancelRecord {
+  reason:            string
+  performedByName:   string
+  performedAt:       string
 }
 
 export type Role = "ADMIN" | "ENGINEER"

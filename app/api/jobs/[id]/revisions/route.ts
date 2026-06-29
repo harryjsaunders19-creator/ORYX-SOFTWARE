@@ -58,6 +58,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       ? await jobService.findUnique(source.parentJobId)
       : source
     if (!parent) return NextResponse.json({ error: "Parent job not found" }, { status: 404 })
+    if (parent.archivedAt) {
+      return NextResponse.json(
+        { error: "Cannot create a revision for a cancelled job" },
+        { status: 409 },
+      )
+    }
 
     const existing = await jobService.revisionsForJob(parent.id)
     const latestMap = buildLatestRevisionMap(existing)

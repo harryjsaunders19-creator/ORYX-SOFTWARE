@@ -5,6 +5,7 @@ import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE } from "@/lib/consta
 import { requireSignIn, requireRole } from "@/lib/auth"
 import { applyOptionalMoneyField } from "@/lib/api-money"
 import { resourceResponse } from "@/lib/api-cache"
+import { cancelRecordForJob } from "@/lib/cancel-record"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -16,7 +17,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const { id } = await params
     const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    return resourceResponse(job)
+    const payload = job.archivedAt
+      ? { ...job, cancelRecord: cancelRecordForJob(id) }
+      : job
+    return resourceResponse(payload)
   } catch (err) {
     console.error("[GET /api/jobs/[id]]", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -42,6 +46,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const existing = await jobService.findUnique(id)
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    if (existing.archivedAt) {
+      return NextResponse.json({ error: "This job is cancelled and cannot be edited" }, { status: 409 })
+    }
 
     const allowed = [
       "address","typeOfWorks","customTypeDescription","clientCompany","requestedBy","status","designer","notes",
@@ -133,11 +140,25 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     const { id } = await params
     const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    if (job.archivedAt) {
+      return NextResponse.json({ error: "This job is already cancelled" }, { status: 409 })
+    }
+
+    let body: { reason?: string } = {}
+    try { body = await req.json() } catch { /* empty body */ }
+
+    const reason = typeof body.reason === "string" ? body.reason.trim() : ""
+    if (reason.length < 3) {
+      return NextResponse.json(
+        { error: "A cancellation reason is required (at least 3 characters)" },
+        { status: 422 },
+      )
+    }
 
     const archiverId   = auth.user.id
     const archiverName = auth.user.name
 
-    const archived = await jobService.archive(id, archiverId, archiverName)
+    const archived = await jobService.archive(id, archiverId, archiverName, reason)
     if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ ok: true, archived: true, job: archived })
   } catch (err) {

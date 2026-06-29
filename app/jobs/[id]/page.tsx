@@ -4,9 +4,10 @@ import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { format } from "date-fns"
 import dynamic from "next/dynamic"
-import { Pencil, Trash2, FileText, UserPlus, GitBranch, Clock, AlertOctagon } from "lucide-react"
+import { Pencil, Trash2, FileText, UserPlus, GitBranch, Clock, AlertOctagon, RotateCcw } from "lucide-react"
 import { Button }   from "@/components/ui/button"
 import { Input }    from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogDescription, DialogBody,
@@ -15,7 +16,7 @@ import { StatusBadge }        from "@/components/status-badge"
 import { WorkItemTypeBadge }  from "@/components/work-item-type-badge"
 import { StatusWorkflow }     from "@/components/status-workflow"
 import { useToast }            from "@/components/ui/toast"
-import { formatGBP, getJobDeadlineInfo, deadlineBadgeClass, parseLocalDate, totalJobCommercialValue } from "@/lib/utils"
+import { formatGBP, getJobDeadlineInfo, deadlineBadgeClass, parseLocalDate, totalJobCommercialValue, cn } from "@/lib/utils"
 import { useUser }             from "@/components/user-context"
 import { PageShell, DetailPanel, BackLink, PageHeader } from "@/components/page-layout"
 import { OTHER_WORKS_TYPE }    from "@/lib/constants"
@@ -86,6 +87,8 @@ export default function JobDetailPage() {
   const [assignOpen, setAssignOpen] = useState(false)
   const [delOpen,    setDelOpen]    = useState(false)
   const [deleting,   setDeleting]   = useState(false)
+  const [cancelReason, setCancelReason] = useState("")
+  const [restoring,  setRestoring]  = useState(false)
   const [historyKey, setHistoryKey] = useState(0)
   const [dnEditOpen,   setDnEditOpen]   = useState(false)
   const [dnEditValue,  setDnEditValue]  = useState("")
@@ -135,14 +138,39 @@ export default function JobDetailPage() {
   }
 
   const handleDelete = async () => {
+    const reason = cancelReason.trim()
+    if (reason.length < 3) {
+      toast("Please enter a cancellation reason (at least 3 characters)", "error")
+      return
+    }
     setDeleting(true)
     try {
-      const res = await fetch(`/api/jobs/${id}`, { method: "DELETE" })
-      if (!res.ok) { toast("Archive failed", "error"); return }
-      toast("Job archived", "info")
-      // If it was a revision, go back to the parent; otherwise to the jobs list
-      router.push(parentJob ? `/jobs/${parentJob.id}` : "/jobs")
+      const res = await fetch(`/api/jobs/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "Cancel failed", "error")
+        return
+      }
+      toast("Job moved to Archive", "info")
+      setDelOpen(false)
+      setCancelReason("")
+      load()
     } finally { setDeleting(false) }
+  }
+
+  const handleRestore = async () => {
+    setRestoring(true)
+    try {
+      const res = await fetch(`/api/jobs/${id}/restore`, { method: "POST" })
+      if (!res.ok) { toast("Restore failed", "error"); return }
+      toast("Job restored", "success")
+      load()
+    } catch { toast("Network error", "error") }
+    finally { setRestoring(false) }
   }
 
   if (loading) return <PageShell wide><Skeleton /></PageShell>
@@ -157,6 +185,14 @@ export default function JobDetailPage() {
   )
 
   const isRevision = job.parentJobId !== null
+  const isCancelled = !!job.archivedAt
+
+  const cancelSubtitle = job.cancelRecord
+    ? [
+        job.cancelRecord.performedByName,
+        job.cancelRecord.reason ? `— ${job.cancelRecord.reason}` : "",
+      ].filter(Boolean).join(" ")
+    : null
 
   return (
     <PageShell wide>
@@ -181,13 +217,45 @@ export default function JobDetailPage() {
         </div>
       )}
 
+      {isCancelled && (
+        <div className="mb-4 rounded-lg border border-dn-bd bg-dn-bg px-4 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-dn-tx flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-dn-bg border border-dn-bd">
+                  Cancelled
+                </span>
+                <span className="font-mono line-through opacity-80">{job.drawingNumber}</span>
+              </p>
+              <p className="text-xs text-dn-tx/90 mt-1">
+                Cancelled{" "}
+                {job.archivedAt
+                  ? format(new Date(job.archivedAt), "d MMM yyyy 'at' HH:mm")
+                  : "—"}
+                {cancelSubtitle ? ` by ${cancelSubtitle}` : ""}
+              </p>
+              <p className="text-xs text-t3 mt-1">
+                This drawing number stays on record and will not be reused.
+              </p>
+            </div>
+            {isAdmin && (
+              <Button variant="outline" size="sm" loading={restoring} onClick={handleRestore}>
+                <RotateCcw className="h-3.5 w-3.5" /> Restore job
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <PageHeader
         title={job.address}
         description={
           <span className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono font-semibold text-ac">{job.drawingNumber}</span>
-            {isAdmin && (
+            <span className={cn("font-mono font-semibold text-ac", isCancelled && "line-through opacity-70")}>
+              {job.drawingNumber}
+            </span>
+            {isAdmin && !isCancelled && (
               <button
                 onClick={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
                 className="text-t4 hover:text-ac"
@@ -220,14 +288,22 @@ export default function JobDetailPage() {
           </span>
         }
         actions={
+          !isCancelled ? (
           <>
             <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="h-3.5 w-3.5" /> Edit
             </Button>
-            <Button variant="outline" size="icon-sm" onClick={() => setDelOpen(true)} title="Delete">
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {isAdmin && (
+              <Button variant="outline" size="icon-sm" onClick={() => setDelOpen(true)} title="Cancel job">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </>
+          ) : isAdmin ? (
+            <Button variant="outline" size="sm" loading={restoring} onClick={handleRestore}>
+              <RotateCcw className="h-3.5 w-3.5" /> Restore
+            </Button>
+          ) : undefined
         }
       />
 
@@ -235,10 +311,14 @@ export default function JobDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           <DetailPanel title="Status">
-            <StatusWorkflow
-              jobId={job.id} currentStatus={job.status}
-              onStatusChange={s => { setJob({ ...job, status: s }); setHistoryKey(k => k + 1) }}
-            />
+            {isCancelled ? (
+              <StatusBadge status={job.status} />
+            ) : (
+              <StatusWorkflow
+                jobId={job.id} currentStatus={job.status}
+                onStatusChange={s => { setJob({ ...job, status: s }); setHistoryKey(k => k + 1) }}
+              />
+            )}
           </DetailPanel>
 
           <DetailPanel title="Details">
@@ -306,12 +386,14 @@ export default function JobDetailPage() {
             ) : (
               <div className="flex items-center justify-between">
                 <p className="text-xs text-t4 italic">No quote added yet.</p>
+                {!isCancelled && (
                 <button
                   onClick={() => setEditOpen(true)}
                   className="text-xs text-ac hover:text-ach font-medium"
                 >
                   Add quote
                 </button>
+                )}
               </div>
             )}
             {/* Show inherited parent quote if this is a revision with no own quote */}
@@ -402,6 +484,9 @@ export default function JobDetailPage() {
           })()}
 
           <DetailPanel title="Actions">
+            {isCancelled ? (
+              <p className="text-xs text-t3">This job is cancelled. Restore it to make changes or return it to active views.</p>
+            ) : (
             <div className="space-y-1.5">
               {!job.designer && (
                 <Button variant="primary" size="sm" className="w-full justify-start" onClick={() => setAssignOpen(true)}>
@@ -411,12 +496,15 @@ export default function JobDetailPage() {
               <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setEditOpen(true)}>
                 <Pencil className="h-3.5 w-3.5" /> Edit details
               </Button>
-              <Button variant="ghost" size="sm"
-                className="w-full justify-start text-dn hover:bg-dn-bg"
-                onClick={() => setDelOpen(true)}>
-                <Trash2 className="h-3.5 w-3.5" /> Archive job
-              </Button>
+              {isAdmin && (
+                <Button variant="ghost" size="sm"
+                  className="w-full justify-start text-dn hover:bg-dn-bg"
+                  onClick={() => setDelOpen(true)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Cancel job
+                </Button>
+              )}
             </div>
+            )}
           </DetailPanel>
         </div>
       </div>
@@ -457,21 +545,42 @@ export default function JobDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Archive dialog */}
-      <Dialog open={delOpen} onOpenChange={o => { if (!o && !deleting) setDelOpen(false) }}>
+      {/* Cancel dialog */}
+      <Dialog open={delOpen} onOpenChange={o => {
+        if (!o && !deleting) { setDelOpen(false); setCancelReason("") }
+      }}>
         <DialogContent size="sm">
           <DialogHeader>
-            <DialogTitle>Archive {isRevision ? "revision" : "job"}</DialogTitle>
+            <DialogTitle>Cancel {isRevision ? "revision" : "job"}</DialogTitle>
             <DialogDescription>
-              Archive{" "}
+              Cancel{" "}
               <span className="font-mono font-semibold text-ac">{job.drawingNumber}</span>?
-              The {isRevision ? "revision" : "job"} will be hidden from active views but can be restored later from the Archived Items page.
+              The {isRevision ? "revision" : "job"} moves to <strong>Archived Items</strong>. Its drawing number is kept on record and will not be reused.
             </DialogDescription>
           </DialogHeader>
+          <DialogBody>
+            <label className="block text-xs font-medium text-t2 mb-1.5">
+              Reason for cancellation <span className="text-dn">*</span>
+            </label>
+            <Textarea
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              placeholder="e.g. Client withdrew, duplicate entry…"
+              rows={3}
+              autoFocus
+            />
+          </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDelOpen(false)} disabled={deleting}>Cancel</Button>
-            <Button variant="danger" onClick={handleDelete} loading={deleting} disabled={deleting}>
-              {deleting ? "Archiving…" : "Archive"}
+            <Button variant="outline" onClick={() => { setDelOpen(false); setCancelReason("") }} disabled={deleting}>
+              Keep job
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleDelete}
+              loading={deleting}
+              disabled={deleting || cancelReason.trim().length < 3}
+            >
+              {deleting ? "Cancelling…" : "Cancel job"}
             </Button>
           </DialogFooter>
         </DialogContent>

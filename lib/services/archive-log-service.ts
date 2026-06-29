@@ -33,4 +33,8 @@ export const archiveLogService = {
   findForEntity(entityType: string, entityId: string): ArchiveLogRow[] {
     return archiveLogDb.findForEntity(entityType, entityId)
   },
+
+  findLatestArchiveForJobs(jobIds: string[]): Map<string, ArchiveLogRow> {
+    return archiveLogDb.findLatestArchiveForEntities("job", jobIds)
+  },
 }
