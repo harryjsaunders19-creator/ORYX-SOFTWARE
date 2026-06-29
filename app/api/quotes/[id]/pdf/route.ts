@@ -1,12 +1,14 @@
 /**
- * POST /api/quotes/[id]/pdf — queues PDF generation and returns immediately.
- * Generation runs in the background via next/server `after()`.
+ * POST /api/quotes/[id]/pdf — generate quote PDF.
+ * GET  /api/quotes/[id]/pdf — poll status, or stream PDF when ?download=1.
  */
-import { after } from "next/server"
 import { NextResponse } from "next/server"
 import { requireSignIn } from "@/lib/auth"
 import { quoteService } from "@/lib/services/quote-service"
-import { generateQuotePdf } from "@/lib/quote-pdf/generate"
+import { buildQuotePdfBuffer, generateQuotePdf } from "@/lib/quote-pdf/generate"
+import { resolveQuotePdfUrl } from "@/lib/quote-pdf/urls"
+
+export const maxDuration = 60
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -19,39 +21,49 @@ export async function POST(_req: Request, { params }: Ctx) {
     const quote = await quoteService.findUnique(id)
     if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
 
-    // Clear stale path so GET polling reflects in-progress regeneration.
-    await quoteService.update(id, { pdfPath: null })
+    await quoteService.updatePdfPath(id, null)
+    const { pdfPath } = await generateQuotePdf(id)
 
-    after(async () => {
-      try {
-        await generateQuotePdf(id)
-      } catch (err) {
-        console.error("[POST /api/quotes/[id]/pdf] background generation failed:", err)
-      }
-    })
-
-    return NextResponse.json({ status: "generating", quoteId: id }, { status: 202 })
+    return NextResponse.json({ status: "ready", pdfPath, quoteId: id })
   } catch (err) {
     console.error("[POST /api/quotes/[id]/pdf]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    const message = err instanceof Error ? err.message : "Internal server error"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
-/** GET — poll generation status; returns pdfPath when ready. */
-export async function GET(_req: Request, { params }: Ctx) {
+export async function GET(req: Request, { params }: Ctx) {
   try {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
+    const url = new URL(req.url)
+
+    if (url.searchParams.get("download") === "1") {
+      const quote = await quoteService.findUnique(id)
+      if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
+
+      const { pdfBytes, filename } = await buildQuotePdfBuffer(id)
+      return new NextResponse(Buffer.from(pdfBytes), {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `inline; filename="${filename}"`,
+        },
+      })
+    }
+
     const quote = await quoteService.findUnique(id)
     if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
 
-    if (quote.pdfPath) {
-      return NextResponse.json({ status: "ready", pdfPath: quote.pdfPath })
+    const pdfPath = resolveQuotePdfUrl(id, quote.pdfPath)
+    if (pdfPath) {
+      return NextResponse.json({ status: "ready", pdfPath })
     }
     return NextResponse.json({ status: "generating" })
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (err) {
+    console.error("[GET /api/quotes/[id]/pdf]", err)
+    const message = err instanceof Error ? err.message : "Internal server error"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

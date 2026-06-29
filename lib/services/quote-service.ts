@@ -38,6 +38,7 @@ async function ensureQuoteInSqlite(id: string): Promise<boolean> {
   const quote = await supabaseQuoteRepo.findUnique(id)
   if (!quote) return false
   await ensureClientInSqlite(quote.clientId)
+  if (quote.jobId) await ensureJobInSqliteForBilling(quote.jobId)
   quoteDb.rawInsertOrIgnore(quote)
   return quoteDb.findUnique(id) !== null
 }
@@ -87,6 +88,21 @@ export const quoteService = {
     const quote = quoteDb.update(id, data)
     await mirrorQuote(quote)
     return quote
+  },
+
+  /** Update pdfPath — Supabase-first so PDF generation works on ephemeral Vercel SQLite. */
+  async updatePdfPath(id: string, pdfPath: string | null): Promise<void> {
+    if (useSupabaseQuotes()) {
+      await supabaseQuoteRepo.updatePdfPath(id, pdfPath)
+      try {
+        await ensureQuoteInSqlite(id)
+        quoteDb.update(id, { pdfPath })
+      } catch (err) {
+        console.warn("[quoteService.updatePdfPath] SQLite mirror failed:", err)
+      }
+      return
+    }
+    quoteDb.update(id, { pdfPath })
   },
 
   /** Soft-delete a quote: marks it as archived. Logs the action. */

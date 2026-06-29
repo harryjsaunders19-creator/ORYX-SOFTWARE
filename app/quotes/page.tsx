@@ -29,6 +29,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/hooks/use-api"
 import { QUOTE_STATUSES } from "@/lib/types"
 import type { Quote, Client } from "@/lib/types"
+import { resolveQuotePdfUrl } from "@/lib/quote-pdf/urls"
 
 type QuotesData = {
   quotes: Quote[]
@@ -429,7 +430,7 @@ function QuoteTableRow({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSetSt
       <td className="px-4 py-3">
         <div className="flex items-center gap-1 justify-end flex-wrap">
           {q.pdfPath ? (
-            <a href={q.pdfPath} target="_blank" rel="noopener noreferrer"
+            <a href={resolveQuotePdfUrl(q.id, q.pdfPath) ?? "#"} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg" title="Open PDF">
               <FileDown className="h-3.5 w-3.5" />
             </a>
@@ -556,15 +557,22 @@ function QuotesInner() {
     setPdfGenerating(quote.id)
     try {
       const res = await fetch(`/api/quotes/${quote.id}/pdf`, { method: "POST" })
-      const body = await res.json() as { status?: string; error?: string }
+      const body = await res.json() as { status?: string; pdfPath?: string; error?: string }
       if (!res.ok) { toast(body.error ?? "PDF generation failed", "error"); return }
+
+      if (body.status === "ready" && body.pdfPath) {
+        window.open(body.pdfPath, "_blank")
+        toast(`PDF generated for ${quote.quoteNumber}`, "success")
+        mutate()
+        return
+      }
 
       const pollForPdf = async (): Promise<string | null> => {
         for (let attempt = 0; attempt < 60; attempt++) {
           await new Promise(r => setTimeout(r, 500))
           const pollRes = await fetch(`/api/quotes/${quote.id}/pdf`)
           const pollBody = await pollRes.json() as { status: string; pdfPath?: string; error?: string }
-          if (!pollRes.ok) return null
+          if (!pollRes.ok) return pollBody.error ?? null
           if (pollBody.status === "ready" && pollBody.pdfPath) return pollBody.pdfPath
         }
         return null

@@ -1964,8 +1964,9 @@ export const quoteDb = {
       INSERT OR IGNORE INTO Quote
         (id,quoteNumber,clientId,clientCompany,contactName,address,description,
          typeOfWorks,customTypeDescription,quoteValue,quoteDate,expiryDate,status,
-         notes,jobId,createdBy,vatRate,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         notes,jobId,pdfPath,preparedBy,createdBy,vatRate,archivedAt,archivedBy,
+         createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       quote.id,
       quote.quoteNumber,
@@ -1982,8 +1983,12 @@ export const quoteDb = {
       quote.status,
       quote.notes ?? null,
       quote.jobId ?? null,
+      quote.pdfPath ?? null,
+      quote.preparedBy ?? null,
       quote.createdBy ?? "System",
       quote.vatRate ?? null,
+      quote.archivedAt ?? null,
+      quote.archivedBy ?? null,
       quote.createdAt,
       quote.updatedAt,
     )

@@ -4,11 +4,13 @@
  */
 import { quoteService } from "@/lib/services/quote-service"
 import { clientService } from "@/lib/services/client-service"
+import { quotePdfDownloadUrl } from "@/lib/quote-pdf/urls"
 import { PDFDocument, rgb } from "pdf-lib"
 import fontkit from "@pdf-lib/fontkit"
 import { format } from "date-fns"
 import fs from "fs/promises"
 import path from "path"
+import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
 
 const PAGE_WIDTH  = 595.28
 const PAGE_HEIGHT = 841.89
@@ -69,7 +71,7 @@ function wrapText(text: string, font: import("pdf-lib").PDFFont, size: number, m
   return lines
 }
 
-export async function generateQuotePdf(id: string): Promise<{ pdfPath: string }> {
+export async function buildQuotePdfBuffer(id: string): Promise<{ pdfBytes: Uint8Array; filename: string }> {
   const quote = await quoteService.findUnique(id)
   if (!quote) throw new Error("Quote not found")
 
@@ -277,16 +279,26 @@ export async function generateQuotePdf(id: string): Promise<{ pdfPath: string }>
   drawText(footerLine2, PAGE_WIDTH / 2 - fontRegular.widthOfTextAtSize(footerLine2, 10) / 2, 147.69, { size: 10 })
 
   const pdfBytes = await doc.save()
-
-  const outDir  = path.join(process.cwd(), "public", "quote-pdfs")
-  await fs.mkdir(outDir, { recursive: true })
   const safeNumber = quote.quoteNumber.replace(/[^a-zA-Z0-9\-_]/g, "_")
-  const filename = `${safeNumber}.pdf`
-  const outPath  = path.join(outDir, filename)
-  if (!outPath.startsWith(outDir)) throw new Error("Invalid path")
-  await fs.writeFile(outPath, pdfBytes)
+  return { pdfBytes, filename: `${safeNumber}.pdf` }
+}
 
-  const pdfPath = `/quote-pdfs/${filename}`
-  await quoteService.update(id, { pdfPath })
+export async function generateQuotePdf(id: string): Promise<{ pdfPath: string }> {
+  const { pdfBytes, filename } = await buildQuotePdfBuffer(id)
+
+  // Local dev without Supabase: keep static files for faster repeat opens.
+  if (!isSupabaseAdminConfigured()) {
+    const outDir = path.join(process.cwd(), "public", "quote-pdfs")
+    await fs.mkdir(outDir, { recursive: true })
+    const outPath = path.join(outDir, filename)
+    if (!outPath.startsWith(outDir)) throw new Error("Invalid path")
+    await fs.writeFile(outPath, pdfBytes)
+    const pdfPath = `/quote-pdfs/${filename}`
+    await quoteService.updatePdfPath(id, pdfPath)
+    return { pdfPath }
+  }
+
+  const pdfPath = quotePdfDownloadUrl(id)
+  await quoteService.updatePdfPath(id, pdfPath)
   return { pdfPath }
 }

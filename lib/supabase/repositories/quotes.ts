@@ -28,6 +28,14 @@ function lineItemsTable() {
   return createAdminClient().from("quote_line_items")
 }
 
+function throwSupabaseError(error: { message?: string; details?: string; hint?: string; code?: string } | null): void {
+  if (!error) return
+  const msg = [error.message, error.details, error.hint, error.code ? `(${error.code})` : null]
+    .filter(Boolean)
+    .join(" — ")
+  throw new Error(msg || "Supabase request failed")
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type QuoteQuery = any
 
@@ -106,7 +114,14 @@ export const supabaseQuoteRepo = {
 
   async upsert(quote: QuoteRow): Promise<void> {
     const { error } = await quotesTable().upsert(toSupabaseQuoteRow(quote), { onConflict: "id" })
-    if (error) throw error
+    if (error) throwSupabaseError(error)
+  },
+
+  async updatePdfPath(id: string, pdfPath: string | null): Promise<void> {
+    const { error } = await quotesTable()
+      .update({ pdf_path: pdfPath, updated_at: new Date().toISOString() })
+      .eq("id", id)
+    throwSupabaseError(error)
   },
 
   async upsertMany(quotes: QuoteRow[]): Promise<void> {

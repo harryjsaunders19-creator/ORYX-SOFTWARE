@@ -9,6 +9,9 @@
     "app/api/billing-handoffs/batches/[id]/xlsx/route.ts": {
       "maxDuration": 60
     },
+    "app/api/quotes/[id]/pdf/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/**": {
       "maxDuration": 30
     }
