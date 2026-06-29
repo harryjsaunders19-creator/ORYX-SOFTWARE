@@ -107,6 +107,44 @@ export const supabaseBillingRepo = {
     }
   },
 
+  /** Mark exported handoffs cleared in Supabase — source of truth on Vercel. */
+  async clearHandoffsForExport(params: {
+    handoffIds: string[]
+    batchId: string
+    clearedAt: string
+    clearedBy: string
+    notes?: string | null
+  }): Promise<void> {
+    if (!params.handoffIds.length) return
+    const patch: Record<string, string | null> = {
+      cleared_by_accounts_at: params.clearedAt,
+      cleared_by: params.clearedBy,
+      export_batch_id: params.batchId,
+      updated_at: params.clearedAt,
+    }
+    if (params.notes != null) patch.notes = params.notes
+
+    const CHUNK = 50
+    for (let i = 0; i < params.handoffIds.length; i += CHUNK) {
+      const ids = params.handoffIds.slice(i, i + CHUNK)
+      const { error } = await handoffs()
+        .update(patch)
+        .in("id", ids)
+        .is("cleared_by_accounts_at", null)
+      if (error) throw error
+    }
+  },
+
+  async countUnclearedAmong(ids: string[]): Promise<number> {
+    if (!ids.length) return 0
+    const { count, error } = await handoffs()
+      .select("*", { count: "exact", head: true })
+      .in("id", ids)
+      .is("cleared_by_accounts_at", null)
+    if (error) throw error
+    return count ?? 0
+  },
+
   async replaceHandoffsForJob(jobId: string, rows: BillingHandoffRow[]): Promise<void> {
     const { error: delError } = await handoffs().delete().eq("source_job_id", jobId)
     if (delError) throw delError

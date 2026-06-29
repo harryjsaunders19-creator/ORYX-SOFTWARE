@@ -46,7 +46,7 @@ async function ensureBillingHandoffsInSqlite(ids: string[]): Promise<void> {
   }
 
   db.transaction(() => {
-    for (const row of rows) billingHandoffDb.rawInsertOrIgnore(row)
+    for (const row of rows) billingHandoffDb.syncFromRemote(row)
   })()
 
   const synced = billingHandoffDb.findManyByIds(ids)
@@ -55,18 +55,43 @@ async function ensureBillingHandoffsInSqlite(ids: string[]): Promise<void> {
   }
 }
 
-async function mirrorBatchExport(batchId: string): Promise<void> {
+async function mirrorBatchExport(
+  batchId: string,
+  handoffIds: string[],
+  meta: { clearedBy: string; clearedAt: string; notes?: string | null },
+): Promise<void> {
   if (!useSupabaseBilling()) return
   const batch = billingHandoffDb.findBatchUnique(batchId)
   if (!batch) throw new Error("Export batch missing after create")
 
   await supabaseBillingRepo.upsertBatch(batch)
 
-  const handoffs = billingHandoffDb.handoffsForBatch(batchId)
-  await supabaseBillingRepo.upsertManyHandoffs(handoffs)
+  // Direct UPDATE — do not rely on SQLite read-back (ephemeral on Vercel).
+  await supabaseBillingRepo.clearHandoffsForExport({
+    handoffIds,
+    batchId,
+    clearedAt: meta.clearedAt,
+    clearedBy: meta.clearedBy,
+    notes: meta.notes,
+  })
 
-  const snapshotRows = db.prepare("SELECT * FROM BillingExportSnapshot WHERE batchId = ?").all(batchId) as BillingExportSnapshotRow[]
-  await supabaseBillingRepo.upsertSnapshots(snapshotRows)
+  const stillAwaiting = await supabaseBillingRepo.countUnclearedAmong(handoffIds)
+  if (stillAwaiting > 0) {
+    throw new Error(`${stillAwaiting} item(s) failed to move to Cleared in Supabase`)
+  }
+
+  // Full row sync + snapshots are best-effort after the cleared status is set.
+  const clearedHandoffs = billingHandoffDb.handoffsForBatch(batchId)
+  if (clearedHandoffs.length) {
+    await supabaseBillingRepo.upsertManyHandoffs(clearedHandoffs)
+  }
+
+  try {
+    const snapshotRows = db.prepare("SELECT * FROM BillingExportSnapshot WHERE batchId = ?").all(batchId) as BillingExportSnapshotRow[]
+    await supabaseBillingRepo.upsertSnapshots(snapshotRows)
+  } catch (err) {
+    console.error("[mirrorBatchExport] snapshot mirror failed (re-download may rebuild):", err)
+  }
 }
 
 export const billingHandoffService = {
@@ -100,13 +125,14 @@ export const billingHandoffService = {
       throw new Error("Export produced no snapshot rows")
     }
 
-    try {
-      await mirrorBatchExport(result.batch.id)
-    } catch (err) {
-      // SQLite commit already succeeded — return snapshots so the immediate
-      // XLSX download still works even if Supabase mirror is slow/fails.
-      console.error("[createExportBatch] Supabase mirror failed:", err)
-    }
+    const clearedHandoffs = billingHandoffDb.handoffsForBatch(result.batch.id)
+    const clearedAt = clearedHandoffs[0]?.clearedByAccountsAt ?? result.batch.createdAt
+
+    await mirrorBatchExport(result.batch.id, data.handoffIds, {
+      clearedBy: data.exportedBy,
+      clearedAt,
+      notes: data.notes,
+    })
 
     return result
   },

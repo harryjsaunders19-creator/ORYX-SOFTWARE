@@ -1194,7 +1194,32 @@ export const billingHandoffDb = {
       row.exportBatchId ?? null, row.notes ?? null, row.createdAt, row.updatedAt,
     )
   },
-}
+
+  /** Overwrite local row with Supabase state before export (Vercel ephemeral SQLite). */
+  syncFromRemote(row: BillingHandoffRow): void {
+    const existing = this.findUnique(row.id)
+    if (!existing) {
+      this.rawInsertOrIgnore(row)
+      return
+    }
+    db.prepare(`
+      UPDATE BillingHandoff SET
+        sourceJobId = ?, billingEventType = ?, drawingNumber = ?, itemType = ?,
+        typeOfWorks = ?, customTypeDescription = ?, clientCompany = ?, address = ?,
+        designer = ?, quoteValue = ?, quoteReference = ?, completionDate = ?,
+        addedToBillingQueueAt = ?, clearedByAccountsAt = ?, clearedBy = ?,
+        exportBatchId = ?, notes = ?, updatedAt = ?
+      WHERE id = ?
+    `).run(
+      row.sourceJobId, row.billingEventType, row.drawingNumber, row.itemType,
+      row.typeOfWorks ?? null, row.customTypeDescription ?? null,
+      row.clientCompany, row.address, row.designer ?? null,
+      row.quoteValue ?? null, row.quoteReference ?? null, row.completionDate,
+      row.addedToBillingQueueAt, row.clearedByAccountsAt ?? null, row.clearedBy ?? null,
+      row.exportBatchId ?? null, row.notes ?? null, row.updatedAt, row.id,
+    )
+  },
+};
 
 // ── Commercial aggregates ────────────────────────────────────────
 // Used by /api/stats to power the Dashboard's Admin-only "total quoted" /
