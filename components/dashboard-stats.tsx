@@ -82,17 +82,16 @@ export function DashboardStats() {
   const toStr     = format(weekEnd, "yyyy-MM-dd")
 
   const loadAll = useCallback(() => {
+    setError(false)
     // /api/stats now includes the full holds list — 3 parallel requests instead of 4.
     Promise.all([
-      fetch("/api/stats").then(r => r.ok ? r.json() as Promise<StatsData> : null),
+      fetch("/api/stats").then(r => r.ok ? r.json() as Promise<StatsData> : Promise.reject(new Error("stats"))),
       fetch(`/api/calendar/events?from=${fromStr}&to=${toStr}`).then(r => r.ok ? r.json() as Promise<{ events: CalEvent[] }> : null),
       fetch("/api/jobs?overdue=true&limit=5&sortBy=requiredByDate&sortDir=asc").then(r => r.ok ? r.json() as Promise<{ jobs: Job[] }> : null),
     ])
       .then(([s, e, ov]) => {
-        if (s) {
-          setStats(s)
-          setHolds((s.holds ?? []).slice(0, 5))
-        }
+        setStats(s)
+        setHolds((s.holds ?? []).slice(0, 5))
         if (e) setEvents(e.events)
         if (ov) setOverdueJobs(ov.jobs)
       })
@@ -105,7 +104,11 @@ export function DashboardStats() {
   const siteVisits    = events.filter(e => e.categoryId === SITE_VISIT_ID)
   const teamsMeetings = events.filter(e => e.categoryId === TEAMS_MEETING_ID)
 
-  if (error) return <div className="bg-sr border border-bd rounded-md p-4 text-sm text-dn">Failed to load dashboard data.</div>
+  if (error) return (
+    <div className="bg-dn-bg border border-dn-bd rounded-md p-4 text-sm text-dn-tx">
+      Failed to load dashboard data. On Vercel, ensure Supabase credentials are configured and migrations have been run.
+    </div>
+  )
   if (loading) return (
     <div className="space-y-4">
       <div className="grid grid-cols-12 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="col-span-6 lg:col-span-3 h-28 rounded-2xl skeleton" />)}</div>

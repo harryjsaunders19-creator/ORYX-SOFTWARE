@@ -125,11 +125,24 @@ export const supabaseBillingRepo = {
       handoffs().select("*", { count: "exact", head: true }).not("cleared_by_accounts_at", "is", null),
     ])
     if (aCountErr) throw aCountErr
-    if (aSumErr) throw aSumErr
     if (cErr) throw cErr
+
+    let awaitingValue = aggSum(sumRow)
+    if (aSumErr) {
+      // PostgREST aggregate syntax varies by version — fall back to a row scan.
+      const { data, error } = await handoffs()
+        .select("quote_value")
+        .is("cleared_by_accounts_at", null)
+      if (error) throw error
+      awaitingValue = (data ?? []).reduce(
+        (sum, row) => sum + (row.quote_value != null ? Number(row.quote_value) : 0),
+        0,
+      )
+    }
+
     return {
       awaitingCount: awaitingCount ?? 0,
-      awaitingValue: aggSum(sumRow),
+      awaitingValue,
       clearedCount:  clearedCount ?? 0,
     }
   },

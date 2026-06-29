@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/toast"
 import { useUser } from "@/components/user-context"
 import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, DataPanel, KpiTile, TabBar } from "@/components/page-layout"
-import { formatGBP, parseLocalDate } from "@/lib/utils"
+import { formatGBP, formatDisplayDate } from "@/lib/utils"
 import type { BillingHandoff, BillingExportBatch } from "@/lib/types"
 
 type View = "awaiting" | "cleared" | "history"
@@ -145,7 +145,7 @@ function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
       <td className="px-4 py-3 text-t1 whitespace-nowrap">{item.clientCompany}</td>
       <td className="px-4 py-3 text-t3 max-w-[220px] truncate">{item.address}</td>
       <td className="px-4 py-3 whitespace-nowrap"><WorkItemTypeBadge itemType={item.itemType} size="sm" /></td>
-      <td className="px-4 py-3 text-t3 tabular-nums whitespace-nowrap">{format(parseLocalDate(item.completionDate), "d MMM yyyy")}</td>
+      <td className="px-4 py-3 text-t3 tabular-nums whitespace-nowrap">{formatDisplayDate(item.completionDate)}</td>
       <td className="px-4 py-3 text-t2 whitespace-nowrap">{item.designer || <span className="text-t4 italic">Unassigned</span>}</td>
       <td className="px-4 py-3 text-t1 font-medium tabular-nums whitespace-nowrap">
         {item.quoteValue != null ? (
@@ -201,7 +201,7 @@ function BatchRow({ batch }: { batch: BillingExportBatch }) {
   return (
     <tr className="hover:bg-pg">
       <td className="px-4 py-3 font-mono text-ac whitespace-nowrap font-semibold">{batch.batchNumber}</td>
-      <td className="px-4 py-3 text-t3 tabular-nums whitespace-nowrap">{format(parseLocalDate(batch.exportDate), "d MMM yyyy")}</td>
+      <td className="px-4 py-3 text-t3 tabular-nums whitespace-nowrap">{formatDisplayDate(batch.exportDate)}</td>
       <td className="px-4 py-3 text-t2 whitespace-nowrap">{batch.exportedBy}</td>
       <td className="px-4 py-3 text-t1 font-medium tabular-nums whitespace-nowrap">{batch.recordCount}</td>
       <td className="px-4 py-3 text-t3 max-w-[260px] truncate">{batch.notes || "—"}</td>
@@ -216,27 +216,58 @@ function BatchRow({ batch }: { batch: BillingExportBatch }) {
 }
 
 function BillingPageInner() {
+  const { toast } = useToast()
   const [view, setView]   = useState<View>("awaiting")
   const [items, setItems] = useState<BillingHandoff[] | null>(null)
   const [batches, setBatches] = useState<BillingExportBatch[] | null>(null)
   const [stats, setStats] = useState<{ awaitingCount: number; awaitingValue: number; clearedCount: number } | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   const load = (v: View) => {
+    setLoadError(false)
     if (v === "history") {
       setBatches(null)
       fetch("/api/billing-handoffs/batches")
-        .then(r => r.json() as Promise<{ batches: BillingExportBatch[] }>)
-        .then(d => setBatches(d.batches)).catch(() => setBatches([]))
+        .then(async r => {
+          const d = await r.json() as { batches?: BillingExportBatch[]; error?: string }
+          if (!r.ok || !Array.isArray(d.batches)) {
+            setBatches([])
+            setLoadError(true)
+            toast(d.error ?? "Failed to load export history", "error")
+            return
+          }
+          setBatches(d.batches)
+        })
+        .catch(() => { setBatches([]); setLoadError(true); toast("Failed to load export history", "error") })
       return
     }
     setItems(null)
     setSelected(new Set())
     fetch(`/api/billing-handoffs?view=${v}`)
-      .then(r => r.json() as Promise<{ handoffs: BillingHandoff[]; awaitingCount: number; awaitingValue: number; clearedCount: number }>)
-      .then(d => { setItems(d.handoffs); setStats({ awaitingCount: d.awaitingCount, awaitingValue: d.awaitingValue, clearedCount: d.clearedCount }) })
-      .catch(() => setItems([]))
+      .then(async r => {
+        const d = await r.json() as {
+          handoffs?: BillingHandoff[]
+          awaitingCount?: number
+          awaitingValue?: number
+          clearedCount?: number
+          error?: string
+        }
+        if (!r.ok || !Array.isArray(d.handoffs)) {
+          setItems([])
+          setLoadError(true)
+          toast(d.error ?? "Failed to load billing queue", "error")
+          return
+        }
+        setItems(d.handoffs)
+        setStats({
+          awaitingCount: d.awaitingCount ?? 0,
+          awaitingValue: d.awaitingValue ?? 0,
+          clearedCount:  d.clearedCount ?? 0,
+        })
+      })
+      .catch(() => { setItems([]); setLoadError(true); toast("Failed to load billing queue", "error") })
   }
 
   useEffect(() => { load(view) }, [view])
@@ -280,6 +311,12 @@ function BillingPageInner() {
           { id: "history", label: "Export History", icon: FileSpreadsheet },
         ]}
       />
+
+      {loadError && (
+        <div className="bg-dn-bg border border-dn-bd rounded-md px-4 py-3 text-sm text-dn-tx">
+          Could not load billing data. If this is a fresh Vercel deploy, ensure Supabase env vars are set and data has been synced.
+        </div>
+      )}
 
       {view === "history" ? (
         <DataPanel className="overflow-x-auto">

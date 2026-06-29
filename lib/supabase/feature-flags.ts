@@ -1,61 +1,77 @@
 /**
  * lib/supabase/feature-flags.ts
  *
- * Opt-in flags for incremental SQLite → Supabase migration.
- * Each module stays on SQLite until its flag is "true".
+ * When Supabase admin credentials are set (URL + anon + service-role keys),
+ * modules read from Supabase by default. Disable a module with
+ * SUPABASE_<MODULE>=false. Force SQLite-only by omitting SUPABASE_SERVICE_ROLE_KEY.
+ *
+ * On Vercel, SQLite is ephemeral (/tmp) — Supabase must be the data store.
  */
 import { isSupabaseAdminConfigured } from "./config"
 
 function flag(name: string): boolean {
-  return process.env[name]?.trim().toLowerCase() === "true"
+  if (!isSupabaseAdminConfigured()) return false
+
+  const explicit = process.env[name]?.trim().toLowerCase()
+  if (explicit === "false") return false
+  if (explicit === "true") return true
+
+  // Linked Supabase project — use it unless a module is explicitly disabled.
+  return true
 }
 
-/** When true, client CRUD reads/writes Supabase (and mirrors writes to SQLite). */
+/** Snapshot of runtime module routing (for /api/supabase/status diagnostics). */
+export function supabaseModuleFlags() {
+  return {
+    clients:        useSupabaseClients(),
+    jobs:           useSupabaseJobs(),
+    quotes:         useSupabaseQuotes(),
+    statusHistory:  useSupabaseStatusHistory(),
+    holds:          useSupabaseHolds(),
+    billing:        useSupabaseBilling(),
+    calendar:       useSupabaseCalendar(),
+    users:          useSupabaseUsers(),
+    identityLog:    useSupabaseIdentityLog(),
+    backups:        useSupabaseBackups(),
+  }
+}
+
 export function useSupabaseClients(): boolean {
-  return flag("SUPABASE_CLIENTS") && isSupabaseAdminConfigured()
+  return flag("SUPABASE_CLIENTS")
 }
 
-/** When true, job list/detail CRUD reads Supabase (writes SQLite-first, then mirror). */
 export function useSupabaseJobs(): boolean {
-  return flag("SUPABASE_JOBS") && isSupabaseAdminConfigured()
+  return flag("SUPABASE_JOBS")
 }
 
-/** When true, quote CRUD reads Supabase (writes SQLite-first, then mirror). */
 export function useSupabaseQuotes(): boolean {
-  return flag("SUPABASE_QUOTES") && isSupabaseAdminConfigured()
+  return flag("SUPABASE_QUOTES")
 }
 
-/** When true, job status history reads Supabase (writes SQLite-first, then mirror). */
 export function useSupabaseStatusHistory(): boolean {
-  return flag("SUPABASE_STATUS_HISTORY") && isSupabaseAdminConfigured()
+  return flag("SUPABASE_STATUS_HISTORY")
 }
 
-/** When true, client holds read Supabase (writes SQLite-first, then mirror). */
 export function useSupabaseHolds(): boolean {
-  return flag("SUPABASE_HOLDS") && isSupabaseAdminConfigured()
+  return flag("SUPABASE_HOLDS")
 }
 
-/** When true, billing handoffs + export batches read Supabase (writes SQLite-first). */
 export function useSupabaseBilling(): boolean {
-  return flag("SUPABASE_BILLING") && isSupabaseAdminConfigured()
+  return flag("SUPABASE_BILLING")
 }
 
-/** When true, calendar events read Supabase (writes SQLite-first, then mirror). */
 export function useSupabaseCalendar(): boolean {
-  return flag("SUPABASE_CALENDAR") && isSupabaseAdminConfigured()
+  return flag("SUPABASE_CALENDAR")
 }
 
-/** When true, user directory reads Supabase (writes SQLite-first; bcrypt login unchanged). */
 export function useSupabaseUsers(): boolean {
-  return flag("SUPABASE_USERS") && isSupabaseAdminConfigured()
+  return flag("SUPABASE_USERS")
 }
 
-/** When true, identity switch audit log reads Supabase (writes SQLite-first). */
 export function useSupabaseIdentityLog(): boolean {
-  return flag("SUPABASE_IDENTITY_LOG") && isSupabaseAdminConfigured()
+  return flag("SUPABASE_IDENTITY_LOG")
 }
 
-/** When true, backup job metadata reads Supabase (writes SQLite-first). */
 export function useSupabaseBackups(): boolean {
-  return flag("SUPABASE_BACKUPS") && isSupabaseAdminConfigured()
+  return flag("SUPABASE_BACKUPS")
 }

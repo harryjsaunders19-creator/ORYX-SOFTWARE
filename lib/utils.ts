@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from "clsx"
+import { format } from "date-fns"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
@@ -40,6 +41,18 @@ export function parseGBP(s: string): number | null {
  */
 export function parseLocalDate(dateStr: string): Date {
   return new Date(`${dateStr}T00:00:00`)
+}
+
+/** Safe formatter for bare YYYY-MM-DD fields — returns "—" on missing/invalid input. */
+export function formatDisplayDate(dateStr: string | null | undefined, pattern = "d MMM yyyy"): string {
+  if (!dateStr) return "—"
+  try {
+    const d = parseLocalDate(dateStr.slice(0, 10))
+    if (isNaN(d.getTime())) return "—"
+    return format(d, pattern)
+  } catch {
+    return "—"
+  }
 }
 
 export interface DeadlineInfo {
