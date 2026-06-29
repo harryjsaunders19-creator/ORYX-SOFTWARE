@@ -227,6 +227,23 @@ export const supabaseBillingRepo = {
     throwSupabaseError(error)
   },
 
+  /** Highest BATCH-YYYY-NNN suffix already used in Supabase (for sequence seeding on Vercel). */
+  async maxBatchRefSequence(year: number): Promise<number> {
+    const prefix = `BATCH-${year}-`
+    const { data, error } = await batches()
+      .select("batch_number")
+      .ilike("batch_number", `${prefix}%`)
+    throwSupabaseError(error)
+    let max = 0
+    for (const row of data ?? []) {
+      const bn = String(row.batch_number)
+      if (!bn.startsWith(prefix)) continue
+      const n = parseInt(bn.slice(prefix.length), 10)
+      if (!Number.isNaN(n) && n > max) max = n
+    }
+    return max
+  },
+
   async findBatchUnique(id: string): Promise<BillingExportBatchRow | null> {
     const { data, error } = await batches().select("*").eq("id", id).maybeSingle()
     if (error) throw error

@@ -17,6 +17,7 @@ import { useSupabaseBilling, useSupabaseJobs } from "@/lib/supabase/feature-flag
 import { supabaseBillingRepo } from "@/lib/supabase/repositories/billing"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
+import { ensureBatchSequenceSeeded } from "@/lib/supabase/seed-sequences"
 
 const SYNC_CHUNK = 25
 
@@ -113,6 +114,7 @@ export const billingHandoffService = {
     exportDate: string
     notes?: string | null
   }): Promise<{ batch: BillingExportBatchRow; snapshots: AccountsHandoverSnapshot[] }> {
+    await ensureBatchSequenceSeeded()
     await ensureBillingHandoffsInSqlite(data.handoffIds)
     const result = billingHandoffDb.createExportBatch(data)
     if (!result.snapshots.length) {
