@@ -141,10 +141,13 @@ export const supabaseClientRepo = {
   },
 
   async findArchived(): Promise<ClientRow[]> {
-    let { data, error } = await table()
-      .select("*")
-      .eq("active", false)
-      .order("archived_at", { ascending: false, nullsFirst: false })
+    const run = () =>
+      table()
+        .select("*")
+        .or("active.eq.false,archived_at.not.is.null")
+        .order("archived_at", { ascending: false, nullsFirst: false })
+
+    let { data, error } = await run()
     if (error && isMissingColumnError(error, "archived_at")) {
       ;({ data, error } = await table()
         .select("*")
@@ -153,5 +156,20 @@ export const supabaseClientRepo = {
     }
     if (error) throw error
     return (data ?? []).map(toClientRow)
+  },
+
+  async countArchived(): Promise<number> {
+    const run = () =>
+      table()
+        .select("*", { count: "exact", head: true })
+        .or("active.eq.false,archived_at.not.is.null")
+    let { count, error } = await run()
+    if (error && isMissingColumnError(error, "archived_at")) {
+      ;({ count, error } = await table()
+        .select("*", { count: "exact", head: true })
+        .eq("active", false))
+    }
+    if (error) throw error
+    return count ?? 0
   },
 }

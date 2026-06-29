@@ -199,7 +199,8 @@ function ClientsInner() {
   }
 
   const doRestore = async (c: Client) => {
-    await fetch(`/api/clients/${c.id}`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ active: true }) })
+    const res = await fetch(`/api/clients/${c.id}/restore`, { method: "POST" })
+    if (!res.ok) { toast("Restore failed", "error"); return }
     toast(`${c.name} restored`, "success"); mutate()
   }
 
@@ -366,12 +367,9 @@ function ClientsInner() {
               setArchiving(true)
               try {
                 const res = await fetch(`/api/clients/${archiveClient.id}`, { method: "DELETE" })
-                const body = await res.json() as { archived?: boolean; deleted?: boolean; error?: string }
-                if (!res.ok) { toast(body.error ?? "Failed to archive client", "error"); return }
-                toast(
-                  body.deleted ? `${archiveClient.name} removed` : `${archiveClient.name} archived`,
-                  "success",
-                )
+                const body = await res.json() as { archived?: boolean; deleted?: boolean; error?: string; detail?: string }
+                if (!res.ok) { toast(body.detail ?? body.error ?? "Failed to archive client", "error"); return }
+                toast(`${archiveClient.name} archived`, "success")
                 setArchiveClient(null); mutate()
               } catch { toast("Network error", "error") }
               finally { setArchiving(false) }

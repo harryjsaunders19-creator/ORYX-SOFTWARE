@@ -20,6 +20,7 @@ import { supabaseClientRepo } from "@/lib/supabase/repositories/clients"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { archiveLogService } from "@/lib/services/archive-log-service"
 import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
+import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
 
 function sqliteActiveJobCount(clientId: string): number {
   return (db.prepare("SELECT COUNT(*) as n FROM Job WHERE clientId = ? AND status != 'ISSUED'").get(clientId) as { n: number }).n
@@ -146,9 +147,11 @@ export const clientService = {
   },
 
   async findArchived(): Promise<ClientRow[]> {
-    if (!useSupabaseClients()) {
-      return clientDb.findMany({ activeOnly: false }).filter(c => c.active === 0)
+    if (useSupabaseClients()) {
+      return supabaseClientRepo.findArchived()
     }
+    const local = clientDb.findMany({ activeOnly: false }).filter(c => c.active === 0)
+    if (local.length > 0 || !isSupabaseAdminConfigured()) return local
     return supabaseClientRepo.findArchived()
   },
 
