@@ -26,7 +26,7 @@ import { inferQuoteWorksFromDescription, quoteWorksDisplayLabel } from "@/lib/qu
 import { TypeOfWorksCombobox } from "@/components/type-of-works-combobox"
 import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/components/page-layout"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
-import { useApi } from "@/hooks/use-api"
+import { useApi, optimisticListRemove, optimisticListPrepend } from "@/hooks/use-api"
 import { QUOTE_STATUSES } from "@/lib/types"
 import type { Quote, Client } from "@/lib/types"
 
@@ -517,7 +517,7 @@ function QuotesInner() {
       if (!res.ok) { toast(body.error ?? "Failed to create quote", "error"); return }
       toast(`${body.quoteNumber} created`, "success")
       setCreateOpen(false)
-      mutate()
+      optimisticListPrepend(mutate, "quotes", body)
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }
@@ -602,7 +602,7 @@ function QuotesInner() {
       if (!res.ok) { toast(body.error ?? "Failed to archive quote", "error"); return }
       toast(`${archiveQuote.quoteNumber} archived`, "success")
       setArchiveQuote(null)
-      mutate()
+      optimisticListRemove(mutate, "quotes", archiveQuote.id)
     } catch { toast("Network error", "error") }
     finally { setArchiving(false) }
   }

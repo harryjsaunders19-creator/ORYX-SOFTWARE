@@ -29,7 +29,7 @@ import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
 import dynamic from "next/dynamic"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
-import { useApi } from "@/hooks/use-api"
+import { useApi, optimisticListRemove, optimisticListPrepend } from "@/hooks/use-api"
 import { InlineStatusSelect, InlineDesignerSelect } from "@/components/inline-edit-selects"
 
 // Lazy-load heavy dialog components — only downloaded when the user first
@@ -541,7 +541,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       }
       const job = await res.json() as Job
       toast(`${job.drawingNumber} created`, "success")
-      setCreateOpen(false); setPage(1); mutate()
+      setCreateOpen(false); setPage(1)
+      optimisticListPrepend(mutate, "jobs", job)
     } finally { setCreateSaving(false) }
   }
 
@@ -582,7 +583,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       setDeleteJob(null)
       setCancelReason("")
       setPage(1)
-      mutate()
+      optimisticListRemove(mutate, "jobs", deleteJob.id)
     } finally { setDeleting(false) }
   }
 

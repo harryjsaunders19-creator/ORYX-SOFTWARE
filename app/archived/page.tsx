@@ -13,6 +13,7 @@ import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, EmptyPanel } from "@/components/page-layout"
 import type { Job, Quote, Client } from "@/lib/types"
 import type { ArchiveLogRow } from "@/lib/db/archive-types"
+import { apiFetch } from "@/hooks/use-api"
 
 interface ArchivedData {
   jobs:    Job[]
@@ -52,8 +53,8 @@ function ArchivedInner() {
     setFetchError(null)
     try {
       const [arRes, logRes] = await Promise.all([
-        fetch("/api/archived"),
-        fetch("/api/archive-log"),
+        apiFetch("/api/archived"),
+        apiFetch("/api/archive-log"),
       ])
       if (arRes.ok) {
         setData(await arRes.json() as ArchivedData)

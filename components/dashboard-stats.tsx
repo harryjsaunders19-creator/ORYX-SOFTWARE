@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { useUser } from "@/components/user-context"
 import { cn, getDeadlineInfo } from "@/lib/utils"
+import { apiFetch } from "@/hooks/use-api"
 import { apiErrorDetail } from "@/lib/error-message"
 import type { StatsData, Job, ClientHoldWithClient } from "@/lib/types"
 
@@ -85,15 +86,15 @@ export function DashboardStats() {
   const loadAll = useCallback(() => {
     setError(null)
     Promise.all([
-      fetch("/api/stats").then(async r => {
+      apiFetch("/api/stats").then(async r => {
         if (!r.ok) {
           const body = await r.json().catch(() => null)
           throw new Error(apiErrorDetail(body, r.status))
         }
         return r.json() as Promise<StatsData>
       }),
-      fetch(`/api/calendar/events?from=${fromStr}&to=${toStr}`).then(r => r.ok ? r.json() as Promise<{ events: CalEvent[] }> : null),
-      fetch("/api/jobs?overdue=true&limit=5&sortBy=requiredByDate&sortDir=asc").then(r => r.ok ? r.json() as Promise<{ jobs: Job[] }> : null),
+      apiFetch(`/api/calendar/events?from=${fromStr}&to=${toStr}`).then(r => r.ok ? r.json() as Promise<{ events: CalEvent[] }> : null),
+      apiFetch("/api/jobs?overdue=true&limit=5&sortBy=requiredByDate&sortDir=asc").then(r => r.ok ? r.json() as Promise<{ jobs: Job[] }> : null),
     ])
       .then(([s, e, ov]) => {
         setStats(s)

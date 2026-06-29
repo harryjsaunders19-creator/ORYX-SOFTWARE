@@ -16,7 +16,7 @@ import {
 import { useToast } from "@/components/ui/toast"
 import { cn }       from "@/lib/utils"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
-import { useApi } from "@/hooks/use-api"
+import { useApi, optimisticListRemove, optimisticListPrepend } from "@/hooks/use-api"
 import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/components/page-layout"
 import type { Client } from "@/lib/types"
 
@@ -180,7 +180,8 @@ function ClientsInner() {
       if (res.status === 409) { setDupError({ msg: body.error ?? "Duplicate", existing: body.existing! }); return }
       if (!res.ok) { toast(body.error ?? "Failed", "error"); return }
       toast(`${(body as Client).name} created`, "success")
-      setCreateOpen(false); mutate()
+      setCreateOpen(false)
+      optimisticListPrepend(mutate, "clients", { ...(body as Client), activeJobCount: 0, onHold: false })
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }
@@ -370,7 +371,8 @@ function ClientsInner() {
                 const body = await res.json() as { archived?: boolean; deleted?: boolean; error?: string; detail?: string }
                 if (!res.ok) { toast(body.detail ?? body.error ?? "Failed to archive client", "error"); return }
                 toast(`${archiveClient.name} archived`, "success")
-                setArchiveClient(null); mutate()
+                setArchiveClient(null)
+                optimisticListRemove(mutate, "clients", archiveClient.id)
               } catch { toast("Network error", "error") }
               finally { setArchiving(false) }
             }}>
