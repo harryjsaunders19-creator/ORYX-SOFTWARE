@@ -123,7 +123,7 @@ export function SideNav() {
         className="px-4 py-5 flex items-center justify-center shrink-0"
         style={{ borderBottom: `1px solid ${SIDEBAR_BORDER}` }}
       >
-        <Link href="/dashboard" className="block w-full max-w-[160px]">
+        <Link href="/" className="block w-full max-w-[160px]">
           <OryxLogo variant="sidebar" />
         </Link>
       </div>

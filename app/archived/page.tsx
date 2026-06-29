@@ -9,6 +9,7 @@ import {
   DialogTitle, DialogDescription, DialogBody,
 } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/toast"
+import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, EmptyPanel } from "@/components/page-layout"
 import type { Job, Quote, Client } from "@/lib/types"
 import type { ArchiveLogRow } from "@/lib/db/archive-types"
@@ -280,5 +281,9 @@ function ArchivedInner() {
 }
 
 export default function ArchivedPage() {
-  return <Suspense><ArchivedInner /></Suspense>
+  return (
+    <RequireRole roles={["ADMIN"]}>
+      <Suspense><ArchivedInner /></Suspense>
+    </RequireRole>
+  )
 }
