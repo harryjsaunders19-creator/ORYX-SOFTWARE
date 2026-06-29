@@ -17,6 +17,7 @@ import {
 import { useToast } from "@/components/ui/toast"
 import { useUser }  from "@/components/user-context"
 import { formatGBP } from "@/lib/utils"
+import { apiFetch } from "@/hooks/use-api"
 import { PageHeader, PageShell, DataPanel, EmptyPanel } from "@/components/page-layout"
 import type { ClientHoldWithClient } from "@/lib/types"
 
@@ -46,7 +47,11 @@ export default function HoldListPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { setData(await fetch("/api/hold-list").then(r => r.json()) as HoldListData) }
+    try {
+      const res = await apiFetch("/api/hold-list")
+      if (res.ok) setData(await res.json() as HoldListData)
+      else toast("Failed to load hold list", "error")
+    }
     catch { toast("Failed to load hold list", "error") }
     finally { setLoading(false) }
   }, [toast])
@@ -85,14 +90,22 @@ export default function HoldListPage() {
   const doRemove = async () => {
     if (!removeItem) return
     setSaving(true)
+    const removed = removeItem
     try {
-      const res = await fetch(`/api/clients/${removeItem.clientId}/hold`, {
+      const res = await fetch(`/api/clients/${removed.clientId}/hold`, {
         method: "DELETE", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ removedBy: userName, removedReason: removeReason.trim() || null }),
       })
-      if (!res.ok) { toast("Failed to remove hold", "error"); return }
-      toast(`${removeItem.clientName} removed from hold`, "success")
-      setRemoveItem(null); setRemoveReason(""); load()
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string; detail?: string }
+        toast(err.detail ?? err.error ?? "Failed to remove hold", "error")
+        return
+      }
+      setData(prev => prev
+        ? { holds: prev.holds.filter(h => h.clientId !== removed.clientId), total: prev.total - 1 }
+        : prev)
+      toast(`${removed.clientName} removed from hold`, "success")
+      setRemoveItem(null); setRemoveReason("")
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }

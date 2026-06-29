@@ -1701,6 +1701,19 @@ export const holdDb = {
       hold.removedBy ?? null, hold.removedAt ?? null, hold.removedReason ?? null,
     )
   },
+
+  /** Upsert a hold row from an external source (e.g. Supabase mirror). */
+  rawUpsert(hold: import("@/lib/db/hold-types").ClientHoldRow): void {
+    db.prepare(`
+      INSERT OR REPLACE INTO ClientHold
+        (id,clientId,status,reason,notes,addedBy,addedAt,removedBy,removedAt,removedReason)
+      VALUES (?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      hold.id, hold.clientId, hold.status, hold.reason,
+      hold.notes ?? null, hold.addedBy, hold.addedAt,
+      hold.removedBy ?? null, hold.removedAt ?? null, hold.removedReason ?? null,
+    )
+  },
 }
 
 

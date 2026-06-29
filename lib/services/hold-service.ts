@@ -3,54 +3,28 @@
  *
  * When SUPABASE_HOLDS=true:
  *   - Reads come from Supabase
- *   - Writes SQLite first, then mirror hold row to Supabase
+ *   - Writes go to Supabase first, then best-effort SQLite mirror
  */
 import { db } from "@/lib/db/connection"
 import type { ClientHoldRow, ClientHoldWithClientRow } from "@/lib/db/hold-types"
 import { holdDb } from "@/lib/db/stores"
+import { nowIso } from "@/lib/db/helpers"
 import { clientService, ensureClientInSqlite } from "@/lib/services/client-service"
 import { useSupabaseHolds, useSupabaseClients } from "@/lib/supabase/feature-flags"
 import { supabaseHoldRepo } from "@/lib/supabase/repositories/client-holds"
 import { supabaseClientRepo } from "@/lib/supabase/repositories/clients"
 
-/**
- * Ensures the active hold for a client exists in the local SQLite DB by
- * fetching it from Supabase if missing. Needed for removeHold on a fresh
- * Vercel container where the SQLite ClientHold table is empty.
- */
-async function ensureActiveHoldInSqlite(clientId: string): Promise<void> {
-  if (!useSupabaseHolds()) return
-  if (holdDb.activeHoldForClient(clientId)) return
+async function mirrorHoldToSqlite(hold: ClientHoldRow | null): Promise<void> {
+  if (!hold) return
   try {
-    const hold = await supabaseHoldRepo.activeHoldForClient(clientId)
-    if (hold) holdDb.rawInsertOrIgnore(hold)
-  } catch {
-    // Non-fatal
+    await ensureClientInSqlite(hold.clientId)
+    holdDb.rawUpsert(hold)
+  } catch (err) {
+    console.warn("[holdService] SQLite mirror failed:", err)
   }
 }
 
-/** Enriches a single hold with client stats — used on the SQLite path (fast local queries). */
-async function enrichWithClientStats(hold: ClientHoldRow): Promise<ClientHoldWithClientRow> {
-  const client = await clientService.findUnique(hold.clientId)
-  const activeJobCount = (
-    db.prepare("SELECT COUNT(*) as n FROM Job WHERE clientId = ? AND status NOT IN ('ISSUED')").get(hold.clientId) as { n: number }
-  ).n
-  const quoteValueTotal = (
-    db.prepare("SELECT COALESCE(SUM(quoteValue), 0) as n FROM Job WHERE clientId = ? AND quoteValue > 0").get(hold.clientId) as { n: number }
-  ).n
-  return {
-    ...hold,
-    clientName: client?.name ?? "",
-    activeJobCount,
-    quoteValueTotal,
-  }
-}
-
-/**
- * Supabase path: enriches all holds via a single bulk client lookup instead of
- * one Supabase call per hold (N+1). The SQLite job-count queries are cheap
- * local reads and are kept as-is.
- */
+/** Enriches all holds via a single bulk client lookup instead of one call per hold (N+1). */
 async function enrichAllWithClientStats(holds: ClientHoldRow[]): Promise<ClientHoldWithClientRow[]> {
   if (!holds.length) return []
 
@@ -113,7 +87,31 @@ export const holdService = {
     notes?: string | null
     addedBy: string
   }): Promise<ClientHoldRow> {
-    // ClientHold.clientId has NOT NULL FK on Client.id — ensure client is in SQLite first.
+    const now = nowIso()
+    const reason = data.reason.trim()
+    const notes = data.notes?.trim() ?? null
+
+    if (useSupabaseHolds()) {
+      const existing = await supabaseHoldRepo.activeHoldForClient(data.clientId)
+      const hold = existing
+        ? await supabaseHoldRepo.updateActiveHold(existing.id, {
+            reason,
+            notes,
+            addedBy: data.addedBy,
+            addedAt: now,
+          })
+        : await supabaseHoldRepo.createHold({
+            clientId: data.clientId,
+            reason,
+            notes,
+            addedBy: data.addedBy,
+            addedAt: now,
+          })
+      if (!hold) throw new Error("Failed to save hold in Supabase")
+      await mirrorHoldToSqlite(hold)
+      return hold
+    }
+
     await ensureClientInSqlite(data.clientId)
     const hold = holdDb.addHold(data)
     await mirror(hold)
@@ -125,9 +123,22 @@ export const holdService = {
     removedBy: string
     removedReason?: string | null
   }): Promise<ClientHoldRow | null> {
-    // Sync the active hold from Supabase so removeHold can find and update it.
+    const now = nowIso()
+    const removedReason = data.removedReason?.trim() ?? null
+
+    if (useSupabaseHolds()) {
+      const existing = await supabaseHoldRepo.activeHoldForClient(data.clientId)
+      if (!existing) return null
+      const hold = await supabaseHoldRepo.removeHold(existing.id, {
+        removedBy: data.removedBy,
+        removedAt: now,
+        removedReason,
+      })
+      if (hold) await mirrorHoldToSqlite(hold)
+      return hold
+    }
+
     await ensureClientInSqlite(data.clientId)
-    await ensureActiveHoldInSqlite(data.clientId)
     const hold = holdDb.removeHold(data)
     await mirror(hold)
     return hold

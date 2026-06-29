@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { holdService } from "@/lib/services/hold-service"
 import { clientService } from "@/lib/services/client-service"
 import { requireSignIn } from "@/lib/auth"
+import { errorMessage } from "@/lib/error-message"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -56,7 +57,11 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     const hold = await holdService.removeHold({ clientId: id, removedBy, removedReason })
     if (!hold) return NextResponse.json({ error: "Client is not currently on hold" }, { status: 404 })
     return NextResponse.json(hold)
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (err) {
+    console.error("[DELETE /api/clients/[id]/hold]", err)
+    return NextResponse.json(
+      { error: "Failed to remove hold", detail: errorMessage(err) },
+      { status: 500 },
+    )
   }
 }
