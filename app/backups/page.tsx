@@ -170,7 +170,14 @@ function BackupsInner() {
       const data = await res.json() as ImportResult & { error?: string }
       if (!res.ok) { toast(data.error ?? "Import failed", "error"); return }
       setImportResult(data)
-      toast("Import complete", "success")
+      const total = data.clients.created + data.clients.updated
+        + data.jobs.created + data.jobs.updated
+        + data.quotes.created + data.quotes.updated
+      if (total === 0) {
+        toast("Import finished but no records were created or updated — check errors below", "error")
+      } else {
+        toast(`Import complete — ${total.toLocaleString()} records`, "success")
+      }
     } catch { toast("Import failed", "error") }
     finally { setImporting(false) }
   }

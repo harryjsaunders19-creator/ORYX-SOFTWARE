@@ -236,6 +236,16 @@ export const supabaseJobRepo = {
     if (error) throw error
   },
 
+  async upsertMany(jobs: JobRow[]): Promise<void> {
+    if (!jobs.length) return
+    const rows = jobs.map(toSupabaseRow)
+    let { error } = await table().upsert(rows, { onConflict: "id" })
+    if (isMissingCommercialExtrasColumn(error)) {
+      ;({ error } = await table().upsert(rows.map(withoutCommercialExtras), { onConflict: "id" }))
+    }
+    if (error) throw error
+  },
+
   async delete(id: string): Promise<boolean> {
     const { error, count } = await table().delete({ count: "exact" }).eq("id", id)
     if (error) throw error

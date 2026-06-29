@@ -109,6 +109,15 @@ export const supabaseQuoteRepo = {
     if (error) throw error
   },
 
+  async upsertMany(quotes: QuoteRow[]): Promise<void> {
+    if (!quotes.length) return
+    const { error } = await quotesTable().upsert(
+      quotes.map(toSupabaseQuoteRow),
+      { onConflict: "id" },
+    )
+    if (error) throw error
+  },
+
   async delete(id: string): Promise<boolean> {
     const { error, count } = await quotesTable().delete({ count: "exact" }).eq("id", id)
     if (error) throw error

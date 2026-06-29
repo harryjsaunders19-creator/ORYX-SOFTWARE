@@ -1861,8 +1861,8 @@ export const quoteDb = {
   },
 
   create(data: CreateQuoteData): QuoteRow {
-    const id          = nanoid()
-    const quoteNumber = sequenceDb.nextRefNumber("Q")
+    const id          = data.id ?? nanoid()
+    const quoteNumber = data.quoteNumber ?? sequenceDb.nextRefNumber("Q")
     const now         = nowIso()
     db.prepare(`
       INSERT INTO Quote

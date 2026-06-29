@@ -27,6 +27,8 @@ export interface QuoteRow {
 }
 
 export interface CreateQuoteData {
+  id?: string
+  quoteNumber?: string
   clientId?: string | null
   clientCompany: string
   contactName?: string | null

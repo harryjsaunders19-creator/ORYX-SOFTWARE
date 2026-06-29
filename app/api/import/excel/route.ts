@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireRole } from "@/lib/auth"
 import { importFromExcelBuffer } from "@/lib/excel-import"
 
+/** Large imports batch-upsert to Supabase — allow up to 60s on Vercel. */
+export const maxDuration = 60
+
 export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
   if (auth instanceof NextResponse) return auth
