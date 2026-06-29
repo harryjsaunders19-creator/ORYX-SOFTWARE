@@ -12,6 +12,7 @@ import type {
 import {
   quotesArchivedFilterEnabled,
   noteQuotesArchivedFromError,
+  isMissingColumnError,
 } from "@/lib/supabase/archived-filter"
 import {
   toQuoteLineItemRow,
@@ -61,22 +62,33 @@ function applyQuoteFilters(q: QuoteQuery, opts: QuoteListOptionsExt): QuoteQuery
 
 export const supabaseQuoteRepo = {
   async findMany(opts: QuoteListOptions = {}): Promise<QuoteRow[]> {
-    let q = applyQuoteFilters(quotesTable().select("*"), opts).order("created_at", { ascending: false })
-    if (opts.skip != null && opts.take != null) {
-      q = q.range(opts.skip, opts.skip + opts.take - 1)
-    } else if (opts.take != null) {
-      q = q.limit(opts.take)
+    const run = () => {
+      let q = applyQuoteFilters(quotesTable().select("*"), opts).order("created_at", { ascending: false })
+      if (opts.skip != null && opts.take != null) {
+        q = q.range(opts.skip, opts.skip + opts.take - 1)
+      } else if (opts.take != null) {
+        q = q.limit(opts.take)
+      }
+      return q
     }
-    const { data, error } = await q
+    let { data, error } = await run()
+    if (error && noteQuotesArchivedFromError(error)) {
+      ;({ data, error } = await run())
+    }
     if (error) throw error
     return (data ?? []).map(toQuoteRow)
   },
 
   async count(opts: QuoteListOptions = {}): Promise<number> {
-    const { count, error } = await applyQuoteFilters(
-      quotesTable().select("*", { count: "exact", head: true }),
-      opts,
-    )
+    const run = () =>
+      applyQuoteFilters(
+        quotesTable().select("*", { count: "exact", head: true }),
+        opts,
+      )
+    let { count, error } = await run()
+    if (error && noteQuotesArchivedFromError(error)) {
+      ;({ count, error } = await run())
+    }
     if (error) throw error
     return count ?? 0
   },
@@ -94,7 +106,12 @@ export const supabaseQuoteRepo = {
   },
 
   async upsert(quote: QuoteRow): Promise<void> {
-    const { error } = await quotesTable().upsert(toSupabaseQuoteRow(quote), { onConflict: "id" })
+    const row = toSupabaseQuoteRow(quote)
+    let { error } = await quotesTable().upsert(row, { onConflict: "id" })
+    if (error && isMissingColumnError(error, "archived_at")) {
+      const { archived_at: _a, archived_by: _b, ...withoutArchived } = row
+      ;({ error } = await quotesTable().upsert(withoutArchived, { onConflict: "id" }))
+    }
     if (error) throw error
   },
 

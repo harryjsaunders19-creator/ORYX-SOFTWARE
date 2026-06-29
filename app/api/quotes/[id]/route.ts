@@ -3,6 +3,7 @@ import { quoteService } from "@/lib/services/quote-service"
 import { requireSignIn } from "@/lib/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "@/lib/quote-works"
 import { resourceResponse } from "@/lib/api-cache"
+import { errorMessage } from "@/lib/error-message"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
 
@@ -139,14 +140,19 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireSignIn()
-  if (auth instanceof NextResponse) return auth
+  try {
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
 
-  const { id } = await params
-  const quote = await quoteService.findUnique(id)
-  if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const { id } = await params
+    const quote = await quoteService.findUnique(id)
+    if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const archived = await quoteService.archive(id, auth.user.id, auth.user.name)
-  if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  return NextResponse.json({ ok: true, archived: true, quote: archived })
+    const archived = await quoteService.archive(id, auth.user.id, auth.user.name)
+    if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    return NextResponse.json({ ok: true, archived: true, quote: archived })
+  } catch (err) {
+    console.error("[DELETE /api/quotes/[id]]", err)
+    return NextResponse.json({ error: "Failed to archive quote", detail: errorMessage(err) }, { status: 500 })
+  }
 }

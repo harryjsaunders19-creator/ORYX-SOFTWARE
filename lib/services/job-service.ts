@@ -151,7 +151,8 @@ export const jobService = {
     if (!job) return null
     const now = nowIso()
     jobDb.archive(id, archiverId, now)
-    if (useSupabaseJobs()) await supabaseJobRepo.archive(id, archiverId, now)
+    const updated = jobDb.findUnique(id)
+    await mirror(updated)
     archiveLogService.log({
       entityType: "job", entityId: id,
       entityLabel: job.drawingNumber,
@@ -159,7 +160,7 @@ export const jobService = {
       performedBy: archiverId, performedByName: archiverName,
       reason,
     })
-    return jobDb.findUnique(id)
+    return updated
   },
 
   /** Restore a previously archived job. */
@@ -169,14 +170,15 @@ export const jobService = {
     if (!job) return null
     const now = nowIso()
     jobDb.restore(id, now)
-    if (useSupabaseJobs()) await supabaseJobRepo.restore(id, now)
+    const updated = jobDb.findUnique(id)
+    await mirror(updated)
     archiveLogService.log({
       entityType: "job", entityId: id,
       entityLabel: job.drawingNumber,
       action: "restore",
       performedBy: restorerId, performedByName: restorerName,
     })
-    return jobDb.findUnique(id)
+    return updated
   },
 
   async findArchived(): Promise<JobRow[]> {

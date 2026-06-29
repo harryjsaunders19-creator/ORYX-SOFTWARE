@@ -5,6 +5,7 @@
  * Uses the admin (service-role) client — same security model as SQLite API routes.
  */
 import { createAdminClient } from "@/lib/supabase/admin"
+import { isMissingColumnError } from "@/lib/supabase/archived-filter"
 import { toClientRow, toSupabaseInsert, toSupabaseUpdate } from "@/lib/supabase/mappers/client"
 import type { ClientRow, CreateClientData, UpdateClientData } from "@/lib/db/client-types"
 
@@ -95,11 +96,61 @@ export const supabaseClientRepo = {
     return (count ?? 0) > 0
   },
 
+  async archive(id: string, archivedBy: string, archivedAt: string): Promise<ClientRow | null> {
+    let { data, error } = await table()
+      .update({
+        active: false,
+        archived_at: archivedAt,
+        archived_by: archivedBy,
+        updated_at: archivedAt,
+      })
+      .eq("id", id)
+      .select("*")
+      .maybeSingle()
+    if (error && (isMissingColumnError(error, "archived_at") || isMissingColumnError(error, "archived_by"))) {
+      ;({ data, error } = await table()
+        .update({ active: false, updated_at: archivedAt })
+        .eq("id", id)
+        .select("*")
+        .maybeSingle())
+    }
+    if (error) throw error
+    return data ? toClientRow(data) : null
+  },
+
+  async restore(id: string, restoredAt: string): Promise<ClientRow | null> {
+    let { data, error } = await table()
+      .update({
+        active: true,
+        archived_at: null,
+        archived_by: null,
+        updated_at: restoredAt,
+      })
+      .eq("id", id)
+      .select("*")
+      .maybeSingle()
+    if (error && isMissingColumnError(error, "archived_at")) {
+      ;({ data, error } = await table()
+        .update({ active: true, updated_at: restoredAt })
+        .eq("id", id)
+        .select("*")
+        .maybeSingle())
+    }
+    if (error) throw error
+    return data ? toClientRow(data) : null
+  },
+
   async findArchived(): Promise<ClientRow[]> {
-    const { data, error } = await table()
+    let { data, error } = await table()
       .select("*")
       .eq("active", false)
       .order("archived_at", { ascending: false, nullsFirst: false })
+    if (error && isMissingColumnError(error, "archived_at")) {
+      ;({ data, error } = await table()
+        .select("*")
+        .eq("active", false)
+        .order("updated_at", { ascending: false }))
+    }
     if (error) throw error
     return (data ?? []).map(toClientRow)
   },

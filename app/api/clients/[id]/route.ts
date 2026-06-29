@@ -3,6 +3,7 @@ import { clientService } from "@/lib/services/client-service"
 import { requireSignIn, requireRole } from "@/lib/auth"
 import { canViewCommercialValues, canViewClientAnalytics } from "@/lib/permissions"
 import { resourceResponse } from "@/lib/api-cache"
+import { errorMessage } from "@/lib/error-message"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -78,8 +79,8 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 
     const { id } = await params
     // Always soft-archive if client has any jobs; hard-delete only when truly empty.
-    const stats = clientService.stats(id)
-    if (stats.totalJobs > 0) {
+    const totalJobs = await clientService.totalJobCount(id)
+    if (totalJobs > 0) {
       const archived = await clientService.archive(id, auth.user.id, auth.user.name)
       if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
       return NextResponse.json({ archived: true, client: archived })
@@ -89,6 +90,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ deleted: true })
   } catch (err) {
     console.error("[DELETE /api/clients/[id]]", err)
-    return NextResponse.json({ error: "Failed to delete client" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to archive client", detail: errorMessage(err) }, { status: 500 })
   }
 }

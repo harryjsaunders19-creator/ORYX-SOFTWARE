@@ -15,8 +15,9 @@ import { db } from "@/lib/db/connection"
 import { nowIso } from "@/lib/db/helpers"
 import { clientDb } from "@/lib/db/stores"
 import type { ClientRow, CreateClientData, UpdateClientData } from "@/lib/db/client-types"
-import { useSupabaseClients } from "@/lib/supabase/feature-flags"
+import { useSupabaseClients, useSupabaseJobs } from "@/lib/supabase/feature-flags"
 import { supabaseClientRepo } from "@/lib/supabase/repositories/clients"
+import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { archiveLogService } from "@/lib/services/archive-log-service"
 
 function sqliteActiveJobCount(clientId: string): number {
@@ -119,12 +120,22 @@ export const clientService = {
 
   async archive(id: string, archiverId = "System", archiverName = "System"): Promise<ClientRow | null> {
     const client = await this.findUnique(id)
+    if (!client) return null
     const now = nowIso()
-    const updated = await this.update(id, { active: 0, archivedAt: now, archivedBy: archiverId })
+    let updated: ClientRow | null
+    if (!useSupabaseClients()) {
+      updated = clientDb.update(id, { active: 0, archivedAt: now, archivedBy: archiverId })
+    } else {
+      updated = await supabaseClientRepo.archive(id, archiverId, now)
+      if (updated) {
+        await ensureClientInSqlite(id)
+        clientDb.update(id, { active: 0, archivedAt: now, archivedBy: archiverId })
+      }
+    }
     if (updated) {
       archiveLogService.log({
         entityType: "client", entityId: id,
-        entityLabel: client?.name ?? id,
+        entityLabel: client.name,
         action: "archive",
         performedBy: archiverId, performedByName: archiverName,
       })
@@ -141,16 +152,33 @@ export const clientService = {
 
   async restore(id: string, restorerId = "System", restorerName = "System"): Promise<ClientRow | null> {
     const client = await this.findUnique(id)
-    const updated = await this.update(id, { active: 1, archivedAt: null, archivedBy: null })
+    if (!client) return null
+    const now = nowIso()
+    let updated: ClientRow | null
+    if (!useSupabaseClients()) {
+      updated = clientDb.update(id, { active: 1, archivedAt: null, archivedBy: null })
+    } else {
+      updated = await supabaseClientRepo.restore(id, now)
+      if (updated) {
+        await ensureClientInSqlite(id)
+        clientDb.update(id, { active: 1, archivedAt: null, archivedBy: null })
+      }
+    }
     if (updated) {
       archiveLogService.log({
         entityType: "client", entityId: id,
-        entityLabel: client?.name ?? id,
+        entityLabel: client.name,
         action: "restore",
         performedBy: restorerId, performedByName: restorerName,
       })
     }
     return updated
+  },
+
+  /** Job count for archive vs hard-delete — uses Supabase when jobs module is on. */
+  async totalJobCount(clientId: string): Promise<number> {
+    if (useSupabaseJobs()) return supabaseJobRepo.count({ clientId })
+    return clientDb.stats(clientId).totalJobs
   },
 
   async delete(id: string): Promise<boolean> {
