@@ -28,6 +28,17 @@ function snapshots() {
   return createAdminClient().from("billing_export_snapshots")
 }
 
+const IN_CHUNK = 40
+
+/** PostgREST throws plain objects — normalise to Error so API routes surface the message. */
+function throwSupabaseError(error: { message?: string; details?: string; hint?: string; code?: string } | null): void {
+  if (!error) return
+  const msg = [error.message, error.details, error.hint, error.code ? `(${error.code})` : null]
+    .filter(Boolean)
+    .join(" — ")
+  throw new Error(msg || "Supabase request failed")
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Q = any
 
@@ -47,7 +58,7 @@ export const supabaseBillingRepo = {
     if (opts.skip != null && opts.take != null) q = q.range(opts.skip, opts.skip + opts.take - 1)
     else if (opts.take != null) q = q.limit(opts.take)
     const { data, error } = await q
-    if (error) throw error
+    throwSupabaseError(error)
     return (data ?? []).map(toBillingHandoffRow)
   },
 
@@ -56,21 +67,27 @@ export const supabaseBillingRepo = {
       handoffs().select("*", { count: "exact", head: true }),
       opts,
     )
-    if (error) throw error
+    throwSupabaseError(error)
     return count ?? 0
   },
 
   async findUnique(id: string): Promise<BillingHandoffRow | null> {
     const { data, error } = await handoffs().select("*").eq("id", id).maybeSingle()
-    if (error) throw error
+    throwSupabaseError(error)
     return data ? toBillingHandoffRow(data) : null
   },
 
   async findManyByIds(ids: string[]): Promise<BillingHandoffRow[]> {
     if (!ids.length) return []
-    const { data, error } = await handoffs().select("*").in("id", ids)
-    if (error) throw error
-    return (data ?? []).map(toBillingHandoffRow)
+    const unique = [...new Set(ids)]
+    const out: BillingHandoffRow[] = []
+    for (let i = 0; i < unique.length; i += IN_CHUNK) {
+      const chunk = unique.slice(i, i + IN_CHUNK)
+      const { data, error } = await handoffs().select("*").in("id", chunk)
+      throwSupabaseError(error)
+      out.push(...(data ?? []).map(toBillingHandoffRow))
+    }
+    return out
   },
 
   async findBySourceJobId(jobId: string): Promise<BillingHandoffRow | null> {
@@ -94,7 +111,7 @@ export const supabaseBillingRepo = {
 
   async upsertHandoff(row: BillingHandoffRow): Promise<void> {
     const { error } = await handoffs().upsert(toSupabaseBillingHandoffRow(row), { onConflict: "id" })
-    if (error) throw error
+    throwSupabaseError(error)
   },
 
   async upsertManyHandoffs(rows: BillingHandoffRow[]): Promise<void> {
@@ -103,7 +120,7 @@ export const supabaseBillingRepo = {
     for (let i = 0; i < rows.length; i += CHUNK) {
       const slice = rows.slice(i, i + CHUNK)
       const { error } = await handoffs().upsert(slice.map(toSupabaseBillingHandoffRow), { onConflict: "id" })
-      if (error) throw error
+      throwSupabaseError(error)
     }
   },
 
@@ -116,33 +133,43 @@ export const supabaseBillingRepo = {
     notes?: string | null
   }): Promise<void> {
     if (!params.handoffIds.length) return
-    const patch: Record<string, string | null> = {
-      cleared_by_accounts_at: params.clearedAt,
-      cleared_by: params.clearedBy,
-      export_batch_id: params.batchId,
-      updated_at: params.clearedAt,
-    }
-    if (params.notes != null) patch.notes = params.notes
 
-    const CHUNK = 50
-    for (let i = 0; i < params.handoffIds.length; i += CHUNK) {
-      const ids = params.handoffIds.slice(i, i + CHUNK)
-      const { error } = await handoffs()
-        .update(patch)
-        .in("id", ids)
-        .is("cleared_by_accounts_at", null)
-      if (error) throw error
+    const rows = await this.findManyByIds(params.handoffIds)
+    const byId = new Map(rows.map(r => [r.id, r]))
+    const missing = params.handoffIds.filter(id => !byId.has(id))
+    if (missing.length) {
+      throw new Error(`${missing.length} item(s) not found in Supabase billing queue`)
     }
+
+    const clearedRows = params.handoffIds.map(id => {
+      const row = byId.get(id)!
+      return {
+        ...row,
+        clearedByAccountsAt: row.clearedByAccountsAt ?? params.clearedAt,
+        clearedBy: row.clearedBy ?? params.clearedBy,
+        exportBatchId: params.batchId,
+        notes: params.notes ?? row.notes,
+        updatedAt: params.clearedAt,
+      }
+    })
+
+    await this.upsertManyHandoffs(clearedRows)
   },
 
   async countUnclearedAmong(ids: string[]): Promise<number> {
     if (!ids.length) return 0
-    const { count, error } = await handoffs()
-      .select("*", { count: "exact", head: true })
-      .in("id", ids)
-      .is("cleared_by_accounts_at", null)
-    if (error) throw error
-    return count ?? 0
+    const unique = [...new Set(ids)]
+    let total = 0
+    for (let i = 0; i < unique.length; i += IN_CHUNK) {
+      const chunk = unique.slice(i, i + IN_CHUNK)
+      const { count, error } = await handoffs()
+        .select("*", { count: "exact", head: true })
+        .in("id", chunk)
+        .is("cleared_by_accounts_at", null)
+      throwSupabaseError(error)
+      total += count ?? 0
+    }
+    return total
   },
 
   async replaceHandoffsForJob(jobId: string, rows: BillingHandoffRow[]): Promise<void> {
@@ -197,7 +224,7 @@ export const supabaseBillingRepo = {
 
   async upsertBatch(row: BillingExportBatchRow): Promise<void> {
     const { error } = await batches().upsert(toSupabaseBillingExportBatchRow(row), { onConflict: "id" })
-    if (error) throw error
+    throwSupabaseError(error)
   },
 
   async findBatchUnique(id: string): Promise<BillingExportBatchRow | null> {
@@ -220,8 +247,11 @@ export const supabaseBillingRepo = {
     const CHUNK = 50
     for (let i = 0; i < rows.length; i += CHUNK) {
       const slice = rows.slice(i, i + CHUNK)
-      const { error } = await snapshots().upsert(slice.map(toSupabaseBillingExportSnapshotRow), { onConflict: "id" })
-      if (error) throw error
+      const { error } = await snapshots().upsert(
+        slice.map(toSupabaseBillingExportSnapshotRow),
+        { onConflict: "handoff_id" },
+      )
+      throwSupabaseError(error)
     }
   },
 
@@ -231,9 +261,15 @@ export const supabaseBillingRepo = {
     const rows = data ?? []
     if (!rows.length) return []
     const handoffIds = rows.map((r) => r.handoff_id as string)
-    const { data: hs, error: hErr } = await handoffs().select("id, drawing_number").in("id", handoffIds)
-    if (hErr) throw hErr
-    const drawingById = new Map((hs ?? []).map((h) => [h.id as string, h.drawing_number as string]))
+    const drawingById = new Map<string, string>()
+    for (let i = 0; i < handoffIds.length; i += IN_CHUNK) {
+      const chunk = handoffIds.slice(i, i + IN_CHUNK)
+      const { data: hs, error: hErr } = await handoffs().select("id, drawing_number").in("id", chunk)
+      throwSupabaseError(hErr)
+      for (const h of hs ?? []) {
+        drawingById.set(h.id as string, h.drawing_number as string)
+      }
+    }
     rows.sort((a, b) =>
       (drawingById.get(a.handoff_id as string) ?? "").localeCompare(drawingById.get(b.handoff_id as string) ?? ""),
     )

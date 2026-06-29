@@ -80,12 +80,6 @@ async function mirrorBatchExport(
     throw new Error(`${stillAwaiting} item(s) failed to move to Cleared in Supabase`)
   }
 
-  // Full row sync + snapshots are best-effort after the cleared status is set.
-  const clearedHandoffs = billingHandoffDb.handoffsForBatch(batchId)
-  if (clearedHandoffs.length) {
-    await supabaseBillingRepo.upsertManyHandoffs(clearedHandoffs)
-  }
-
   try {
     const snapshotRows = db.prepare("SELECT * FROM BillingExportSnapshot WHERE batchId = ?").all(batchId) as BillingExportSnapshotRow[]
     await supabaseBillingRepo.upsertSnapshots(snapshotRows)

@@ -42,7 +42,12 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     console.error("[POST /api/billing-handoffs/export]", err)
-    const message = err instanceof Error ? err.message : "Internal server error"
+    const message =
+      err instanceof Error
+        ? err.message
+        : err && typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "Internal server error"
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
