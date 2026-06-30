@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { Trash2, MapPin, Video } from "lucide-react"
+import { Trash2, MapPin, Video, CalendarOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
 import { Label }  from "@/components/ui/label"
@@ -16,6 +16,7 @@ import { useUser } from "@/components/user-context"
 const EVENT_TYPES = [
   { id: "cat_site_visit",    name: "Site Visit",     color: "#3B82F6", icon: MapPin },
   { id: "cat_teams_meeting", name: "Teams Meeting",  color: "#A855F7", icon: Video },
+  { id: "cat_leave",         name: "Leave",          color: "#6B7280", icon: CalendarOff },
 ] as const
 
 interface UserOption { id: string; name: string }
@@ -89,6 +90,8 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
 
   const _selectedType = EVENT_TYPES.find(t => t.id === categoryId) ?? EVENT_TYPES[0]
 
+  const isLeave = categoryId === "cat_leave"
+
   const handleSave = async () => {
     if (!title.trim()) { toast("Title is required", "error"); return }
     if (!startDate || !endDate) { toast("Date is required", "error"); return }
@@ -98,9 +101,13 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
       const payload = {
         title: title.trim(),
         categoryId,
-        startDate: `${startDate}T${startTime}:00`,
-        endDate:   `${endDate}T${endTime}:00`,
-        allDay: false,
+        startDate: isLeave
+          ? `${startDate}T00:00:00.000Z`
+          : `${startDate}T${startTime}:00`,
+        endDate: isLeave
+          ? `${endDate}T23:59:59.999Z`
+          : `${endDate}T${endTime}:00`,
+        allDay: isLeave,
         description: description.trim() || null,
         location:    location.trim() || null,
         priority: "MEDIUM",
@@ -157,7 +164,7 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
             {/* Event type selector */}
             <div className="flex flex-col gap-1.5">
               <Label>Event type</Label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {EVENT_TYPES.map(t => {
                   const Icon = t.icon
                   const active = categoryId === t.id
@@ -187,32 +194,42 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
               <Input
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder={categoryId === "cat_site_visit" ? "e.g. Survey — ABC Construction" : "e.g. Weekly Operations Meeting"}
+                placeholder={
+                  categoryId === "cat_site_visit"
+                    ? "e.g. Survey — ABC Construction"
+                    : categoryId === "cat_leave"
+                      ? "e.g. John Smith — Annual Leave"
+                      : "e.g. Weekly Operations Meeting"
+                }
                 autoFocus
               />
             </div>
 
-            {/* Date + Time row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className={`grid gap-3 ${isLeave ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"}`}>
               <div className="flex flex-col gap-1.5">
                 <Label>Start date *</Label>
                 <Input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); if (!endDate || endDate < e.target.value) setEndDate(e.target.value) }} />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Start time *</Label>
-                <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
-              </div>
+              {!isLeave && (
+                <div className="flex flex-col gap-1.5">
+                  <Label>Start time *</Label>
+                  <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <Label>End date *</Label>
                 <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>End time *</Label>
-                <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
-              </div>
+              {!isLeave && (
+                <div className="flex flex-col gap-1.5">
+                  <Label>End time *</Label>
+                  <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+                </div>
+              )}
             </div>
 
             {/* Location */}
+            {!isLeave && (
             <div className="flex flex-col gap-1.5">
               <Label>{categoryId === "cat_site_visit" ? "Site address" : "Location (optional)"}</Label>
               <Input
@@ -221,6 +238,7 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
                 placeholder={categoryId === "cat_site_visit" ? "e.g. 14 Clifton Road, Bristol" : "e.g. Teams / Meeting Room 2"}
               />
             </div>
+            )}
 
             {/* Assigned staff */}
             {users.length > 0 && (

@@ -3,6 +3,7 @@ import { requireSignIn, requireRole } from "@/lib/auth"
 import type { UpdateCalendarEventData } from "@/lib/db/calendar-types"
 import { calendarService } from "@/lib/services/calendar-service"
 import { userService } from "@/lib/services/user-service"
+import { isUserSelectableCategory } from "@/lib/calendar/category-config"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -32,8 +33,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
 
     if (body.categoryId !== undefined) {
-      const categories = await calendarService.categories()
-      if (!categories.find(c => c.id === String(body.categoryId))) {
+      const cat = String(body.categoryId)
+      if (!isUserSelectableCategory(cat)) {
         return NextResponse.json({ error: "Invalid category" }, { status: 422 })
       }
     }

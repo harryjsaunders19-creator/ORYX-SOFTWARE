@@ -32,6 +32,15 @@ export interface CalendarEventWithDetails extends CalendarEventRow {
   jobDrawingNumber: string | null
   clientName: string | null
   createdByName: string
+  /** Populated for annual-leave category events synced from LeaveRequest. */
+  leaveRequestId?: string | null
+  leaveType?: string | null
+  leaveReason?: string | null
+  leaveReviewStatus?: string | null
+  leaveUserId?: string | null
+  employeeDepartment?: string | null
+  managerName?: string | null
+  reviewedByName?: string | null
 }
 
 export interface CreateCalendarEventData {
@@ -69,6 +78,7 @@ export interface CalendarEventListOptions {
   to: string
   userId?: string
   categoryId?: string
+  categoryIds?: string[]
   jobId?: string
   clientId?: string
 }

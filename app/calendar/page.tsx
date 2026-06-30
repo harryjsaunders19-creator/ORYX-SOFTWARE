@@ -1,5 +1,5 @@
 "use client"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths,
@@ -10,17 +10,25 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/components/ui/toast"
+import { useUser } from "@/components/user-context"
 import { MonthView } from "@/components/calendar/month-view"
 import { EventDialog } from "@/components/calendar/event-dialog"
+import {
+  LeaveEventDialog, isLeaveEvent, leaveDisplayColor,
+  type LeaveCalendarEvent,
+} from "@/components/calendar/leave-event-dialog"
+import { LeaveAcceptancePanel } from "@/components/calendar/leave-acceptance-panel"
 import { DataPanel, PageHeader, PageShell } from "@/components/page-layout"
+import { ANNUAL_LEAVE_CATEGORY_ID } from "@/lib/leave/constants"
 
-interface CalendarEvent {
-  id: string; title: string; description: string | null
-  categoryId: string; startDate: string; endDate: string; allDay: number
-  location: string | null; priority: string; status: string
-  jobId: string | null; clientId: string | null
-  categoryName: string; categoryColor: string
-  assignees: { userId: string; userName: string }[]
+interface CalendarEvent extends LeaveCalendarEvent {
+  categoryName: string
+  categoryColor: string
+  allDay: number
+  location: string | null
+  priority: string
+  jobId: string | null
+  clientId: string | null
   createdByName: string
 }
 
@@ -29,18 +37,28 @@ interface UserOption { id: string; name: string }
 
 export default function CalendarPage() {
   const { toast } = useToast()
+  const { isAdmin, user } = useUser()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents]           = useState<CalendarEvent[]>([])
   const [loading, setLoading]         = useState(true)
   const [categories, setCategories]   = useState<Category[]>([])
   const [users, setUsers]             = useState<UserOption[]>([])
+  const [departments, setDepartments] = useState<string[]>([])
 
   const [filterCategory, setFilterCategory] = useState("ALL")
   const [filterUser, setFilterUser]         = useState("ALL")
+  const [showLeave, setShowLeave]           = useState(true)
+  const [leaveStatus, setLeaveStatus]       = useState("ALL")
+  const [filterDepartment, setFilterDepartment] = useState("ALL")
+  const [hideRejected, setHideRejected]     = useState(true)
 
   const [dialogOpen, setDialogOpen]     = useState(false)
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
   const [editEvent, setEditEvent]       = useState<CalendarEvent | null>(null)
+  const [leaveEvent, setLeaveEvent]     = useState<CalendarEvent | null>(null)
   const [defaultDate, setDefaultDate]   = useState<string | undefined>()
+
+  const canFilterStaff = isAdmin
 
   const getRange = useCallback((date: Date) => {
     const monthStart = startOfMonth(date)
@@ -56,6 +74,10 @@ export default function CalendarPage() {
     const params = new URLSearchParams({ from, to })
     if (filterCategory !== "ALL") params.set("categoryId", filterCategory)
     if (filterUser !== "ALL") params.set("userId", filterUser)
+    params.set("showLeave", showLeave ? "true" : "false")
+    params.set("hideRejected", hideRejected ? "true" : "false")
+    if (leaveStatus !== "ALL") params.set("leaveStatus", leaveStatus)
+    if (filterDepartment !== "ALL") params.set("department", filterDepartment)
 
     try {
       const res = await fetch(`/api/calendar/events?${params}`)
@@ -64,7 +86,7 @@ export default function CalendarPage() {
       setEvents(data.events)
     } catch { toast("Failed to load events", "error") }
     finally { setLoading(false) }
-  }, [currentDate, filterCategory, filterUser, getRange, toast])
+  }, [currentDate, filterCategory, filterUser, showLeave, leaveStatus, filterDepartment, hideRejected, getRange, toast])
 
   useEffect(() => { loadEvents() }, [loadEvents])
 
@@ -77,7 +99,18 @@ export default function CalendarPage() {
       .then(r => r.ok ? r.json() as Promise<{ users: UserOption[] }> : null)
       .then(d => { if (d) setUsers(d.users) })
       .catch(() => {})
+    fetch("/api/employees?limit=1")
+      .then(r => r.ok ? r.json() as Promise<{ departments: string[] }> : null)
+      .then(d => { if (d?.departments) setDepartments(d.departments) })
+      .catch(() => {})
   }, [])
+
+  const displayEvents = useMemo(() =>
+    events.map(e => ({
+      ...e,
+      displayColor: isLeaveEvent(e) ? leaveDisplayColor(e) : e.categoryColor,
+    })),
+  [events])
 
   const handleDayClick = (date: Date) => {
     setEditEvent(null)
@@ -87,11 +120,15 @@ export default function CalendarPage() {
 
   const handleEventClick = (eventId: string) => {
     const ev = events.find(e => e.id === eventId)
-    if (ev) {
-      setEditEvent(ev)
-      setDefaultDate(undefined)
-      setDialogOpen(true)
+    if (!ev) return
+    if (isLeaveEvent(ev)) {
+      setLeaveEvent(ev)
+      setLeaveDialogOpen(true)
+      return
     }
+    setEditEvent(ev)
+    setDefaultDate(undefined)
+    setDialogOpen(true)
   }
 
   const handleNewEvent = () => {
@@ -104,7 +141,7 @@ export default function CalendarPage() {
     <PageShell wide>
       <PageHeader
         title="Calendar"
-        description="Site visits, meetings, and deadlines"
+        description="Site visits, meetings, deadlines, and team leave"
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <div className="w-40">
@@ -123,7 +160,7 @@ export default function CalendarPage() {
                 </SelectContent>
               </Select>
             </div>
-            {users.length > 0 && (
+            {canFilterStaff && users.length > 0 && (
               <div className="w-36">
                 <Select value={filterUser} onValueChange={setFilterUser}>
                   <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
@@ -136,6 +173,19 @@ export default function CalendarPage() {
                 </Select>
               </div>
             )}
+            {departments.length > 0 && (isAdmin || user) && (
+              <div className="w-36">
+                <Select value={filterDepartment} onValueChange={setFilterDepartment}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Department" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All departments</SelectItem>
+                    {departments.map(d => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <Button variant="primary" size="sm" onClick={handleNewEvent}>
               <Plus className="h-3.5 w-3.5" /> New event
             </Button>
@@ -143,20 +193,68 @@ export default function CalendarPage() {
         }
       />
 
-      <div className="flex items-center gap-2 mb-4">
-        <Button variant="outline" size="icon-sm" onClick={() => setCurrentDate(d => subMonths(d, 1))}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
-          Today
-        </Button>
-        <Button variant="outline" size="icon-sm" onClick={() => setCurrentDate(d => addMonths(d, 1))}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <p className="text-lg font-semibold text-t1 ml-1 tracking-tight">
-          {format(currentDate, "MMMM yyyy")}
-        </p>
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon-sm" onClick={() => setCurrentDate(d => subMonths(d, 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
+            Today
+          </Button>
+          <Button variant="outline" size="icon-sm" onClick={() => setCurrentDate(d => addMonths(d, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <p className="text-lg font-semibold text-t1 ml-1 tracking-tight">
+            {format(currentDate, "MMMM yyyy")}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
+          <label className="flex items-center gap-1.5 text-xs text-t2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showLeave}
+              onChange={e => setShowLeave(e.target.checked)}
+              className="rounded border-bd"
+            />
+            Annual leave
+          </label>
+          {showLeave && (
+            <>
+              <Select value={leaveStatus} onValueChange={setLeaveStatus}>
+                <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+              <label className="flex items-center gap-1.5 text-xs text-t2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hideRejected}
+                  onChange={e => setHideRejected(e.target.checked)}
+                  className="rounded border-bd"
+                />
+                Hide rejected
+              </label>
+            </>
+          )}
+          <div className="flex items-center gap-3 text-[10px] text-t3">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "#15803D" }} /> Approved
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "#CA8A04" }} /> Pending
+            </span>
+          </div>
+        </div>
       </div>
+
+      {isAdmin && (
+        <LeaveAcceptancePanel onAccepted={loadEvents} />
+      )}
 
       <DataPanel>
         {loading && events.length === 0 ? (
@@ -167,7 +265,7 @@ export default function CalendarPage() {
         ) : (
           <MonthView
             currentDate={currentDate}
-            events={events}
+            events={displayEvents}
             onDayClick={handleDayClick}
             onEventClick={handleEventClick}
           />
@@ -180,6 +278,12 @@ export default function CalendarPage() {
         onSaved={loadEvents}
         event={editEvent}
         defaultDate={defaultDate}
+      />
+
+      <LeaveEventDialog
+        open={leaveDialogOpen}
+        onClose={() => { setLeaveDialogOpen(false); setLeaveEvent(null) }}
+        event={leaveEvent}
       />
     </PageShell>
   )

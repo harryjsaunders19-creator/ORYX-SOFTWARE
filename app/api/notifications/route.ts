@@ -8,7 +8,7 @@ export async function GET() {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
 
-    return listResponse(await notificationService.list())
+    return listResponse(await notificationService.list(auth.user))
   } catch (err) {
     console.error("[GET /api/notifications]", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

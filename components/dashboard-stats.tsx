@@ -25,23 +25,18 @@ interface CalEvent {
 
 // ── Reusable pieces ─────────────────────────────────────────────────
 
-function StatCard({ icon: Icon, label, value, accent, href }: {
-  icon: React.ElementType; label: string; value: number; accent: string; href?: string
+function StatCard({ icon: Icon, label, value, href }: {
+  icon: React.ElementType; label: string; value: number; href?: string
 }) {
   const inner = (
-    <div className="group relative glass-card border border-bd rounded-2xl shadow-card p-6 overflow-hidden hover:shadow-lg transition-all h-full">
-      <div className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: accent }} />
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[40px] font-bold tabular-nums text-t1 leading-none tracking-tight">{value}</p>
-          <p className="text-xs font-semibold text-t3 uppercase tracking-wider mt-3">{label}</p>
-        </div>
-        <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
-          style={{ backgroundColor: accent + "18" }}
-        >
-          <Icon className="h-5 w-5" style={{ color: accent }} />
-        </div>
+    <div className="group relative h-full overflow-hidden rounded-xl border border-bd bg-sr p-6 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-md">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wider text-t3">{label}</span>
+        <Icon className="h-5 w-5 text-ac" />
+      </div>
+      <p className="text-[32px] font-black tabular-nums leading-none tracking-tight text-t1">{value}</p>
+      <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-surface-low">
+        <div className="h-full w-2/3 rounded-full bg-ac transition-all group-hover:w-3/4" />
       </div>
     </div>
   )
@@ -52,15 +47,15 @@ function SectionHeader({ icon: Icon, accent, title, count, viewAllHref, viewAllL
   icon: React.ElementType; accent: string; title: string; count?: number; viewAllHref: string; viewAllLabel?: string
 }) {
   return (
-    <div className="px-4 py-3 border-b border-bd flex items-center justify-between shrink-0">
+    <div className="flex shrink-0 items-center justify-between border-b border-bd bg-sr px-4 py-3">
       <div className="flex items-center gap-2">
         <Icon className={cn("h-4 w-4 shrink-0", accent)} />
         <p className="text-sm font-semibold text-t1">{title}</p>
         {count != null && count > 0 && (
-          <span className="text-[11px] font-bold rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center bg-pg text-t2 shrink-0">{count}</span>
+          <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-pg px-1 text-[11px] font-bold text-t2">{count}</span>
         )}
       </div>
-      <Link href={viewAllHref} className="text-xs text-ac hover:text-ach font-medium shrink-0">{viewAllLabel ?? "View all →"}</Link>
+      <Link href={viewAllHref} className="shrink-0 text-xs font-medium text-ac hover:text-ach">{viewAllLabel ?? "View all →"}</Link>
     </div>
   )
 }
@@ -130,17 +125,17 @@ export function DashboardStats() {
       {/* ── KPI bento (12-col) ─────────────────────────────────── */}
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-6 lg:col-span-3">
-          <StatCard icon={Briefcase} label="Active Jobs" value={stats?.totalActiveJobs ?? 0} accent="#4640DE" href="/jobs" />
+          <StatCard icon={Briefcase} label="Active Jobs" value={stats?.totalActiveJobs ?? 0} href="/jobs" />
         </div>
         <div className="col-span-6 lg:col-span-3">
-          <StatCard icon={Clock} label="Due This Week" value={stats?.dueThisWeekCount ?? 0} accent="#B45309" href="/jobs?deadline=this_week" />
+          <StatCard icon={Clock} label="Due This Week" value={stats?.dueThisWeekCount ?? 0} href="/jobs?deadline=this_week" />
         </div>
         <div className="col-span-6 lg:col-span-3">
-          <StatCard icon={ClipboardCheck} label="Requires Checking" value={stats?.checking ?? 0} accent="#CA8A04" href="/jobs/checking" />
+          <StatCard icon={ClipboardCheck} label="Requires Checking" value={stats?.checking ?? 0} href="/jobs/checking" />
         </div>
         {isAdmin ? (
           <div className="col-span-6 lg:col-span-3">
-            <StatCard icon={Receipt} label="Ready For Invoicing" value={stats?.readyForInvoicingCount ?? 0} accent="#0E7A6E" href="/billing" />
+            <StatCard icon={Receipt} label="Ready For Invoicing" value={stats?.readyForInvoicingCount ?? 0} href="/billing" />
           </div>
         ) : (
           <div className="col-span-6 lg:col-span-3 hidden lg:block" aria-hidden />
@@ -149,7 +144,7 @@ export function DashboardStats() {
 
       {/* ── Needs Attention ───────────────────────────────────── */}
       <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-6 bg-sr border border-bd rounded-2xl shadow-card overflow-hidden">
+        <div className="col-span-12 lg:col-span-6 overflow-hidden rounded-xl border border-bd bg-sr shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
           <SectionHeader icon={AlertOctagon} accent="text-dn" title="Overdue" count={stats?.overdueCount} viewAllHref="/jobs?deadline=overdue" />
           {overdueJobs.length === 0 ? (
             <p className="px-4 py-6 text-xs text-t4 text-center">Nothing overdue — good shape.</p>
@@ -171,8 +166,8 @@ export function DashboardStats() {
           )}
         </div>
 
-        <div className="col-span-12 lg:col-span-6 bg-sr border border-bd rounded-2xl shadow-card overflow-hidden">
-          <SectionHeader icon={AlertTriangle} accent="text-dn" title="Clients On Hold" count={stats?.clientsOnHold} viewAllHref="/clients/hold-list" />
+        <div className="col-span-12 lg:col-span-6 overflow-hidden rounded-xl border border-bd bg-sr shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
+          <SectionHeader icon={AlertTriangle} accent="text-ac" title="Clients On Hold" count={stats?.clientsOnHold} viewAllHref="/clients/hold-list" />
           {holds.length === 0 ? (
             <p className="px-4 py-6 text-xs text-t4 text-center">No clients on hold.</p>
           ) : (
@@ -192,7 +187,7 @@ export function DashboardStats() {
 
       {/* ── Upcoming ──────────────────────────────────────────── */}
       <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-6 bg-sr border border-bd rounded-2xl shadow-card overflow-hidden">
+        <div className="col-span-12 lg:col-span-6 overflow-hidden rounded-xl border border-bd bg-sr shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
           <SectionHeader icon={MapPin} accent="text-[#3B82F6]" title="Upcoming Site Visits" count={siteVisits.length} viewAllHref="/calendar" viewAllLabel="View calendar →" />
           {siteVisits.length === 0 ? (
             <p className="px-4 py-7 text-xs text-t4 text-center">No site visits scheduled this week</p>
@@ -220,7 +215,7 @@ export function DashboardStats() {
           )}
         </div>
 
-        <div className="col-span-12 lg:col-span-6 bg-sr border border-bd rounded-2xl shadow-card overflow-hidden">
+        <div className="col-span-12 lg:col-span-6 overflow-hidden rounded-xl border border-bd bg-sr shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
           <SectionHeader icon={Video} accent="text-[#A855F7]" title="Upcoming Meetings" count={teamsMeetings.length} viewAllHref="/calendar" viewAllLabel="View calendar →" />
           {teamsMeetings.length === 0 ? (
             <p className="px-4 py-7 text-xs text-t4 text-center">No meetings scheduled this week</p>

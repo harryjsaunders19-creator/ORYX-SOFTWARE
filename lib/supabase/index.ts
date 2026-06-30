@@ -13,4 +13,4 @@ export {
 } from "./config"
 
 export { createAdminClient } from "./admin"
-export { useSupabaseClients, useSupabaseJobs, useSupabaseQuotes, useSupabaseStatusHistory, useSupabaseHolds, useSupabaseBilling } from "./feature-flags"
+export { useSupabaseClients, useSupabaseJobs, useSupabaseQuotes, useSupabaseStatusHistory, useSupabaseHolds, useSupabaseBilling, useSupabaseCalendar, useSupabaseUsers, useSupabaseIdentityLog, useSupabaseBackups, useSupabaseEmployees, useSupabaseLeave, supabaseModuleFlags } from "./feature-flags"

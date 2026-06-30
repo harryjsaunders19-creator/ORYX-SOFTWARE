@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  Bell, AlertOctagon, Clock, AlertTriangle, Loader2,
+  Bell, AlertOctagon, Clock, AlertTriangle, Loader2, CalendarOff,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -19,6 +19,7 @@ const KIND_ICON: Record<NotificationKind, React.ElementType> = {
   job_overdue:    AlertOctagon,
   job_due_today:  Clock,
   client_on_hold: AlertTriangle,
+  leave_pending:  CalendarOff,
 }
 
 const SEVERITY_DOT: Record<AppNotification["severity"], string> = {
@@ -112,7 +113,7 @@ export function NotificationsMenu() {
             <div className="py-10 px-4 text-center">
               <Bell className="h-6 w-6 text-t4 mx-auto mb-2 opacity-60" />
               <p className="text-sm text-t2 font-medium">All clear</p>
-              <p className="text-xs text-t4 mt-1">No overdue jobs, nothing due today, no clients on hold.</p>
+              <p className="text-xs text-t4 mt-1">No overdue jobs, nothing due today, no clients on hold, and no leave awaiting acceptance.</p>
             </div>
           ) : (
             <ul className="py-1">

@@ -3,7 +3,10 @@ import { listResponse } from "@/lib/api-cache"
 import { requireSignIn } from "@/lib/auth"
 import { calendarService } from "@/lib/services/calendar-service"
 import { userService } from "@/lib/services/user-service"
+import { filterLeaveEventsForViewer } from "@/lib/leave/permissions"
+import { resolveCategoryFilter, isUserSelectableCategory } from "@/lib/calendar/category-config"
 import { createId } from "@paralleldrive/cuid2"
+import { ANNUAL_LEAVE_CATEGORY_ID } from "@/lib/leave/constants"
 
 export async function GET(req: NextRequest) {
   const auth = await requireSignIn()
@@ -18,13 +21,32 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "from and to date parameters are required" }, { status: 422 })
     }
 
-    const events = await calendarService.findMany({
+    const showLeave = sp.get("showLeave") !== "false"
+    const hideRejected = sp.get("hideRejected") !== "false"
+    const leaveStatus = sp.get("leaveStatus") ?? undefined
+    const department = sp.get("department") ?? undefined
+
+    const categoryFilter = resolveCategoryFilter(sp.get("categoryId"))
+
+    let events = await calendarService.findMany({
       from, to,
       userId:     sp.get("userId")     ?? undefined,
-      categoryId: sp.get("categoryId") ?? undefined,
+      ...categoryFilter,
       jobId:      sp.get("jobId")      ?? undefined,
       clientId:   sp.get("clientId")   ?? undefined,
     })
+
+    events = filterLeaveEventsForViewer(auth.user, events, {
+      showLeave,
+      hideRejected,
+      leaveStatus,
+      department,
+      filterUserId: sp.get("leaveUserId") ?? undefined,
+    })
+
+    if (!showLeave) {
+      events = events.filter(e => e.categoryId !== ANNUAL_LEAVE_CATEGORY_ID)
+    }
 
     return listResponse({ events })
   } catch (err) {
@@ -47,9 +69,11 @@ export async function POST(req: NextRequest) {
 
     const categoryId = typeof body.categoryId === "string" ? body.categoryId : ""
     if (!categoryId) return NextResponse.json({ error: "Category is required" }, { status: 422 })
-    const categories = await calendarService.categories()
-    if (!categories.find(c => c.id === categoryId)) {
+    if (!isUserSelectableCategory(categoryId)) {
       return NextResponse.json({ error: "Invalid category" }, { status: 422 })
+    }
+    if (categoryId === ANNUAL_LEAVE_CATEGORY_ID) {
+      return NextResponse.json({ error: "Annual leave is managed via leave requests" }, { status: 422 })
     }
 
     const startDate = typeof body.startDate === "string" ? body.startDate : ""

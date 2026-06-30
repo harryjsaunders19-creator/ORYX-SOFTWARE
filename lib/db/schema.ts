@@ -463,6 +463,137 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_archivelog_entity   ON ArchiveLog(entityType, entityId);
   CREATE INDEX IF NOT EXISTS idx_archivelog_performed ON ArchiveLog(performedAt DESC);
+
+  -- ── Employee profiles (1:1 with User — HR extension, not a separate auth entity) ──
+  CREATE TABLE IF NOT EXISTS EmployeeProfile (
+    userId                        TEXT PRIMARY KEY REFERENCES User(id) ON DELETE CASCADE,
+    employeeId                    TEXT UNIQUE,
+    profilePhotoPath              TEXT,
+    firstName                     TEXT,
+    lastName                      TEXT,
+    preferredName                 TEXT,
+    phone                         TEXT,
+    mobile                        TEXT,
+    dateOfBirth                   TEXT,
+    gender                        TEXT,
+    nationality                   TEXT,
+    address                       TEXT,
+    city                          TEXT,
+    county                        TEXT,
+    postcode                      TEXT,
+    country                       TEXT,
+    emergencyContactName          TEXT,
+    emergencyContactPhone         TEXT,
+    emergencyContactRelationship  TEXT,
+    jobTitle                      TEXT,
+    department                    TEXT,
+    managerId                     TEXT REFERENCES User(id) ON DELETE SET NULL,
+    officeLocation                TEXT,
+    employmentType                TEXT NOT NULL DEFAULT 'FULL_TIME',
+    employmentStatus              TEXT NOT NULL DEFAULT 'ACTIVE',
+    startDate                     TEXT,
+    endDate                       TEXT,
+    probationEndDate              TEXT,
+    workingHours                  TEXT,
+    salary                        REAL,
+    annualLeaveAllowance          REAL NOT NULL DEFAULT 25,
+    leaveTaken                    REAL NOT NULL DEFAULT 0,
+    createdAt                     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updatedAt                     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_employee_department ON EmployeeProfile(department);
+  CREATE INDEX IF NOT EXISTS idx_employee_status     ON EmployeeProfile(employmentStatus);
+  CREATE INDEX IF NOT EXISTS idx_employee_manager    ON EmployeeProfile(managerId);
+  CREATE INDEX IF NOT EXISTS idx_employee_employeeid ON EmployeeProfile(employeeId);
+
+  CREATE TABLE IF NOT EXISTS EmployeeSkill (
+    id              TEXT PRIMARY KEY,
+    userId          TEXT NOT NULL REFERENCES User(id) ON DELETE CASCADE,
+    name            TEXT NOT NULL,
+    level           TEXT,
+    yearsExperience REAL,
+    category        TEXT NOT NULL DEFAULT 'SKILL',
+    certificatePath TEXT,
+    createdAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updatedAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_employeeskill_user ON EmployeeSkill(userId);
+
+  CREATE TABLE IF NOT EXISTS EmployeeDocument (
+    id              TEXT PRIMARY KEY,
+    userId          TEXT NOT NULL REFERENCES User(id) ON DELETE CASCADE,
+    name            TEXT NOT NULL,
+    category        TEXT NOT NULL DEFAULT 'OTHER',
+    filePath        TEXT NOT NULL,
+    mimeType        TEXT NOT NULL,
+    fileSize        INTEGER NOT NULL DEFAULT 0,
+    restricted      INTEGER NOT NULL DEFAULT 0,
+    uploadedBy      TEXT NOT NULL,
+    uploadedByName  TEXT NOT NULL,
+    createdAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updatedAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_employeedoc_user ON EmployeeDocument(userId);
+
+  CREATE TABLE IF NOT EXISTS EmployeeNote (
+    id              TEXT PRIMARY KEY,
+    userId          TEXT NOT NULL REFERENCES User(id) ON DELETE CASCADE,
+    content         TEXT NOT NULL,
+    createdBy       TEXT NOT NULL,
+    createdByName   TEXT NOT NULL,
+    updatedBy       TEXT,
+    updatedByName   TEXT,
+    createdAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updatedAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_employeenote_user ON EmployeeNote(userId);
+
+  CREATE TABLE IF NOT EXISTS EmployeeActivity (
+    id              TEXT PRIMARY KEY,
+    userId          TEXT NOT NULL REFERENCES User(id) ON DELETE CASCADE,
+    action          TEXT NOT NULL,
+    detail          TEXT,
+    performedBy     TEXT NOT NULL,
+    performedByName TEXT NOT NULL,
+    createdAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_employeeactivity_user ON EmployeeActivity(userId, createdAt DESC);
+
+  -- ── Leave requests (source of truth — calendar events are synced, not duplicated) ──
+  CREATE TABLE IF NOT EXISTS LeaveRequest (
+    id              TEXT PRIMARY KEY,
+    userId          TEXT NOT NULL REFERENCES User(id) ON DELETE CASCADE,
+    leaveType       TEXT NOT NULL DEFAULT 'ANNUAL_LEAVE',
+    startDate       TEXT NOT NULL,
+    endDate         TEXT NOT NULL,
+    reason          TEXT,
+    status          TEXT NOT NULL DEFAULT 'PENDING',
+    reviewedBy      TEXT REFERENCES User(id) ON DELETE SET NULL,
+    reviewedByName  TEXT,
+    reviewedAt      TEXT,
+    createdAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updatedAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_leaverequest_user   ON LeaveRequest(userId);
+  CREATE INDEX IF NOT EXISTS idx_leaverequest_status ON LeaveRequest(status);
+  CREATE INDEX IF NOT EXISTS idx_leaverequest_dates  ON LeaveRequest(startDate, endDate);
+
+  CREATE TABLE IF NOT EXISTS LeaveCalendarLink (
+    leaveRequestId  TEXT PRIMARY KEY REFERENCES LeaveRequest(id) ON DELETE CASCADE,
+    calendarEventId TEXT NOT NULL UNIQUE REFERENCES CalendarEvent(id) ON DELETE CASCADE,
+    userId          TEXT NOT NULL REFERENCES User(id) ON DELETE CASCADE,
+    status          TEXT NOT NULL,
+    createdAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updatedAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_leavecal_event ON LeaveCalendarLink(calendarEventId);
 `)
 
 // ── Seed calendar categories ────────────────────────────────────────
@@ -475,6 +606,7 @@ db.exec(`
     ('cat_client_meeting',   'Client Meeting',   '#A855F7', 'users'),
     ('cat_deadline',         'Deadline',         '#EF4444', 'alert-circle'),
     ('cat_leave',            'Leave',            '#6B7280', 'calendar-off'),
+    ('cat_annual_leave',     'Annual Leave',     '#15803D', 'calendar-off'),
     ('cat_internal_meeting', 'Internal Meeting', '#14B8A6', 'message-square');
 `)
 

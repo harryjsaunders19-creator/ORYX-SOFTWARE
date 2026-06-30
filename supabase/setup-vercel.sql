@@ -11,6 +11,8 @@
 --   SUPABASE_HOLDS=true
 --   SUPABASE_BILLING=true
 --   SUPABASE_CALENDAR=true
+--   SUPABASE_EMPLOYEES=true
+--   SUPABASE_LEAVE=true
 --   NEXT_PUBLIC_SUPABASE_URL=<your supabase project url>
 --   NEXT_PUBLIC_SUPABASE_ANON_KEY=<your anon key>
 --   SUPABASE_SERVICE_ROLE_KEY=<your service role key>

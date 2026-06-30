@@ -33,6 +33,8 @@ export function supabaseModuleFlags() {
     users:          useSupabaseUsers(),
     identityLog:    useSupabaseIdentityLog(),
     backups:        useSupabaseBackups(),
+    employees:      useSupabaseEmployees(),
+    leave:          useSupabaseLeave(),
   }
 }
 
@@ -74,4 +76,12 @@ export function useSupabaseIdentityLog(): boolean {
 
 export function useSupabaseBackups(): boolean {
   return flag("SUPABASE_BACKUPS")
+}
+
+export function useSupabaseEmployees(): boolean {
+  return flag("SUPABASE_EMPLOYEES")
+}
+
+export function useSupabaseLeave(): boolean {
+  return flag("SUPABASE_LEAVE")
 }

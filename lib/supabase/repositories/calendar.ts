@@ -25,6 +25,7 @@ export interface CalendarEventListOptions {
   to: string
   userId?: string
   categoryId?: string
+  categoryIds?: string[]
   jobId?: string
   clientId?: string
 }
@@ -60,7 +61,8 @@ export const supabaseCalendarRepo = {
     }
 
     let q: Q = events().select("*").lte("start_date", opts.to).gte("end_date", opts.from)
-    if (opts.categoryId) q = q.eq("category_id", opts.categoryId)
+    if (opts.categoryIds?.length) q = q.in("category_id", opts.categoryIds)
+    else if (opts.categoryId) q = q.eq("category_id", opts.categoryId)
     if (opts.jobId) q = q.eq("job_id", opts.jobId)
     if (opts.clientId) q = q.eq("client_id", opts.clientId)
     if (eventIds) q = q.in("id", eventIds)

@@ -38,26 +38,29 @@
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* ── Colours ───────────────────────────────────────── */
-  /* Backgrounds */
-  --color-pg:     #F8F9FB;   /* page background — Stitch surface tint */
-  --color-sr:     #FFFFFF;   /* surface — pure white (cards, modals, inputs) */
-  --color-surface-low: #F0F2F5; /* Stitch surface-container-low — search, table headers */
-  --color-outline: #E4E4E7;  /* Stitch outline variant */
+  /* Backgrounds — Stitch Monochrome (Border) */
+  --color-pg:     #f8f9fa;
+  --color-sr:     #ffffff;
+  --color-surface-low: #f3f4f5;
+  --color-sidebar:     #f8f9fa;
+  --color-nav-hover:   #edeeef;
+  --color-nav-active:  #e7e8e9;
+  --color-outline: #76777d;
 
   /* Borders */
-  --color-bd:     #EDEBE9;   /* border default — v3: lightened from #E7E5E4. Cards now separate via shadow + whitespace; the border is a secondary cue, not the primary one. */
-  --color-bds:    #D6D3D1;   /* border strong — focus/hover, unchanged */
+  --color-bd:     #c6c6cd;
+  --color-bds:    #76777d;
 
   /* Text */
-  --color-t1:     #18181B;   /* text primary — ink */
-  --color-t2:     #3F3F46;   /* text secondary */
-  --color-t3:     #71717A;   /* text muted */
-  --color-t4:     #A1A1AA;   /* text placeholder / disabled */
+  --color-t1:     #191c1d;
+  --color-t2:     #45464c;
+  --color-t3:     #76777d;
+  --color-t4:     #a1a1aa;
 
-  /* Primary accent — ink indigo */
-  --color-ac:     #4640DE;   /* interactive elements, primary actions */
-  --color-ach:    #3935B8;   /* hover */
-  --color-ac-bg:  #EEEDFC;   /* tint — active states, info callouts */
+  /* Primary accent — monochrome black (Stitch Engineering OS) */
+  --color-ac:     #111827;
+  --color-ach:    #000000;
+  --color-ac-bg:  #f3f4f6;
 
   /* Secondary accent — slate teal (used sparingly: one category of meaning) */
   --color-ac2:    #0E7A6E;
@@ -157,17 +160,14 @@
      14px) — the exact ambiguity the original v1/v2 tokens already had at a
      smaller, easy-to-miss margin (0.5rem documented as "8px" actually
      rendered as 7px). Fixed here rather than carried forward. */
-  --radius-md: 14px;   /* was 8px. Cards, dropdown/select popovers */
-  --radius-lg: 16px;   /* was 10px */
-  --radius-xl: 20px;   /* was 12px. Modals */
+  --radius-md: 6px;    /* Cards, panels — Stitch border style */
+  --radius-lg: 8px;
+  --radius-xl: 12px;   /* Modals */
 
   /* ── Shadows ───────────────────────────────────────── */
-  /* v3: softer and larger — depth from diffusion, not a hard edge. The
-     border token above was lightened specifically because these shadows
-     now do most of the separation work that a visible border used to. */
-  --shadow-card:  0 1px 3px 0 rgb(0 0 0 / 0.04), 0 12px 32px -12px rgb(0 0 0 / 0.12);
-  --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.18), 0 4px 12px 0 rgb(0 0 0 / 0.06);
-  --shadow-sidebar: 4px 0 24px -6px rgb(0 0 0 / 0.18);
+  --shadow-card:  none;
+  --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.12), 0 4px 12px 0 rgb(0 0 0 / 0.04);
+  --shadow-sidebar: none;
 }
 
 /*
@@ -313,4 +313,97 @@ html.dark {
     background: color-mix(in srgb, var(--color-sr) 88%, transparent);
     backdrop-filter: blur(12px);
   }
+}
+
+/*
+ * Stitch ORYX OS — always light; matches Stitch exports (html class="light").
+ * Overrides html.dark so system/user dark mode cannot tint the Stitch layout.
+ */
+html.stitch-layout,
+html.stitch-layout.dark {
+  --color-pg: #f8f9fa;
+  --color-sr: #ffffff;
+  --color-surface-low: #f3f4f5;
+  --color-bd: #c6c6cd;
+  --color-bds: #76777d;
+  --color-t1: #191c1d;
+  --color-t2: #45464c;
+  --color-t3: #76777d;
+  --color-t4: #a1a1aa;
+  --color-ac: #111827;
+  --color-ach: #000000;
+  --color-ac-bg: #f3f4f6;
+  --color-sidebar: #2e3132;
+  --color-nav-hover: rgba(255, 255, 255, 0.06);
+  --color-nav-active: #373b3b;
+  --stitch-sidebar-bg: #2e3132;
+  --stitch-sidebar-active: #373b3b;
+  --stitch-sidebar-text: #ffffff;
+  --stitch-sidebar-text-muted: #a1a1aa;
+  --stitch-outline-variant: #c6c6cd;
+}
+
+html.stitch-layout .oryx-page-title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+html.stitch-layout .oryx-surface-card {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+  border-radius: 0.75rem;
+  border-color: #c6c6cd;
+}
+
+/* Stitch shell — dark sidebar + light canvas */
+html.stitch-layout .stitch-sidebar,
+aside.stitch-sidebar {
+  background-color: #2e3132 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff;
+}
+
+html.stitch-layout .stitch-top-bar {
+  background-color: #f8f9fa !important;
+  border-bottom: 1px solid #c6c6cd !important;
+}
+
+html.stitch-layout .stitch-nav-link {
+  border-left: 2px solid transparent;
+  color: #ffffff;
+}
+
+html.stitch-layout .stitch-nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+html.stitch-layout .stitch-nav-link[data-active="true"] {
+  background-color: #373b3b !important;
+  border-left-color: #ffffff !important;
+  color: #ffffff !important;
+  font-weight: 500;
+}
+
+html.stitch-layout .stitch-sidebar-brand-title {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+html.stitch-layout .stitch-sidebar-brand-sub {
+  color: #a1a1aa;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+html.stitch-layout .stitch-top-bar-title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  color: #191c1d;
 }

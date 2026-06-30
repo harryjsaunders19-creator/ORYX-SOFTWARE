@@ -10,6 +10,7 @@ import fontkit from "@pdf-lib/fontkit"
 import { format } from "date-fns"
 import fs from "fs/promises"
 import path from "path"
+import { BRAND_LOGO_DOCUMENT_PATH } from "@/lib/branding"
 import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
 
 const PAGE_WIDTH  = 595.28
@@ -102,7 +103,7 @@ export async function buildQuotePdfBuffer(id: string): Promise<{ pdfBytes: Uint8
   const fontRegular = await doc.embedFont(regularBytes)
   const fontBold     = await doc.embedFont(boldBytes)
 
-  const logoBytes = await fs.readFile(path.join(process.cwd(), "public", "branding", "oryx-logo.jpg"))
+  const logoBytes = await fs.readFile(path.join(process.cwd(), BRAND_LOGO_DOCUMENT_PATH))
   const logoImage = await doc.embedJpg(logoBytes)
   page.drawImage(logoImage, { x: 52.2, y: 748.29, width: 92.8, height: 56.9 })
 

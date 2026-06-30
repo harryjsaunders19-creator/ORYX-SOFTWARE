@@ -23,6 +23,7 @@ import { supabaseCalendarRepo } from "@/lib/supabase/repositories/calendar"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
 import { ensureUsersInSqlite } from "@/lib/services/user-service"
+import { enrichEventsWithLeave } from "@/lib/leave/enrichment"
 
 async function ensureCalendarEventInSqlite(id: string): Promise<void> {
   if (!useSupabaseCalendar()) return
@@ -115,19 +116,29 @@ export const calendarService = {
 
   async findMany(opts: CalendarEventListOptions): Promise<CalendarEventWithDetails[]> {
     const cats = await categoryMap()
-    if (!useSupabaseCalendar()) return calendarDb.findMany(opts)
-    const rows = await supabaseCalendarRepo.findMany(opts)
-    return enrichMany(rows, cats)
+    let events: CalendarEventWithDetails[]
+    if (!useSupabaseCalendar()) {
+      events = calendarDb.findMany(opts)
+    } else {
+      events = await enrichMany(await supabaseCalendarRepo.findMany(opts), cats)
+    }
+    return enrichEventsWithLeave(events)
   },
 
   async findUnique(id: string): Promise<CalendarEventWithDetails | null> {
     const cats = await categoryMap()
-    if (!useSupabaseCalendar()) return calendarDb.findUnique(id)
-
-    const row = await supabaseCalendarRepo.findUnique(id)
-    if (!row) return null
-    const [enriched] = await enrichMany([row], cats)
-    return enriched ?? null
+    let event: CalendarEventWithDetails | null
+    if (!useSupabaseCalendar()) {
+      event = calendarDb.findUnique(id)
+    } else {
+      const row = await supabaseCalendarRepo.findUnique(id)
+      if (!row) return null
+      const [enriched] = await enrichMany([row], cats)
+      event = enriched ?? null
+    }
+    if (!event) return null
+    const [withLeave] = await enrichEventsWithLeave([event])
+    return withLeave ?? event
   },
 
   async create(

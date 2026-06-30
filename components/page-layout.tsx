@@ -3,10 +3,9 @@ import Link from "next/link"
 import { ArrowLeft, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
-import { OryxLogo } from "@/components/oryx-logo"
 
-/** Stitch surface — white card with border, radius, shadow. */
-export const surfaceCard = "bg-sr border border-bd rounded-2xl shadow-card"
+/** Stitch surface — bordered card, minimal shadow. */
+export const surfaceCard = "oryx-surface-card bg-sr border border-bd rounded-md"
 
 /** Standard page wrapper — Stitch canvas padding below top bar. */
 export function PageShell({ children, className, wide }: {
@@ -29,9 +28,9 @@ export function PageHeader({ title, description, actions }: {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
       <div className="min-w-0">
-        <h1 className="text-[32px] font-bold text-t1 tracking-tight leading-[1.15]">{title}</h1>
+        <h1 className="oryx-page-title text-t1">{title}</h1>
         {description != null && (
-          <p className="text-sm text-t3 mt-1.5">{description}</p>
+          <p className="mt-1 text-sm text-t3">{description}</p>
         )}
       </div>
       {actions && (
@@ -54,7 +53,7 @@ export function SearchField({ value, onChange, placeholder, className }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? "Search…"}
-        className="pl-10 bg-surface-low border-none shadow-none h-10 rounded-full focus-visible:ring-2 focus-visible:ring-ac/20"
+        className="pl-10 bg-surface-low border border-bd shadow-none h-10 rounded focus-visible:ring-2 focus-visible:ring-t1/20"
         style={{ paddingLeft: "40px" }}
       />
     </div>
@@ -69,7 +68,7 @@ export function DataPanel({ children, className, noPadding }: {
 }) {
   return (
     <div className={cn(
-      "bg-sr border border-bd rounded-2xl shadow-card overflow-hidden",
+      "oryx-surface-card bg-sr border border-bd rounded-md overflow-hidden",
       !noPadding && "p-0",
       className,
     )}>
@@ -145,7 +144,7 @@ export function BackLink({ href, children }: { href: string; children: React.Rea
 }
 
 /** Stitch KPI tile — accent bar, large value, optional subtitle. */
-export function KpiTile({ label, value, sub, accent = "#4640DE", valueClassName, className }: {
+export function KpiTile({ label, value, sub, accent = "var(--color-ac)", valueClassName, className }: {
   label: string
   value: React.ReactNode
   sub?: React.ReactNode
@@ -154,11 +153,11 @@ export function KpiTile({ label, value, sub, accent = "#4640DE", valueClassName,
   className?: string
 }) {
   return (
-    <div className={cn("relative overflow-hidden p-4", surfaceCard, className)}>
+    <div className={cn("relative overflow-hidden rounded-lg border border-[#E5E7EB] bg-sr p-6 shadow-sm transition-shadow hover:shadow-md", className)}>
       <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
-      <p className="text-[11px] font-semibold text-t3 uppercase tracking-wider mb-1">{label}</p>
-      <p className={cn("text-2xl font-bold tabular-nums leading-tight", valueClassName ?? "text-t1")}>{value}</p>
-      {sub != null && <p className="text-xs text-t4 mt-1">{sub}</p>}
+      <p className={cn("mb-2 text-[48px] font-semibold tabular-nums leading-none tracking-tight", valueClassName ?? "text-t1")}>{value}</p>
+      <p className="font-mono text-xs uppercase tracking-widest text-t3">{label}</p>
+      {sub != null && <p className="mt-1 text-xs text-t4">{sub}</p>}
     </div>
   )
 }
@@ -242,49 +241,52 @@ export function EmptyPanel({ icon: Icon, title, description, action }: {
   )
 }
 
-/** Auth brand block — form panel title; full brand on mobile only. */
+/** Auth brand block — form panel title. */
 export function AuthBrand({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <>
-      <div className="flex flex-col items-center mb-6 lg:hidden">
-        <div className="rounded-xl bg-[#1C1C1E] px-5 py-4">
-          <OryxLogo variant="auth" priority />
+      <div className="flex items-center gap-3 mb-6 lg:hidden">
+        <div className="size-8 text-t1 shrink-0">
+          <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+            <path d="M8.57829 8.57829C5.52816 11.6284 3.451 15.5145 2.60947 19.7452C1.76794 23.9758 2.19984 28.361 3.85056 32.3462C5.50128 36.3314 8.29667 39.7376 11.8832 42.134C15.4698 44.5305 19.6865 45.8096 24 45.8096C28.3135 45.8096 32.5302 44.5305 36.1168 42.134C39.7033 39.7375 42.4987 36.3314 44.1494 32.3462C45.8002 28.361 46.2321 23.9758 45.3905 19.7452C44.549 15.5145 42.4718 11.6284 39.4217 8.57829L24 24L8.57829 8.57829Z" fill="currentColor" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-sm font-bold uppercase tracking-tight text-t1">Oryx Design</p>
         </div>
       </div>
-      <h1 className="text-2xl font-bold text-t1 text-center lg:text-left">{title}</h1>
+      <h1 className="text-xl font-bold text-t1 text-center lg:text-left">{title}</h1>
       {subtitle && <p className="text-sm text-t3 mt-1 mb-7 text-center lg:text-left">{subtitle}</p>}
       {!subtitle && <div className="mb-7" />}
     </>
   )
 }
 
-/** Centred auth — Stitch split layout on large screens. */
+/** Centred auth — Stitch monochrome split layout. */
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-pg">
-      {/* Brand panel */}
-      <div
-        className="hidden lg:flex lg:w-[44%] xl:w-[42%] flex-col justify-between p-12 text-white relative overflow-hidden"
-        style={{
-          background: "linear-gradient(145deg, #3935B8 0%, #4640DE 45%, #1C1C1E 100%)",
-        }}
-      >
+      <div className="hidden lg:flex lg:w-[44%] xl:w-[42%] flex-col justify-between p-12 text-sr bg-t1 relative overflow-hidden">
         <div className="relative z-10">
-          <OryxLogo variant="auth-panel" className="mb-8" priority />
-          <h2 className="text-3xl font-bold tracking-tight leading-tight max-w-sm">
-            ORYX Scaffold Design Dashboard
-          </h2>
+          <div className="flex items-center gap-3 mb-10">
+            <div className="size-10 text-sr shrink-0">
+              <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                <path d="M8.57829 8.57829C5.52816 11.6284 3.451 15.5145 2.60947 19.7452C1.76794 23.9758 2.19984 28.361 3.85056 32.3462C5.50128 36.3314 8.29667 39.7376 11.8832 42.134C15.4698 44.5305 19.6865 45.8096 24 45.8096C28.3135 45.8096 32.5302 44.5305 36.1168 42.134C39.7033 39.7375 42.4987 36.3314 44.1494 32.3462C45.8002 28.361 46.2321 23.9758 45.3905 19.7452C44.549 15.5145 42.4718 11.6284 39.4217 8.57829L24 24L8.57829 8.57829Z" fill="currentColor" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight uppercase leading-none">Oryx Design</h2>
+            </div>
+          </div>
+          <p className="text-2xl font-semibold tracking-tight leading-tight max-w-sm text-sr/90">
+            Engineering operations dashboard for scaffold design consultancy.
+          </p>
         </div>
-        <p className="text-xs text-white/50 relative z-10">Oryx Design Ltd · Scaffold Consultancy</p>
-        <div
-          className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full opacity-20"
-          style={{ background: "radial-gradient(circle, #fff 0%, transparent 70%)" }}
-        />
+        <p className="text-xs text-t4 relative z-10">Oryx Design Ltd · Scaffold Consultancy</p>
       </div>
 
-      {/* Form panel */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-[420px] bg-sr border border-bd rounded-2xl p-8 sm:p-10 shadow-card">
+        <div className="w-full max-w-[420px] oryx-surface-card bg-sr border border-bd rounded-md p-8 sm:p-10">
           {children}
         </div>
       </div>

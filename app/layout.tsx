@@ -24,12 +24,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="stitch-layout" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `
-          (function(){try{var t=localStorage.getItem("oryx-theme");
-          if(t==="dark"||(t==null&&matchMedia("(prefers-color-scheme:dark)").matches))
-          document.documentElement.classList.add("dark")}catch(e){}})()
+          (function(){try{
+            document.documentElement.classList.remove("dark");
+          }catch(e){}})()
         `}} />
       </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable}`} style={{ height: "100%", margin: 0 }}>

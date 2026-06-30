@@ -1,18 +1,31 @@
 #!/usr/bin/env node
 /**
  * One-off helper to call Stitch MCP tools from the CLI.
- * Reads API key from ~/.cursor/mcp.json — never pass keys on the command line.
+ * Key resolution (first match wins):
+ *   1. STITCH_API_KEY env var
+ *   2. ~/.cursor/mcp.json
  */
-import { readFileSync } from "fs"
+import { readFileSync, existsSync } from "fs"
 import { homedir } from "os"
 import { join } from "path"
 
-const mcpPath = join(homedir(), ".cursor", "mcp.json")
-const mcp = JSON.parse(readFileSync(mcpPath, "utf8"))
-const stitch = mcp.mcpServers?.stitch
-const key =
-  stitch?.headers?.["X-Goog-Api-Key"] ??
-  stitch?.env?.STITCH_API_KEY
+function readKey() {
+  if (process.env.STITCH_API_KEY?.trim()) return process.env.STITCH_API_KEY.trim()
+  const localEnv = join(process.cwd(), ".env.stitch.local")
+  if (existsSync(localEnv)) {
+    for (const line of readFileSync(localEnv, "utf8").split(/\r?\n/)) {
+      const m = line.match(/^STITCH_API_KEY=(.+)$/)
+      if (m) return m[1].trim()
+    }
+  }
+  const mcpPath = join(homedir(), ".cursor", "mcp.json")
+  if (!existsSync(mcpPath)) return null
+  const mcp = JSON.parse(readFileSync(mcpPath, "utf8"))
+  const stitch = mcp.mcpServers?.stitch
+  return stitch?.headers?.["X-Goog-Api-Key"] ?? stitch?.env?.STITCH_API_KEY ?? null
+}
+
+const key = readKey()
 
 if (!key) {
   console.error("No Stitch API key found in ~/.cursor/mcp.json")

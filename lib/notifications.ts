@@ -1,6 +1,6 @@
 /** In-app notification items for the top-bar bell. */
 
-export type NotificationKind = "job_overdue" | "job_due_today" | "client_on_hold"
+export type NotificationKind = "job_overdue" | "job_due_today" | "client_on_hold" | "leave_pending"
 
 export type NotificationSeverity = "danger" | "warning"
 

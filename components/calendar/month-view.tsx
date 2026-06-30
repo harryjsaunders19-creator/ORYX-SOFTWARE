@@ -9,6 +9,7 @@ import { EventPill } from "./event-pill"
 interface CalendarEvent {
   id: string; title: string; startDate: string; endDate: string
   allDay: number; categoryColor: string; categoryName: string
+  displayColor?: string
 }
 
 interface MonthViewProps {
@@ -99,7 +100,7 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
                   <EventPill
                     key={e.id}
                     title={e.title}
-                    color={e.categoryColor}
+                    color={e.displayColor ?? e.categoryColor}
                     time={eventTime(e)}
                     onClick={() => onEventClick(e.id)}
                   />

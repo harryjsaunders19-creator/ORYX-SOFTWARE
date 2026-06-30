@@ -49,6 +49,7 @@ export const MODULES: ModuleDef[] = [
   { key: "jobs",       label: "Jobs",      href: "/jobs",              roles: ["ADMIN", "ENGINEER"] },
   { key: "quotes",     label: "Quotes",    href: "/quotes",            roles: ["ADMIN", "ENGINEER"] },
   { key: "calendar",   label: "Calendar",   href: "/calendar",          roles: ["ADMIN", "ENGINEER"] },
+  { key: "employees",  label: "Employees",  href: "/employees",         roles: ["ADMIN", "ENGINEER"] },
   { key: "billing",    label: "Ready For Invoicing", href: "/billing", roles: ["ADMIN"] },
   { key: "archived",   label: "Archived Items", href: "/archived",      roles: ["ADMIN"] },
   { key: "users",      label: "Users",      href: "/users",            roles: ["ADMIN"] },
