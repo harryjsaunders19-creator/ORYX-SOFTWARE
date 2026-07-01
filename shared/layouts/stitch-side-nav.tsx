@@ -54,7 +54,7 @@ function SideNavContent({ onNavigate }: SideNavContentProps) {
   return (
     <>
       <div className="mb-6 px-4">
-        <Link href="/" className="block transition-opacity hover:opacity-90" onClick={() => onNavigate?.()}>
+        <Link href="/" className="block transition-opacity hover:opacity-90" onClick={() => onNavigate?.()} aria-label="Oryx Scaffold Design — home">
           <OryxLogo variant="menu" className="mb-2" />
           <p className="stitch-sidebar-brand-sub">
             {role === "ADMIN" ? "Internal Admin" : "Engineer Terminal"}

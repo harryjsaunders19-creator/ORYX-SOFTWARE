@@ -487,6 +487,24 @@ html.stitch-layout .stitch-sidebar-brand-sub {
   line-height: 1rem;
 }
 
+/* White-on-black menu logo — luminance mask drops the black plate */
+html.stitch-layout .stitch-menu-logo {
+  width: 100%;
+  max-width: 180px;
+  aspect-ratio: 1024 / 631;
+  background-color: #ffffff;
+  -webkit-mask-image: url("/branding/greyscale-logo.png?v=5");
+  mask-image: url("/branding/greyscale-logo.png?v=5");
+  -webkit-mask-mode: luminance;
+  mask-mode: luminance;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: left center;
+  mask-position: left center;
+}
+
 html.stitch-layout .stitch-top-bar-title {
   font-size: 1.5rem;
   line-height: 2rem;

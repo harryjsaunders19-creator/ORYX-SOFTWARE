@@ -12,17 +12,17 @@ type OryxLogoProps = {
 const VARIANTS = {
   menu: {
     src: BRAND_LOGO_MENU,
-    width: 200,
-    height: 72,
+    width: 1024,
+    height: 631,
     className: "w-full max-w-[180px] h-auto",
-    alt: "Oryx Design",
+    alt: "Oryx Scaffold Design",
   },
   sidebar: {
     src: BRAND_LOGO_MENU,
-    width: 200,
-    height: 72,
+    width: 1024,
+    height: 631,
     className: "w-full max-w-[180px] h-auto",
-    alt: "Oryx Design",
+    alt: "Oryx Scaffold Design",
   },
   auth: {
     src: BRAND_LOGO_DOCUMENT,
@@ -56,6 +56,19 @@ const VARIANTS = {
 
 export function OryxLogo({ variant = "menu", className, priority }: OryxLogoProps) {
   const s = VARIANTS[variant === "sidebar" ? "menu" : variant]
+
+  // Sidebar mark: luminance mask on a white fill — black in the PNG becomes
+  // transparent so only the wordmark shows on the dark nav.
+  if (variant === "menu" || variant === "sidebar") {
+    return (
+      <div
+        role="img"
+        aria-label={s.alt}
+        className={cn("stitch-menu-logo shrink-0", s.className, className)}
+      />
+    )
+  }
+
   return (
     <Image
       src={s.src}
@@ -63,7 +76,7 @@ export function OryxLogo({ variant = "menu", className, priority }: OryxLogoProp
       width={s.width}
       height={s.height}
       className={cn("shrink-0 object-contain", s.className, className)}
-      priority={priority ?? (variant === "menu" || variant === "sidebar")}
+      priority={priority}
     />
   )
 }

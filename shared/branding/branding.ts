@@ -1,4 +1,4 @@
-/** Menu / sidebar mark — greyscale logo on dark nav. */
+/** Menu / sidebar mark — white oryx wordmark on dark nav. */
 export const BRAND_LOGO_MENU = "/branding/greyscale-logo.png"
 
 /** Full wordmark — login, auth, PDFs, and exported documents. */
