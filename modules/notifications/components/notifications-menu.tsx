@@ -14,7 +14,7 @@ import { cn } from "@/shared/utils/utils"
 import type { AppNotification, NotificationKind } from "../types/notifications-types"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 
-const POLL_MS = 60_000
+const POLL_MS = 5 * 60_000 // refresh when tab visible; no background polling when hidden
 
 const KIND_ICON: Record<NotificationKind, React.ElementType> = {
   job_overdue:    AlertOctagon,
@@ -60,8 +60,17 @@ export function NotificationsMenu() {
 
   useEffect(() => {
     load()
-    const id = setInterval(load, POLL_MS)
-    return () => clearInterval(id)
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") load()
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") load()
+    }, POLL_MS)
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility)
+      clearInterval(id)
+    }
   }, [load])
 
   useEffect(() => {

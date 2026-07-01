@@ -16,7 +16,7 @@ async function fetcher<T>(url: string): Promise<T> {
 
 const DEFAULT_OPTS: SWRConfiguration = {
   keepPreviousData: true,
-  revalidateOnFocus: true,
+  revalidateOnFocus: false,
   dedupingInterval: 2_000,
   errorRetryCount: 2,
 }

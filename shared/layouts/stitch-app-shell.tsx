@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation"
 import { useUser } from "@/shared/providers/user-context"
 import { StitchSideNav } from "@/shared/layouts/stitch-side-nav"
 import { StitchTopBar } from "@/shared/layouts/stitch-top-bar"
-import { StitchAppShellSkeleton } from "@/shared/layouts/stitch-skeleton"
 import { STITCH_SIDEBAR_W, STITCH_TOP_BAR_H, STITCH_CANVAS_BG } from "@/shared/branding/stitch-layout"
 
 export function StitchAppShell({ children }: { children: React.ReactNode }) {
@@ -28,7 +27,9 @@ export function StitchAppShell({ children }: { children: React.ReactNode }) {
 
   if (isAuthPage) return <>{children}</>
 
-  if (loading || !user || mustChangePassword) return <StitchAppShellSkeleton />
+  // Redirect handled in useEffect — avoid flashing app chrome after session resolves unauthenticated.
+  if (!loading && !user) return null
+  if (!loading && mustChangePassword && pathname !== "/set-password") return null
 
   return (
     <div className="min-h-screen text-t1" style={{ backgroundColor: STITCH_CANVAS_BG }}>

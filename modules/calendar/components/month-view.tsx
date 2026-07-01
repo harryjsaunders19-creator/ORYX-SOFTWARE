@@ -23,22 +23,30 @@ const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 const MAX_VISIBLE = 3
 
 export function MonthView({ currentDate, events, onDayClick, onEventClick }: MonthViewProps) {
-  const monthStart = startOfMonth(currentDate)
-  const monthEnd   = endOfMonth(currentDate)
-  const gridStart  = startOfWeek(monthStart, { weekStartsOn: 1 })
-  const gridEnd    = endOfWeek(monthEnd, { weekStartsOn: 1 })
-  const days       = eachDayOfInterval({ start: gridStart, end: gridEnd })
-  const today      = new Date()
+  const today = new Date()
+
+  const days = useMemo(() => {
+    const monthStart = startOfMonth(currentDate)
+    const monthEnd   = endOfMonth(currentDate)
+    const gridStart  = startOfWeek(monthStart, { weekStartsOn: 1 })
+    const gridEnd    = endOfWeek(monthEnd, { weekStartsOn: 1 })
+    return eachDayOfInterval({ start: gridStart, end: gridEnd })
+  }, [currentDate])
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()
     for (const day of days) {
-      const dayStr = format(day, "yyyy-MM-dd")
-      map.set(dayStr, events.filter(e => {
-        const start = e.startDate.slice(0, 10)
-        const end   = e.endDate.slice(0, 10)
-        return dayStr >= start && dayStr <= end
-      }))
+      map.set(format(day, "yyyy-MM-dd"), [])
+    }
+    for (const e of events) {
+      const start = e.startDate.slice(0, 10)
+      const end   = e.endDate.slice(0, 10)
+      for (const day of days) {
+        const dayStr = format(day, "yyyy-MM-dd")
+        if (dayStr >= start && dayStr <= end) {
+          map.get(dayStr)!.push(e)
+        }
+      }
     }
     return map
   }, [days, events])
@@ -62,16 +70,17 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
 
       {/* Day grid */}
       <div className="grid grid-cols-7">
-        {days.map((day, i) => {
+        {days.map(day => {
+          const dayKey = format(day, "yyyy-MM-dd")
           const inMonth  = isSameMonth(day, currentDate)
           const isToday  = isSameDay(day, today)
-          const dayEvents = eventsByDay.get(format(day, "yyyy-MM-dd")) ?? []
+          const dayEvents = eventsByDay.get(dayKey) ?? []
           const visible  = dayEvents.slice(0, MAX_VISIBLE)
           const overflow = dayEvents.length - MAX_VISIBLE
 
           return (
             <div
-              key={i}
+              key={dayKey}
               onClick={() => onDayClick(day)}
               className="min-h-[100px] border-b border-r border-bd p-1.5 cursor-pointer hover:bg-pg/50 transition-colors"
               style={{

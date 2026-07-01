@@ -10,19 +10,11 @@ import { useUser } from "@/shared/providers/user-context"
 import { cn, getDeadlineInfo } from "@/shared/utils/utils"
 import { apiFetch } from "@/shared/hooks/use-api"
 import { apiErrorDetail } from "@/lib/error-message"
+import type { StatsData, DashboardWeekEvent } from "../types/stats-types"
 import type { Job, ClientHoldWithClient } from "@/lib/types"
-import type { StatsData } from "../types/stats-types"
 
 const SITE_VISIT_ID = "cat_site_visit"
 const TEAMS_MEETING_ID = "cat_teams_meeting"
-
-interface CalEvent {
-  id: string; title: string; startDate: string; endDate: string; allDay: number
-  categoryId: string; categoryName: string; categoryColor: string
-  location: string | null; jobId: string | null; jobDrawingNumber: string | null
-  clientName: string | null
-  assignees: { userId: string; userName: string }[]
-}
 
 // ── Reusable pieces ─────────────────────────────────────────────────
 
@@ -67,7 +59,7 @@ export function DashboardStats() {
   const { isAdmin } = useUser()
 
   const [stats, setStats]               = useState<StatsData | null>(null)
-  const [events, setEvents]             = useState<CalEvent[]>([])
+  const [events, setEvents]             = useState<DashboardWeekEvent[]>([])
   const [overdueJobs, setOverdueJobs]   = useState<Job[]>([])
   const [holds, setHolds]               = useState<ClientHoldWithClient[]>([])
   const [loading, setLoading]           = useState(true)
@@ -81,22 +73,20 @@ export function DashboardStats() {
 
   const loadAll = useCallback(() => {
     setError(null)
-    Promise.all([
-      apiFetch("/api/stats").then(async r => {
+    const params = new URLSearchParams({ calendarFrom: fromStr, calendarTo: toStr })
+    apiFetch(`/api/stats?${params}`)
+      .then(async r => {
         if (!r.ok) {
           const body = await r.json().catch(() => null)
           throw new Error(apiErrorDetail(body, r.status))
         }
         return r.json() as Promise<StatsData>
-      }),
-      apiFetch(`/api/calendar/events?from=${fromStr}&to=${toStr}`).then(r => r.ok ? r.json() as Promise<{ events: CalEvent[] }> : null),
-      apiFetch("/api/jobs?overdue=true&limit=5&sortBy=requiredByDate&sortDir=asc").then(r => r.ok ? r.json() as Promise<{ jobs: Job[] }> : null),
-    ])
-      .then(([s, e, ov]) => {
+      })
+      .then(s => {
         setStats(s)
         setHolds((s.holds ?? []).slice(0, 5))
-        if (e) setEvents(e.events)
-        if (ov) setOverdueJobs(ov.jobs)
+        setEvents(s.weekEvents ?? [])
+        setOverdueJobs(s.overdueJobs ?? [])
       })
       .catch(err => setError(err instanceof Error ? err.message : "Failed to load dashboard data"))
       .finally(() => setLoading(false))

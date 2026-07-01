@@ -158,20 +158,19 @@ export const employeeService = {
     const limit = Math.min(100, opts.limit ?? 50)
     const skip = (page - 1) * limit
 
-    const users = await userService.findMany({ activeOnly: true })
-    for (const u of users) {
-      await ensureProfile(u.id)
-    }
-
     let profiles: EmployeeProfileRow[]
+    let total: number
+
     if (useSupabaseEmployees()) {
-      profiles = await supabaseEmployeeRepo.listProfiles()
-      if (opts.department) profiles = profiles.filter(p => p.department === opts.department)
-      if (opts.status) profiles = profiles.filter(p => p.employmentStatus === opts.status)
+      const allProfiles = await supabaseEmployeeRepo.listProfiles()
+      let filtered = allProfiles
+      if (opts.department) filtered = filtered.filter(p => p.department === opts.department)
+      if (opts.status) filtered = filtered.filter(p => p.employmentStatus === opts.status)
       if (opts.search?.trim()) {
-        const q = opts.search.trim().toLowerCase()
+        const users = await userService.findMany({ activeOnly: true })
         const userById = new Map(users.map(u => [u.id, u]))
-        profiles = profiles.filter(p => {
+        const q = opts.search.trim().toLowerCase()
+        filtered = filtered.filter(p => {
           const u = userById.get(p.userId)
           const hay = [
             u?.name, u?.email, p.firstName, p.lastName, p.jobTitle, p.department, p.employeeId,
@@ -179,7 +178,8 @@ export const employeeService = {
           return hay.includes(q)
         })
       }
-      profiles = profiles.slice(skip, skip + limit)
+      total = filtered.length
+      profiles = filtered.slice(skip, skip + limit)
     } else {
       profiles = employeeProfileDb.findMany({
         search: opts.search,
@@ -190,21 +190,20 @@ export const employeeService = {
         sortBy: opts.sortBy,
         sortDir: opts.sortDir,
       })
+      total = employeeProfileDb.count({
+        search: opts.search,
+        department: opts.department,
+        status: opts.status,
+      })
     }
 
-    const total = useSupabaseEmployees()
-      ? (await supabaseEmployeeRepo.listProfiles()).length
-      : employeeProfileDb.count({
-          search: opts.search,
-          department: opts.department,
-          status: opts.status,
-        })
-
-    const employees = await Promise.all(profiles.map(async p => {
-      const user = await userService.findUnique(p.userId)
+    const users = await userService.findManyByIds(profiles.map(p => p.userId))
+    const userById = new Map(users.map(u => [u.id, u]))
+    const employees = profiles.map(p => {
+      const user = userById.get(p.userId)
       if (!user) throw new Error(`Missing user ${p.userId}`)
       return buildListItem(p, user)
-    }))
+    })
 
     const departments = useSupabaseEmployees()
       ? await supabaseEmployeeRepo.departments()

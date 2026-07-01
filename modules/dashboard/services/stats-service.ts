@@ -5,7 +5,15 @@ import { jobService } from "@/lib/services/job-service"
 import { quoteService } from "@/lib/services/quote-service"
 import { holdService } from "@/lib/services/hold-service"
 import { billingHandoffService } from "@/lib/services/billing-handoff-service"
+import { calendarService } from "@/lib/services/calendar-service"
 import { errorMessage } from "@/lib/error-message"
+import type { Job } from "@/lib/types"
+import type { CalendarEventWithDetails } from "@/modules/calendar/types/calendar-types"
+
+export interface DashboardOptions {
+  calendarFrom?: string
+  calendarTo?: string
+}
 
 const EMPTY_HANDOFF_STATS = { awaitingCount: 0, awaitingValue: 0, clearedCount: 0 }
 
@@ -31,10 +39,12 @@ async function tryStat<T>(label: string, fn: () => Promise<T>, fallback: T): Pro
 }
 
 export const statsService = {
-  async dashboard() {
+  async dashboard(opts: DashboardOptions = {}) {
+    const includeCalendar = !!(opts.calendarFrom && opts.calendarTo)
+
     // dashboardCounts() replaces 8 separate job-count queries with one Supabase
     // call (groupByStatus, groupByItemType, 3×countWhere, 3×deadlineStats counts).
-    const [counts, recentJobs, jobValues, handoffStats, allHolds, qStats] = await Promise.all([
+    const [counts, recentJobs, jobValues, handoffStats, allHolds, qStats, overdueJobs, weekEvents] = await Promise.all([
       jobService.dashboardCounts(),
       tryStat("recentJobs", () => jobService.findRecent(6), []),
       tryStat(
@@ -45,6 +55,19 @@ export const statsService = {
       tryStat("billingHandoffStats", () => billingHandoffService.stats(), EMPTY_HANDOFF_STATS),
       tryStat("clientHolds", () => holdService.allActive(), []),
       tryStat("quoteStats", () => quoteService.stats(), EMPTY_QUOTE_STATS),
+      includeCalendar
+        ? tryStat("overdueJobs", () => jobService.findMany({
+            where: { overdue: true },
+            orderBy: { field: "requiredByDate", dir: "asc" },
+            take: 5,
+          }), [] as Job[])
+        : Promise.resolve([] as Job[]),
+      includeCalendar
+        ? tryStat("weekEvents", () => calendarService.findMany({
+            from: opts.calendarFrom!,
+            to: opts.calendarTo!,
+          }), [] as CalendarEventWithDetails[])
+        : Promise.resolve([] as CalendarEventWithDetails[]),
     ])
 
     return {
@@ -60,6 +83,8 @@ export const statsService = {
       handoffStats,
       holds:         allHolds,
       clientsOnHold: allHolds.length,
+      overdueJobs,
+      weekEvents,
       deadlines: {
         overdueCount:     counts.overdueCount,
         dueTodayCount:    counts.dueTodayCount,

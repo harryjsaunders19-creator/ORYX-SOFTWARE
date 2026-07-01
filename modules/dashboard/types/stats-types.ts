@@ -1,5 +1,21 @@
 import type { ClientHoldWithClient, Job } from "@/lib/types"
 
+export interface DashboardWeekEvent {
+  id: string
+  title: string
+  startDate: string
+  endDate: string
+  allDay: number
+  categoryId: string
+  categoryName: string
+  categoryColor: string
+  location: string | null
+  jobId: string | null
+  jobDrawingNumber: string | null
+  clientName: string | null
+  assignees: { userId: string; userName: string }[]
+}
+
 export interface StatsData {
   total:            number
   totalActiveJobs:  number
@@ -33,4 +49,7 @@ export interface StatsData {
   byItemType:       { itemType: string; count: number }[]
   byStatus:         { status: string; count: number }[]
   recentJobs:       Pick<Job, "id"|"drawingNumber"|"itemType"|"address"|"status"|"clientCompany"|"clientId"|"designer"|"quoteValue"|"invoiceId"|"parentJobId"|"revisionLetter"|"createdAt">[]
+  /** Present when requested with calendarFrom & calendarTo query params. */
+  overdueJobs?:      Job[]
+  weekEvents?:        DashboardWeekEvent[]
 }

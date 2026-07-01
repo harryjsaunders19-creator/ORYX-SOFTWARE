@@ -22,6 +22,7 @@ import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
 import { archiveLogService } from "@/lib/services/archive-log-service"
 import { nowIso } from "@/lib/db/helpers"
 import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
+import { invalidateQuotePdf } from "../pdf/cache"
 
 async function mirrorQuote(quote: QuoteRow | null) {
   if (quote && useSupabaseQuotes()) await supabaseQuoteRepo.upsert(quote)
@@ -86,12 +87,14 @@ export const quoteService = {
     // If linking this quote to a job, ensure that job is in SQLite (Quote.jobId FK).
     if (data.jobId) await ensureJobInSqliteForBilling(data.jobId)
     const quote = quoteDb.update(id, data)
+    if (quote) invalidateQuotePdf(id)
     await mirrorQuote(quote)
     return quote
   },
 
   /** Update pdfPath — Supabase-first so PDF generation works on ephemeral Vercel SQLite. */
   async updatePdfPath(id: string, pdfPath: string | null): Promise<void> {
+    if (pdfPath === null) invalidateQuotePdf(id)
     if (useSupabaseQuotes()) {
       await supabaseQuoteRepo.updatePdfPath(id, pdfPath)
       try {

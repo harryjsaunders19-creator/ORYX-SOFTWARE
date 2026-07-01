@@ -5,6 +5,7 @@
 import { quoteService } from "../services/quote-service"
 import { clientService } from "@/lib/services/client-service"
 import { quotePdfDownloadUrl } from "./urls"
+import { setCachedQuotePdf } from "./cache"
 import { PDFDocument, rgb } from "pdf-lib"
 import fontkit from "@pdf-lib/fontkit"
 import { format } from "date-fns"
@@ -284,10 +285,15 @@ export async function buildQuotePdfBuffer(id: string): Promise<{ pdfBytes: Uint8
 }
 
 export async function generateQuotePdf(id: string): Promise<{ pdfPath: string }> {
-  await buildQuotePdfBuffer(id)
+  const { pdfBytes, filename } = await buildQuotePdfBuffer(id)
 
   // Always use the authenticated API route — never write PDFs to public/.
   const pdfPath = quotePdfDownloadUrl(id)
   await quoteService.updatePdfPath(id, pdfPath)
+
+  // Cache after pdfPath write — updatedAt may have changed.
+  const quote = await quoteService.findUnique(id)
+  if (quote) setCachedQuotePdf(id, quote.updatedAt, pdfBytes, filename)
+
   return { pdfPath }
 }

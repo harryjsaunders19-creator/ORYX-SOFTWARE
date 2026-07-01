@@ -6,6 +6,7 @@ import { NextResponse } from "next/server"
 import { requireSignIn } from "@/shared/auth/auth"
 import { quoteService } from "../services/quote-service"
 import { buildQuotePdfBuffer, generateQuotePdf } from "../pdf/generate"
+import { getCachedQuotePdf, setCachedQuotePdf, invalidateQuotePdf } from "../pdf/cache"
 import { resolveQuotePdfUrl } from "../pdf/urls"
 
 export const maxDuration = 60
@@ -22,6 +23,7 @@ export async function POST(_req: Request, { params }: Ctx) {
     if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
 
     await quoteService.updatePdfPath(id, null)
+    invalidateQuotePdf(id)
     const { pdfPath } = await generateQuotePdf(id)
 
     return NextResponse.json({ status: "ready", pdfPath, quoteId: id })
@@ -44,11 +46,24 @@ export async function GET(req: Request, { params }: Ctx) {
       const quote = await quoteService.findUnique(id)
       if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
 
+      const cached = getCachedQuotePdf(id, quote.updatedAt)
+      if (cached) {
+        return new NextResponse(Buffer.from(cached.pdfBytes), {
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `inline; filename="${cached.filename}"`,
+            "Cache-Control": "private, max-age=3600",
+          },
+        })
+      }
+
       const { pdfBytes, filename } = await buildQuotePdfBuffer(id)
+      setCachedQuotePdf(id, quote.updatedAt, pdfBytes, filename)
       return new NextResponse(Buffer.from(pdfBytes), {
         headers: {
           "Content-Type": "application/pdf",
           "Content-Disposition": `inline; filename="${filename}"`,
+          "Cache-Control": "private, max-age=3600",
         },
       })
     }

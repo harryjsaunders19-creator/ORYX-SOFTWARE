@@ -1,14 +1,18 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
 import { canViewCommercialValues, type Role } from "@/shared/auth/permissions"
 import { errorMessage } from "@/lib/error-message"
 import { statsService } from "../services/stats-service"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
+
+    const sp = req.nextUrl.searchParams
+    const calendarFrom = sp.get("calendarFrom") ?? undefined
+    const calendarTo = sp.get("calendarTo") ?? undefined
 
     const role    = auth.user.role as Role
     const canView = canViewCommercialValues(role)
@@ -16,9 +20,9 @@ export async function GET() {
     const {
       byStatus, byItemType, recentJobs, unassigned, totalActiveJobs, totalRevisions,
       totalQuotedValue, totalIssuedValue, avgJobValue, handoffStats,
-      holds, clientsOnHold,
+      holds, clientsOnHold, overdueJobs, weekEvents,
       deadlines, qStats,
-    } = await statsService.dashboard()
+    } = await statsService.dashboard({ calendarFrom, calendarTo })
 
     const count = (status: string) => byStatus.find(s => s.status === status)?.count ?? 0
     const total = byStatus.reduce((a, b) => a + b.count, 0)
@@ -51,6 +55,8 @@ export async function GET() {
       byItemType,
       byStatus,
       recentJobs,
+      overdueJobs: calendarFrom && calendarTo ? overdueJobs : undefined,
+      weekEvents:  calendarFrom && calendarTo ? weekEvents : undefined,
     })
   } catch (err) {
     console.error("[GET /api/stats]", err)

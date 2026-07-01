@@ -20,6 +20,7 @@ End-to-end tests use Playwright. Browsers are downloaded automatically on `npm i
 If tests fail with "Executable doesn't exist", run:
 
 ```bash
+npm run test:unit    # auth, path validation, PDF cache (Node test runner)
 npm run test:e2e:setup
 npm run test:e2e
 ```

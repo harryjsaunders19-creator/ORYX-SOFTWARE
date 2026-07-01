@@ -24,28 +24,50 @@ async function mirrorHoldToSqlite(hold: ClientHoldRow | null): Promise<void> {
   }
 }
 
+/** Batch job stats for many clients in one query (avoids N+1 in hold enrichment). */
+function batchClientJobStats(clientIds: string[]): Map<string, { activeJobCount: number; quoteValueTotal: number }> {
+  const map = new Map<string, { activeJobCount: number; quoteValueTotal: number }>()
+  if (!clientIds.length) return map
+
+  const placeholders = clientIds.map(() => "?").join(",")
+  const rows = db.prepare(`
+    SELECT clientId,
+           SUM(CASE WHEN status NOT IN ('ISSUED') THEN 1 ELSE 0 END) AS activeJobCount,
+           COALESCE(SUM(CASE WHEN quoteValue > 0 THEN quoteValue ELSE 0 END), 0) AS quoteValueTotal
+    FROM Job
+    WHERE clientId IN (${placeholders})
+    GROUP BY clientId
+  `).all(...clientIds) as { clientId: string; activeJobCount: number; quoteValueTotal: number }[]
+
+  for (const row of rows) {
+    map.set(row.clientId, {
+      activeJobCount: row.activeJobCount,
+      quoteValueTotal: row.quoteValueTotal,
+    })
+  }
+  return map
+}
+
 /** Enriches all holds via a single bulk client lookup instead of one call per hold (N+1). */
 async function enrichAllWithClientStats(holds: ClientHoldRow[]): Promise<ClientHoldWithClientRow[]> {
   if (!holds.length) return []
 
   const clientIds = [...new Set(holds.map(h => h.clientId).filter(Boolean))]
-  const clients = useSupabaseClients()
-    ? await supabaseClientRepo.findManyByIds(clientIds)
-    : await Promise.all(clientIds.map(id => clientService.findUnique(id)))
+  const [clients, statsByClient] = await Promise.all([
+    useSupabaseClients()
+      ? supabaseClientRepo.findManyByIds(clientIds)
+      : clientService.findManyByIds(clientIds),
+    Promise.resolve(batchClientJobStats(clientIds)),
+  ])
   const clientNameById = new Map(clients.filter(Boolean).map(c => [c!.id, c!.name]))
 
   return holds.map(hold => {
-    const activeJobCount = (
-      db.prepare("SELECT COUNT(*) as n FROM Job WHERE clientId = ? AND status NOT IN ('ISSUED')").get(hold.clientId) as { n: number }
-    ).n
-    const quoteValueTotal = (
-      db.prepare("SELECT COALESCE(SUM(quoteValue), 0) as n FROM Job WHERE clientId = ? AND quoteValue > 0").get(hold.clientId) as { n: number }
-    ).n
+    const stats = statsByClient.get(hold.clientId) ?? { activeJobCount: 0, quoteValueTotal: 0 }
     return {
       ...hold,
       clientName: clientNameById.get(hold.clientId) ?? "",
-      activeJobCount,
-      quoteValueTotal,
+      activeJobCount: stats.activeJobCount,
+      quoteValueTotal: stats.quoteValueTotal,
     }
   })
 }
