@@ -1,16 +1,5 @@
 /**
- * lib/supabase — Supabase integration (migration in progress).
- *
- * The app still reads/writes SQLite via lib/db until each module is migrated.
- * Import from here when adding new Supabase-backed code.
+ * lib/supabase — re-export barrel (Phase 14).
+ * Infrastructure in shared/supabase/; repos in modules/{name}/supabase/.
  */
-export {
-  getSupabaseUrl,
-  getSupabaseAnonKey,
-  getSupabaseServiceRoleKey,
-  isSupabaseConfigured,
-  isSupabaseAdminConfigured,
-} from "./config"
-
-export { createAdminClient } from "./admin"
-export { useSupabaseClients, useSupabaseJobs, useSupabaseQuotes, useSupabaseStatusHistory, useSupabaseHolds, useSupabaseBilling, useSupabaseCalendar, useSupabaseUsers, useSupabaseIdentityLog, useSupabaseBackups, useSupabaseEmployees, useSupabaseLeave, supabaseModuleFlags } from "./feature-flags"
+export * from "@/shared/supabase"

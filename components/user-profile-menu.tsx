@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { isExperimentalEnabled } from "@/lib/experimental-features"
 import { LogOut, User } from "lucide-react"
 import { useUser } from "@/components/user-context"
 import {
@@ -48,11 +49,13 @@ export function UserProfileMenu() {
           <p className="px-2 pb-1.5 text-xs text-t3 truncate">{user.email}</p>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => router.push(`/employees/${user.id}`)}>
-          <User className="h-4 w-4 shrink-0 text-t3" />
-          My profile
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        {isExperimentalEnabled("employees") && (
+          <DropdownMenuItem onSelect={() => router.push(`/employees/${user.id}`)}>
+            <User className="h-4 w-4 shrink-0 text-t3" />
+            My profile
+          </DropdownMenuItem>
+        )}
+        {isExperimentalEnabled("employees") && <DropdownMenuSeparator />}
         <DropdownMenuItem danger onSelect={handleLogout}>
           <LogOut className="h-4 w-4 shrink-0" />
           Log out

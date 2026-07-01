@@ -1,0 +1,89 @@
+import useSWR, { type KeyedMutator, type SWRConfiguration, mutate as globalMutate } from "swr"
+
+/** Bypass browser HTTP cache — API routes are private and mutate frequently. */
+export function apiFetch(url: string, init?: RequestInit) {
+  return fetch(url, { ...init, cache: "no-store" })
+}
+
+async function fetcher<T>(url: string): Promise<T> {
+  const res = await apiFetch(url)
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: string }
+    throw new Error(body.error ?? `HTTP ${res.status}`)
+  }
+  return res.json() as Promise<T>
+}
+
+const DEFAULT_OPTS: SWRConfiguration = {
+  keepPreviousData: true,
+  revalidateOnFocus: true,
+  dedupingInterval: 2_000,
+  errorRetryCount: 2,
+}
+
+/** Cached GET with stale-while-revalidate — aligns with API Cache-Control headers. */
+export function useApi<T>(key: string | null, config?: SWRConfiguration) {
+  return useSWR<T>(key, fetcher, { ...DEFAULT_OPTS, ...config })
+}
+
+/** Revalidate every SWR key whose string starts with `prefix`. */
+export function revalidatePrefix(prefix: string) {
+  return globalMutate(
+    key => typeof key === "string" && key.startsWith(prefix),
+    undefined,
+    { revalidate: true },
+  )
+}
+
+type ListKey = "jobs" | "clients" | "quotes"
+
+function listFromCache(current: unknown, listKey: ListKey): { id: string }[] | null {
+  if (!current || typeof current !== "object") return null
+  const list = (current as Record<string, unknown>)[listKey]
+  return Array.isArray(list) ? list as { id: string }[] : null
+}
+
+/** Drop a row from a paginated list cache immediately, then revalidate in background. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function optimisticListRemove(mutate: KeyedMutator<any>, listKey: ListKey, id: string) {
+  return mutate(
+    (current: unknown) => {
+      const list = listFromCache(current, listKey)
+      if (!list) return current
+      const next = list.filter(item => item.id !== id)
+      if (next.length === list.length) return current
+      const total = (current as { total?: number }).total
+      return {
+        ...(current as object),
+        [listKey]: next,
+        total: total != null ? Math.max(0, total - 1) : total,
+      }
+    },
+    { revalidate: true },
+  )
+}
+
+/** Prepend a row to a paginated list cache, then revalidate in background. */
+export function optimisticListPrepend<T extends { id: string }>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mutate: KeyedMutator<any>,
+  listKey: ListKey,
+  item: T,
+) {
+  return mutate(
+    (current: unknown) => {
+      const list = listFromCache(current, listKey)
+      if (!list) return current
+      if (list.some(row => row.id === item.id)) return current
+      const total = (current as { total?: number }).total
+      return {
+        ...(current as object),
+        [listKey]: [item, ...list],
+        total: (total ?? list.length) + 1,
+      }
+    },
+    { revalidate: true },
+  )
+}
+
+export { globalMutate as mutateApi }

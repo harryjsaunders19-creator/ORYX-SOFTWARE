@@ -1,1 +1,1 @@
-export { AppShellSkeleton, StitchAppShellSkeleton } from "@/components/stitch-layout/skeleton"
+export * from "@/shared/layouts/app-shell-skeleton"

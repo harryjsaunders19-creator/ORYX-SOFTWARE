@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { SESSION_COOKIE, hasValidSessionToken } from "@/lib/session-cookie"
+import { isExperimentalEnabled } from "@/lib/experimental-features"
 
 const PUBLIC_PAGES = new Set(["/login", "/set-password"])
 
@@ -20,6 +21,21 @@ function isPublicApi(pathname: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  if (
+    (pathname.startsWith("/employees") || pathname.startsWith("/api/employees"))
+    && !isExperimentalEnabled("employees")
+  ) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "This feature is not available yet" }, { status: 404 })
+    }
+    return NextResponse.redirect(new URL("/", request.url))
+  }
+
+  if (pathname.startsWith("/api/leave") && !isExperimentalEnabled("leave")) {
+    return NextResponse.json({ error: "This feature is not available yet" }, { status: 404 })
+  }
+
   const token = request.cookies.get(SESSION_COOKIE)?.value
   const hasSession = await hasValidSessionToken(token)
 
