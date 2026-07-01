@@ -155,7 +155,7 @@ async function syncLeave() {
   }
 
   const { error: catErr } = await supabase.from("event_categories").upsert({
-    id: "cat_annual_leave", name: "Leave", color: "#6B7280", icon: "calendar-off",
+    id: "cat_annual_leave", name: "Annual Leave", color: "#15803D", icon: "calendar-off",
   }, { onConflict: "id" })
   if (catErr) { console.error("  cat_annual_leave", catErr.message); failed++ }
 }

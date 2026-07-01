@@ -328,6 +328,7 @@ insert into public.event_categories (id, name, color, icon) values
   ('cat_client_meeting',   'Client Meeting',   '#A855F7', 'users'),
   ('cat_deadline',         'Deadline',         '#EF4444', 'alert-circle'),
   ('cat_leave',            'Leave',            '#6B7280', 'calendar-off'),
+  ('cat_annual_leave',     'Annual Leave',     '#15803D', 'calendar-off'),
   ('cat_internal_meeting', 'Internal Meeting', '#14B8A6', 'message-square')
 on conflict (id) do nothing;
 

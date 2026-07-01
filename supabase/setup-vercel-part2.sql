@@ -407,7 +407,7 @@ notify pgrst, 'reload schema';
 -- =============================================================================
 
 insert into public.event_categories (id, name, color, icon) values
-  ('cat_annual_leave', 'Leave', '#6B7280', 'calendar-off')
+  ('cat_annual_leave', 'Annual Leave', '#15803D', 'calendar-off')
 on conflict (id) do nothing;
 
 notify pgrst, 'reload schema';
