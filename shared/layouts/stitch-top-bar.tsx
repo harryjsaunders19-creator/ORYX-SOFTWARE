@@ -6,7 +6,6 @@ import { NotificationsMenu } from "@/components/notifications-menu"
 import { UserProfileMenu } from "@/components/user-profile-menu"
 import { SettingsMenu } from "@/shared/layouts/settings-menu"
 import { MODULES } from "@/shared/auth/permissions"
-import { STITCH_TOP_BAR_H } from "@/shared/branding/stitch-layout"
 
 function routeContext(pathname: string): { section: string; trail: string } {
   if (pathname === "/") return { section: "ORYX OS", trail: "Dashboard Overview" }
@@ -53,14 +52,14 @@ export function StitchTopBar({ onMenuClick }: Props) {
 
   return (
     <header
-      className="stitch-top-bar fixed top-0 right-0 z-40 flex h-16 items-center justify-between gap-6 border-b border-bd bg-pg px-6 max-md:gap-3 max-md:px-4 left-0 md:left-64"
+      className="stitch-top-bar fixed top-0 z-40 flex items-center justify-between gap-6 border-b border-bd bg-pg px-6 max-md:gap-3 max-md:px-4"
     >
       <div className="flex min-w-0 items-center gap-3">
         {onMenuClick && (
           <button
             type="button"
             onClick={onMenuClick}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-t2 transition-colors hover:bg-surface-low hover:text-t1 md:hidden"
+            className="oryx-nav-menu-btn h-11 w-11 shrink-0 items-center justify-center rounded-md text-t2 transition-colors hover:bg-surface-low hover:text-t1"
             aria-label="Open navigation menu"
           >
             <Menu className="h-5 w-5" />

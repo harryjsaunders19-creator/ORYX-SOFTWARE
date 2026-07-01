@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../shared/**/*.{ts,tsx}";
+@source "../modules/**/*.{ts,tsx}";
 
 /*
  * ================================================================
@@ -342,6 +344,8 @@ html.stitch-layout {
   --stitch-canvas-bg: #f8f9fa;
   --stitch-top-bar-bg: #f8f9fa;
   --stitch-search-bg: #f3f4f5;
+  --stitch-sidebar-w: 256px;
+  --stitch-top-bar-h: 64px;
   color-scheme: light;
 }
 
@@ -394,8 +398,55 @@ aside.stitch-sidebar {
 }
 
 html.stitch-layout .stitch-top-bar {
+  left: 0;
+  right: 0;
+  height: var(--stitch-top-bar-h);
   background-color: var(--stitch-top-bar-bg) !important;
   border-bottom: 1px solid var(--color-bd) !important;
+}
+
+@media (min-width: 768px) {
+  html.stitch-layout .stitch-top-bar {
+    left: var(--stitch-sidebar-w);
+  }
+}
+
+html.stitch-layout main.oryx-app-main {
+  margin-left: 0;
+  padding-top: var(--stitch-top-bar-h);
+  min-height: 100vh;
+}
+
+@media (min-width: 768px) {
+  html.stitch-layout main.oryx-app-main {
+    margin-left: var(--stitch-sidebar-w);
+  }
+}
+
+html.stitch-layout #oryx-stitch-sidebar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  html.stitch-layout #oryx-stitch-sidebar {
+    display: flex;
+  }
+}
+
+@media (min-width: 768px) {
+  html.stitch-layout .oryx-mobile-nav-drawer {
+    display: none !important;
+  }
+}
+
+html.stitch-layout .oryx-nav-menu-btn {
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  html.stitch-layout .oryx-nav-menu-btn {
+    display: none !important;
+  }
 }
 
 html.stitch-layout .stitch-nav-link {

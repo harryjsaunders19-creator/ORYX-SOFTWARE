@@ -102,14 +102,14 @@ export function StitchSideNav({ mobileOpen = false, onMobileClose = () => {} }: 
       {/* Desktop — always visible at md+ */}
       <aside
         id="oryx-stitch-sidebar"
-        className={cn(sidebarClass, "hidden md:flex")}
+        className={cn(sidebarClass)}
         style={{ width: STITCH_SIDEBAR_W }}
       >
         <SideNavContent />
       </aside>
 
       {/* Mobile — slide-in drawer */}
-      <div className="md:hidden" aria-hidden={!mobileOpen}>
+      <div className="oryx-mobile-nav-drawer" aria-hidden={!mobileOpen}>
         <button
           type="button"
           aria-label="Close navigation menu"

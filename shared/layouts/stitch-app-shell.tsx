@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation"
 import { useUser } from "@/shared/providers/user-context"
 import { StitchSideNav } from "@/shared/layouts/stitch-side-nav"
 import { StitchTopBar } from "@/shared/layouts/stitch-top-bar"
-import { STITCH_TOP_BAR_H } from "@/shared/branding/stitch-layout"
 
 export function StitchAppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, mustChangePassword } = useUser()
@@ -46,10 +45,7 @@ export function StitchAppShell({ children }: { children: React.ReactNode }) {
         onMobileClose={() => setSidebarOpen(false)}
       />
       <StitchTopBar onMenuClick={() => setSidebarOpen(true)} />
-      <main
-        className="min-h-screen overflow-y-auto thin-scroll bg-pg md:ml-64"
-        style={{ paddingTop: STITCH_TOP_BAR_H }}
-      >
+      <main className="oryx-app-main overflow-y-auto thin-scroll bg-pg">
         {children}
       </main>
     </div>
