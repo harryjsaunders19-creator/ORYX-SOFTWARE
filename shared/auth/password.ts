@@ -1,3 +1,4 @@
+import crypto from "crypto"
 import bcrypt from "bcryptjs"
 
 const SALT_ROUNDS = 12
@@ -12,11 +13,8 @@ export function verifyPassword(plaintext: string, hash: string): boolean {
 
 export function generateTempPassword(): string {
   const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
-  let result = ""
-  for (let i = 0; i < 12; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return result
+  const bytes = crypto.randomBytes(12)
+  return Array.from(bytes, b => chars[b % chars.length]).join("")
 }
 
 export function validatePasswordStrength(password: string): string | null {

@@ -29,3 +29,15 @@ export const DOC_MIME = new Set([
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 export const MAX_DOC_BYTES = 15 * 1024 * 1024
+
+/** Resolve a DB-stored relative path to an absolute path under the employee files root. */
+export function resolveEmployeeFilePath(storedPath: string): string | null {
+  if (!storedPath || path.isAbsolute(storedPath)) return null
+  const normalized = storedPath.replace(/\\/g, "/").replace(/^\/+/, "")
+  if (normalized.includes("..")) return null
+
+  const root = path.resolve(employeeFilesRoot())
+  const absolute = path.resolve(process.cwd(), normalized)
+  if (!absolute.startsWith(root + path.sep) && absolute !== root) return null
+  return absolute
+}

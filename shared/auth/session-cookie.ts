@@ -17,8 +17,11 @@ export function getAuthSecret(): string {
   const fromEnv = process.env.AUTH_SECRET?.trim()
   if (fromEnv) return fromEnv
   if (process.env.NODE_ENV === "production") {
-    console.warn("[auth] AUTH_SECRET is not set — using an insecure default. Set AUTH_SECRET in production.")
+    throw new Error(
+      "AUTH_SECRET must be set in production — session cookies cannot be secured without it.",
+    )
   }
+  console.warn("[auth] AUTH_SECRET is not set — using a dev-only default. Set AUTH_SECRET before deploying.")
   return "oryx-dev-auth-secret-change-me"
 }
 

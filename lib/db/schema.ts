@@ -1006,7 +1006,11 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
 
 // Ensure the admin@test.com and engineer@test.com accounts always exist
 // with working passwords. Runs on every startup — idempotent.
+// Skipped in production unless ALLOW_BOOTSTRAP_TEST_ACCOUNTS=true.
 ;(function bootstrapAccounts() {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_BOOTSTRAP_TEST_ACCOUNTS !== "true") {
+    return
+  }
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { hashPassword } = require("@/lib/password") as typeof import("@/lib/password")
   const now = nowIso()

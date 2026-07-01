@@ -1,10 +1,13 @@
 import fs from "fs"
-import path from "path"
 import { NextRequest, NextResponse } from "next/server"
 import { requireSignIn } from "@/shared/auth/auth"
-import { employeeService } from "@/modules/employees"
+import {
+  employeeService,
+  resolveEmployeeFilePath,
+  canManageDocuments,
+  canUploadRestrictedDocuments,
+} from "@/modules/employees"
 import { employeeDocumentDb } from "@/lib/db/stores"
-import { canManageDocuments, canUploadRestrictedDocuments } from "@/modules/employees"
 
 type Ctx = { params: Promise<{ id: string; docId: string }> }
 
@@ -22,8 +25,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const fullPath = path.join(process.cwd(), doc.filePath)
-    if (!fs.existsSync(fullPath)) {
+    const fullPath = resolveEmployeeFilePath(doc.filePath)
+    if (!fullPath || !fs.existsSync(fullPath)) {
       return NextResponse.json({ error: "File missing on server" }, { status: 404 })
     }
 
@@ -55,8 +58,8 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const fullPath = path.join(process.cwd(), doc.filePath)
-    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath)
+    const fullPath = resolveEmployeeFilePath(doc.filePath)
+    if (fullPath && fs.existsSync(fullPath)) fs.unlinkSync(fullPath)
     employeeDocumentDb.delete(docId)
     await employeeService.logActivity(id, "DOCUMENT_DELETED", doc.name, auth.user)
     return NextResponse.json({ deleted: true })

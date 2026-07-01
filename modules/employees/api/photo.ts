@@ -8,6 +8,7 @@ import { employeeProfileDb } from "@/lib/db/stores"
 import {
   employeeUserDir,
   safeEmployeeFilename,
+  resolveEmployeeFilePath,
   PHOTO_MIME,
   MAX_PHOTO_BYTES,
 } from "@/modules/employees"
@@ -24,10 +25,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     if (!profile?.profilePhotoPath) {
       return NextResponse.json({ error: "No photo" }, { status: 404 })
     }
-    const fullPath = path.isAbsolute(profile.profilePhotoPath)
-      ? profile.profilePhotoPath
-      : path.join(process.cwd(), profile.profilePhotoPath)
-    if (!fs.existsSync(fullPath)) {
+    const fullPath = resolveEmployeeFilePath(profile.profilePhotoPath)
+    if (!fullPath || !fs.existsSync(fullPath)) {
       return NextResponse.json({ error: "File missing" }, { status: 404 })
     }
     const ext = path.extname(fullPath).toLowerCase()
@@ -76,8 +75,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     const old = employeeProfileDb.findUnique(id)?.profilePhotoPath
     employeeProfileDb.update(id, { profilePhotoPath: relPath })
 
-    if (old && fs.existsSync(path.join(process.cwd(), old))) {
-      try { fs.unlinkSync(path.join(process.cwd(), old)) } catch { /* ignore */ }
+    if (old) {
+      const oldPath = resolveEmployeeFilePath(old)
+      if (oldPath && fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath) } catch { /* ignore */ }
+      }
     }
 
     await employeeService.logActivity(id, "PHOTO_UPLOADED", filename, auth.user)
@@ -98,8 +100,9 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     const profile = employeeProfileDb.findUnique(id)
-    if (profile?.profilePhotoPath && fs.existsSync(path.join(process.cwd(), profile.profilePhotoPath))) {
-      fs.unlinkSync(path.join(process.cwd(), profile.profilePhotoPath))
+    const photoPath = profile?.profilePhotoPath ? resolveEmployeeFilePath(profile.profilePhotoPath) : null
+    if (photoPath && fs.existsSync(photoPath)) {
+      fs.unlinkSync(photoPath)
     }
     employeeProfileDb.update(id, { profilePhotoPath: null })
     await employeeService.logActivity(id, "PHOTO_REMOVED", null, auth.user)

@@ -28,6 +28,15 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   try {
     const { id } = await params
+    const existing = await calendarService.findUnique(id)
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+    const isAdmin = auth.user.role === "ADMIN"
+    const isCreator = existing.createdBy === auth.user.id
+    const isAssignee = existing.assignees.some(a => a.userId === auth.user.id)
+    if (!isAdmin && !isCreator && !isAssignee) {
+      return NextResponse.json({ error: "You don't have permission to edit this event." }, { status: 403 })
+    }
     let body: Record<string, unknown>
     try { body = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }

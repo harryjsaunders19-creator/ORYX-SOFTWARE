@@ -115,9 +115,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       const err = applyOptionalMoneyField(body, field, data)
       if (err) return err
     }
-    const changedBy = typeof body.changedBy === "string" && body.changedBy.trim()
-      ? body.changedBy.trim() : "System"
-    data.changedBy = changedBy
+    data.changedBy = auth.user.name || auth.user.email || "System"
 
     if (Object.keys(data).length <= 1) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 })

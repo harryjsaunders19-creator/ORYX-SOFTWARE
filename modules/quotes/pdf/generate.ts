@@ -11,7 +11,6 @@ import { format } from "date-fns"
 import fs from "fs/promises"
 import path from "path"
 import { BRAND_LOGO_DOCUMENT_PATH } from "@/shared/branding/branding"
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
 
 const PAGE_WIDTH  = 595.28
 const PAGE_HEIGHT = 841.89
@@ -285,20 +284,9 @@ export async function buildQuotePdfBuffer(id: string): Promise<{ pdfBytes: Uint8
 }
 
 export async function generateQuotePdf(id: string): Promise<{ pdfPath: string }> {
-  const { pdfBytes, filename } = await buildQuotePdfBuffer(id)
+  await buildQuotePdfBuffer(id)
 
-  // Local dev without Supabase: keep static files for faster repeat opens.
-  if (!isSupabaseAdminConfigured()) {
-    const outDir = path.join(process.cwd(), "public", "quote-pdfs")
-    await fs.mkdir(outDir, { recursive: true })
-    const outPath = path.join(outDir, filename)
-    if (!outPath.startsWith(outDir)) throw new Error("Invalid path")
-    await fs.writeFile(outPath, pdfBytes)
-    const pdfPath = `/quote-pdfs/${filename}`
-    await quoteService.updatePdfPath(id, pdfPath)
-    return { pdfPath }
-  }
-
+  // Always use the authenticated API route — never write PDFs to public/.
   const pdfPath = quotePdfDownloadUrl(id)
   await quoteService.updatePdfPath(id, pdfPath)
   return { pdfPath }

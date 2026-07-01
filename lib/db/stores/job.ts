@@ -113,10 +113,17 @@ export const jobDb = {
     const changedBy = data.changedBy ?? "System"
     const statusChanged = data.status !== undefined && data.status !== existing.status
     const oldStatus = existing.status
+    const allowedColumns = new Set([
+      "address", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
+      "requestedBy", "status", "designer", "dateCompleted", "notes", "quoteValue",
+      "quoteReference", "quoteDate", "commercialNotes", "variationFees", "additionalCharges",
+      "requestedDate", "requiredByDate",
+    ])
     const fields: string[] = []; const params: unknown[] = []
-    const colData = { ...data } as Record<string, unknown>; delete colData.changedBy
-    for (const [key, val] of Object.entries(colData)) {
-      if (val !== undefined) { fields.push(`"${key}" = ?`); params.push(val) }
+    for (const [key, val] of Object.entries(data)) {
+      if (key === "changedBy" || val === undefined) continue
+      if (!allowedColumns.has(key)) continue
+      fields.push(`"${key}" = ?`); params.push(val)
     }
     if (fields.length === 0 && !statusChanged) return existing
     db.transaction(() => {

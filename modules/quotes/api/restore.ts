@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireRole } from "@/shared/auth/auth"
 import { quoteService } from "../services/quote-service"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(_req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireRole(["ADMIN"])
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

@@ -29,6 +29,7 @@ export {
   employeeFilesRoot,
   employeeUserDir,
   safeEmployeeFilename,
+  resolveEmployeeFilePath,
   PHOTO_MIME,
   DOC_MIME,
   MAX_PHOTO_BYTES,
