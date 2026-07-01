@@ -83,7 +83,7 @@ export function NotificationsMenu() {
         <button
           type="button"
           className={cn(
-            "relative h-9 w-9 rounded-full flex items-center justify-center",
+            "relative flex h-11 w-11 items-center justify-center rounded-full lg:h-9 lg:w-9",
             "text-t3 hover:bg-pg hover:text-t2 transition-colors",
             open && "bg-pg text-t2",
           )}

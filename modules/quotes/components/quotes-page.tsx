@@ -711,8 +711,8 @@ function QuotesInner() {
           />
         </DataPanel>
       ) : (
-        <DataPanel className={cn("overflow-x-auto transition-opacity", refreshing && "opacity-60")}>
-          <table className="w-full text-sm">
+        <DataPanel className={cn("overflow-x-auto overscroll-x-contain transition-opacity", refreshing && "opacity-60")}>
+          <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Quote No.</th>

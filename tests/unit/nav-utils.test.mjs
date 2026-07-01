@@ -1,0 +1,39 @@
+import { describe, it } from "node:test"
+import assert from "node:assert/strict"
+import { createRequire } from "node:module"
+
+const require = createRequire(import.meta.url)
+const {
+  isNavItemActive,
+  splitNavForMobile,
+  MOBILE_PRIMARY_NAV_KEYS,
+} = require("../../shared/layouts/nav-utils.ts")
+
+const ALL = [
+  { key: "dashboard", label: "Dashboard", href: "/" },
+  { key: "jobs", label: "Jobs", href: "/jobs" },
+  { key: "clients", label: "Clients", href: "/clients" },
+  { key: "quotes", label: "Quotes", href: "/quotes" },
+  { key: "calendar", label: "Calendar", href: "/calendar" },
+  { key: "billing", label: "Billing", href: "/billing" },
+]
+
+describe("isNavItemActive", () => {
+  it("matches dashboard root only", () => {
+    assert.equal(isNavItemActive("/", "dashboard", "/"), true)
+    assert.equal(isNavItemActive("/jobs", "dashboard", "/"), false)
+  })
+
+  it("uses prefix matching for section routes", () => {
+    assert.equal(isNavItemActive("/jobs/abc", "jobs", "/jobs"), true)
+    assert.equal(isNavItemActive("/clients/hold-list", "clients", "/clients"), true)
+  })
+})
+
+describe("splitNavForMobile", () => {
+  it("keeps primary keys in order and puts the rest in overflow", () => {
+    const { primary, overflow } = splitNavForMobile(ALL)
+    assert.deepEqual(primary.map(m => m.key), [...MOBILE_PRIMARY_NAV_KEYS])
+    assert.deepEqual(overflow.map(m => m.key), ["quotes", "billing"])
+  })
+})

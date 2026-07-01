@@ -2,40 +2,18 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import {
-  LayoutDashboard, FolderOpen, Activity, Receipt, CalendarDays,
-  Building2, AlertTriangle, FileText, Users as UsersIcon, DatabaseBackup, Archive,
-  GitBranch, UsersRound,
-} from "lucide-react"
 import { cn } from "@/shared/utils"
 import { useUser } from "@/shared/providers/user-context"
 import { modulesForRole, type ModuleDef } from "@/shared/auth/permissions"
 import { OryxLogo } from "@/shared/branding/oryx-logo"
-import { STITCH_SIDEBAR_W, STITCH_SIDEBAR_BG, STITCH_SIDEBAR_BORDER } from "@/shared/branding/stitch-layout"
-
-const ICONS: Record<string, React.ElementType> = {
-  dashboard:  LayoutDashboard,
-  clients:    Building2,
-  "hold-list": AlertTriangle,
-  jobs:       GitBranch,
-  quotes:     FileText,
-  calendar:   CalendarDays,
-  employees:  UsersRound,
-  billing:    Receipt,
-  archived:   Archive,
-  users:      UsersIcon,
-  backups:    DatabaseBackup,
-  health:     Activity,
-}
-
-const ACTIVE_PREFIX: Record<string, boolean> = {
-  "hold-list": true, billing: true, clients: true, jobs: true, employees: true,
-}
+import { STITCH_SIDEBAR_W } from "@/shared/branding/stitch-layout"
+import { isNavItemActive } from "@/shared/layouts/nav-utils"
+import { navIcon } from "@/shared/layouts/nav-icons"
 
 const ADMIN_KEYS = new Set(["billing", "archived", "users", "backups", "health"])
 
 function NavLink({ item, active }: { item: ModuleDef; active: boolean }) {
-  const Icon = ICONS[item.key] ?? FolderOpen
+  const Icon = navIcon(item.key)
   return (
     <Link
       href={item.href}
@@ -58,20 +36,13 @@ export function StitchSideNav() {
   const mainNav = nav.filter(m => !ADMIN_KEYS.has(m.key))
   const adminNav = nav.filter(m => ADMIN_KEYS.has(m.key))
 
-  const isActive = (key: string, href: string) => {
-    if (key === "dashboard") return path === "/"
-    return ACTIVE_PREFIX[key] ? path.startsWith(href) : path === href
-  }
+  const isActive = (key: string, href: string) => isNavItemActive(path, key, href)
 
   return (
     <aside
       id="oryx-stitch-sidebar"
-      className="stitch-sidebar fixed left-0 top-0 bottom-0 z-50 flex flex-col py-4"
-      style={{
-        width: STITCH_SIDEBAR_W,
-        backgroundColor: STITCH_SIDEBAR_BG,
-        borderRight: `1px solid ${STITCH_SIDEBAR_BORDER}`,
-      }}
+      className="stitch-sidebar fixed left-0 top-0 bottom-0 z-50 hidden flex-col py-4 lg:flex"
+      style={{ width: STITCH_SIDEBAR_W }}
     >
       <div className="mb-6 px-4">
         <Link href="/" className="block transition-opacity hover:opacity-90">

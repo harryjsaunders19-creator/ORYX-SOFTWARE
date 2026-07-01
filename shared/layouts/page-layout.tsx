@@ -14,7 +14,7 @@ export function PageShell({ children, className, wide }: {
   wide?: boolean
 }) {
   return (
-    <div className={cn("px-8 py-8 w-full", !wide && "max-w-[1400px]", className)}>
+    <div className={cn("px-4 py-4 w-full min-w-0 sm:px-6 sm:py-6 lg:px-8 lg:py-8", !wide && "max-w-[1400px]", className)}>
       {children}
     </div>
   )
@@ -26,7 +26,7 @@ export function PageHeader({ title, description, actions }: {
   actions?: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-8">
       <div className="min-w-0">
         <h1 className="oryx-page-title text-t1">{title}</h1>
         {description != null && (
@@ -47,7 +47,7 @@ export function SearchField({ value, onChange, placeholder, className }: {
   className?: string
 }) {
   return (
-    <div className={cn("relative flex-1 max-w-md", className)}>
+    <div className={cn("relative flex-1 w-full sm:max-w-md", className)}>
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-t4 pointer-events-none" />
       <Input
         value={value}
@@ -99,8 +99,8 @@ export function PanelHeader({ title, count, action }: {
 
 export function TableShell({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("overflow-x-auto", className)}>
-      <table className="w-full text-sm">{children}</table>
+    <div className={cn("overflow-x-auto overscroll-x-contain -mx-4 px-4 sm:mx-0 sm:px-0", className)}>
+      {children}
     </div>
   )
 }
@@ -153,9 +153,9 @@ export function KpiTile({ label, value, sub, accent = "var(--color-ac)", valueCl
   className?: string
 }) {
   return (
-    <div className={cn("relative overflow-hidden rounded-lg border border-[#E5E7EB] bg-sr p-6 shadow-sm transition-shadow hover:shadow-md", className)}>
+    <div className={cn("relative overflow-hidden rounded-lg border border-[#E5E7EB] bg-sr p-4 shadow-sm transition-shadow hover:shadow-md sm:p-6", className)}>
       <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
-      <p className={cn("mb-2 text-[48px] font-semibold tabular-nums leading-none tracking-tight", valueClassName ?? "text-t1")}>{value}</p>
+      <p className={cn("mb-2 text-3xl font-semibold tabular-nums leading-none tracking-tight sm:text-[48px]", valueClassName ?? "text-t1")}>{value}</p>
       <p className="font-mono text-xs uppercase tracking-widest text-t3">{label}</p>
       {sub != null && <p className="mt-1 text-xs text-t4">{sub}</p>}
     </div>
@@ -188,15 +188,15 @@ export function TabBar({ tabs, active, onChange, trailing }: {
   trailing?: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-bd mb-4">
-      <div className="flex items-center gap-1">
+    <div className="flex flex-col gap-2 border-b border-bd mb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-1 overflow-x-auto overscroll-x-contain thin-scroll -mx-1 px-1 pb-px">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => onChange(id)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+              "flex shrink-0 items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors min-h-[44px]",
               active === id ? "border-ac text-ac" : "border-transparent text-t3 hover:text-t2",
             )}
           >

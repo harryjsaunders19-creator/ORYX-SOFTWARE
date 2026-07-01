@@ -1,44 +1,65 @@
 "use client"
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
-
-type Theme = "light" | "dark"
+import {
+  type ThemePreference,
+  type ResolvedTheme,
+  THEME_STORAGE_KEY,
+  readStoredPreference,
+  resolveTheme,
+  applyResolvedTheme,
+} from "@/shared/theme/theme-utils"
 
 interface ThemeCtx {
-  theme: Theme
-  toggle: () => void
+  preference: ThemePreference
+  resolvedTheme: ResolvedTheme
+  setThemePreference: (preference: ThemePreference) => void
 }
 
-const Ctx = createContext<ThemeCtx>({ theme: "light", toggle: () => {} })
+const Ctx = createContext<ThemeCtx>({
+  preference: "system",
+  resolvedTheme: "light",
+  setThemePreference: () => {},
+})
+
 export const useTheme = () => useContext(Ctx)
 
-const STORAGE_KEY = "oryx-theme"
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Default to "light" — the inline <script> in layout.tsx already applied the
-  // correct class to <html> before React hydrates, so there is no flash.
-  // We no longer block rendering with a `mounted` guard; the effect below
-  // syncs React state with the class that is already on the DOM.
-  const [theme, setTheme] = useState<Theme>("light")
+  const [preference, setPreference] = useState<ThemePreference>("system")
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light")
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null
-    const preferred = stored ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-    setTheme(preferred)
-    const stitch = document.documentElement.classList.contains("stitch-layout")
-    document.documentElement.classList.toggle("dark", preferred === "dark" && !stitch)
+    const pref = readStoredPreference()
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    const resolved = resolveTheme(pref, prefersDark)
+    setPreference(pref)
+    setResolvedTheme(resolved)
+    applyResolvedTheme(resolved)
+
+    if (pref !== "system") return
+
+    const mq = window.matchMedia("(prefers-color-scheme: dark)")
+    const onChange = () => {
+      const next = resolveTheme("system", mq.matches)
+      setResolvedTheme(next)
+      applyResolvedTheme(next)
+    }
+    mq.addEventListener("change", onChange)
+    return () => mq.removeEventListener("change", onChange)
   }, [])
 
-  const toggle = useCallback(() => {
-    setTheme(prev => {
-      const next = prev === "light" ? "dark" : "light"
-      localStorage.setItem(STORAGE_KEY, next)
-      const stitch = document.documentElement.classList.contains("stitch-layout")
-      document.documentElement.classList.toggle("dark", next === "dark" && !stitch)
-      return next
-    })
+  const setThemePreference = useCallback((next: ThemePreference) => {
+    localStorage.setItem(THEME_STORAGE_KEY, next)
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    const resolved = resolveTheme(next, prefersDark)
+    setPreference(next)
+    setResolvedTheme(resolved)
+    applyResolvedTheme(resolved)
   }, [])
 
-  const value = useMemo(() => ({ theme, toggle }), [theme, toggle])
+  const value = useMemo(
+    () => ({ preference, resolvedTheme, setThemePreference }),
+    [preference, resolvedTheme, setThemePreference],
+  )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

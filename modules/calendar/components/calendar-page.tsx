@@ -149,8 +149,8 @@ export default function CalendarPage() {
         title="Calendar"
         description="Site visits, meetings, and deadlines"
         actions={
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="w-40">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="w-full sm:w-40">
               <Select value={filterCategory} onValueChange={setFilterCategory}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -167,7 +167,7 @@ export default function CalendarPage() {
               </Select>
             </div>
             {canFilterStaff && users.length > 0 && (
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select value={filterUser} onValueChange={setFilterUser}>
                   <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -180,7 +180,7 @@ export default function CalendarPage() {
               </div>
             )}
             {LEAVE_ENABLED && departments.length > 0 && (isAdmin || user) && (
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select value={filterDepartment} onValueChange={setFilterDepartment}>
                   <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Department" /></SelectTrigger>
                   <SelectContent>

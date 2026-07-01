@@ -226,9 +226,9 @@ function ClientsInner() {
         }
       />
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center">
         <SearchField value={search} onChange={setSearch} placeholder="Search clients…" />
-        <label className="flex items-center gap-2 text-xs text-t3 cursor-pointer select-none shrink-0">
+        <label className="flex min-h-[44px] items-center gap-2 text-xs text-t3 cursor-pointer select-none shrink-0">
           <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} className="h-4 w-4 accent-ac" />
           Show archived
         </label>
@@ -248,8 +248,8 @@ function ClientsInner() {
           />
         </DataPanel>
       ) : (
-        <DataPanel>
-          <table className={cn("w-full text-sm transition-opacity", refreshing && "opacity-60")}>
+        <DataPanel className={cn("overflow-x-auto overscroll-x-contain -mx-0 transition-opacity", refreshing && "opacity-60")}>
+          <table className={cn("w-full min-w-[640px] text-sm")}>
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
                 <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Company</th>

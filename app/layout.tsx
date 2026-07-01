@@ -6,6 +6,7 @@ import { UserProvider }   from "@/components/user-context"
 import { ThemeProvider }  from "@/components/theme-provider"
 import { SWRProvider }    from "@/components/swr-provider"
 import { AppShell }       from "@/components/app-shell"
+import { THEME_INIT_SCRIPT } from "@/shared/theme/theme-utils"
 
 export const metadata: Metadata = {
   title: { default: "Oryx Design", template: "%s · Oryx" },
@@ -26,11 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="stitch-layout" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function(){try{
-            document.documentElement.classList.remove("dark");
-          }catch(e){}})()
-        `}} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable}`} style={{ height: "100%", margin: 0 }}>
         <ThemeProvider>

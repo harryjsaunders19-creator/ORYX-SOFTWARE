@@ -62,7 +62,7 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
       {/* Day headers */}
       <div className="grid grid-cols-7 border-b border-bd">
         {DAY_HEADERS.map(d => (
-          <div key={d} className="px-2 py-2 text-center text-[11px] font-semibold text-t3 uppercase tracking-wider">
+          <div key={d} className="px-0.5 py-1.5 text-center text-[9px] font-semibold text-t3 uppercase tracking-wider sm:px-2 sm:py-2 sm:text-[11px]">
             {d}
           </div>
         ))}
@@ -82,7 +82,7 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
             <div
               key={dayKey}
               onClick={() => onDayClick(day)}
-              className="min-h-[100px] border-b border-r border-bd p-1.5 cursor-pointer hover:bg-pg/50 transition-colors"
+              className="min-h-[72px] border-b border-r border-bd p-1 cursor-pointer hover:bg-pg/50 transition-colors sm:min-h-[100px] sm:p-1.5"
               style={{
                 backgroundColor: isToday ? "var(--color-ac-bg)" : undefined,
                 borderColor: "var(--color-bd)",

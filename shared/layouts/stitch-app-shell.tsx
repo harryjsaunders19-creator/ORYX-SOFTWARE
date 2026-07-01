@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useUser } from "@/shared/providers/user-context"
 import { StitchSideNav } from "@/shared/layouts/stitch-side-nav"
 import { StitchTopBar } from "@/shared/layouts/stitch-top-bar"
-import { STITCH_SIDEBAR_W, STITCH_TOP_BAR_H, STITCH_CANVAS_BG } from "@/shared/branding/stitch-layout"
+import { MobileBottomNav } from "@/shared/layouts/mobile-bottom-nav"
 
 export function StitchAppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, mustChangePassword } = useUser()
@@ -13,11 +13,6 @@ export function StitchAppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   const isAuthPage = pathname === "/login" || pathname === "/set-password"
-
-  /* Keep light mode — stitch-layout class is on <html> from app/layout.tsx */
-  useEffect(() => {
-    document.documentElement.classList.remove("dark")
-  }, [])
 
   useEffect(() => {
     if (loading) return
@@ -27,25 +22,19 @@ export function StitchAppShell({ children }: { children: React.ReactNode }) {
 
   if (isAuthPage) return <>{children}</>
 
-  // Redirect handled in useEffect — avoid flashing app chrome after session resolves unauthenticated.
   if (!loading && !user) return null
   if (!loading && mustChangePassword && pathname !== "/set-password") return null
 
   return (
-    <div className="min-h-screen text-t1" style={{ backgroundColor: STITCH_CANVAS_BG }}>
+    <div className="min-h-screen overflow-x-hidden bg-pg text-t1">
       <StitchSideNav />
       <StitchTopBar />
+      <MobileBottomNav />
       <main
-        className="min-h-screen overflow-y-auto thin-scroll"
-        style={{
-          marginLeft: STITCH_SIDEBAR_W,
-          paddingTop: STITCH_TOP_BAR_H,
-          backgroundColor: STITCH_CANVAS_BG,
-        }}
+        className="min-h-screen overflow-x-hidden overflow-y-auto thin-scroll bg-pg pt-16 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] lg:ml-64 lg:pb-0"
       >
         {children}
       </main>
     </div>
   )
 }
-

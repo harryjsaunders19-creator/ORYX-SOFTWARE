@@ -113,7 +113,7 @@ function EmployeesInner() {
         ) : (
           <>
             <TableShell>
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <TableHead>
                   <Th className="w-12" />
                   <Th>Name</Th>

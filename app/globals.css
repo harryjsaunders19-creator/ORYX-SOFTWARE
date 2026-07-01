@@ -316,11 +316,9 @@ html.dark {
 }
 
 /*
- * Stitch ORYX OS — always light; matches Stitch exports (html class="light").
- * Overrides html.dark so system/user dark mode cannot tint the Stitch layout.
+ * Stitch ORYX OS — light canvas + dark sidebar by default; dark mode flips canvas.
  */
-html.stitch-layout,
-html.stitch-layout.dark {
+html.stitch-layout {
   --color-pg: #f8f9fa;
   --color-sr: #ffffff;
   --color-surface-low: #f3f4f5;
@@ -341,6 +339,33 @@ html.stitch-layout.dark {
   --stitch-sidebar-text: #ffffff;
   --stitch-sidebar-text-muted: #a1a1aa;
   --stitch-outline-variant: #c6c6cd;
+  --stitch-canvas-bg: #f8f9fa;
+  --stitch-top-bar-bg: #f8f9fa;
+  --stitch-search-bg: #f3f4f5;
+  color-scheme: light;
+}
+
+html.stitch-layout.dark {
+  --color-pg: #0c0d0e;
+  --color-sr: #18181b;
+  --color-surface-low: #27272a;
+  --color-bd: #3f3f46;
+  --color-bds: #52525b;
+  --color-t1: #f4f4f5;
+  --color-t2: #d4d4d8;
+  --color-t3: #a1a1aa;
+  --color-t4: #71717a;
+  --color-ac: #f4f4f5;
+  --color-ach: #ffffff;
+  --color-ac-bg: rgba(255, 255, 255, 0.08);
+  --color-sidebar: #1a1c1d;
+  --stitch-sidebar-bg: #1a1c1d;
+  --stitch-sidebar-active: #27272a;
+  --stitch-canvas-bg: #0c0d0e;
+  --stitch-top-bar-bg: #18181b;
+  --stitch-search-bg: #27272a;
+  --stitch-outline-variant: #3f3f46;
+  color-scheme: dark;
 }
 
 html.stitch-layout .oryx-page-title {
@@ -353,20 +378,24 @@ html.stitch-layout .oryx-page-title {
 html.stitch-layout .oryx-surface-card {
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
   border-radius: 0.75rem;
-  border-color: #c6c6cd;
+  border-color: var(--color-bd);
 }
 
-/* Stitch shell — dark sidebar + light canvas */
+html.stitch-layout.dark .oryx-surface-card {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.35);
+}
+
+/* Stitch shell — dark sidebar + theme-aware canvas */
 html.stitch-layout .stitch-sidebar,
 aside.stitch-sidebar {
-  background-color: #2e3132 !important;
+  background-color: var(--stitch-sidebar-bg) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
   color: #ffffff;
 }
 
 html.stitch-layout .stitch-top-bar {
-  background-color: #f8f9fa !important;
-  border-bottom: 1px solid #c6c6cd !important;
+  background-color: var(--stitch-top-bar-bg) !important;
+  border-bottom: 1px solid var(--color-bd) !important;
 }
 
 html.stitch-layout .stitch-nav-link {
@@ -380,7 +409,7 @@ html.stitch-layout .stitch-nav-link:hover {
 }
 
 html.stitch-layout .stitch-nav-link[data-active="true"] {
-  background-color: #373b3b !important;
+  background-color: var(--stitch-sidebar-active) !important;
   border-left-color: #ffffff !important;
   color: #ffffff !important;
   font-weight: 500;
@@ -405,5 +434,5 @@ html.stitch-layout .stitch-top-bar-title {
   line-height: 2rem;
   font-weight: 900;
   letter-spacing: -0.01em;
-  color: #191c1d;
+  color: var(--color-t1);
 }

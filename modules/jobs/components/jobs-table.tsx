@@ -418,7 +418,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
 
   const [holdClientIds, setHoldClientIds] = useState<Set<string>>(new Set())
   const [designers,    setDesigners]    = useState<string[]>([])
-  const isMobile       = useMediaQuery("(max-width: 767px)")
+  const isMobile       = useMediaQuery("(max-width: 1023px)")
   const searchParams = useSearchParams()
   const [search,       setSearch]       = useState(() => searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
