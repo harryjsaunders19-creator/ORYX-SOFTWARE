@@ -22,12 +22,12 @@ function StatCard({ icon: Icon, label, value, href }: {
   icon: React.ElementType; label: string; value: number; href?: string
 }) {
   const inner = (
-    <div className="group relative h-full overflow-hidden rounded-xl border border-bd bg-sr p-4 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-md sm:p-6">
-      <div className="mb-2 flex items-center justify-between sm:mb-3">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-t3 sm:text-xs">{label}</span>
-        <Icon className="h-4 w-4 text-ac sm:h-5 sm:w-5" />
+    <div className="group relative h-full overflow-hidden rounded-xl border border-bd bg-sr p-6 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-md max-md:p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wider text-t3">{label}</span>
+        <Icon className="h-5 w-5 text-ac" />
       </div>
-      <p className="text-2xl font-black tabular-nums leading-none tracking-tight text-t1 sm:text-[32px]">{value}</p>
+      <p className="text-[32px] font-black tabular-nums leading-none tracking-tight text-t1 max-md:text-2xl">{value}</p>
       <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-surface-low">
         <div className="h-full w-2/3 rounded-full bg-ac transition-all group-hover:w-3/4" />
       </div>
@@ -111,10 +111,10 @@ export function DashboardStats() {
   )
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-6">
 
       {/* ── KPI bento (12-col) ─────────────────────────────────── */}
-      <div className="grid grid-cols-12 gap-3 sm:gap-4">
+      <div className="grid grid-cols-12 gap-4">
         <div className="col-span-6 lg:col-span-3">
           <StatCard icon={Briefcase} label="Active Jobs" value={stats?.totalActiveJobs ?? 0} href="/jobs" />
         </div>
@@ -134,7 +134,7 @@ export function DashboardStats() {
       </div>
 
       {/* ── Needs Attention ───────────────────────────────────── */}
-      <div className="grid grid-cols-12 gap-3 sm:gap-4">
+      <div className="grid grid-cols-12 gap-4">
         <div className="col-span-12 lg:col-span-6 overflow-hidden rounded-xl border border-bd bg-sr shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
           <SectionHeader icon={AlertOctagon} accent="text-dn" title="Overdue" count={stats?.overdueCount} viewAllHref="/jobs?deadline=overdue" />
           {overdueJobs.length === 0 ? (
@@ -177,7 +177,7 @@ export function DashboardStats() {
       </div>
 
       {/* ── Upcoming ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-12 gap-3 sm:gap-4">
+      <div className="grid grid-cols-12 gap-4">
         <div className="col-span-12 lg:col-span-6 overflow-hidden rounded-xl border border-bd bg-sr shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
           <SectionHeader icon={MapPin} accent="text-[#3B82F6]" title="Upcoming Site Visits" count={siteVisits.length} viewAllHref="/calendar" viewAllLabel="View calendar →" />
           {siteVisits.length === 0 ? (

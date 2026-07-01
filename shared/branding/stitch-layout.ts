@@ -21,10 +21,6 @@ export const STITCH_COLORS = {
 
 export const STITCH_SIDEBAR_W = 256
 export const STITCH_TOP_BAR_H = 64
-export const MOBILE_BOTTOM_NAV_H = 64
-
-/** Sidebar visible at lg (1024px)+; bottom nav below that. */
-export const DESKTOP_SHELL_BREAKPOINT_PX = 1024
 
 export const STITCH_SIDEBAR_BG = STITCH_COLORS.sidebar
 export const STITCH_SIDEBAR_BORDER = STITCH_COLORS.sidebarBorder
@@ -36,4 +32,4 @@ export const STITCH_CANVAS_BG = STITCH_COLORS.background
 
 export const APP_SIDEBAR_W = STITCH_SIDEBAR_W
 export const APP_TOP_BAR_H = STITCH_TOP_BAR_H
-
+

@@ -45,8 +45,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           variant === "danger"    && "bg-dn text-sr hover:bg-dnh",
           size === "md"           && "h-9 px-4 text-sm",
           size === "sm"           && "h-[30px] px-3 text-xs",
-          size === "icon"         && "h-9 w-9 text-sm max-lg:min-h-11 max-lg:min-w-11 max-lg:h-11 max-lg:w-11",
-          size === "icon-sm"      && "h-[30px] w-[30px] text-xs max-lg:min-h-11 max-lg:min-w-11 max-lg:h-11 max-lg:w-11",
+          size === "icon"         && "h-9 w-9 text-sm",
+          size === "icon-sm"      && "h-[30px] w-[30px] text-xs",
           className,
         )}
         style={{

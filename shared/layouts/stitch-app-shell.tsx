@@ -1,16 +1,17 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useUser } from "@/shared/providers/user-context"
 import { StitchSideNav } from "@/shared/layouts/stitch-side-nav"
 import { StitchTopBar } from "@/shared/layouts/stitch-top-bar"
-import { MobileBottomNav } from "@/shared/layouts/mobile-bottom-nav"
+import { STITCH_TOP_BAR_H } from "@/shared/branding/stitch-layout"
 
 export function StitchAppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, mustChangePassword } = useUser()
   const pathname = usePathname()
   const router = useRouter()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isAuthPage = pathname === "/login" || pathname === "/set-password"
 
@@ -20,18 +21,34 @@ export function StitchAppShell({ children }: { children: React.ReactNode }) {
     if (user && mustChangePassword && pathname !== "/set-password") router.replace("/set-password")
   }, [user, loading, mustChangePassword, isAuthPage, pathname, router])
 
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!sidebarOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [sidebarOpen])
+
   if (isAuthPage) return <>{children}</>
 
   if (!loading && !user) return null
   if (!loading && mustChangePassword && pathname !== "/set-password") return null
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-pg text-t1">
-      <StitchSideNav />
-      <StitchTopBar />
-      <MobileBottomNav />
+    <div className="min-h-screen bg-pg text-t1">
+      <StitchSideNav
+        mobileOpen={sidebarOpen}
+        onMobileClose={() => setSidebarOpen(false)}
+      />
+      <StitchTopBar onMenuClick={() => setSidebarOpen(true)} />
       <main
-        className="min-h-screen overflow-x-hidden overflow-y-auto thin-scroll bg-pg pt-16 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] lg:ml-64 lg:pb-0"
+        className="min-h-screen overflow-y-auto thin-scroll bg-pg md:ml-64"
+        style={{ paddingTop: STITCH_TOP_BAR_H }}
       >
         {children}
       </main>

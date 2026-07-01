@@ -226,9 +226,9 @@ function ClientsInner() {
         }
       />
 
-      <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center">
+      <div className="flex items-center gap-3 mb-4 max-md:flex-col max-md:items-stretch">
         <SearchField value={search} onChange={setSearch} placeholder="Search clients…" />
-        <label className="flex min-h-[44px] items-center gap-2 text-xs text-t3 cursor-pointer select-none shrink-0">
+        <label className="flex items-center gap-2 text-xs text-t3 cursor-pointer select-none shrink-0 max-md:min-h-11">
           <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} className="h-4 w-4 accent-ac" />
           Show archived
         </label>

@@ -25,7 +25,7 @@ export function SettingsMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex h-11 w-11 items-center justify-center rounded p-2 text-t3 transition-colors hover:bg-surface-low hover:text-t1 data-[state=open]:bg-surface-low data-[state=open]:text-t1 lg:h-9 lg:w-9"
+          className="rounded p-2 text-t3 transition-colors hover:bg-surface-low hover:text-t1 data-[state=open]:bg-surface-low data-[state=open]:text-t1"
           aria-label="Settings"
         >
           <Settings className="h-5 w-5" />

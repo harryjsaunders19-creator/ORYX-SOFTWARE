@@ -1,11 +1,13 @@
 "use client"
 import { useCallback, useMemo, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Search, HelpCircle } from "lucide-react"
+import { Search, HelpCircle, Menu } from "lucide-react"
 import { NotificationsMenu } from "@/components/notifications-menu"
 import { UserProfileMenu } from "@/components/user-profile-menu"
 import { SettingsMenu } from "@/shared/layouts/settings-menu"
 import { MODULES } from "@/shared/auth/permissions"
+import { STITCH_TOP_BAR_H } from "@/shared/branding/stitch-layout"
+
 function routeContext(pathname: string): { section: string; trail: string } {
   if (pathname === "/") return { section: "ORYX OS", trail: "Dashboard Overview" }
 
@@ -25,7 +27,11 @@ function routeContext(pathname: string): { section: string; trail: string } {
   return { section: "ORYX OS", trail: "Oryx Design" }
 }
 
-export function StitchTopBar() {
+type Props = {
+  onMenuClick?: () => void
+}
+
+export function StitchTopBar({ onMenuClick }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const [query, setQuery] = useState("")
@@ -47,10 +53,19 @@ export function StitchTopBar() {
 
   return (
     <header
-      className="stitch-top-bar fixed top-0 right-0 z-40 flex items-center justify-between gap-3 border-b border-bd bg-pg px-4 sm:gap-6 sm:px-6 left-0 lg:left-64 h-16"
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      className="stitch-top-bar fixed top-0 right-0 z-40 flex h-16 items-center justify-between gap-6 border-b border-bd bg-pg px-6 max-md:gap-3 max-md:px-4 left-0 md:left-64"
     >
       <div className="flex min-w-0 items-center gap-3">
+        {onMenuClick && (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-t2 transition-colors hover:bg-surface-low hover:text-t1 md:hidden"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
         <h2 className="stitch-top-bar-title hidden shrink-0 uppercase sm:block">
           {section}
         </h2>
@@ -72,10 +87,10 @@ export function StitchTopBar() {
           />
         </form>
 
-        <div className="flex items-center gap-0.5 sm:gap-1">
+        <div className="flex items-center gap-1">
           <NotificationsMenu />
           <SettingsMenu />
-          <button type="button" className="hidden rounded p-2 text-t3 transition-colors hover:text-t1 sm:block min-h-11 min-w-11 items-center justify-center" aria-label="Help">
+          <button type="button" className="hidden rounded p-2 text-t3 transition-colors hover:text-t1 sm:block" aria-label="Help">
             <HelpCircle className="h-5 w-5" />
           </button>
         </div>
