@@ -20,11 +20,17 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // lib/services/**, lib/supabase/**, app/api/**, and scripts/** are all
-    // server-side modules. They use helper functions named useSupabase*() that
-    // are NOT React hooks — they're simply feature-flag readers. Disable the
-    // hook-call rule for all non-component server code.
-    files: ["lib/**", "scripts/**", "app/api/**"],
+    // Server-side modules use helper functions named useSupabase*() that are NOT
+    // React hooks — they're feature-flag readers. Disable the hook-call rule for
+    // service layers and API routes (not React components under modules/**).
+    files: [
+      "lib/**",
+      "scripts/**",
+      "app/api/**",
+      "modules/**/services/**",
+      "modules/**/enrichment.ts",
+      "shared/supabase/**",
+    ],
     rules: {
       "react-hooks/rules-of-hooks": "off",
     },

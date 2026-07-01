@@ -1,7 +1,6 @@
 /** Employee HR profile table access. */
 import { db } from "../connection"
 import { nowIso } from "../helpers"
-import { createId as nanoid } from "@paralleldrive/cuid2"
 
 export type {
   EmployeeProfileRow,

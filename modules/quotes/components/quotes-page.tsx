@@ -474,7 +474,7 @@ function QuoteTableRow({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSetSt
 const MemoQuoteTableRow = memo(QuoteTableRow)
 
 function QuotesInner() {
-  const { user, userName } = useUser()
+  const { userName } = useUser()
   const { toast }    = useToast()
   const searchParams = useSearchParams()
 

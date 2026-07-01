@@ -1,7 +1,6 @@
 /** LeaveRequest table access. */
 import { db } from "../connection"
 import { nowIso } from "../helpers"
-import { createId as nanoid } from "@paralleldrive/cuid2"
 import type { LeaveRequestStatus } from "@/lib/leave/constants"
 
 export type {

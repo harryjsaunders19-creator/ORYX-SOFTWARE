@@ -1,5 +1,6 @@
 "use client"
 
+import { createElement } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/shared/utils"
@@ -19,7 +20,6 @@ type NavLinkProps = {
 }
 
 function NavLink({ item, active, onNavigate }: NavLinkProps) {
-  const Icon = navIcon(item.key)
   return (
     <Link
       href={item.href}
@@ -30,7 +30,10 @@ function NavLink({ item, active, onNavigate }: NavLinkProps) {
         "focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-inset -ml-px pl-[15px]",
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" strokeWidth={active ? 2.25 : 2} />
+      {createElement(navIcon(item.key), {
+        className: "h-5 w-5 shrink-0",
+        strokeWidth: active ? 2.25 : 2,
+      })}
       {item.label}
     </Link>
   )

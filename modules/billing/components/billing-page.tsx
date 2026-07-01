@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { Clock, ArrowUpRight, Loader2, ClipboardCheck, Download, FileSpreadsheet } from "lucide-react"
@@ -249,7 +249,7 @@ function BillingPageInner() {
   const [exporting, setExporting] = useState(false)
   const [loadError, setLoadError] = useState(false)
 
-  const load = (v: View) => {
+  const load = useCallback((v: View) => {
     setLoadError(false)
     if (v === "history") {
       setBatches(null)
@@ -292,9 +292,9 @@ function BillingPageInner() {
         })
       })
       .catch(() => { setItems([]); setLoadError(true); toast("Failed to load billing queue", "error") })
-  }
+  }, [toast])
 
-  useEffect(() => { load(view) }, [view])
+  useEffect(() => { load(view) }, [view, load])
 
   const toggle = (id: string) => setSelected(prev => {
     const next = new Set(prev)

@@ -1,6 +1,7 @@
 "use client"
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useParams } from "next/navigation"
 import { format } from "date-fns"
 import {
@@ -36,6 +37,7 @@ type Tab = "personal" | "employment" | "leave" | "skills" | "documents" | "notes
 
 function ProfilePhoto({ userId, name, className }: { userId: string; name: string; className?: string }) {
   const [failed, setFailed] = useState(false)
+  const [photoCacheBust] = useState(() => Date.now())
   const initials = name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase()).join("")
   if (failed) {
     return (
@@ -45,9 +47,12 @@ function ProfilePhoto({ userId, name, className }: { userId: string; name: strin
     )
   }
   return (
-    <img
-      src={`/api/employees/${userId}/photo?t=${Date.now()}`}
+    <Image
+      src={`/api/employees/${userId}/photo?t=${photoCacheBust}`}
       alt=""
+      width={80}
+      height={80}
+      unoptimized
       className={cn("rounded-full border-2 border-bd object-cover bg-surface-low", className)}
       onError={() => setFailed(true)}
     />

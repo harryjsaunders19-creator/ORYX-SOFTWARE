@@ -1,6 +1,7 @@
 "use client"
 import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { format } from "date-fns"
 import { ChevronLeft, ChevronRight, UsersRound } from "lucide-react"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
@@ -39,9 +40,12 @@ function EmployeeAvatar({ userId, name }: { userId: string; name: string }) {
     )
   }
   return (
-    <img
+    <Image
       src={`/api/employees/${userId}/photo`}
       alt=""
+      width={36}
+      height={36}
+      unoptimized
       className="size-9 shrink-0 rounded-full border border-bd object-cover bg-surface-low"
       onError={() => setFailed(true)}
     />

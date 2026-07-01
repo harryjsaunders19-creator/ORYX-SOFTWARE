@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback, useRef, memo, useMemo } from "react"
+import { useState, useEffect, useCallback, memo, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format }    from "date-fns"
 import {
@@ -477,7 +477,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
 
   const loading = isLoading && !data
   const refreshing = isValidating && !!data
-  const refresh = useCallback(() => mutate(), [mutate])
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return

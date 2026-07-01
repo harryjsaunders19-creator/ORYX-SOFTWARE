@@ -1,7 +1,6 @@
 /** User directory table access. */
 import { db } from "../connection"
 import { nowIso } from "../helpers"
-import { createId as nanoid } from "@paralleldrive/cuid2"
 
 export type { Role, UserRow, CreateUserData, UpdateUserData, PublicUserRow } from "../user-types"
 export { withoutPassword } from "../user-types"

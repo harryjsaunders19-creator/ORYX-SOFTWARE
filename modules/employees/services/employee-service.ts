@@ -7,9 +7,7 @@ import type {
   EmployeeNoteRow,
   EmployeeActivityRow,
   UpdateEmployeeProfileData,
-  EmploymentType,
   EmploymentStatus,
-  DocumentCategory,
   SkillCategory,
 } from "@/modules/employees/types/employee-types"
 import {
@@ -118,10 +116,6 @@ function redactProfile(profile: EmployeeProfileRow, access: EmployeeAccess): Emp
 async function fetchLeaveEvents(userId: string) {
   const { leaveService } = await import("@/modules/leave")
   return leaveService.getLeaveSummaryForUser(userId)
-}
-
-function enrichActivityFromIdentityLog(userId: string, activity: EmployeeActivityRow[]): EmployeeActivityRow[] {
-  return activity
 }
 
 async function mirrorProfile(row: EmployeeProfileRow | null): Promise<void> {
