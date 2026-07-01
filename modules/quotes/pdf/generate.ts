@@ -166,10 +166,7 @@ export async function buildQuotePdfBuffer(id: string): Promise<{ pdfBytes: Uint8
   if (quote.contactName) drawText(truncateToWidth(`Contact - ${quote.contactName}`, fontRegular, 10, 250), 45.5, custY, { size: 10 })
 
   drawSectionBar("SITE", 617.69, 186.5)
-  let siteY = 591.59
-  drawText(truncateToWidth(quote.address, fontRegular, 10, 250), 45.5, siteY, { size: 10 }); siteY -= 13.6
-  const sitePreview = quote.description.split("\n")[0]
-  drawText(truncateToWidth(sitePreview, fontRegular, 10, 250), 45.5, siteY, { size: 10 })
+  drawText(truncateToWidth(quote.address, fontRegular, 10, 250), 45.5, 591.59, { size: 10 })
 
   const colDescX = MARGIN_L, colVatDivider = 415.1, colAmountDivider = 471.7
   const descColWidth = colVatDivider - colDescX - 4
