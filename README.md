@@ -27,30 +27,54 @@ npm run test:e2e
 
 Default login for tests: `admin@test.com` / `admin123`
 
-## Supabase migration (in progress)
+## Supabase (production on Vercel)
 
-The app still uses **SQLite** (`lib/db/`). Supabase client files live in `lib/supabase/`.
+The app supports **SQLite locally** and **Supabase Postgres in production**. Module services dual-write: SQLite first, then mirror to Supabase when configured.
 
-1. Create a project at [supabase.com](https://supabase.com)
-2. Copy `.env.example` → `.env.local` and fill in the three Supabase vars
-3. Restart `npm run dev`
-4. Log in as admin and check: `GET /api/supabase/status` (or visit while logged in)
-5. Run SQL migration: paste `supabase/migrations/001_clients.sql` into Supabase SQL Editor
-6. Sync existing clients: `npm run supabase:sync-clients`
-7. Enable client module: set `SUPABASE_CLIENTS=true` in `.env.local` and restart
-8. Jobs: run `supabase/migrations/002_jobs.sql`, then `npm run supabase:sync-jobs`, set `SUPABASE_JOBS=true`
-9. Quotes: run `supabase/migrations/003_quotes.sql`, then `npm run supabase:sync-quotes`, set `SUPABASE_QUOTES=true`
-10. Status history: run `004_status_history.sql`, `npm run supabase:sync-status-history`, set `SUPABASE_STATUS_HISTORY=true`
-11. Client holds: run `005_client_holds.sql`, `npm run supabase:sync-holds`, set `SUPABASE_HOLDS=true`
-12. Billing: run `006_billing.sql`, `npm run supabase:sync-billing`, set `SUPABASE_BILLING=true`
-13. Calendar: run `007_calendar.sql`, `npm run supabase:sync-calendar`, set `SUPABASE_CALENDAR=true`
-14. Users: run `008_users.sql`, `npm run supabase:sync-users`, set `SUPABASE_USERS=true` (keeps bcrypt + cookie login — not Supabase Auth)
-15. Identity log: run `009_identity_switch_logs.sql`, `npm run supabase:sync-identity-log`, set `SUPABASE_IDENTITY_LOG=true`
-16. Backups: run `010_backups.sql`, `npm run supabase:sync-backups`, set `SUPABASE_BACKUPS=true` (backup files stay on disk)
+### Quick setup (Vercel)
 
-Dashboard stats and global export read from Supabase automatically when the relevant module flags are enabled.
+1. Create a [Supabase](https://supabase.com) project
+2. In Supabase SQL Editor, run **`supabase/setup-vercel.sql`** then **`supabase/setup-vercel-part2.sql`**
+3. Add to Vercel environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `AUTH_SECRET`, `BACKUP_DOWNLOAD_SECRET`, `COOKIE_SECURE=true`
+4. From a machine with your SQLite data: `npm run supabase:sync-all`
+5. Redeploy — modules use Supabase automatically when the service role key is set
+6. Admin → **System Health → Supabase integration** (or `GET /api/supabase/status`)
 
-SQLite remains the live database for jobs, quotes, etc. until each module is migrated.
+### Module flags
+
+When `SUPABASE_SERVICE_ROLE_KEY` is set, **all modules default to Supabase**. Disable one with `SUPABASE_<MODULE>=false`. Omit the service role key entirely for SQLite-only local dev.
+
+| Flag | Module |
+|------|--------|
+| `SUPABASE_USERS` | Login accounts |
+| `SUPABASE_CLIENTS` | Clients |
+| `SUPABASE_JOBS` | Jobs |
+| `SUPABASE_STATUS_HISTORY` | Job audit trail |
+| `SUPABASE_QUOTES` | Quotes |
+| `SUPABASE_HOLDS` | Client holds |
+| `SUPABASE_BILLING` | Billing queue |
+| `SUPABASE_CALENDAR` | Calendar |
+| `SUPABASE_IDENTITY_LOG` | Admin switch-user audit |
+| `SUPABASE_BACKUPS` | Backup metadata |
+| `SUPABASE_EMPLOYEES` | HR profiles |
+| `SUPABASE_LEAVE` | Leave requests |
+
+### Incremental migration (existing SQLite data)
+
+```bash
+npm run supabase:check          # env + connectivity
+npm run supabase:verify-all     # compare SQLite vs Supabase counts
+npm run supabase:sync-all       # copy all modules to Supabase
+```
+
+Individual scripts: `supabase:sync-clients`, `supabase:sync-jobs`, … see `package.json`.
+
+Migrations live in `supabase/migrations/` (001–016). Run in order if not using the setup SQL bundles.
+
 
 ## Database
 

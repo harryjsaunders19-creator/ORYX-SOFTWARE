@@ -30,6 +30,16 @@ async function deleteAll(table: string): Promise<void> {
 
 /** FK-safe order: children before parents. Users and event_categories are kept. */
 const WIPE_TABLES = [
+  "leave_calendar_links",
+  "leave_requests",
+  "employee_activity",
+  "employee_notes",
+  "employee_documents",
+  "employee_skills",
+  "employee_profiles",
+  "backup_audit_logs",
+  "backup_jobs",
+  "identity_switch_logs",
   "billing_export_snapshots",
   "billing_handoffs",
   "billing_export_batches",

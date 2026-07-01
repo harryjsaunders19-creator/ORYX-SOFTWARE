@@ -33,4 +33,28 @@ export const supabaseStatusHistoryRepo = {
     const { error } = await table().delete().eq("job_id", jobId)
     if (error) throw error
   },
+
+  async recentForExport(
+    limit = 2000,
+  ): Promise<Array<StatusHistoryRow & { drawingNumber: string | null }>> {
+    const { data, error } = await table()
+      .select("id, job_id, from_status, to_status, changed_by, changed_at, note, jobs(drawing_number)")
+      .order("changed_at", { ascending: false })
+      .limit(limit)
+    if (error) throw error
+    return (data ?? []).map(row => {
+      const raw = row.jobs as { drawing_number: string | null } | { drawing_number: string | null }[] | null
+      const job = Array.isArray(raw) ? raw[0] : raw
+      return {
+        id: row.id,
+        jobId: row.job_id,
+        fromStatus: row.from_status,
+        toStatus: row.to_status,
+        changedBy: row.changed_by,
+        changedAt: row.changed_at,
+        note: row.note,
+        drawingNumber: job?.drawing_number ?? null,
+      }
+    })
+  },
 }

@@ -18,6 +18,9 @@
 --   SUPABASE_SERVICE_ROLE_KEY=<your service role key>
 --
 -- Then redeploy Vercel. All data will now persist permanently.
+--
+-- ALSO run supabase/setup-vercel-part2.sql (migrations 009–016: identity log,
+-- soft delete, indexes, employees, leave).
 -- =============================================================================
 
 -- Shared trigger function for updated_at columns

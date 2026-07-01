@@ -41,3 +41,10 @@ export {
 } from "./archived-filter"
 export { ensureSequencesSeeded, ensureBatchSequenceSeeded } from "./seed-sequences"
 export { resetSupabaseOperationalData } from "./reset-all-data"
+export {
+  SUPABASE_MIGRATION_MODULES,
+  SUPABASE_INFRA_MIGRATIONS,
+  SUPABASE_GO_LIVE_STEPS,
+} from "./migration-catalog"
+export { buildSupabaseStatusReport } from "./status-report"
+export type { SupabaseStatusReport, ModuleStatusReport } from "./status-report"

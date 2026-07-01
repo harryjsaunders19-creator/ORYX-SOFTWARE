@@ -20,10 +20,9 @@ import { calendarService }       from "@/lib/services/calendar-service"
 import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { quoteService }          from "@/lib/services/quote-service"
 import { userService }           from "@/lib/services/user-service"
-import { db }                    from "@/lib/db"
+import { historyService }        from "@/lib/services/history-service"
 import { getJobStatus, getWorkItemType } from "@/lib/constants"
 import { format } from "date-fns"
-import type { StatusHistoryRow } from "@/lib/db/history-types"
 
 const SITE_VISIT_ID    = "cat_site_visit"
 const TEAMS_MEETING_ID = "cat_teams_meeting"
@@ -217,16 +216,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   }
 
   // ── 6. Status History ───────────────────────────────────────────────────────
-  // Direct SQLite query — joins to Job for drawing number, newest-first, capped at 2,000.
-  type HistoryExportRow = StatusHistoryRow & { drawingNumber: string | null }
-  const historyRows = db.prepare(`
-    SELECT sh.id, sh.jobId, j.drawingNumber, sh.fromStatus, sh.toStatus,
-           sh.changedBy, sh.changedAt, sh.note
-    FROM   StatusHistory sh
-    LEFT JOIN Job j ON sh.jobId = j.id
-    ORDER BY sh.changedAt DESC
-    LIMIT  2000
-  `).all() as HistoryExportRow[]
+  const historyRows = await historyService.recentForExport(2000)
 
   const histSheet = wb.addWorksheet("Status History")
   histSheet.columns = [

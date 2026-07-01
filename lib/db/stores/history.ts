@@ -11,6 +11,17 @@ export const historyDb = {
   forJob(jobId: string): StatusHistoryRow[] {
     return db.prepare("SELECT * FROM StatusHistory WHERE jobId = ? ORDER BY changedAt ASC").all(jobId) as StatusHistoryRow[]
   },
+
+  recentForExport(limit = 2000): Array<StatusHistoryRow & { drawingNumber: string | null }> {
+    return db.prepare(`
+      SELECT sh.id, sh.jobId, j.drawingNumber, sh.fromStatus, sh.toStatus,
+             sh.changedBy, sh.changedAt, sh.note
+      FROM   StatusHistory sh
+      LEFT JOIN Job j ON sh.jobId = j.id
+      ORDER BY sh.changedAt DESC
+      LIMIT  ?
+    `).all(limit) as Array<StatusHistoryRow & { drawingNumber: string | null }>
+  },
   addNote(jobId: string, note: string, changedBy: string): StatusHistoryRow {
     const job = jobDb.findUnique(jobId); const id = nanoid(); const now = nowIso()
     db.prepare("INSERT INTO StatusHistory (id,jobId,fromStatus,toStatus,changedBy,changedAt,note) VALUES (?,?,?,?,?,?,?)")

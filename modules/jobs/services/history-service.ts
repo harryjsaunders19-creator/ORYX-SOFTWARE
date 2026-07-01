@@ -32,4 +32,11 @@ export const historyService = {
   async deleteForJob(jobId: string): Promise<void> {
     if (useSupabaseStatusHistory()) await supabaseStatusHistoryRepo.deleteForJob(jobId)
   },
+
+  async recentForExport(
+    limit = 2000,
+  ): Promise<Array<StatusHistoryRow & { drawingNumber: string | null }>> {
+    if (!useSupabaseStatusHistory()) return historyDb.recentForExport(limit)
+    return supabaseStatusHistoryRepo.recentForExport(limit)
+  },
 }

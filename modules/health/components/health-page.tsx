@@ -11,6 +11,7 @@ import {
 import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, surfaceCard } from "@/shared/layouts/page-layout"
 import { useToast } from "@/shared/ui/toast"
+import { SupabaseStatusSection } from "@/modules/health/components/supabase-status-section"
 import { cn } from "@/shared/utils/utils"
 
 interface Check { ok: boolean; message: string; detail?: unknown }
@@ -135,6 +136,7 @@ function HealthPageInner() {
       )}
 
       <ExportDataSection />
+      <SupabaseStatusSection />
       <ResetDataSection />
     </PageShell>
   )
