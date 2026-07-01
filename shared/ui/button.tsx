@@ -12,7 +12,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 // Inline style maps for each variant — guaranteed to render regardless of Tailwind output
 const VARIANT_STYLES: Record<string, React.CSSProperties> = {
-  primary:   { backgroundColor: "var(--color-ac)", color: "#ffffff" },
+  primary:   { backgroundColor: "var(--color-ac)", color: "var(--color-on-ac)" },
   secondary: { backgroundColor: "var(--color-sr)", color: "var(--color-t1)", border: "1px solid var(--color-bd)" },
   outline:   { backgroundColor: "transparent", color: "var(--color-t2)", border: "1px solid var(--color-bd)" },
   ghost:     { backgroundColor: "transparent", color: "var(--color-t3)" },
@@ -38,7 +38,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           "select-none whitespace-nowrap cursor-pointer",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac focus-visible:ring-offset-1",
           "disabled:opacity-40 disabled:cursor-not-allowed",
-          variant === "primary"   && "bg-ac text-sr hover:bg-ach",
+          variant === "primary"   && "bg-ac text-on-ac hover:bg-ach",
           variant === "secondary" && "bg-sr border border-bd text-t1 hover:bg-pg",
           variant === "outline"   && "border border-bd text-t2 hover:text-t1 hover:border-bds bg-transparent",
           variant === "ghost"     && "text-t3 hover:text-t2 hover:bg-pg",

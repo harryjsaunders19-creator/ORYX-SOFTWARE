@@ -657,7 +657,7 @@ function QuotesInner() {
         <div className="flex items-center gap-1 flex-wrap">
           <button onClick={() => setStatusFilter("ALL")}
             className={cn("text-[11px] px-2 py-0.5 rounded border font-medium",
-              statusFilter === "ALL" ? "bg-ac text-sr border-ac" : "border-bd text-t3 hover:text-t2")}>
+              statusFilter === "ALL" ? "bg-ac text-on-ac border-ac" : "border-bd text-t3 hover:text-t2")}>
             All
           </button>
           {QUOTE_STATUSES.map(s => (

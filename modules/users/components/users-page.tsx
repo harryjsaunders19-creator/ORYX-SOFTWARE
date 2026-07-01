@@ -26,7 +26,7 @@ function RoleBadge({ role }: { role: string }) {
   return (
     <span className={cn(
       "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
-      role === "ADMIN" ? "bg-ac-bg text-ach" : "bg-t1/[0.06] text-t2",
+      role === "ADMIN" ? "bg-ac-bg text-ac" : "bg-t1/[0.06] text-t2",
     )}>
       {role === "ADMIN" && <ShieldCheck className="h-3 w-3" />}
       {role === "ADMIN" ? "Admin" : "Engineer"}

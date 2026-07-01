@@ -63,6 +63,7 @@
   --color-ac:     #111827;
   --color-ach:    #000000;
   --color-ac-bg:  #f3f4f6;
+  --color-on-ac:  #ffffff;
 
   /* Secondary accent — slate teal (used sparingly: one category of meaning) */
   --color-ac2:    #0E7A6E;
@@ -193,6 +194,7 @@ html.dark {
   --color-ac:     #6C63FF;
   --color-ach:    #8B83FF;
   --color-ac-bg:  rgba(108, 99, 255, 0.15);
+  --color-on-ac:  #ffffff;
   --color-ac2:    #2DD4BF;
   --color-ac2h:   #5EEAD4;
   --color-ac2-bg: rgba(45, 212, 191, 0.12);
@@ -333,6 +335,7 @@ html.stitch-layout {
   --color-ac: #111827;
   --color-ach: #000000;
   --color-ac-bg: #f3f4f6;
+  --color-on-ac: #ffffff;
   --color-sidebar: #2e3132;
   --color-nav-hover: rgba(255, 255, 255, 0.06);
   --color-nav-active: #373b3b;
@@ -362,9 +365,13 @@ html.stitch-layout.dark {
   --color-ac: #f4f4f5;
   --color-ach: #ffffff;
   --color-ac-bg: rgba(255, 255, 255, 0.08);
-  --color-sidebar: #1a1c1d;
-  --stitch-sidebar-bg: #1a1c1d;
-  --stitch-sidebar-active: #27272a;
+  --color-on-ac: #111827;
+  /* Sidebar stays fixed in both themes — only the main canvas darkens */
+  --color-sidebar: #2e3132;
+  --color-nav-hover: rgba(255, 255, 255, 0.06);
+  --color-nav-active: #373b3b;
+  --stitch-sidebar-bg: #2e3132;
+  --stitch-sidebar-active: #373b3b;
   --stitch-canvas-bg: #0c0d0e;
   --stitch-top-bar-bg: #18181b;
   --stitch-search-bg: #27272a;

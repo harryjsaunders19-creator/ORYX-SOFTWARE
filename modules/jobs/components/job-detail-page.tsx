@@ -267,7 +267,7 @@ export default function JobDetailPage() {
             <WorkItemTypeBadge itemType={job.itemType ?? "DESIGN"} />
             <StatusBadge status={job.status} />
             {isRevision && (
-              <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-ac-bg text-ach">
+              <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-ac-bg text-ac">
                 Rev {job.revisionLetter}
               </span>
             )}

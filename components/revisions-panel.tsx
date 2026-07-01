@@ -172,7 +172,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
                       <span className="flex items-center gap-1.5">
                         {rev.revisionLetter}
                         {isLatest && (
-                          <span className="bg-ac-bg text-ach rounded-full px-2 text-[10px] font-medium leading-tight">
+                          <span className="bg-ac-bg text-ac rounded-full px-2 text-[10px] font-medium leading-tight">
                             Latest
                           </span>
                         )}

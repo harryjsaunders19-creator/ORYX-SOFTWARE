@@ -2,7 +2,7 @@ import { cn } from "@/shared/utils"
 
 const PAYMENT_BADGE: Record<string, string> = {
   DRAFT: "bg-t1/[0.06] text-t2",
-  SENT:  "bg-ac-bg text-ach",
+  SENT:  "bg-ac-bg text-ac",
   PAID:  "bg-ok-bg text-ok-tx",
 }
 

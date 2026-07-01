@@ -155,7 +155,7 @@ const JobMobileCard = memo(function JobMobileCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             {job.revisionLetter && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-ac-bg text-ach shrink-0">
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-ac-bg text-ac shrink-0">
                 Rev {job.revisionLetter}
               </span>
             )}
@@ -241,7 +241,7 @@ const JobTableRow = memo(
         <td className="px-4 py-3.5 whitespace-nowrap">
           <span className="flex items-center gap-1.5">
             {job.revisionLetter && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-ac-bg text-ach shrink-0">
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-ac-bg text-ac shrink-0">
                 Rev {job.revisionLetter}
               </span>
             )}
@@ -396,12 +396,12 @@ const JobTableRow = memo(
 
 function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full border border-ac/30 bg-ac-bg text-[11px] font-medium text-ach">
+    <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full border border-ac/30 bg-ac-bg text-[11px] font-medium text-ac">
       {label}
       <button
         type="button"
         onClick={onRemove}
-        className="rounded-full p-0.5 hover:bg-ac/15 text-ach"
+        className="rounded-full p-0.5 hover:bg-ac/15 text-ac"
         aria-label={`Remove ${label} filter`}
       >
         <X className="h-3 w-3" />
@@ -709,7 +709,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           <SlidersHorizontal className="h-3.5 w-3.5" />
           Filter
           {activeFilterCount > 0 && (
-            <span className="ml-1 bg-ac text-sr rounded-full h-4 w-4 text-[10px] flex items-center justify-center font-bold shrink-0">{activeFilterCount}</span>
+            <span className="ml-1 bg-ac text-on-ac rounded-full h-4 w-4 text-[10px] flex items-center justify-center font-bold shrink-0">{activeFilterCount}</span>
           )}
         </Button>
 
@@ -831,7 +831,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           <span className="text-xs font-medium text-t2">Type</span>
           <div className="flex items-center gap-1 flex-wrap">
             <button onClick={() => { setItemTypeFilter("ALL"); setPage(1) }}
-              className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === "ALL" ? "bg-ac text-sr" : "border border-bd text-t3 hover:text-t2"}`}>
+              className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === "ALL" ? "bg-ac text-on-ac" : "border border-bd text-t3 hover:text-t2"}`}>
               All
             </button>
             {WORK_ITEM_TYPES.map(t => (
@@ -855,7 +855,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               <button key={v} onClick={() => { setDeadlineFilter(v); setPage(1) }}
                 className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${
                   deadlineFilter === v
-                    ? (v === "ALL" ? "bg-ac text-sr" : (cls ?? "bg-ac text-sr"))
+                    ? (v === "ALL" ? "bg-ac text-on-ac" : (cls ?? "bg-ac text-on-ac"))
                     : "border border-bd text-t3 hover:text-t2"
                 }`}>
                 {l}
