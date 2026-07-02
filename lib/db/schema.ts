@@ -594,6 +594,26 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_leavecal_event ON LeaveCalendarLink(calendarEventId);
+
+  -- Shared company software/service credentials (not personal user passwords).
+  CREATE TABLE IF NOT EXISTS PasswordVaultEntry (
+    id                TEXT PRIMARY KEY,
+    serviceName       TEXT NOT NULL,
+    serviceNameLower  TEXT NOT NULL,
+    loginUrl          TEXT,
+    username          TEXT,
+    usernameLower     TEXT,
+    passwordEnc       TEXT NOT NULL,
+    category          TEXT,
+    categoryLower     TEXT,
+    notes             TEXT,
+    extraJson         TEXT,
+    createdAt         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updatedAt         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pvault_service ON PasswordVaultEntry(serviceNameLower);
+  CREATE INDEX IF NOT EXISTS idx_pvault_category ON PasswordVaultEntry(categoryLower);
 `)
 
 // ── Seed calendar categories ────────────────────────────────────────
