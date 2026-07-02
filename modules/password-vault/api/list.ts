@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const search = sp.get("search") ?? ""
     const sort = parseSortOrder(sp.get("sort"))
 
-    const entries = passwordVaultService.findMany({ search, sort })
+    const entries = await passwordVaultService.findMany({ search, sort })
     return listResponse({ entries, total: entries.length })
   } catch (err) {
     console.error("[GET /api/password-vault]", err)
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: parsed.error }, { status: 422 })
     }
 
-    const entry = passwordVaultService.create(parsed.data)
+    const entry = await passwordVaultService.create(parsed.data)
     return NextResponse.json({ entry }, { status: 201 })
   } catch (err) {
     console.error("[POST /api/password-vault]", err)

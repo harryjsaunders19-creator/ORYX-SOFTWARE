@@ -149,6 +149,16 @@ export const SUPABASE_MIGRATION_MODULES: SupabaseModuleSpec[] = [
     tables: ["leave_requests", "leave_calendar_links"],
     dependsOn: ["users", "calendar"],
   },
+  {
+    id: "passwordVault",
+    label: "Account Passwords",
+    flagKey: "passwordVault",
+    envVar: "SUPABASE_PASSWORD_VAULT",
+    migration: "017_password_vault.sql",
+    syncScript: "npm run supabase:sync-password-vault",
+    verifyScript: "npm run supabase:verify-password-vault",
+    tables: ["password_vault_entries"],
+  },
 ]
 
 /** Infrastructure migrations applied after core tables. */

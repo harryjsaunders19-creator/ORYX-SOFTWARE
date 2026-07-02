@@ -13,14 +13,16 @@
 --   SUPABASE_CALENDAR=true
 --   SUPABASE_EMPLOYEES=true
 --   SUPABASE_LEAVE=true
+--   SUPABASE_PASSWORD_VAULT=true
+--   VAULT_ENCRYPTION_KEY=<random 32+ char secret for password encryption>
 --   NEXT_PUBLIC_SUPABASE_URL=<your supabase project url>
 --   NEXT_PUBLIC_SUPABASE_ANON_KEY=<your anon key>
 --   SUPABASE_SERVICE_ROLE_KEY=<your service role key>
 --
 -- Then redeploy Vercel. All data will now persist permanently.
 --
--- ALSO run supabase/setup-vercel-part2.sql (migrations 009–016: identity log,
--- soft delete, indexes, employees, leave).
+-- ALSO run supabase/setup-vercel-part2.sql (migrations 009–017: identity log,
+-- soft delete, indexes, employees, leave, password vault).
 -- =============================================================================
 
 -- Shared trigger function for updated_at columns

@@ -9,5 +9,6 @@ export type {
   UpdatePasswordVaultInput,
 } from "./types"
 export { encryptVaultSecret, decryptVaultSecret } from "./crypto/vault-crypto"
+export { supabasePasswordVaultRepo } from "./supabase/repository"
 export { parseCreateBody, parseUpdateBody, parseSortOrder } from "./api/validation"
 export { default as PasswordVaultPage } from "./components/password-vault-page"

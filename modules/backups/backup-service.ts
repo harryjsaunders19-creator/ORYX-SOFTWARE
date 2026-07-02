@@ -35,7 +35,7 @@ import { backupRecordService } from "./services/backup-record-service"
 export const BACKUPS_DIR =
   process.env.BACKUPS_DIR ??
   (process.env.VERCEL ? "/tmp/backups" : path.join(/*turbopackIgnore: true*/ process.cwd(), "backups"))
-export const SCHEMA_VERSION = "2026.06"   // bump manually whenever a structural change would matter to a future restore
+export const SCHEMA_VERSION = "2026.07"   // bump manually whenever a structural change would matter to a future restore
 export const DEFAULT_RETENTION_COUNT = 30
 
 function yieldToEventLoop(): Promise<void> {

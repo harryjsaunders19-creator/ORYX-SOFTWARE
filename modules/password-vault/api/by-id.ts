@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   if (auth instanceof NextResponse) return auth
 
   const { id } = await params
-  const entry = passwordVaultService.findUnique(id)
+  const entry = await passwordVaultService.findUnique(id)
   if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 })
   return NextResponse.json({ entry })
 }
@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
-    const existing = passwordVaultService.findUnique(id)
+    const existing = await passwordVaultService.findUnique(id)
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     let body: Record<string, unknown>
@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       return NextResponse.json({ error: parsed.error }, { status: 422 })
     }
 
-    const entry = passwordVaultService.update(id, parsed.data)
+    const entry = await passwordVaultService.update(id, parsed.data)
     if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ entry })
   } catch (err) {
@@ -48,7 +48,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
-    const ok = passwordVaultService.delete(id)
+    const ok = await passwordVaultService.delete(id)
     if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ deleted: true })
   } catch (err) {

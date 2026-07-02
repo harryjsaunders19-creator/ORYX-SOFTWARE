@@ -32,6 +32,7 @@ async function deleteAll(table: string): Promise<void> {
 const WIPE_TABLES = [
   "leave_calendar_links",
   "leave_requests",
+  "password_vault_entries",
   "employee_activity",
   "employee_notes",
   "employee_documents",

@@ -35,6 +35,7 @@ export function supabaseModuleFlags() {
     backups:        useSupabaseBackups(),
     employees:      useSupabaseEmployees(),
     leave:          useSupabaseLeave(),
+    passwordVault:  useSupabasePasswordVault(),
   }
 }
 
@@ -84,4 +85,8 @@ export function useSupabaseEmployees(): boolean {
 
 export function useSupabaseLeave(): boolean {
   return flag("SUPABASE_LEAVE")
+}
+
+export function useSupabasePasswordVault(): boolean {
+  return flag("SUPABASE_PASSWORD_VAULT")
 }

@@ -25,6 +25,7 @@ export {
   useSupabaseBackups,
   useSupabaseEmployees,
   useSupabaseLeave,
+  useSupabasePasswordVault,
   supabaseModuleFlags,
 } from "./feature-flags"
 export {

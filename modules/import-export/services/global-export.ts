@@ -12,6 +12,7 @@
  *   5. Calendar          — site visits + meetings (next 90 days)
  *   6. Status History    — last 2,000 job status / note events
  *   7. Users             — staff accounts (no passwords)
+ *   8. Account Passwords — shared business credentials (decrypted for export)
  */
 import ExcelJS from "exceljs"
 import { jobService }            from "@/lib/services/job-service"
@@ -21,6 +22,7 @@ import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { quoteService }          from "@/lib/services/quote-service"
 import { userService }           from "@/lib/services/user-service"
 import { historyService }        from "@/lib/services/history-service"
+import { passwordVaultService }  from "@/modules/password-vault"
 import { getJobStatus, getWorkItemType } from "@/lib/constants"
 import { format } from "date-fns"
 
@@ -255,6 +257,31 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
       u.role,
       u.active ? "Active" : "Disabled",
       fmtDate(u.createdAt),
+    ])
+  }
+
+  // ── 8. Account Passwords ────────────────────────────────────────────────────
+  const vaultEntries = await passwordVaultService.findMany({ sort: "asc" })
+  const vaultSheet = wb.addWorksheet("Account Passwords")
+  vaultSheet.columns = [
+    { width: 28 }, { width: 28 }, { width: 24 }, { width: 40 },
+    { width: 16 }, { width: 40 }, { width: 14 }, { width: 14 },
+  ]
+  vaultSheet.addRow([
+    "Service Name", "Username / Email", "Password", "Login URL",
+    "Category", "Notes", "Date Created", "Last Updated",
+  ])
+  styleHeader(vaultSheet)
+  for (const e of vaultEntries) {
+    vaultSheet.addRow([
+      e.serviceName,
+      e.username ?? "",
+      e.password,
+      e.loginUrl ?? "",
+      e.category ?? "",
+      e.notes ?? "",
+      fmtDate(e.createdAt),
+      fmtDate(e.updatedAt),
     ])
   }
 
