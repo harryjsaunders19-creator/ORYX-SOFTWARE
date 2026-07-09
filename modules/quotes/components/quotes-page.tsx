@@ -355,8 +355,12 @@ function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ designer: designer.trim(), requiredByDate: requiredByDate || null, changedBy: userName }),
       })
-      const body = await res.json() as { job?: { drawingNumber: string }; error?: string }
-      if (!res.ok) { toast(body.error ?? "Failed to create job", "error"); return }
+      const body = await res.json() as { job?: { drawingNumber: string }; error?: string; detail?: string }
+      if (!res.ok) {
+        const msg = body.detail?.trim() || body.error || "Failed to create job"
+        toast(msg, "error")
+        return
+      }
       toast(`Job ${body.job?.drawingNumber} created from ${quote.quoteNumber}`, "success")
       onConverted()
     } catch { toast("Network error", "error") }

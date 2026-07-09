@@ -97,7 +97,8 @@ export const quoteService = {
    * when job_id is still null so concurrent converts cannot double-link.
    */
   async linkToJob(quoteId: string, jobId: string): Promise<QuoteRow | null> {
-    await ensureQuoteInSqlite(quoteId)
+    const quoteReady = await ensureQuoteInSqlite(quoteId)
+    if (!quoteReady) return null
     await ensureJobInSqliteForBilling(jobId)
 
     if (useSupabaseQuotes()) {

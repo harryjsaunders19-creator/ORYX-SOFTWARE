@@ -22,14 +22,19 @@ import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { archiveLogService } from "@/lib/services/archive-log-service"
 import { nowIso } from "@/lib/db/helpers"
 import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
+import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 
 async function mirror(job: JobRow | null) {
   if (job && useSupabaseJobs()) await supabaseJobRepo.upsert(job)
 }
 
 async function mirrorHistory(jobId: string) {
-  await historyService.syncForJob(jobId)
-  await billingHandoffService.syncJobHandoffs(jobId)
+  try {
+    await historyService.syncForJob(jobId)
+    await billingHandoffService.syncJobHandoffs(jobId)
+  } catch (err) {
+    console.warn("[jobService] mirrorHistory failed (job saved):", err)
+  }
 }
 
 /** Mirror a newly created job to Supabase; retry on drawing-number collisions. */
@@ -138,6 +143,8 @@ export const jobService = {
   },
 
   async create(data: CreateJobData): Promise<JobRow> {
+    if (useSupabaseJobs()) await ensureSequencesSeeded()
+    if (data.clientId) await ensureClientInSqlite(data.clientId)
     // If this is a revision, its parentJobId must exist in SQLite for FK constraints.
     if (data.parentJobId) await ensureJobInSqlite(data.parentJobId)
     const job = jobDb.create(data)
