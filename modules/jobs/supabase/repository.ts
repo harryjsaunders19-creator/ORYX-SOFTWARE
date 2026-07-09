@@ -22,6 +22,7 @@ import {
   weekEndIsoDate,
   type SupabaseJobRow,
 } from "./mapper"
+import { parseOryxDrawingSequence } from "@/lib/drawing-number"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type JobQuery = any
@@ -77,6 +78,35 @@ async function upsertJobRow(
     throw error
   }
   throw new Error("Job upsert failed: too many missing-column retries")
+}
+
+export function isDuplicateDrawingNumberError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false
+  const e = err as { code?: string; message?: string }
+  const msg = (e.message ?? "").toLowerCase()
+  return e.code === "23505" && msg.includes("drawing_number")
+}
+
+/** Scan all ORYX drawing numbers (paginated) and return the highest sequence suffix. */
+async function scanMaxOryxSequence(
+  query: () => ReturnType<typeof table>,
+): Promise<number> {
+  let max = 0
+  const pageSize = 1000
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await query()
+      .select("drawing_number")
+      .like("drawing_number", "%/ORYX/%")
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data?.length) break
+    for (const row of data) {
+      const seq = parseOryxDrawingSequence(row.drawing_number as string)
+      if (seq !== null && seq > max) max = seq
+    }
+    if (data.length < pageSize) break
+  }
+  return max
 }
 
 /** Omit columns added in 005_job_commercial_extras.sql when Supabase hasn't migrated yet. */
@@ -476,16 +506,7 @@ export const supabaseJobRepo = {
 
   /** Highest global ORYX drawing sequence suffix across all jobs. */
   async maxGlobalDrawingSequence(): Promise<number> {
-    const { data, error } = await table().select("drawing_number").like("drawing_number", "%/ORYX/%")
-    if (error) return 0
-    let max = 0
-    for (const row of (data ?? [])) {
-      const match = (row.drawing_number as string).match(/^(\d{2})\/ORYX\/(\d{2})\/(\d+)/)
-      if (!match) continue
-      const seq = parseInt(match[3], 10)
-      if (seq > max) max = seq
-    }
-    return max
+    return scanMaxOryxSequence(table)
   },
 
   /**

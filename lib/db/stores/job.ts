@@ -110,6 +110,11 @@ export const jobDb = {
     return this.findUnique(data.id)!
   },
 
+  setDrawingNumber(id: string, drawingNumber: string): void {
+    db.prepare("UPDATE Job SET drawingNumber = ?, updatedAt = ? WHERE id = ?")
+      .run(drawingNumber, nowIso(), id)
+  },
+
   update(id: string, data: UpdateJobData): JobRow | null {
     const existing = this.findUnique(id)
     if (!existing) return null

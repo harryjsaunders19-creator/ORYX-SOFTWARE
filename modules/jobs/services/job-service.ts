@@ -13,8 +13,9 @@
 import type { CreateJobData, JobRow, UpdateJobData } from "../types/job-types"
 import type { FindManyOptions, WhereClause } from "@/lib/db/helpers"
 import { jobDb, commercialDb } from "@/lib/db/stores"
+import { allocateDrawingNumber } from "@/lib/db"
 import { useSupabaseJobs } from "@/lib/supabase/feature-flags"
-import { supabaseJobRepo } from "../supabase/repository"
+import { supabaseJobRepo, isDuplicateDrawingNumberError } from "../supabase/repository"
 import { historyService } from "./history-service"
 import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
@@ -29,6 +30,27 @@ async function mirror(job: JobRow | null) {
 async function mirrorHistory(jobId: string) {
   await historyService.syncForJob(jobId)
   await billingHandoffService.syncJobHandoffs(jobId)
+}
+
+/** Mirror a newly created job to Supabase; retry on drawing-number collisions. */
+async function mirrorNewJob(job: JobRow): Promise<JobRow> {
+  let current = job
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      await mirror(current)
+      await mirrorHistory(current.id)
+      return current
+    } catch (err) {
+      if (attempt < 9 && isDuplicateDrawingNumberError(err) && current.itemType === "DESIGN") {
+        const drawingNumber = allocateDrawingNumber()
+        jobDb.setDrawingNumber(current.id, drawingNumber)
+        current = jobDb.findUnique(current.id)!
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error("Failed to save new job after drawing-number retries")
 }
 
 /**
@@ -119,8 +141,7 @@ export const jobService = {
     // If this is a revision, its parentJobId must exist in SQLite for FK constraints.
     if (data.parentJobId) await ensureJobInSqlite(data.parentJobId)
     const job = jobDb.create(data)
-    await mirror(job)
-    await mirrorHistory(job.id)
+    if (useSupabaseJobs()) return mirrorNewJob(job)
     return job
   },
 

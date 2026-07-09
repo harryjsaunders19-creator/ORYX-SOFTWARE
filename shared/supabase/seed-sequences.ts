@@ -42,11 +42,16 @@ async function runSeed(): Promise<void> {
   const year = new Date().getFullYear()
   const promises: Promise<void>[] = []
 
-  if (useSupabaseJobs()) {
-    promises.push(
-      supabaseJobRepo.maxGlobalDrawingSequence().then(maxSeq => {
-        if (maxSeq > 0) sequenceDb.seedSequence(DRAWING_SEQUENCE_KEY, maxSeq)
-      }),
+    if (useSupabaseJobs()) {
+      promises.push(
+        supabaseJobRepo.maxGlobalDrawingSequence().then(maxSeq => {
+          if (maxSeq > 0) {
+            sequenceDb.seedSequence(DRAWING_SEQUENCE_KEY, maxSeq)
+            console.log(`[seed-sequences] Drawing sequence seeded to ${maxSeq}`)
+          } else {
+            console.warn("[seed-sequences] No ORYX drawing numbers found in Supabase — starting from 001")
+          }
+        }),
       supabaseJobRepo.maxRefSequences().then(rows => {
         for (const { prefix, year: y, maxSeq } of rows) sequenceDb.seedRefSequence(prefix, y, maxSeq)
       }),
