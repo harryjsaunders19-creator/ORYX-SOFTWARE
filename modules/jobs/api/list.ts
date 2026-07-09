@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/lib/services/client-service"
-import { sequenceDb } from "@/lib/db"
-import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
+import { allocateDrawingNumber, sequenceDb } from "@/lib/db"
+import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { createId } from "@paralleldrive/cuid2"
 import { VALID_ITEM_TYPES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE } from "@/lib/constants"
 import { requireSignIn } from "@/shared/auth/auth"
@@ -107,14 +107,22 @@ export async function POST(req: NextRequest) {
       : "DESIGN"
 
     // Required fields (all item types)
+    const siteName = typeof body.siteName === "string" ? body.siteName.trim() : ""
+    const siteAddress = typeof body.siteAddress === "string" ? body.siteAddress.trim() : ""
+    const address = typeof body.address === "string" && body.address.trim()
+      ? String(body.address).trim()
+      : composeJobAddress(siteName, siteAddress)
+
     for (const [field, message] of [
-      ["address",       "Site address is required"],
       ["clientCompany", "Client company is required"],
       ["requestedBy",   "Requested by is required"],
     ] as [string, string][]) {
       if (!body[field] || String(body[field]).trim() === "") {
         return NextResponse.json({ error: message, field }, { status: 422 })
       }
+    }
+    if (!address) {
+      return NextResponse.json({ error: "Site name or address is required", field: "siteAddress" }, { status: 422 })
     }
 
     // typeOfWorks only required for Design — and once provided, must be one
@@ -159,9 +167,7 @@ export async function POST(req: NextRequest) {
     // Generate reference number based on item type
     let drawingNumber: string
     if (itemType === "DESIGN") {
-      const { year, month, key } = getYearMonthKey()
-      const seq = sequenceDb.nextSequence(key)
-      drawingNumber = formatDrawingNumber(year, month, seq)
+      drawingNumber = allocateDrawingNumber()
     } else if (itemType === "REVISION") {
       // Revisions are created via POST /api/jobs/[id]/revisions — not here
       return NextResponse.json({ error: "Create revisions via POST /api/jobs/[parentId]/revisions" }, { status: 422 })
@@ -190,7 +196,9 @@ export async function POST(req: NextRequest) {
       id,
       drawingNumber,
       itemType,
-      address:         String(body.address).trim(),
+      address,
+      siteName: siteName || null,
+      siteAddress: siteAddress || null,
       typeOfWorks:     body.typeOfWorks ? String(body.typeOfWorks).trim() : "",
       customTypeDescription: (body.typeOfWorks === OTHER_WORKS_TYPE && body.customTypeDescription)
         ? String(body.customTypeDescription).trim() : null,

@@ -3,6 +3,8 @@ export interface Job {
   drawingNumber:   string
   itemType:        string
   address:         string
+  siteName:        string | null
+  siteAddress:     string | null
   typeOfWorks:     string
   customTypeDescription: string | null   // set when typeOfWorks === "Other"
   legacyTypeOfWorks:     string | null   // original free-text value, preserved if this row was auto-migrated to the controlled list
@@ -254,6 +256,8 @@ export interface StatusHistoryEntry {
 
 export interface JobFormData {
   itemType:        string
+  siteName:        string
+  siteAddress:     string
   address:         string
   typeOfWorks:     string
   customTypeDescription: string

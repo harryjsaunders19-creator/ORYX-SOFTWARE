@@ -34,6 +34,14 @@ export interface SupabaseJobRow {
   revision_letter: string | null
   archived_at: string | null
   archived_by: string | null
+  latitude: number | null
+  longitude: number | null
+  geocoded_at: string | null
+  geocoded_address: string | null
+  site_name: string | null
+  site_address: string | null
+  location_status: string | null
+  location_source: string | null
   created_at: string
   updated_at: string
 }
@@ -75,6 +83,14 @@ export function toJobRow(row: SupabaseJobRow): JobRow {
     revisionLetter: row.revision_letter,
     archivedAt: row.archived_at ?? null,
     archivedBy: row.archived_by ?? null,
+    latitude: row.latitude != null ? Number(row.latitude) : null,
+    longitude: row.longitude != null ? Number(row.longitude) : null,
+    geocodedAt: row.geocoded_at ?? null,
+    geocodedAddress: row.geocoded_address ?? null,
+    siteName: row.site_name ?? null,
+    siteAddress: row.site_address ?? null,
+    locationStatus: row.location_status ?? null,
+    locationSource: row.location_source ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -112,6 +128,14 @@ export function toSupabaseRow(job: JobRow): SupabaseJobRow {
     revision_letter: job.revisionLetter,
     archived_at: job.archivedAt ?? null,
     archived_by: job.archivedBy ?? null,
+    latitude: job.latitude,
+    longitude: job.longitude,
+    geocoded_at: job.geocodedAt,
+    geocoded_address: job.geocodedAddress,
+    site_name: job.siteName,
+    site_address: job.siteAddress,
+    location_status: job.locationStatus,
+    location_source: job.locationSource,
     created_at: job.createdAt,
     updated_at: job.updatedAt,
   }

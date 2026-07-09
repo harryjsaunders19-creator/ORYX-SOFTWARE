@@ -35,7 +35,7 @@ import { createId } from "@paralleldrive/cuid2"
 import {
   jobDb, clientDb, quoteDb, holdDb, userDb, billingHandoffDb, sequenceDb, db,
 } from "@/lib/db"
-import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
+import { allocateDrawingNumber } from "@/lib/db"
 
 /**
  * dateCreated is deliberately NOT exposed via CreateJobData — a real user
@@ -59,8 +59,7 @@ function rand<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randInt(min: number, max: number): number { return Math.floor(Math.random() * (max - min + 1)) + min }
 
 function nextDrawingNumber(): string {
-  const { year, month, key } = getYearMonthKey()
-  return formatDrawingNumber(year, month, sequenceDb.nextSequence(key))
+  return allocateDrawingNumber()
 }
 function nextRefNumber(prefix: string): string { return sequenceDb.nextRefNumber(prefix) }
 

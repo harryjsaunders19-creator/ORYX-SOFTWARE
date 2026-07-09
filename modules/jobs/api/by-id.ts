@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     const allowed = [
-      "address","typeOfWorks","customTypeDescription","clientCompany","requestedBy","status","designer","notes",
+      "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "requestedBy", "status", "designer", "notes",
       "requestedDate","requiredByDate","quoteReference","quoteDate","commercialNotes",
     ]
 

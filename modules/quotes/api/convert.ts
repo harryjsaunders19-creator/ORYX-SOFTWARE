@@ -7,8 +7,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { quoteService } from "../services/quote-service"
 import { jobService } from "@/lib/services/job-service"
-import { quoteDb, jobDb, sequenceDb, db } from "@/lib/db"
-import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
+import { quoteDb, jobDb, db, allocateDrawingNumber } from "@/lib/db"
 import { createId } from "@paralleldrive/cuid2"
 import { OTHER_WORKS_TYPE } from "@/lib/constants"
 import { requireSignIn } from "@/shared/auth/auth"
@@ -36,9 +35,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const designer       = body.designer  ? String(body.designer).trim() : ""
     const requiredByDate = resolveRequiredByDate(body.requiredByDate ? String(body.requiredByDate) : null)
 
-    const { year, month, key } = getYearMonthKey()
-    const seq           = sequenceDb.nextSequence(key)
-    const drawingNumber = formatDrawingNumber(year, month, seq)
+    const drawingNumber = allocateDrawingNumber()
     const jobId         = createId()
 
     // Create the job and link the quote to it in a single transaction — if either

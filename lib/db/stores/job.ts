@@ -4,6 +4,7 @@ import { nowIso, buildWhere, safeOrder, type WhereClause, type FindManyOptions }
 import { totalJobCommercialValue } from "@/lib/utils"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { billingHandoffDb } from "./billing-handoff"
+import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 
 export type { JobRow, CreateJobData, UpdateJobData } from "../job-types"
 import type { JobRow, CreateJobData, UpdateJobData } from "../job-types"
@@ -85,12 +86,14 @@ export const jobDb = {
     const now = nowIso(); const changedBy = data.changedBy ?? "System"
     db.transaction(() => {
       db.prepare(`
-        INSERT INTO Job (id,drawingNumber,itemType,address,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
+        INSERT INTO Job (id,drawingNumber,itemType,address,siteName,siteAddress,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
           status,designer,dateCompleted,notes,quoteValue,quoteReference,quoteDate,commercialNotes,
           variationFees,additionalCharges,
           parentJobId,revisionLetter,requestedDate,requiredByDate,dateCreated,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `).run(data.id, data.drawingNumber, data.itemType ?? "DESIGN", data.address, data.typeOfWorks,
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      `).run(data.id, data.drawingNumber, data.itemType ?? "DESIGN", data.address,
+             data.siteName ?? null, data.siteAddress ?? null,
+             data.typeOfWorks,
              data.customTypeDescription ?? null,
              data.clientCompany, data.clientId ?? null, data.requestedBy, data.status, data.designer ?? "",
              data.dateCompleted ?? null, data.notes ?? null,
@@ -114,7 +117,7 @@ export const jobDb = {
     const statusChanged = data.status !== undefined && data.status !== existing.status
     const oldStatus = existing.status
     const allowedColumns = new Set([
-      "address", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
+      "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
       "requestedBy", "status", "designer", "dateCompleted", "notes", "quoteValue",
       "quoteReference", "quoteDate", "commercialNotes", "variationFees", "additionalCharges",
       "requestedDate", "requiredByDate",
@@ -124,6 +127,32 @@ export const jobDb = {
       if (key === "changedBy" || val === undefined) continue
       if (!allowedColumns.has(key)) continue
       fields.push(`"${key}" = ?`); params.push(val)
+    }
+    const siteName = data.siteName !== undefined ? (data.siteName?.trim() ?? null) : existing.siteName
+    const siteAddress = data.siteAddress !== undefined ? (data.siteAddress?.trim() ?? null) : existing.siteAddress
+    const nextAddress = data.address !== undefined
+      ? data.address
+      : (data.siteName !== undefined || data.siteAddress !== undefined)
+        ? composeJobAddress(siteName, siteAddress, existing.address)
+        : existing.address
+    if (data.siteName !== undefined || data.siteAddress !== undefined) {
+      const hasAddressField = fields.some(f => f.startsWith('"address"'))
+      if (!hasAddressField) {
+        fields.push('"address" = ?')
+        params.push(nextAddress)
+      }
+    }
+    const locationChanged = (
+      (data.address !== undefined && data.address.trim().toLowerCase() !== existing.address.trim().toLowerCase())
+      || (data.siteName !== undefined && (data.siteName?.trim() ?? "") !== (existing.siteName?.trim() ?? ""))
+      || (data.siteAddress !== undefined && (data.siteAddress?.trim() ?? "") !== (existing.siteAddress?.trim() ?? ""))
+    )
+    if (locationChanged) {
+      fields.push(
+        '"latitude" = ?', '"longitude" = ?', '"geocodedAt" = ?', '"geocodedAddress" = ?',
+        '"locationStatus" = ?', '"locationSource" = ?',
+      )
+      params.push(null, null, null, null, "needs_review", null)
     }
     if (fields.length === 0 && !statusChanged) return existing
     db.transaction(() => {
@@ -343,6 +372,116 @@ export const jobDb = {
 
   findArchived(): JobRow[] {
     return db.prepare("SELECT * FROM Job WHERE archivedAt IS NOT NULL ORDER BY archivedAt DESC").all() as JobRow[]
+  },
+
+  findNeedingGeocode(limit: number): Pick<JobRow, "id" | "address" | "siteName" | "siteAddress">[] {
+    return db.prepare(`
+      SELECT id, address, siteName, siteAddress FROM Job
+      WHERE status = 'ISSUED'
+        AND archivedAt IS NULL
+        AND (latitude IS NULL OR longitude IS NULL)
+        AND (locationStatus IS NULL OR locationStatus = 'needs_review')
+      ORDER BY dateCreated DESC
+      LIMIT ?
+    `).all(limit) as Pick<JobRow, "id" | "address" | "siteName" | "siteAddress">[]
+  },
+
+  findMissingLocations(): import("@/modules/job-map/types/location-types").MissingLocationJob[] {
+    return db.prepare(`
+      SELECT
+        id, drawingNumber, siteName, siteAddress, address, clientCompany,
+        dateCompleted, locationStatus
+      FROM Job
+      WHERE status = 'ISSUED'
+        AND archivedAt IS NULL
+        AND (
+          latitude IS NULL OR longitude IS NULL OR locationStatus = 'needs_review'
+        )
+      ORDER BY dateCompleted DESC, dateCreated DESC
+    `).all() as import("@/modules/job-map/types/location-types").MissingLocationJob[]
+  },
+
+  countMissingLocations(): number {
+    return (db.prepare(`
+      SELECT COUNT(*) as n FROM Job
+      WHERE status = 'ISSUED'
+        AND archivedAt IS NULL
+        AND (
+          latitude IS NULL OR longitude IS NULL OR locationStatus = 'needs_review'
+        )
+    `).get() as { n: number }).n
+  },
+
+  countNeedingGeocode(): number {
+    return (db.prepare(`
+      SELECT COUNT(*) as n FROM Job
+      WHERE status = 'ISSUED'
+        AND archivedAt IS NULL
+        AND (latitude IS NULL OR longitude IS NULL)
+        AND (locationStatus IS NULL OR locationStatus = 'needs_review')
+    `).get() as { n: number }).n
+  },
+
+  findCompletedForMap(): JobRow[] {
+    return db.prepare(`
+      SELECT * FROM Job
+      WHERE status = 'ISSUED' AND archivedAt IS NULL
+      ORDER BY dateCreated DESC
+    `).all() as JobRow[]
+  },
+
+  /** Slim query — completed jobs that already have coordinates (map display only). */
+  findMappedForMap(): import("@/modules/job-map/types/map-row").JobMapRow[] {
+    return db.prepare(`
+      SELECT
+        id, drawingNumber, address, siteName, siteAddress, latitude, longitude, status,
+        clientCompany, typeOfWorks, customTypeDescription, designer, dateCreated,
+        locationStatus, locationSource
+      FROM Job
+      WHERE status = 'ISSUED'
+        AND archivedAt IS NULL
+        AND latitude IS NOT NULL
+        AND longitude IS NOT NULL
+        AND (locationStatus IS NULL OR locationStatus IN ('mapped', 'manual'))
+      ORDER BY dateCreated DESC
+    `).all() as import("@/modules/job-map/types/map-row").JobMapRow[]
+  },
+
+  countCompletedMissingCoordinates(): number {
+    return this.countMissingLocations()
+  },
+
+  saveLocation(
+    id: string,
+    latitude: number,
+    longitude: number,
+    locationStatus: string,
+    locationSource: string,
+    geocodedAddress: string | null = null,
+  ): JobRow | null {
+    const now = nowIso()
+    db.prepare(`
+      UPDATE Job SET
+        latitude = ?, longitude = ?, geocodedAt = ?, geocodedAddress = ?,
+        locationStatus = ?, locationSource = ?, updatedAt = ?
+      WHERE id = ?
+    `).run(latitude, longitude, now, geocodedAddress, locationStatus, locationSource, now, id)
+    return this.findUnique(id)
+  },
+
+  markLocationNeedsReview(id: string): JobRow | null {
+    const now = nowIso()
+    db.prepare(`
+      UPDATE Job SET
+        latitude = NULL, longitude = NULL, geocodedAt = NULL, geocodedAddress = NULL,
+        locationStatus = 'needs_review', locationSource = NULL, updatedAt = ?
+      WHERE id = ?
+    `).run(now, id)
+    return this.findUnique(id)
+  },
+
+  saveGeocode(id: string, latitude: number, longitude: number, geocodedAddress: string): JobRow | null {
+    return this.saveLocation(id, latitude, longitude, "mapped", "geocoded", geocodedAddress)
   },
 }
 

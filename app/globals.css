@@ -512,3 +512,15 @@ html.stitch-layout .stitch-top-bar-title {
   letter-spacing: -0.01em;
   color: var(--color-t1);
 }
+
+/* Job map — Leaflet marker + container fixes */
+.job-map-shell .leaflet-container {
+  height: 100%;
+  width: 100%;
+  font: inherit;
+}
+
+.job-map-marker-icon {
+  background: transparent !important;
+  border: none !important;
+}

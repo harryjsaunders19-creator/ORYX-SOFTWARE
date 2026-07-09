@@ -5,6 +5,8 @@ export interface JobRow {
   drawingNumber: string
   itemType: string
   address: string
+  siteName: string | null
+  siteAddress: string | null
   typeOfWorks: string
   customTypeDescription: string | null
   legacyTypeOfWorks: string | null
@@ -31,6 +33,12 @@ export interface JobRow {
   revisionLetter: string | null
   archivedAt: string | null
   archivedBy: string | null
+  latitude: number | null
+  longitude: number | null
+  geocodedAt: string | null
+  geocodedAddress: string | null
+  locationStatus: string | null
+  locationSource: string | null
   createdAt: string
   updatedAt: string
 }
@@ -40,6 +48,8 @@ export interface CreateJobData {
   drawingNumber: string
   itemType?: string
   address: string
+  siteName?: string | null
+  siteAddress?: string | null
   typeOfWorks: string
   customTypeDescription?: string | null
   clientCompany: string
@@ -64,6 +74,8 @@ export interface CreateJobData {
 
 export interface UpdateJobData {
   address?: string
+  siteName?: string | null
+  siteAddress?: string | null
   typeOfWorks?: string
   customTypeDescription?: string | null
   clientCompany?: string

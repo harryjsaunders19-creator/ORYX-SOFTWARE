@@ -1,8 +1,18 @@
 /** DrawingSequence and RefSequence counters. */
 import { db, DB_EXISTED } from "../connection"
 import { createId as nanoid } from "@paralleldrive/cuid2"
+import {
+  DRAWING_SEQUENCE_KEY,
+  buildDrawingNumber,
+  nextDrawingSequenceAfter,
+  parseOryxDrawingSequence,
+} from "@/lib/drawing-number"
 
 export const sequenceDb = {
+  /**
+   * @deprecated Use nextDrawingSequence() for ORYX drawing numbers.
+   * Retained for non-drawing counters (e.g. health checks).
+   */
   nextSequence(yearMonth: string): number {
     const run = db.transaction(() => {
       const existing = db.prepare("SELECT sequence FROM DrawingSequence WHERE yearMonth = ?").get(yearMonth) as { sequence: number } | undefined
@@ -11,11 +21,54 @@ export const sequenceDb = {
         db.prepare("UPDATE DrawingSequence SET sequence = ? WHERE yearMonth = ?").run(next, yearMonth)
         return next
       } else {
-        db.prepare("INSERT INTO DrawingSequence (id,yearMonth,sequence) VALUES (?,?,1)").run(nanoid(), yearMonth)
+        db.prepare("INSERT INTO DrawingSequence (id,yearMonth,sequence) VALUES (?,?,1)").run(nanoid(), yearMonth, 1)
         return 1
       }
     })
     return run() as number
+  },
+
+  /**
+   * Atomically increment the global ORYX drawing sequence (1–999, rolls to 1).
+   * Does not reset monthly — YY/MM in the formatted number come from the job date only.
+   */
+  nextDrawingSequence(): number {
+    const run = db.transaction(() => {
+      const existing = db.prepare(
+        "SELECT sequence FROM DrawingSequence WHERE yearMonth = ?",
+      ).get(DRAWING_SEQUENCE_KEY) as { sequence: number } | undefined
+
+      if (existing) {
+        const next = nextDrawingSequenceAfter(existing.sequence)
+        db.prepare(
+          "UPDATE DrawingSequence SET sequence = ? WHERE yearMonth = ?",
+        ).run(next, DRAWING_SEQUENCE_KEY)
+        return next
+      }
+
+      db.prepare(
+        "INSERT INTO DrawingSequence (id, yearMonth, sequence) VALUES (?, ?, 1)",
+      ).run(nanoid(), DRAWING_SEQUENCE_KEY, 1)
+      return 1
+    })
+    return run() as number
+  },
+
+  currentDrawingSequence(): number {
+    const row = db.prepare(
+      "SELECT sequence FROM DrawingSequence WHERE yearMonth = ?",
+    ).get(DRAWING_SEQUENCE_KEY) as { sequence: number } | undefined
+    return row?.sequence ?? 0
+  },
+
+  /** Allocate the next YY/ORYX/MM/NNN drawing number (global sequence, atomic). */
+  allocateDrawingNumber(date = new Date()): string {
+    return buildDrawingNumber(this.nextDrawingSequence(), date)
+  },
+
+  /** Preview the next drawing number without consuming the sequence. */
+  peekNextDrawingNumber(date = new Date()): string {
+    return buildDrawingNumber(nextDrawingSequenceAfter(this.currentDrawingSequence()), date)
   },
 
   /**
@@ -40,12 +93,13 @@ export const sequenceDb = {
     return `${prefix}-${year}-${String(seq).padStart(3, "0")}`
   },
 
+  /** @deprecated Use currentDrawingSequence() for ORYX drawing numbers. */
   currentSequence(yearMonth: string): number {
     const row = db.prepare("SELECT sequence FROM DrawingSequence WHERE yearMonth = ?").get(yearMonth) as { sequence: number } | undefined
     return row?.sequence ?? 0
   },
 
-  /** Seed (or bump up) the drawing sequence for a year-month from an external source (e.g. Supabase). */
+  /** Seed (or bump up) the global drawing sequence from an external source (e.g. Supabase). */
   seedSequence(yearMonth: string, value: number): void {
     const existing = db.prepare("SELECT sequence FROM DrawingSequence WHERE yearMonth = ?").get(yearMonth) as { sequence: number } | undefined
     if (!existing) {
@@ -66,15 +120,9 @@ export const sequenceDb = {
   },
 
   /**
-   * Scans every Job.drawingNumber in the database, extracts the YYMM key
-   * and sequence number from each, and ensures the DrawingSequence counter
-   * for that YYMM is at least as high as the highest number found. This
-   * prevents duplicate drawing numbers after:
-   *   - a database restore from backup
-   *   - manual SQL inserts or data migration from an older system
-   *   - a bulk spreadsheet import (called as a safety net after every import)
-   *
-   * Also reconciles RefSequence counters (SV/SRV/INS prefixes) the same way.
+   * Scans every Job.drawingNumber in the database and ensures the global
+   * DrawingSequence counter is at least as high as the highest ORYX suffix
+   * found. Also reconciles RefSequence counters (SV/SRV/INS prefixes).
    *
    * Atomic: runs inside a single SQLite transaction. Idempotent: safe to
    * call repeatedly — it only ever raises counters, never lowers them.
@@ -84,43 +132,36 @@ export const sequenceDb = {
     let refFixups = 0
 
     db.transaction(() => {
-      // ── Drawing numbers (YY/ORYX/MM/NNN) ──────────────────────
       const drawingRows = db.prepare(
-        "SELECT drawingNumber FROM Job WHERE drawingNumber LIKE '%/ORYX/%'"
+        "SELECT drawingNumber FROM Job WHERE drawingNumber LIKE '%/ORYX/%'",
       ).all() as { drawingNumber: string }[]
 
-      const maxByYearMonth = new Map<string, number>()
+      let globalMax = 0
       for (const row of drawingRows) {
-        const match = row.drawingNumber.match(/^(\d{2})\/ORYX\/(\d{2})\/(\d+)/)
-        if (!match) continue
-        const [, yy, mm, nnn] = match
-        const key = `${yy}${mm}`
-        const seq = parseInt(nnn, 10)
-        const prev = maxByYearMonth.get(key) ?? 0
-        if (seq > prev) maxByYearMonth.set(key, seq)
+        const seq = parseOryxDrawingSequence(row.drawingNumber)
+        if (seq !== null && seq > globalMax) globalMax = seq
       }
 
-      for (const [yearMonth, maxSeq] of maxByYearMonth) {
+      if (globalMax > 0) {
         const existing = db.prepare(
-          "SELECT sequence FROM DrawingSequence WHERE yearMonth = ?"
-        ).get(yearMonth) as { sequence: number } | undefined
+          "SELECT sequence FROM DrawingSequence WHERE yearMonth = ?",
+        ).get(DRAWING_SEQUENCE_KEY) as { sequence: number } | undefined
 
         if (!existing) {
           db.prepare(
-            "INSERT INTO DrawingSequence (id, yearMonth, sequence) VALUES (?, ?, ?)"
-          ).run(nanoid(), yearMonth, maxSeq)
+            "INSERT INTO DrawingSequence (id, yearMonth, sequence) VALUES (?, ?, ?)",
+          ).run(nanoid(), DRAWING_SEQUENCE_KEY, globalMax)
           drawingFixups++
-        } else if (existing.sequence < maxSeq) {
+        } else if (existing.sequence < globalMax) {
           db.prepare(
-            "UPDATE DrawingSequence SET sequence = ? WHERE yearMonth = ?"
-          ).run(maxSeq, yearMonth)
+            "UPDATE DrawingSequence SET sequence = ? WHERE yearMonth = ?",
+          ).run(globalMax, DRAWING_SEQUENCE_KEY)
           drawingFixups++
         }
       }
 
-      // ── Reference numbers (PREFIX-YYYY-NNN) ───────────────────
       const refRows = db.prepare(
-        "SELECT drawingNumber FROM Job WHERE drawingNumber LIKE '%-%-%'"
+        "SELECT drawingNumber FROM Job WHERE drawingNumber LIKE '%-%-%'",
       ).all() as { drawingNumber: string }[]
 
       const maxByPrefixYear = new Map<string, number>()
@@ -138,17 +179,17 @@ export const sequenceDb = {
         const [prefix, yearStr] = mapKey.split("||")
         const year = parseInt(yearStr, 10)
         const existing = db.prepare(
-          "SELECT seq FROM RefSequence WHERE prefix = ? AND year = ?"
+          "SELECT seq FROM RefSequence WHERE prefix = ? AND year = ?",
         ).get(prefix, year) as { seq: number } | undefined
 
         if (!existing) {
           db.prepare(
-            "INSERT INTO RefSequence (id, prefix, year, seq) VALUES (?, ?, ?, ?)"
+            "INSERT INTO RefSequence (id, prefix, year, seq) VALUES (?, ?, ?, ?)",
           ).run(nanoid(), prefix, year, maxSeq)
           refFixups++
         } else if (existing.seq < maxSeq) {
           db.prepare(
-            "UPDATE RefSequence SET seq = ? WHERE prefix = ? AND year = ?"
+            "UPDATE RefSequence SET seq = ? WHERE prefix = ? AND year = ?",
           ).run(maxSeq, prefix, year)
           refFixups++
         }
@@ -156,15 +197,18 @@ export const sequenceDb = {
     })()
 
     return { drawingFixups, refFixups }
-  },
+  }
 }
 
-// Ensure drawing-number and reference-number sequence counters are at least
-// as high as the highest values actually present in the Job table. Protects
-// against duplicate numbers after a database restore, manual SQL inserts, or
-// data migration from another system. Harmless no-op when already in sync.
-// Skipped when the DB is brand-new (tables not yet created) or during the
-// Next.js production build phase where no database is available.
+/** Central API — all job creation should use this for ORYX drawing numbers. */
+export function allocateDrawingNumber(date = new Date()): string {
+  return sequenceDb.allocateDrawingNumber(date)
+}
+
+export function peekNextDrawingNumber(date = new Date()): string {
+  return sequenceDb.peekNextDrawingNumber(date)
+}
+
 if (DB_EXISTED) {
   try {
     const { drawingFixups, refFixups } = sequenceDb.syncFromExistingJobs()

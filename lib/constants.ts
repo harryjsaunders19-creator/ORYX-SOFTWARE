@@ -103,7 +103,7 @@ export const REF_PREFIX_BY_ITEM_TYPE = Object.fromEntries(
 ) as Record<string, string>
 
 export function getWorkItemRefHint(itemType: string): string {
-  if (itemType === "DESIGN") return "YY/ORYX/MM/NNN"
+  if (itemType === "DESIGN") return "YY/ORYX/MM/NNN (NNN is global, no monthly reset)"
   const prefix = REF_PREFIX_BY_ITEM_TYPE[itemType]
   return prefix ? `${prefix}-YYYY-NNN` : ""
 }

@@ -17,8 +17,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireRole } from "@/shared/auth/auth"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/lib/services/client-service"
-import { sequenceDb } from "@/lib/db"
-import { formatDrawingNumber, getYearMonthKey } from "@/lib/drawing-number"
+import { allocateDrawingNumber, peekNextDrawingNumber, sequenceDb } from "@/lib/db"
 import { createId } from "@paralleldrive/cuid2"
 import { isValidWorksType, OTHER_WORKS_TYPE, VALID_STATUSES, REF_PREFIX_BY_ITEM_TYPE } from "@/lib/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
@@ -163,9 +162,7 @@ export async function POST(req: NextRequest) {
         // Generate drawing number
         let drawingNumber: string
         if (itemType === "DESIGN") {
-          const { year, month, key } = getYearMonthKey()
-          const seq = sequenceDb.nextSequence(key)
-          drawingNumber = formatDrawingNumber(year, month, seq)
+          drawingNumber = allocateDrawingNumber()
         } else if (itemType === "REVISION") {
           skipped.push({ rowIndex: row.rowIndex, reasons: ["Revisions cannot be imported — use the revision creation flow"] })
           continue
@@ -229,9 +226,7 @@ export async function POST(req: NextRequest) {
         sequenceDb.syncFromExistingJobs()
       }
 
-      const { year, month, key } = getYearMonthKey()
-      const currentSeq = sequenceDb.currentSequence(key)
-      const nextDrawingNumber = formatDrawingNumber(year, month, currentSeq + 1)
+      const nextDrawingNumber = peekNextDrawingNumber()
 
       return NextResponse.json({
         imported: imported.length,

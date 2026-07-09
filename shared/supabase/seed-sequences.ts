@@ -3,13 +3,14 @@
  *
  * On a fresh Vercel container, the SQLite DrawingSequence and RefSequence
  * tables are empty. Without seeding, the first new job gets drawing number
- * "26/ORYX/06/001", which already exists in Supabase → unique constraint
+ * "26/ORYX/07/428", which already exists in Supabase → unique constraint
  * violation → 500 "failed to create job".
  *
  * This module queries Supabase once per serverless container instance and
  * seeds the local SQLite sequences so new numbers never collide.
  */
 import { sequenceDb } from "@/lib/db"
+import { DRAWING_SEQUENCE_KEY } from "@/lib/drawing-number"
 import { db } from "@/lib/db/connection"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
@@ -45,8 +46,8 @@ export async function ensureSequencesSeeded(): Promise<void> {
 
     if (useSupabaseJobs()) {
       promises.push(
-        supabaseJobRepo.maxDrawingSequences().then(rows => {
-          for (const { yearMonth, maxSeq } of rows) sequenceDb.seedSequence(yearMonth, maxSeq)
+        supabaseJobRepo.maxGlobalDrawingSequence().then(maxSeq => {
+          if (maxSeq > 0) sequenceDb.seedSequence(DRAWING_SEQUENCE_KEY, maxSeq)
         }),
         supabaseJobRepo.maxRefSequences().then(rows => {
           for (const { prefix, year: y, maxSeq } of rows) sequenceDb.seedRefSequence(prefix, y, maxSeq)

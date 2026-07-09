@@ -63,6 +63,7 @@ async function ensureJobInSqlite(id: string): Promise<boolean> {
 export { ensureJobInSqlite as ensureJobInSqliteForBilling }
 
 export const jobService = {
+  ensureJobInSqlite,
   /**
    * Returns a page of jobs + total in ONE Supabase request.
    * When sorting by drawing number (default) also returns `allForRevisions`
@@ -338,5 +339,35 @@ export const jobService = {
       return { totalQuotedValue, totalIssuedValue, avgJobValue }
     }
     return supabaseJobRepo.jobValueStats()
+  },
+
+  async saveGeocode(
+    id: string,
+    latitude: number,
+    longitude: number,
+    geocodedAddress: string,
+  ): Promise<JobRow | null> {
+    await ensureJobInSqlite(id)
+    const updated = jobDb.saveGeocode(id, latitude, longitude, geocodedAddress)
+    await mirror(updated)
+    return updated
+  },
+
+  async saveManualLocation(
+    id: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<JobRow | null> {
+    await ensureJobInSqlite(id)
+    const updated = jobDb.saveLocation(id, latitude, longitude, "manual", "manual", null)
+    await mirror(updated)
+    return updated
+  },
+
+  async markLocationNeedsReview(id: string): Promise<JobRow | null> {
+    await ensureJobInSqlite(id)
+    const updated = jobDb.markLocationNeedsReview(id)
+    await mirror(updated)
+    return updated
   },
 }

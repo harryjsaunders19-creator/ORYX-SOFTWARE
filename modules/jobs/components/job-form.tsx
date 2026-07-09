@@ -15,11 +15,13 @@ import { TypeOfWorksCombobox } from "@/components/type-of-works-combobox"
 import { QuickCreateClientModal } from "@/components/quick-create-client-modal"
 import { defaultRequiredByDate, totalJobCommercialValue, formatGBP } from "@/shared/utils/utils"
 import type { Job, JobFormData } from "@/lib/types"
+import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 
 function emptyJobForm(): JobFormData {
   return {
     itemType: "DESIGN",
-    address: "", typeOfWorks: "", customTypeDescription: "", clientCompany: "", clientId: "", requestedBy: "",
+    siteName: "", siteAddress: "", address: "",
+    typeOfWorks: "", customTypeDescription: "", clientCompany: "", clientId: "", requestedBy: "",
     status: "NEW_REQUEST", designer: "", dateCompleted: "", notes: "",
     quoteValue: "", quoteReference: "", quoteDate: "", commercialNotes: "",
     variationFees: "", additionalCharges: "",
@@ -31,7 +33,9 @@ type FieldErrors = Partial<Record<keyof JobFormData, string>>
 
 function validate(f: JobFormData): FieldErrors {
   const e: FieldErrors = {}
-  if (!f.address.trim())       e.address       = "Required"
+  if (!f.siteName.trim() && !f.siteAddress.trim()) {
+    e.siteAddress = "Site name or address required"
+  }
   if (!f.clientCompany.trim()) e.clientCompany = "Required"
   if (!f.requestedBy.trim())   e.requestedBy   = "Required"
   // typeOfWorks only required for Design
@@ -78,6 +82,8 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const [form, setForm] = useState<JobFormData>(() =>
     job ? {
       itemType:        job.itemType ?? "DESIGN",
+      siteName:        job.siteName ?? "",
+      siteAddress:     job.siteAddress ?? job.address ?? "",
       address:         job.address,
       typeOfWorks:     job.typeOfWorks,
       customTypeDescription: job.customTypeDescription ?? "",
@@ -137,7 +143,13 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
     }
 
     setSaving(true)
-    try { await onSubmit(form) } catch { /* parent shows toast */ } finally { setSaving(false) }
+    try {
+      const payload = {
+        ...form,
+        address: composeJobAddress(form.siteName, form.siteAddress, form.address),
+      }
+      await onSubmit(payload)
+    } catch { /* parent shows toast */ } finally { setSaving(false) }
   }
 
   const proceedDespiteHold = async () => {
@@ -195,10 +207,16 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
           <div>
             <SH>Site</SH>
             <div className="space-y-3">
-              <F label="Site address" required error={errors.address}>
-                <Input value={form.address} onChange={setF("address")}
-                  placeholder="14 Clifton Road, Bristol, BS8 1AF"
+              <F label="Site name" hint="Building or site description (e.g. Selfridges)">
+                <Input value={form.siteName} onChange={setF("siteName")}
+                  placeholder="The Old Admiralty Building"
                   autoComplete="off" autoFocus={!job} />
+              </F>
+              <F label="Site address" required error={errors.siteAddress}
+                hint="Full postal address for geocoding when available">
+                <Input value={form.siteAddress} onChange={setF("siteAddress")}
+                  placeholder="400 Oxford Street, London, W1A 1AB"
+                  autoComplete="off" />
               </F>
               {needsTypeOfWorks && (
                 <F label="Type of works" required={isDesign} error={errors.typeOfWorks}>

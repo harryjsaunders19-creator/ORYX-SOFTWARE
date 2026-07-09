@@ -82,6 +82,7 @@ export function StitchTopBar({ onMenuClick }: Props) {
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search parameters…"
+            suppressHydrationWarning
             className="ml-1 w-48 border-none bg-transparent py-1 text-sm text-t1 placeholder:text-t4 focus:outline-none focus:ring-0"
           />
         </form>

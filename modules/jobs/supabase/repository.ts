@@ -446,7 +446,23 @@ export const supabaseJobRepo = {
     return this.sumQuoteValue({ status: "ISSUED" })
   },
 
-  /** Returns the highest drawing sequence per year-month key (e.g. "2606" → 14). */
+  /** Highest global ORYX drawing sequence suffix across all jobs. */
+  async maxGlobalDrawingSequence(): Promise<number> {
+    const { data, error } = await table().select("drawing_number").like("drawing_number", "%/ORYX/%")
+    if (error) return 0
+    let max = 0
+    for (const row of (data ?? [])) {
+      const match = (row.drawing_number as string).match(/^(\d{2})\/ORYX\/(\d{2})\/(\d+)/)
+      if (!match) continue
+      const seq = parseInt(match[3], 10)
+      if (seq > max) max = seq
+    }
+    return max
+  },
+
+  /**
+   * @deprecated Use maxGlobalDrawingSequence() — sequence is no longer per month.
+   */
   async maxDrawingSequences(): Promise<{ yearMonth: string; maxSeq: number }[]> {
     const { data, error } = await table().select("drawing_number").like("drawing_number", "%/ORYX/%")
     if (error) return []

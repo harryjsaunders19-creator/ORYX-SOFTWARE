@@ -447,3 +447,64 @@ create policy "Service role full access on password_vault_entries"
   on public.password_vault_entries for all to service_role using (true) with check (true);
 
 notify pgrst, 'reload schema';
+-- =============================================================================
+-- Oryx Design — Supabase migration 018: job map geocoding columns
+-- =============================================================================
+
+alter table public.jobs add column if not exists latitude double precision;
+alter table public.jobs add column if not exists longitude double precision;
+alter table public.jobs add column if not exists geocoded_at timestamptz;
+alter table public.jobs add column if not exists geocoded_address text;
+
+create index if not exists idx_jobs_geocode on public.jobs (latitude, longitude)
+  where latitude is not null;
+
+notify pgrst, 'reload schema';
+-- =============================================================================
+-- Oryx Design — Supabase migration 019: job map query indexes
+-- =============================================================================
+
+create index if not exists idx_jobs_latitude on public.jobs (latitude)
+  where latitude is not null;
+
+create index if not exists idx_jobs_longitude on public.jobs (longitude)
+  where longitude is not null;
+
+create index if not exists idx_jobs_map_plotted on public.jobs (status, archived_at, latitude, longitude)
+  where status = 'ISSUED'
+    and archived_at is null
+    and latitude is not null
+    and longitude is not null;
+
+create index if not exists idx_jobs_map_missing_coords on public.jobs (status, archived_at)
+  where status = 'ISSUED'
+    and archived_at is null
+    and (latitude is null or longitude is null);
+
+notify pgrst, 'reload schema';
+-- =============================================================================
+-- Oryx Design — Supabase migration 020: job location management fields
+-- =============================================================================
+
+alter table public.jobs add column if not exists site_name text;
+alter table public.jobs add column if not exists site_address text;
+alter table public.jobs add column if not exists location_status text;
+alter table public.jobs add column if not exists location_source text;
+
+update public.jobs
+set site_address = address
+where (site_address is null or trim(site_address) = '')
+  and address is not null
+  and trim(address) != '';
+
+update public.jobs
+set location_status = 'mapped',
+    location_source = 'geocoded'
+where latitude is not null
+  and longitude is not null
+  and location_status is null;
+
+create index if not exists idx_jobs_location_status on public.jobs (location_status)
+  where status = 'ISSUED' and archived_at is null;
+
+notify pgrst, 'reload schema';
