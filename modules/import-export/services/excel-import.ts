@@ -89,6 +89,22 @@ function num(v: ExcelJS.CellValue | ExcelJS.Cell): number | null {
 
 // ── Per-sheet results ─────────────────────────────────────────────────────────
 
+function linkImportedRevisions(
+  rows: ReturnType<typeof buildJobRowFromImport>[],
+  existingByDrawing: Map<string, { id: string }>,
+): void {
+  const byDrawing = new Map(rows.map(r => [r.drawingNumber.toUpperCase(), r]))
+  for (const job of rows) {
+    const m = job.drawingNumber.match(/^(.+) Rev ([A-Z])$/)
+    if (!m) continue
+    const parent = byDrawing.get(m[1].toUpperCase()) ?? existingByDrawing.get(m[1].toUpperCase())
+    if (!parent) continue
+    job.parentJobId = parent.id
+    job.revisionLetter = m[2]
+    job.itemType = "REVISION"
+  }
+}
+
 export interface SheetResult {
   created: number
   updated: number
@@ -284,6 +300,8 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
   }
 
   if (!rows.length) return result
+
+  linkImportedRevisions(rows, jobByDrawingNumber)
 
   if (useSupabaseJobs()) {
     try {

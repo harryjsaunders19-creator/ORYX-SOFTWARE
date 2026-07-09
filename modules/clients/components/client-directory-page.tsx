@@ -19,6 +19,9 @@ import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
 import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
 import type { Client } from "@/lib/types"
+import type { ClientContactInput, ClientContactRow } from "../types/client-contact-types"
+import { contactsFromClient, emptyContact } from "../types/client-contact-types"
+import { ClientContactsFields } from "./client-contacts-fields"
 
 const CLIENT_LIMIT = 50
 
@@ -77,16 +80,19 @@ const ClientTableRow = memo(function ClientTableRow({
   )
 })
 
-function ClientForm({ formId, initial, onSubmit, saving: _saving }: {
+function ClientForm({ formId, initial, initialContacts, onSubmit, saving: _saving }: {
   formId: string
   initial: Partial<Client>
-  onSubmit: (data: Partial<Client>) => Promise<void>
+  initialContacts?: ClientContactInput[]
+  onSubmit: (data: Partial<Client> & { contacts: ClientContactInput[] }) => Promise<void>
   saving: boolean
 }) {
   const [name,    setName]    = useState(initial.name            ?? "")
-  const [contact, setContact] = useState(initial.contactName     ?? "")
-  const [email,   setEmail]   = useState(initial.email           ?? "")
-  const [phone,   setPhone]   = useState(initial.phone           ?? "")
+  const [contacts, setContacts] = useState<ClientContactInput[]>(
+    initialContacts?.length
+      ? initialContacts
+      : contactsFromClient(initial),
+  )
   const [addr,    setAddr]    = useState(initial.billingAddress   ?? "")
   const [notes,   setNotes]   = useState(initial.notes           ?? "")
   const [accountCode, setAccountCode] = useState(initial.accountCode ?? "")
@@ -94,9 +100,11 @@ function ClientForm({ formId, initial, onSubmit, saving: _saving }: {
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     onSubmit({
-      name: name.trim(), contactName: contact.trim() || null, email: email.trim() || null,
-      phone: phone.trim() || null, billingAddress: addr.trim() || null, notes: notes.trim() || null,
+      name: name.trim(),
+      billingAddress: addr.trim() || null,
+      notes: notes.trim() || null,
       accountCode: accountCode.trim() || null,
+      contacts: contacts.length ? contacts : [emptyContact()],
     })
   }
 
@@ -112,20 +120,7 @@ function ClientForm({ formId, initial, onSubmit, saving: _saving }: {
           <Input value={accountCode} onChange={e => setAccountCode(e.target.value)} placeholder="e.g. ACME01" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <Label>Main contact</Label>
-          <Input value={contact} onChange={e => setContact(e.target.value)} placeholder="Jane Smith" />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Phone</Label>
-          <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="01179 000000" />
-        </div>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label>Email</Label>
-        <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="accounts@example.co.uk" />
-      </div>
+      <ClientContactsFields contacts={contacts} onChange={setContacts} />
       <div className="flex flex-col gap-1.5">
         <Label>Billing address</Label>
         <Textarea value={addr} onChange={e => setAddr(e.target.value)} rows={2} placeholder="14 Industrial Way, Bristol" />
@@ -148,6 +143,8 @@ function ClientsInner() {
   const [page,       setPage]       = useState(1)
   const [createOpen, setCreateOpen] = useState(false)
   const [editClient, setEditClient] = useState<Client | null>(null)
+  const [editContacts, setEditContacts] = useState<ClientContactInput[] | null>(null)
+  const [editContactsLoading, setEditContactsLoading] = useState(false)
   const [saving,     setSaving]     = useState(false)
   const [dupError,   setDupError]   = useState<{ msg: string; existing: Client } | null>(null)
   const [archiveClient, setArchiveClient] = useState<ClientWithMeta | null>(null)
@@ -169,10 +166,32 @@ function ClientsInner() {
   const refreshing = isValidating && !!data
   const totalPages = data ? Math.max(1, Math.ceil(data.total / CLIENT_LIMIT)) : 1
 
-  const handleEditOpen = useCallback((c: ClientWithMeta) => { setEditClient(c); setDupError(null) }, [])
+  const handleEditOpen = useCallback((c: ClientWithMeta) => {
+    setEditClient(c)
+    setDupError(null)
+    setEditContacts(null)
+    setEditContactsLoading(true)
+    fetch(`/api/clients/${c.id}`)
+      .then(r => r.json() as Promise<{ contacts?: ClientContactRow[] }>)
+      .then(data => {
+        setEditContacts(
+          data.contacts?.length
+            ? data.contacts.map(row => ({
+                id: row.id,
+                name: row.name,
+                email: row.email,
+                phone: row.phone,
+                role: row.role,
+              }))
+            : contactsFromClient(c),
+        )
+      })
+      .catch(() => setEditContacts(contactsFromClient(c)))
+      .finally(() => setEditContactsLoading(false))
+  }, [])
   const handleArchiveOpen = useCallback((c: ClientWithMeta) => setArchiveClient(c), [])
 
-  const doCreate = async (d: Partial<Client>) => {
+  const doCreate = async (d: Partial<Client> & { contacts: ClientContactInput[] }) => {
     setSaving(true); setDupError(null)
     try {
       const res  = await fetch("/api/clients", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(d) })
@@ -186,7 +205,7 @@ function ClientsInner() {
     finally { setSaving(false) }
   }
 
-  const doEdit = async (d: Partial<Client>) => {
+  const doEdit = async (d: Partial<Client> & { contacts: ClientContactInput[] }) => {
     if (!editClient) return
     setSaving(true); setDupError(null)
     try {
@@ -330,7 +349,18 @@ function ClientsInner() {
                 </Link>
               </div>
             )}
-            {editClient && <ClientForm formId="edit-client-form" initial={editClient} onSubmit={doEdit} saving={saving} />}
+            {editClient && !editContactsLoading && editContacts && (
+              <ClientForm
+                formId="edit-client-form"
+                initial={editClient}
+                initialContacts={editContacts}
+                onSubmit={doEdit}
+                saving={saving}
+              />
+            )}
+            {editClient && editContactsLoading && (
+              <p className="text-sm text-t3 py-6 text-center">Loading contacts…</p>
+            )}
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditClient(null)} disabled={saving}>Cancel</Button>

@@ -15,12 +15,15 @@ import { db } from "@/lib/db/connection"
 import { nowIso } from "@/lib/db/helpers"
 import { clientDb } from "@/lib/db/stores"
 import type { ClientRow, CreateClientData, UpdateClientData } from "../types/client-types"
+import type { ClientContactInput } from "../types/client-contact-types"
+import { primaryContactFields } from "../types/client-contact-types"
 import { useSupabaseClients, useSupabaseJobs } from "@/lib/supabase/feature-flags"
 import { supabaseClientRepo } from "../supabase/repository"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { archiveLogService } from "@/lib/services/archive-log-service"
 import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
 import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
+import { clientContactService } from "./client-contact-service"
 
 function sqliteActiveJobCount(clientId: string): number {
   return (db.prepare("SELECT COUNT(*) as n FROM Job WHERE clientId = ? AND status != 'ISSUED'").get(clientId) as { n: number }).n
@@ -108,20 +111,77 @@ export const clientService = {
     return supabaseClientRepo.search(q, limit)
   },
 
-  async create(data: CreateClientData): Promise<ClientRow> {
-    if (!useSupabaseClients()) return clientDb.create(data)
-    const now = nowIso()
-    const created = await supabaseClientRepo.create(data, now)
-    mirrorCreate(data)
+  async create(data: CreateClientData & { contacts?: ClientContactInput[] }): Promise<ClientRow> {
+    const primary = data.contacts?.length
+      ? primaryContactFields(data.contacts)
+      : {
+          contactName: data.contactName ?? null,
+          email: data.email ?? null,
+          phone: data.phone ?? null,
+        }
+    const payload: CreateClientData = {
+      ...data,
+      contactName: primary.contactName,
+      email: primary.email,
+      phone: primary.phone,
+    }
+
+    let created: ClientRow
+    if (!useSupabaseClients()) {
+      created = clientDb.create(payload)
+    } else {
+      const now = nowIso()
+      created = await supabaseClientRepo.create(payload, now)
+      mirrorCreate(payload)
+    }
+
+    if (data.contacts !== undefined) {
+      await clientContactService.replaceForClient(created.id, data.contacts)
+    } else if (primary.contactName || primary.email || primary.phone) {
+      await clientContactService.replaceForClient(created.id, [{
+        name: primary.contactName ?? "",
+        email: primary.email,
+        phone: primary.phone,
+      }])
+    }
+
     return created
   },
 
-  async update(id: string, data: UpdateClientData): Promise<ClientRow | null> {
-    if (!useSupabaseClients()) return clientDb.update(id, data)
+  async update(
+    id: string,
+    data: UpdateClientData & { contacts?: ClientContactInput[] },
+  ): Promise<ClientRow | null> {
+    const primary = data.contacts !== undefined
+      ? primaryContactFields(data.contacts)
+      : null
+    const patch: UpdateClientData = {
+      ...data,
+      ...(primary && {
+        contactName: primary.contactName,
+        email: primary.email,
+        phone: primary.phone,
+      }),
+    }
+    delete (patch as { contacts?: ClientContactInput[] }).contacts
+
+    if (!useSupabaseClients()) {
+      const updated = clientDb.update(id, patch)
+      if (updated && data.contacts !== undefined) {
+        await clientContactService.replaceForClient(id, data.contacts)
+      }
+      return updated
+    }
+
     const existing = await supabaseClientRepo.findUnique(id)
     if (!existing) return null
-    const updated = await supabaseClientRepo.update(id, data, existing, nowIso())
-    if (updated) mirrorUpdate(id, data)
+    const updated = await supabaseClientRepo.update(id, patch, existing, nowIso())
+    if (updated) {
+      mirrorUpdate(id, patch)
+      if (data.contacts !== undefined) {
+        await clientContactService.replaceForClient(id, data.contacts)
+      }
+    }
     return updated
   },
 
@@ -206,5 +266,9 @@ export const clientService = {
   /** Still SQLite-only — jobs table not migrated yet */
   jobsForClient(clientId: string, limit = 50) {
     return clientDb.jobsForClient(clientId, limit)
+  },
+
+  contactsForClient(clientId: string) {
+    return clientContactService.findByClientId(clientId)
   },
 }

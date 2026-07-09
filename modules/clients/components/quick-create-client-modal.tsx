@@ -1,13 +1,17 @@
 "use client"
+
 import { useState } from "react"
-import { Button }   from "@/shared/ui/button"
-import { Input }    from "@/shared/ui/input"
-import { Label }    from "@/shared/ui/label"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Label } from "@/shared/ui/label"
 import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogBody,
 } from "@/shared/ui/dialog"
 import type { Client } from "@/lib/types"
+import type { ClientContactInput } from "../types/client-contact-types"
+import { emptyContact } from "../types/client-contact-types"
+import { ClientContactsFields } from "./client-contacts-fields"
 
 /**
  * Inline "create a brand-new client" modal, used anywhere a ClientCombobox's
@@ -19,13 +23,11 @@ export function QuickCreateClientModal({ initialName, onCreated, onClose }: {
   onCreated: (client: Client) => void
   onClose: () => void
 }) {
-  const [name,    setName]    = useState(initialName)
-  const [contact, setContact] = useState("")
-  const [email,   setEmail]   = useState("")
-  const [phone,   setPhone]   = useState("")
-  const [address, setAddress] = useState("")
-  const [saving,  setSaving]  = useState(false)
-  const [error,   setError]   = useState("")
+  const [name,     setName]     = useState(initialName)
+  const [contacts, setContacts] = useState<ClientContactInput[]>([emptyContact()])
+  const [address,  setAddress]  = useState("")
+  const [saving,   setSaving]   = useState(false)
+  const [error,    setError]    = useState("")
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,15 +38,12 @@ export function QuickCreateClientModal({ initialName, onCreated, onClose }: {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          contactName: contact.trim() || null,
-          email: email.trim() || null,
-          phone: phone.trim() || null,
           billingAddress: address.trim() || null,
+          contacts,
         }),
       })
       const body = await res.json() as Client & { error?: string; existing?: Client }
       if (res.status === 409 && body.existing) {
-        // Duplicate — use existing
         onCreated(body.existing)
         return
       }
@@ -65,20 +64,9 @@ export function QuickCreateClientModal({ initialName, onCreated, onClose }: {
               <Label>Company name *</Label>
               <Input value={name} onChange={e => setName(e.target.value)} autoFocus required />
             </div>
+            <ClientContactsFields contacts={contacts} onChange={setContacts} />
             <div className="flex flex-col gap-1.5">
-              <Label>Contact name</Label>
-              <Input value={contact} onChange={e => setContact(e.target.value)} placeholder="Jane Smith" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Phone</Label>
-              <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="01179 000000" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Address</Label>
+              <Label>Billing address</Label>
               <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="14 Clifton Road, Bristol, BS8 1AF" />
             </div>
           </DialogBody>

@@ -281,6 +281,21 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_hold_client ON ClientHold(clientId);
   CREATE INDEX IF NOT EXISTS idx_hold_status ON ClientHold(status);
 
+  CREATE TABLE IF NOT EXISTS ClientContact (
+    id         TEXT PRIMARY KEY,
+    clientId   TEXT NOT NULL REFERENCES Client(id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    email      TEXT,
+    phone      TEXT,
+    role       TEXT,
+    isPrimary  INTEGER NOT NULL DEFAULT 0,
+    sortOrder  INTEGER NOT NULL DEFAULT 0,
+    createdAt  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updatedAt  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_clientcontact_client ON ClientContact(clientId);
+
   CREATE TABLE IF NOT EXISTS Quote (
     id            TEXT PRIMARY KEY,
     quoteNumber   TEXT UNIQUE NOT NULL,
@@ -783,6 +798,65 @@ try {
   add("archivedAt", "TEXT")
   add("archivedBy", "TEXT")
   db.exec("CREATE INDEX IF NOT EXISTS idx_client_archived ON Client(archivedAt)")
+})()
+
+;(function migrateClientContacts() {
+  const tableExists = (db.prepare(
+    "SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND name='ClientContact'"
+  ).get() as { n: number }).n > 0
+  if (!tableExists) {
+    db.exec(`
+      CREATE TABLE ClientContact (
+        id         TEXT PRIMARY KEY,
+        clientId   TEXT NOT NULL REFERENCES Client(id) ON DELETE CASCADE,
+        name       TEXT NOT NULL,
+        email      TEXT,
+        phone      TEXT,
+        role       TEXT,
+        isPrimary  INTEGER NOT NULL DEFAULT 0,
+        sortOrder  INTEGER NOT NULL DEFAULT 0,
+        createdAt  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        updatedAt  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_clientcontact_client ON ClientContact(clientId);
+    `)
+  }
+
+  const clients = db.prepare(`
+    SELECT id, contactName, email, phone, createdAt, updatedAt FROM Client
+    WHERE (contactName IS NOT NULL AND contactName != '')
+       OR (email IS NOT NULL AND email != '')
+       OR (phone IS NOT NULL AND phone != '')
+  `).all() as {
+    id: string
+    contactName: string | null
+    email: string | null
+    phone: string | null
+    createdAt: string
+    updatedAt: string
+  }[]
+
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO ClientContact
+      (id, clientId, name, email, phone, role, isPrimary, sortOrder, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, NULL, 1, 0, ?, ?)
+  `)
+
+  for (const client of clients) {
+    const exists = (db.prepare(
+      "SELECT COUNT(*) as n FROM ClientContact WHERE clientId = ?"
+    ).get(client.id) as { n: number }).n > 0
+    if (exists) continue
+    insert.run(
+      `${client.id}-primary`,
+      client.id,
+      client.contactName?.trim() || "Main contact",
+      client.email,
+      client.phone,
+      client.createdAt,
+      client.updatedAt,
+    )
+  }
 })()
 ;(function addMissingBillingHandoffColumns() {
   const tableExists = (db.prepare(

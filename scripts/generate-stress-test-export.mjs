@@ -155,7 +155,170 @@ function drawingNumberFor(type, seq, year, month, revisionLetter = null) {
   return `${String(year).slice(2)}/ORYX/${pad(month, 2)}/${pad(seq, 3)}`
 }
 
+function buildScenarioJobs(clients) {
+  const client = clients[0]
+  const client2 = clients[1] ?? client
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const addDays = (n) => {
+    const d = new Date(today)
+    d.setDate(d.getDate() + n)
+    return d
+  }
+
+  const parentDrawing = "STRESS-MAP-PARENT"
+  const scenarios = [
+    {
+      drawingNumber: "STRESS-DUE-COMPLETE",
+      itemType: "Design",
+      address: "1 Deadline Close, Bristol, BS1 4DJ",
+      typeOfWorks: "Access Scaffold",
+      client: client.name,
+      customerId: client.accountCode,
+      requestedBy: "QA Tester",
+      status: "Complete",
+      designer: DESIGNERS[0],
+      quoteValue: 2500,
+      variationFees: "",
+      quoteReference: "QT-STRESS-01",
+      dateCreated: fmtDate(addDays(-14)),
+      requiredBy: fmtDate(addDays(4)),
+      dateCompleted: fmtDate(addDays(-1)),
+      lastUpdated: fmtDate(today),
+      notes: "VERIFY: Complete + due this week — must NOT count in Due This Week KPI",
+    },
+    {
+      drawingNumber: "STRESS-DUE-ACTIVE",
+      itemType: "Design",
+      address: "2 Deadline Close, Bristol, BS1 4DJ",
+      typeOfWorks: "Loading Bay",
+      client: client.name,
+      customerId: client.accountCode,
+      requestedBy: "QA Tester",
+      status: "In Progress",
+      designer: DESIGNERS[1],
+      quoteValue: 1800,
+      variationFees: "",
+      quoteReference: "",
+      dateCreated: fmtDate(addDays(-7)),
+      requiredBy: fmtDate(addDays(2)),
+      dateCompleted: "",
+      lastUpdated: fmtDate(today),
+      notes: "VERIFY: Active + due this week — SHOULD appear in Due This Week KPI",
+    },
+    {
+      drawingNumber: parentDrawing,
+      itemType: "Design",
+      address: "Unit 5, Trafford Park, Manchester, M17 1WA",
+      typeOfWorks: "Birdcage (Internal/External)",
+      client: client2.name,
+      customerId: client2.accountCode,
+      requestedBy: "QA Tester",
+      status: "Complete",
+      designer: DESIGNERS[0],
+      quoteValue: 4200,
+      variationFees: "",
+      quoteReference: "QT-STRESS-MAP",
+      dateCreated: fmtDate(addDays(-30)),
+      requiredBy: fmtDate(addDays(-10)),
+      dateCompleted: fmtDate(addDays(-5)),
+      lastUpdated: fmtDate(addDays(-5)),
+      notes: "VERIFY: Original job — eligible for map pin after geocode",
+    },
+    {
+      drawingNumber: `${parentDrawing} Rev A`,
+      itemType: "Revision",
+      address: "Unit 5, Trafford Park, Manchester, M17 1WA",
+      typeOfWorks: "Birdcage (Internal/External)",
+      client: client2.name,
+      customerId: client2.accountCode,
+      requestedBy: "QA Tester",
+      status: "Complete",
+      designer: DESIGNERS[0],
+      quoteValue: 600,
+      variationFees: "",
+      quoteReference: "QT-STRESS-MAP-R",
+      dateCreated: fmtDate(addDays(-3)),
+      requiredBy: fmtDate(addDays(5)),
+      dateCompleted: fmtDate(addDays(-1)),
+      lastUpdated: fmtDate(addDays(-1)),
+      notes: "VERIFY: Revision — must NOT appear as separate map pin",
+    },
+    {
+      drawingNumber: "STRESS-MAP-FULL",
+      itemType: "Design",
+      address: "14 Elm Close, Manchester, M20 3RT",
+      typeOfWorks: "Edge Protection",
+      client: client.name,
+      customerId: client.accountCode,
+      requestedBy: "QA Tester",
+      status: "Complete",
+      designer: DESIGNERS[2],
+      quoteValue: 3100,
+      variationFees: "",
+      quoteReference: "",
+      dateCreated: fmtDate(addDays(-20)),
+      requiredBy: fmtDate(addDays(-2)),
+      dateCompleted: fmtDate(addDays(-4)),
+      lastUpdated: fmtDate(addDays(-4)),
+      notes: "VERIFY: Full postcode address — auto-geocode ready",
+    },
+    {
+      drawingNumber: "STRESS-MAP-VAGUE",
+      itemType: "Design",
+      address: "Smith Building",
+      typeOfWorks: "Temporary Roof",
+      client: client.name,
+      customerId: client.accountCode,
+      requestedBy: "QA Tester",
+      status: "Complete",
+      designer: DESIGNERS[3],
+      quoteValue: 900,
+      variationFees: "",
+      quoteReference: "",
+      dateCreated: fmtDate(addDays(-12)),
+      requiredBy: fmtDate(addDays(6)),
+      dateCompleted: fmtDate(addDays(-2)),
+      lastUpdated: fmtDate(addDays(-2)),
+      notes: "VERIFY: Incomplete address — Missing Locations → Needs manual queue",
+    },
+    {
+      drawingNumber: "STRESS-MAP-IE",
+      itemType: "Design",
+      address: "12 O'Connell Street, Dublin, D01 F5P2",
+      typeOfWorks: "Gantry",
+      client: client2.name,
+      customerId: client2.accountCode,
+      requestedBy: "QA Tester",
+      status: "Complete",
+      designer: DESIGNERS[0],
+      quoteValue: 5500,
+      variationFees: "",
+      quoteReference: "",
+      dateCreated: fmtDate(addDays(-18)),
+      requiredBy: fmtDate(addDays(1)),
+      dateCompleted: fmtDate(addDays(-3)),
+      lastUpdated: fmtDate(addDays(-3)),
+      notes: "VERIFY: Ireland address — auto-geocode with Eircode/postcode path",
+    },
+  ]
+
+  return scenarios
+}
+
+function linkRevisionParents(_jobs) {
+  // Revision parent links are resolved at import time (excel-import.ts).
+}
+
 function buildJobs(clients) {
+  const scenarios = buildScenarioJobs(clients)
+  const randomJobs = buildRandomJobs(clients)
+  const jobs = [...scenarios, ...randomJobs]
+  linkRevisionParents(jobs)
+  return jobs
+}
+
+function buildRandomJobs(clients) {
   const jobs = []
   const designParents = []
   const year = new Date().getFullYear()
@@ -224,7 +387,7 @@ function buildJobs(clients) {
     const created = randomDate(90, 14)
     const quoteValue = 400 + Math.floor(Math.random() * 3000)
     jobs.push({
-      drawingNumber: `${parent}-${letters[r % letters.length]}`,
+      drawingNumber: `${parent} Rev ${letters[r % letters.length]}`,
       itemType: "Revision",
       address: jobs.find(j => j.drawingNumber === parent)?.address ?? `${15} ${STREETS[0]}, Bristol`,
       typeOfWorks: WORKS_TYPES[r % WORKS_TYPES.length],
@@ -340,6 +503,7 @@ async function main() {
   console.log(`Generating stress-test export: ${CLIENT_COUNT} clients, ${JOB_COUNT} jobs, ${QUOTE_COUNT} quotes…`)
 
   const clients = buildClients()
+  const scenarios = buildScenarioJobs(clients)
   const jobs = buildJobs(clients)
   const quotes = buildQuotes(clients)
   const handoffs = buildInvoicingQueue(jobs)
@@ -456,11 +620,17 @@ async function main() {
 
   console.log(`Written: ${OUT_FILE}`)
   console.log(`  Clients: ${clients.length}`)
-  console.log(`  Jobs:    ${jobs.length}`)
+  console.log(`  Jobs:    ${jobs.length} (includes ${scenarios.length} STRESS-* scenario rows)`)
   console.log(`  Quotes:  ${quotes.length}`)
   console.log(`  Invoicing queue rows: ${handoffs.length} (display only — not re-imported)`)
   console.log("")
-  console.log("Import via: Backups page → Import, or POST /api/import/excel")
+  console.log("Scenario jobs (search STRESS-):")
+  for (const s of scenarios) {
+    console.log(`  ${s.drawingNumber}`)
+    console.log(`    ${s.notes.replace("VERIFY: ", "")}`)
+  }
+  console.log("")
+  console.log("Import: System Backup → Import Excel")
 }
 
 main().catch(err => {

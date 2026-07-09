@@ -16,8 +16,14 @@ import { useUser }           from "@/shared/providers/user-context"
 import { cn, formatGBP } from "@/shared/utils/utils"
 import { PageShell, BackLink, PageHeader, KpiTile, DataPanel, DetailPanel, surfaceCard } from "@/shared/layouts/page-layout"
 import type { Client, ClientStats, ClientHold, Job } from "@/lib/types"
+import type { ClientContactRow } from "@/modules/clients/types/client-contact-types"
 
-interface ClientDetail { client: Client; stats: ClientStats | null; jobs: Job[] }
+interface ClientDetail {
+  client: Client
+  contacts: ClientContactRow[]
+  stats: ClientStats | null
+  jobs: Job[]
+}
 
 interface ClientAnalytics {
   totalJobs: number; completed: number; inProgress: number; checking: number; readyToSend: number; newRequest: number
@@ -116,7 +122,7 @@ export default function ClientDetailPage() {
     </PageShell>
   )
 
-  const { client, stats, jobs } = detail
+  const { client, contacts = [], stats, jobs } = detail
   const designJobs     = jobs.filter(j => j.itemType === "DESIGN" || !j.itemType)
   const revisions      = jobs.filter(j => j.itemType === "REVISION")
   const nonDesignJobs  = jobs.filter(j => j.itemType && !["DESIGN","REVISION"].includes(j.itemType))
@@ -129,14 +135,42 @@ export default function ClientDetailPage() {
         title={client.name}
         description={
           <span className="flex flex-wrap gap-4">
-            {client.contactName && <span>{client.contactName}</span>}
-            {client.email && (
-              <a href={`mailto:${client.email}`} className="flex items-center gap-1 text-ac hover:text-ach">
-                <Mail className="h-3 w-3" />{client.email}
-              </a>
+            {contacts.length > 0 ? (
+              contacts.map((contact, index) => (
+                <span key={contact.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>
+                    {contact.name}
+                    {contact.role ? ` · ${contact.role}` : ""}
+                    {index === 0 && contacts.length > 1 ? " (primary)" : ""}
+                  </span>
+                  {contact.email && (
+                    <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-ac hover:text-ach">
+                      <Mail className="h-3 w-3" />{contact.email}
+                    </a>
+                  )}
+                  {contact.phone && (
+                    <span className="flex items-center gap-1">
+                      <Phone className="h-3 w-3" />{contact.phone}
+                    </span>
+                  )}
+                </span>
+              ))
+            ) : (
+              <>
+                {client.contactName && <span>{client.contactName}</span>}
+                {client.email && (
+                  <a href={`mailto:${client.email}`} className="flex items-center gap-1 text-ac hover:text-ach">
+                    <Mail className="h-3 w-3" />{client.email}
+                  </a>
+                )}
+                {client.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{client.phone}</span>}
+              </>
             )}
-            {client.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{client.phone}</span>}
-            {client.billingAddress && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{client.billingAddress}</span>}
+            {client.billingAddress && (
+              <span className="flex items-center gap-1 w-full sm:w-auto">
+                <MapPin className="h-3 w-3" />{client.billingAddress}
+              </span>
+            )}
           </span>
         }
         actions={

@@ -3,6 +3,7 @@ import { listResponse } from "@/shared/utils/api-cache"
 import { clientService } from "../services/client-service"
 import { createId } from "@paralleldrive/cuid2"
 import { requireSignIn } from "@/shared/auth/auth"
+import { parseContactsFromBody } from "./parse-contacts"
 import { canViewClientAnalytics } from "@/shared/auth/permissions"
 
 export async function GET(req: NextRequest) {
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
       }, { status: 409 })
     }
 
+    const contacts = parseContactsFromBody(body)
     const client = await clientService.create({
       id:             createId(),
       name,
@@ -63,8 +65,10 @@ export async function POST(req: NextRequest) {
       billingAddress: body.billingAddress ? String(body.billingAddress).trim() : null,
       notes:          body.notes          ? String(body.notes).trim()          : null,
       accountCode:    body.accountCode    ? String(body.accountCode).trim()    : null,
+      contacts,
     })
-    return NextResponse.json(client, { status: 201 })
+    const savedContacts = await clientService.contactsForClient(client.id)
+    return NextResponse.json({ ...client, contacts: savedContacts }, { status: 201 })
   } catch (err) {
     console.error("[POST /api/clients]", err)
     return NextResponse.json({ error: "Failed to create client" }, { status: 500 })
