@@ -21,7 +21,7 @@ export const sequenceDb = {
         db.prepare("UPDATE DrawingSequence SET sequence = ? WHERE yearMonth = ?").run(next, yearMonth)
         return next
       } else {
-        db.prepare("INSERT INTO DrawingSequence (id,yearMonth,sequence) VALUES (?,?,1)").run(nanoid(), yearMonth, 1)
+        db.prepare("INSERT INTO DrawingSequence (id,yearMonth,sequence) VALUES (?,?,1)").run(nanoid(), yearMonth)
         return 1
       }
     })
@@ -48,7 +48,7 @@ export const sequenceDb = {
 
       db.prepare(
         "INSERT INTO DrawingSequence (id, yearMonth, sequence) VALUES (?, ?, 1)",
-      ).run(nanoid(), DRAWING_SEQUENCE_KEY, 1)
+      ).run(nanoid(), DRAWING_SEQUENCE_KEY)
       return 1
     })
     return run() as number
