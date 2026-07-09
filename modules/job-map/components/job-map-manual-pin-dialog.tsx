@@ -2,9 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet"
-import L from "leaflet"
-import "leaflet/dist/leaflet.css"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter,
 } from "@/shared/ui/dialog"
@@ -13,78 +10,25 @@ import { Input } from "@/shared/ui/input"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import type { MissingLocationJob } from "../types/location-types"
 import { buildGeocodeQuery, displaySiteName } from "../utils/job-address"
-import { MAP_TILES, UK_IRELAND_DEFAULT_CENTER, UK_IRELAND_DEFAULT_ZOOM, UK_IRELAND_BOUNDS } from "../constants"
+import type { ManualPinMapProps } from "./job-map-manual-pin-map"
+
+const ManualPinMap = dynamic(
+  () => import("./job-map-manual-pin-map").then(m => m.ManualPinMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full w-full flex items-center justify-center bg-surface-low">
+        <p className="text-sm text-t3">Loading map…</p>
+      </div>
+    ),
+  },
+)
 
 interface SearchResult {
   label: string
   lat: number
   lng: number
 }
-
-function ClickToPlace({ onPlace }: { onPlace: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    click(e) {
-      onPlace(e.latlng.lat, e.latlng.lng)
-    },
-  })
-  return null
-}
-
-function FlyTo({ lat, lng }: { lat: number; lng: number }) {
-  const map = useMap()
-  useEffect(() => {
-    map.flyTo([lat, lng], Math.max(map.getZoom(), 14), { duration: 0.6 })
-  }, [map, lat, lng])
-  return null
-}
-
-function ManualPinMap({
-  position,
-  onPlace,
-  flyTo,
-}: {
-  position: [number, number] | null
-  onPlace: (lat: number, lng: number) => void
-  flyTo: [number, number] | null
-}) {
-  const icon = L.divIcon({
-    className: "job-map-marker-icon",
-    html: `<div style="width:28px;height:28px;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);"></div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
-  })
-
-  return (
-    <MapContainer
-      center={position ?? UK_IRELAND_DEFAULT_CENTER}
-      zoom={UK_IRELAND_DEFAULT_ZOOM}
-      minZoom={5}
-      maxZoom={18}
-      maxBounds={UK_IRELAND_BOUNDS}
-      className="h-full w-full rounded-md"
-      style={{ height: "100%", width: "100%" }}
-    >
-      <TileLayer attribution={MAP_TILES.street.attribution} url={MAP_TILES.street.url} />
-      <ClickToPlace onPlace={onPlace} />
-      {flyTo && <FlyTo lat={flyTo[0]} lng={flyTo[1]} />}
-      {position && (
-        <Marker
-          position={position}
-          icon={icon}
-          draggable
-          eventHandlers={{
-            dragend: e => {
-              const { lat, lng } = e.target.getLatLng()
-              onPlace(lat, lng)
-            },
-          }}
-        />
-      )}
-    </MapContainer>
-  )
-}
-
-const PinMap = dynamic(() => Promise.resolve(ManualPinMap), { ssr: false })
 
 interface Props {
   job: MissingLocationJob
@@ -159,6 +103,8 @@ export function JobMapManualPinDialog({ job, open, onOpenChange, onSaved }: Prop
     }
   }, [job.id, onOpenChange, onSaved, position])
 
+  const mapProps: ManualPinMapProps = { position, onPlace: place, flyTo }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
@@ -192,7 +138,7 @@ export function JobMapManualPinDialog({ job, open, onOpenChange, onSaved }: Prop
             )}
           </div>
           <div className="rounded-md border border-bd overflow-hidden" style={{ height: 360 }}>
-            <PinMap position={position} onPlace={place} flyTo={flyTo} />
+            <ManualPinMap {...mapProps} />
           </div>
           {position && (
             <p className="text-xs text-t4 font-mono tabular-nums">

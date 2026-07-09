@@ -1,12 +1,17 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import { MapPin, RefreshCw } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useToast } from "@/shared/ui/toast"
 import type { MissingLocationJob } from "../types/location-types"
 import { displaySiteName } from "../utils/job-address"
-import { JobMapManualPinDialog } from "./job-map-manual-pin-dialog"
+
+const JobMapManualPinDialog = dynamic(
+  () => import("./job-map-manual-pin-dialog").then(m => m.JobMapManualPinDialog),
+  { ssr: false },
+)
 
 interface Props {
   isAdmin: boolean
