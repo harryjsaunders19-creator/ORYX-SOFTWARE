@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 import { quoteService } from "../services/quote-service"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireRole } from "@/shared/auth/auth"
 
 export async function DELETE() {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireRole(["ADMIN"])
     if (auth instanceof NextResponse) return auth
 
     await quoteService.expirePastDue()

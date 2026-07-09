@@ -156,7 +156,17 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
     if (!holdWarning) return
     setHoldWarning(null)
     setSaving(true)
-    try { await onSubmit(holdWarning.pendingSubmit) } catch { /* parent shows toast */ } finally { setSaving(false) }
+    try {
+      const payload = {
+        ...holdWarning.pendingSubmit,
+        address: composeJobAddress(
+          holdWarning.pendingSubmit.siteName,
+          holdWarning.pendingSubmit.siteAddress,
+          holdWarning.pendingSubmit.address,
+        ),
+      }
+      await onSubmit(payload)
+    } catch { /* parent shows toast */ } finally { setSaving(false) }
   }
 
   // Determine which item types can be shown in the type selector

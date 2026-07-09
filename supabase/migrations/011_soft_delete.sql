@@ -41,15 +41,11 @@ CREATE TABLE IF NOT EXISTS archive_log (
 CREATE INDEX IF NOT EXISTS idx_archive_log_entity    ON archive_log(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_archive_log_performed ON archive_log(performed_at DESC);
 
--- Enable Row Level Security (permissive — internal app only)
+-- Enable Row Level Security — service role only (app uses service role server-side)
 ALTER TABLE archive_log ENABLE ROW LEVEL SECURITY;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE tablename = 'archive_log' AND policyname = 'archive_log_open'
-  ) THEN
-    CREATE POLICY archive_log_open ON archive_log FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-END $$;
+DROP POLICY IF EXISTS archive_log_open ON archive_log;
+DROP POLICY IF EXISTS "Service role full access on archive_log" ON archive_log;
+CREATE POLICY "Service role full access on archive_log"
+  ON archive_log FOR ALL TO service_role
+  USING (true) WITH CHECK (true);

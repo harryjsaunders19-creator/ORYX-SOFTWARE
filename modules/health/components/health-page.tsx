@@ -66,7 +66,12 @@ function HealthPageInner() {
   const run = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      setData(await fetch("/api/health").then(r => r.json()) as Health)
+      const res = await fetch("/api/health")
+      if (!res.ok) {
+        const body = await res.json().catch(() => null) as { error?: string } | null
+        throw new Error(body?.error ?? `HTTP ${res.status}`)
+      }
+      setData(await res.json() as Health)
     } catch (e) { setError(String(e)) }
     finally { setLoading(false) }
   }, [])

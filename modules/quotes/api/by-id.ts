@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { quoteService } from "../services/quote-service"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireSignIn, requireRole } from "@/shared/auth/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "../quote-works"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { errorMessage } from "@/shared/utils/error-message"
@@ -142,7 +142,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireRole(["ADMIN"])
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

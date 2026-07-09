@@ -19,6 +19,7 @@ import {
   TableShell, TableHead, Th,
 } from "@/shared/layouts/page-layout"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
+import { RequireRole } from "@/components/require-role"
 import type { PasswordVaultEntry } from "../types"
 
 type VaultData = { entries: PasswordVaultEntry[]; total: number }
@@ -444,5 +445,9 @@ function VaultPageInner() {
 }
 
 export default function PasswordVaultPage() {
-  return <VaultPageInner />
+  return (
+    <RequireRole roles={["ADMIN"]}>
+      <VaultPageInner />
+    </RequireRole>
+  )
 }

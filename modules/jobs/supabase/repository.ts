@@ -257,6 +257,22 @@ export const supabaseJobRepo = {
     return count ?? 0
   },
 
+  /** Non-issued job counts per client — used by client directory meta on Supabase. */
+  async activeJobCountsForClients(clientIds: string[]): Promise<Map<string, number>> {
+    const map = new Map<string, number>()
+    if (!clientIds.length) return map
+    const { data, error } = await table()
+      .select("client_id")
+      .in("client_id", clientIds)
+      .neq("status", "ISSUED")
+    if (error) throw error
+    for (const row of data ?? []) {
+      const id = row.client_id as string
+      map.set(id, (map.get(id) ?? 0) + 1)
+    }
+    return map
+  },
+
   async findUnique(id: string): Promise<JobRow | null> {
     const { data, error } = await table().select("*").eq("id", id).maybeSingle()
     if (error) throw error

@@ -17,28 +17,54 @@ import { clientDb } from "@/lib/db/stores"
 import type { ClientRow, CreateClientData, UpdateClientData } from "../types/client-types"
 import type { ClientContactInput } from "../types/client-contact-types"
 import { primaryContactFields } from "../types/client-contact-types"
-import { useSupabaseClients, useSupabaseJobs } from "@/lib/supabase/feature-flags"
+import { useSupabaseClients, useSupabaseJobs, useSupabaseHolds } from "@/lib/supabase/feature-flags"
 import { supabaseClientRepo } from "../supabase/repository"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
+import { supabaseHoldRepo } from "../hold/supabase/repository"
+import { holdDb } from "@/lib/db/stores"
 import { archiveLogService } from "@/lib/services/archive-log-service"
 import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
 import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
 import { clientContactService } from "./client-contact-service"
 
-function sqliteActiveJobCount(clientId: string): number {
-  return (db.prepare("SELECT COUNT(*) as n FROM Job WHERE clientId = ? AND status != 'ISSUED'").get(clientId) as { n: number }).n
-}
-
-function sqliteOnHold(clientId: string): boolean {
-  return (db.prepare("SELECT COUNT(*) as n FROM ClientHold WHERE clientId = ? AND status = 'ACTIVE'").get(clientId) as { n: number }).n > 0
-}
-
-function withMeta(client: ClientRow): ClientRow & { activeJobCount: number; onHold: boolean } {
-  return {
-    ...client,
-    activeJobCount: sqliteActiveJobCount(client.id),
-    onHold: sqliteOnHold(client.id),
+/** Batch active-job counts and hold flags for a page of clients (avoids N+1 on Supabase). */
+async function batchClientMeta(
+  clientIds: string[],
+): Promise<Map<string, { activeJobCount: number; onHold: boolean }>> {
+  const map = new Map<string, { activeJobCount: number; onHold: boolean }>()
+  for (const id of clientIds) {
+    map.set(id, { activeJobCount: 0, onHold: false })
   }
+  if (!clientIds.length) return map
+
+  if (useSupabaseJobs()) {
+    const counts = await supabaseJobRepo.activeJobCountsForClients(clientIds)
+    for (const [clientId, n] of counts) {
+      const entry = map.get(clientId)
+      if (entry) entry.activeJobCount = n
+    }
+  } else {
+    const placeholders = clientIds.map(() => "?").join(",")
+    const rows = db.prepare(`
+      SELECT clientId, COUNT(*) as n FROM Job
+      WHERE clientId IN (${placeholders}) AND status != 'ISSUED'
+      GROUP BY clientId
+    `).all(...clientIds) as { clientId: string; n: number }[]
+    for (const row of rows) {
+      const entry = map.get(row.clientId)
+      if (entry) entry.activeJobCount = row.n
+    }
+  }
+
+  const holdRows = useSupabaseHolds()
+    ? await supabaseHoldRepo.activeHoldReasonsFor(clientIds)
+    : holdDb.activeHoldReasonsFor(clientIds)
+  for (const row of holdRows) {
+    const entry = map.get(row.clientId)
+    if (entry) entry.onHold = true
+  }
+
+  return map
 }
 
 /** Mirror a create/update/archive/delete to SQLite so other modules stay in sync. */
@@ -81,7 +107,11 @@ export const clientService = {
       return clientDb.findManyWithMeta(opts)
     }
     const clients = await supabaseClientRepo.findMany(opts)
-    return clients.map(withMeta)
+    const meta = await batchClientMeta(clients.map(c => c.id))
+    return clients.map(c => ({
+      ...c,
+      ...(meta.get(c.id) ?? { activeJobCount: 0, onHold: false }),
+    }))
   },
 
   async count(opts: { search?: string; activeOnly?: boolean } = {}) {

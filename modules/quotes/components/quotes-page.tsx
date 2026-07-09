@@ -106,6 +106,8 @@ function QuoteForm({ formId, initial, quoteId, onSubmit }: {
   const [quickCreateName, setQuickCreateName] = useState("")
   const [worksError, setWorksError] = useState<string | null>(null)
   const [customWorksError, setCustomWorksError] = useState<string | null>(null)
+  const [clientError, setClientError] = useState<string | null>(null)
+  const [addressError, setAddressError] = useState<string | null>(null)
   const [expiryTouched, setExpiryTouched] = useState(
     () => !!initial.quoteDate && initial.expiryDate !== addDaysIso(initial.quoteDate, 30)
   )
@@ -165,6 +167,18 @@ function QuoteForm({ formId, initial, quoteId, onSubmit }: {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     let hasError = false
+    if (!form.clientId || !form.clientCompany.trim()) {
+      setClientError("Client is required")
+      hasError = true
+    } else {
+      setClientError(null)
+    }
+    if (!form.address.trim()) {
+      setAddressError("Address is required")
+      hasError = true
+    } else {
+      setAddressError(null)
+    }
     if (!form.typeOfWorks.trim()) {
       setWorksError("Required")
       hasError = true
@@ -189,9 +203,13 @@ function QuoteForm({ formId, initial, quoteId, onSubmit }: {
           <ClientCombobox
             value={form.clientId}
             name={form.clientCompany}
-            onChange={(clientId, clientName) => setForm(f => ({ ...f, clientId, clientCompany: clientName }))}
+            onChange={(clientId, clientName) => {
+              setClientError(null)
+              setForm(f => ({ ...f, clientId, clientCompany: clientName }))
+            }}
             onCreateNew={name => setQuickCreateName(name)}
           />
+          {clientError && <p className="text-xs text-er">{clientError}</p>}
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>Contact name</Label>
@@ -201,7 +219,13 @@ function QuoteForm({ formId, initial, quoteId, onSubmit }: {
 
       <div className="flex flex-col gap-1.5">
         <Label>Address *</Label>
-        <Input value={form.address} onChange={setF("address")} placeholder="14 Clifton Road, Bristol, BS8 1AF" autoComplete="off" />
+        <Input
+          value={form.address}
+          onChange={e => { setAddressError(null); setF("address")(e) }}
+          placeholder="14 Clifton Road, Bristol, BS8 1AF"
+          autoComplete="off"
+        />
+        {addressError && <p className="text-xs text-er">{addressError}</p>}
       </div>
 
       <div className="flex flex-col gap-1.5">

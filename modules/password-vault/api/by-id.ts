@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireRole } from "@/shared/auth/auth"
 import { passwordVaultService } from "../services/vault-service"
 import { parseUpdateBody } from "./validation"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireSignIn()
+  const auth = await requireRole(["ADMIN"])
   if (auth instanceof NextResponse) return auth
 
   const { id } = await params
@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireRole(["ADMIN"])
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireRole(["ADMIN"])
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

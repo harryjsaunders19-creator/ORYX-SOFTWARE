@@ -35,10 +35,10 @@ export const SUPABASE_MIGRATION_MODULES: SupabaseModuleSpec[] = [
     label: "Clients",
     flagKey: "clients",
     envVar: "SUPABASE_CLIENTS",
-    migration: "001_clients.sql",
+    migration: "001_clients.sql (+ 021_client_contacts.sql)",
     syncScript: "npm run supabase:sync-clients",
     verifyScript: "npm run supabase:verify-clients",
-    tables: ["clients"],
+    tables: ["clients", "client_contacts"],
   },
   {
     id: "jobs",
@@ -163,8 +163,9 @@ export const SUPABASE_MIGRATION_MODULES: SupabaseModuleSpec[] = [
 
 /** Infrastructure migrations applied after core tables. */
 export const SUPABASE_INFRA_MIGRATIONS = [
-  { id: "soft-delete", label: "Soft delete / archive", migration: "011_soft_delete.sql", tables: ["archive_log"] },
+  { id: "soft-delete", label: "Soft delete / archive", migration: "011_soft_delete.sql (+ 022_fix_archive_log_rls.sql)", tables: ["archive_log"] },
   { id: "indexes", label: "Performance indexes", migration: "012_indexes.sql", tables: [] },
+  { id: "job-map", label: "Job map / geocoding", migration: "018_job_geocoding.sql (+ 019_job_map_indexes.sql + 020_job_location.sql)", tables: ["jobs"] },
 ] as const
 
 export const SUPABASE_GO_LIVE_STEPS = [

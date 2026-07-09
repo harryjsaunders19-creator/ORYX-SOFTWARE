@@ -92,6 +92,31 @@ export const quoteService = {
     return quote
   },
 
+  /**
+   * Atomically link a quote to a job (convert flow). On Supabase, only succeeds
+   * when job_id is still null so concurrent converts cannot double-link.
+   */
+  async linkToJob(quoteId: string, jobId: string): Promise<QuoteRow | null> {
+    await ensureQuoteInSqlite(quoteId)
+    await ensureJobInSqliteForBilling(jobId)
+
+    if (useSupabaseQuotes()) {
+      const linked = await supabaseQuoteRepo.linkJobId(quoteId, jobId)
+      if (!linked) return null
+      try {
+        quoteDb.update(quoteId, { jobId })
+      } catch (err) {
+        console.warn("[quoteService.linkToJob] SQLite mirror failed:", err)
+      }
+      invalidateQuotePdf(quoteId)
+      return linked
+    }
+
+    const quote = quoteDb.update(quoteId, { jobId })
+    if (quote) invalidateQuotePdf(quoteId)
+    return quote
+  },
+
   /** Update pdfPath — Supabase-first so PDF generation works on ephemeral Vercel SQLite. */
   async updatePdfPath(id: string, pdfPath: string | null): Promise<void> {
     if (pdfPath === null) invalidateQuotePdf(id)

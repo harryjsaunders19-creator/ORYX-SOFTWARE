@@ -1,14 +1,14 @@
 /**
  * POST /api/quotes/[id]/convert
  * Converts an accepted quote into a new Job.
- * Body: { designer?, requiredByDate?, changedBy? }
+ * Body: { designer?, requiredByDate? }
  * Returns: { job, quote }
  */
 import { NextRequest, NextResponse } from "next/server"
 import { quoteService } from "../services/quote-service"
 import { jobService } from "@/lib/services/job-service"
-import { quoteDb, jobDb, db, allocateDrawingNumber } from "@/lib/db"
 import { createId } from "@paralleldrive/cuid2"
+import { allocateDrawingNumber } from "@/lib/db"
 import { OTHER_WORKS_TYPE } from "@/lib/constants"
 import { requireSignIn } from "@/shared/auth/auth"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
@@ -31,49 +31,43 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     let body: Record<string, unknown> = {}
     try { body = await req.json() } catch { /* body optional */ }
 
-    const changedBy      = body.changedBy ? String(body.changedBy) : "System"
+    const changedBy      = auth.user.name
     const designer       = body.designer  ? String(body.designer).trim() : ""
     const requiredByDate = resolveRequiredByDate(body.requiredByDate ? String(body.requiredByDate) : null)
 
-    const drawingNumber = allocateDrawingNumber()
-    const jobId         = createId()
+    const jobId = createId()
+    const job = await jobService.create({
+      id:             jobId,
+      drawingNumber:  allocateDrawingNumber(),
+      itemType:       "DESIGN",
+      address:        quote.address,
+      typeOfWorks:           quote.typeOfWorks && quote.typeOfWorks !== OTHER_WORKS_TYPE
+        ? quote.typeOfWorks
+        : OTHER_WORKS_TYPE,
+      customTypeDescription: quote.typeOfWorks && quote.typeOfWorks !== OTHER_WORKS_TYPE
+        ? null
+        : (quote.customTypeDescription ?? quote.description).slice(0, 500),
+      clientCompany:  quote.clientCompany,
+      clientId:       quote.clientId ?? undefined,
+      requestedBy:    quote.contactName ?? quote.clientCompany,
+      status:         "NEW_REQUEST",
+      designer,
+      dateCompleted:  null,
+      notes:          quote.notes ?? null,
+      quoteValue:     quote.quoteValue,
+      quoteReference: quote.quoteNumber,
+      quoteDate:      quote.quoteDate,
+      requiredByDate,
+      parentJobId:    null,
+      revisionLetter: null,
+      changedBy,
+    })
 
-    // Create the job and link the quote to it in a single transaction — if either
-    // write fails, both roll back, so the quote can never end up created-but-unlinked
-    // (which would let it be converted a second time, producing a duplicate job).
-    const { job, quote: updatedQuote } = db.transaction(() => {
-      const job = jobDb.create({
-        id:             jobId,
-        drawingNumber,
-        itemType:       "DESIGN",
-        address:        quote.address,
-        typeOfWorks:           quote.typeOfWorks && quote.typeOfWorks !== OTHER_WORKS_TYPE
-          ? quote.typeOfWorks
-          : OTHER_WORKS_TYPE,
-        customTypeDescription: quote.typeOfWorks && quote.typeOfWorks !== OTHER_WORKS_TYPE
-          ? null
-          : (quote.customTypeDescription ?? quote.description).slice(0, 500),
-        clientCompany:  quote.clientCompany,
-        clientId:       quote.clientId ?? undefined,
-        requestedBy:    quote.contactName ?? quote.clientCompany,
-        status:         "NEW_REQUEST",
-        designer,
-        dateCompleted:  null,
-        notes:          quote.notes ?? null,
-        quoteValue:     quote.quoteValue,
-        quoteReference: quote.quoteNumber,
-        quoteDate:      quote.quoteDate,
-        requiredByDate,
-        parentJobId:    null,
-        revisionLetter: null,
-        changedBy,
-      })
-      const updatedQuote = quoteDb.update(id, { jobId })
-      return { job, quote: updatedQuote }
-    })()
-
-    await jobService.syncFromSqlite(job.id)
-    await quoteService.syncFromSqlite(id)
+    const updatedQuote = await quoteService.linkToJob(id, job.id)
+    if (!updatedQuote) {
+      console.error("[POST /api/quotes/[id]/convert] job created but quote link failed", { quoteId: id, jobId: job.id })
+      return NextResponse.json({ error: "Failed to link quote to job" }, { status: 500 })
+    }
 
     return NextResponse.json({ job, quote: updatedQuote }, { status: 201 })
   } catch (err) {

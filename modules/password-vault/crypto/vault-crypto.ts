@@ -5,8 +5,12 @@ const PREFIX = "v1:"
 
 function vaultKey(): Buffer {
   const raw = process.env.VAULT_ENCRYPTION_KEY
-    || process.env.SESSION_SECRET
-    || "oryx-dev-vault-key-change-in-production"
+    ?? (process.env.NODE_ENV === "production"
+      ? null
+      : process.env.SESSION_SECRET ?? "oryx-dev-vault-key-change-in-production")
+  if (!raw) {
+    throw new Error("VAULT_ENCRYPTION_KEY is required in production")
+  }
   return crypto.createHash("sha256").update(raw).digest()
 }
 

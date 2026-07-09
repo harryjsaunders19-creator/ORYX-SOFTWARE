@@ -118,6 +118,18 @@ export const supabaseQuoteRepo = {
     if (error) throwSupabaseError(error)
   },
 
+  /** Link quote to job only when not already converted (idempotent under concurrency). */
+  async linkJobId(quoteId: string, jobId: string): Promise<QuoteRow | null> {
+    const { data, error } = await quotesTable()
+      .update({ job_id: jobId, updated_at: new Date().toISOString() })
+      .eq("id", quoteId)
+      .is("job_id", null)
+      .select("*")
+      .maybeSingle()
+    if (error) throwSupabaseError(error)
+    return data ? toQuoteRow(data) : null
+  },
+
   async updatePdfPath(id: string, pdfPath: string | null): Promise<void> {
     const { error } = await quotesTable()
       .update({ pdf_path: pdfPath, updated_at: new Date().toISOString() })

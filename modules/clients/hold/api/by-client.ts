@@ -9,6 +9,9 @@ type Ctx = { params: Promise<{ id: string }> }
 /** GET: current hold status for a client */
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
+    const auth = await requireSignIn()
+    if (auth instanceof NextResponse) return auth
+
     const { id } = await params
     if (!(await clientService.findUnique(id))) return NextResponse.json({ error: "Not found" }, { status: 404 })
     const hold    = await holdService.activeHoldForClient(id)
