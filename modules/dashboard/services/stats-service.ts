@@ -7,7 +7,7 @@ import { holdService } from "@/lib/services/hold-service"
 import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { calendarService } from "@/lib/services/calendar-service"
 import { errorMessage } from "@/lib/error-message"
-import type { Job } from "@/lib/types"
+import type { JobRow } from "@/modules/jobs/types/job-types"
 import type { CalendarEventWithDetails } from "@/modules/calendar/types/calendar-types"
 
 export interface DashboardOptions {
@@ -56,12 +56,12 @@ export const statsService = {
       tryStat("clientHolds", () => holdService.allActive(), []),
       tryStat("quoteStats", () => quoteService.stats(), EMPTY_QUOTE_STATS),
       includeCalendar
-        ? tryStat("overdueJobs", () => jobService.findMany({
+        ? tryStat<JobRow[]>("overdueJobs", () => jobService.findMany({
             where: { overdue: true },
             orderBy: { field: "requiredByDate", dir: "asc" },
             take: 5,
-          }), [] as Job[])
-        : Promise.resolve([] as Job[]),
+          }), [] as JobRow[])
+        : Promise.resolve([] as JobRow[]),
       includeCalendar
         ? tryStat("weekEvents", () => calendarService.findMany({
             from: opts.calendarFrom!,
