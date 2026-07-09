@@ -37,6 +37,8 @@ export type ModuleStatusReport = {
 export type SupabaseStatusReport = {
   configured: boolean
   connected: boolean
+  anonHealthOk: boolean
+  serviceRoleOk: boolean
   adminConfigured: boolean
   serviceRoleSet: boolean
   onVercel: boolean
@@ -61,6 +63,58 @@ export type SupabaseStatusReport = {
     healthy: boolean
   }
   message: string
+}
+
+async function probeSupabaseConnectivity(): Promise<{
+  connected: boolean
+  anonOk: boolean
+  serviceOk: boolean
+  anonDetail?: string
+}> {
+  const url = getSupabaseUrl()?.replace(/\/$/, "")
+  const anonKey = getSupabaseAnonKey()
+  if (!url || !anonKey) {
+    return { connected: false, anonOk: false, serviceOk: false }
+  }
+
+  let anonOk = false
+  let anonDetail: string | undefined
+  try {
+    const res = await fetch(`${url}/auth/v1/health`, {
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+      },
+      signal: AbortSignal.timeout(12_000),
+    })
+    anonOk = res.ok
+    if (!anonOk) {
+      anonDetail = `HTTP ${res.status}`
+      const body = await res.text().catch(() => "")
+      if (body.trim()) anonDetail += ` — ${body.trim().slice(0, 100)}`
+    }
+  } catch (err) {
+    anonDetail = err instanceof Error ? err.message : String(err)
+  }
+
+  let serviceOk = false
+  if (isSupabaseAdminConfigured()) {
+    try {
+      const { error } = await createAdminClient()
+        .from("jobs")
+        .select("id", { count: "exact", head: true })
+      serviceOk = !error
+    } catch {
+      serviceOk = false
+    }
+  }
+
+  return {
+    connected: anonOk || serviceOk,
+    anonOk,
+    serviceOk,
+    anonDetail,
+  }
 }
 
 async function probeTable(table: string): Promise<TableProbe> {
@@ -164,6 +218,8 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
     return {
       configured: false,
       connected: false,
+      anonHealthOk: false,
+      serviceRoleOk: false,
       adminConfigured,
       serviceRoleSet,
       onVercel: !!process.env.VERCEL,
@@ -178,16 +234,28 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
     }
   }
 
-  let connected = false
-  const url = getSupabaseUrl()!
-  try {
-    const res = await fetch(`${url}/auth/v1/health`, {
-      headers: { apikey: getSupabaseAnonKey()! },
-    })
-    connected = res.ok
-    if (!connected) issues.push("Supabase health check failed — verify URL and anon key.")
-  } catch (err) {
-    issues.push(err instanceof Error ? err.message : String(err))
+  const connectivity = await probeSupabaseConnectivity()
+  const connected = connectivity.connected
+  const anonHealthOk = connectivity.anonOk
+  const serviceRoleOk = connectivity.serviceOk
+
+  if (!connected) {
+    if (!connectivity.anonOk) {
+      issues.push(
+        connectivity.anonDetail
+          ? `Supabase unreachable or anon key rejected (${connectivity.anonDetail}).`
+          : "Supabase health check failed — verify NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+      )
+    }
+    if (!serviceRoleOk && adminConfigured) {
+      issues.push(
+        "Service role probe failed — verify SUPABASE_SERVICE_ROLE_KEY matches Supabase → Project Settings → API.",
+      )
+    }
+  } else if (!anonHealthOk && serviceRoleOk) {
+    issues.push(
+      `Anon key failed auth health check${connectivity.anonDetail ? ` (${connectivity.anonDetail})` : ""} — copy the anon / publishable key from Supabase → Project Settings → API into Vercel as NEXT_PUBLIC_SUPABASE_ANON_KEY, then redeploy. Server reads/writes work via service role.`,
+    )
   }
 
   const modules = adminConfigured && connected
@@ -250,13 +318,16 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
     0,
   )
   const modulesReady = modules.filter(m => m.ready).length
-  const healthy = connected && adminConfigured && issues.length === 0 && modules.every(m => m.ready)
+  const blockingIssues = issues.filter(i => !i.startsWith("Anon key failed"))
+  const healthy = connected && adminConfigured && modules.every(m => m.ready) && blockingIssues.length === 0
 
-  const maskedUrl = url.replace(/^(https:\/\/[^.]+).*/, "$1.***.supabase.co")
+  const maskedUrl = getSupabaseUrl()!.replace(/^(https:\/\/[^.]+).*/, "$1.***.supabase.co")
 
   return {
     configured: true,
     connected,
+    anonHealthOk,
+    serviceRoleOk,
     adminConfigured,
     serviceRoleSet,
     onVercel: !!process.env.VERCEL,
@@ -277,7 +348,9 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
     message: issues.length
       ? issues[0]
       : connected
-        ? `Supabase connected — ${modulesReady}/${modules.length} modules ready.`
-        : "Env vars set but health check failed.",
+        ? anonHealthOk
+          ? `Supabase connected — ${modulesReady}/${modules.length} modules ready.`
+          : `Supabase connected via service role — ${modulesReady}/${modules.length} modules ready. Update anon key in Vercel when convenient.`
+        : "Env vars set but Supabase is not reachable.",
   }
 }

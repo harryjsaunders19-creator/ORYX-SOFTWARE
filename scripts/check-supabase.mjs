@@ -60,7 +60,7 @@ console.log(`✓ NEXT_PUBLIC_SUPABASE_URL = ${url}`)
 
 try {
   const health = await fetch(`${url}/auth/v1/health`, {
-    headers: { apikey: anonKey },
+    headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
   })
   if (!health.ok) {
     console.error(`✗ Supabase health check failed (HTTP ${health.status})`)
