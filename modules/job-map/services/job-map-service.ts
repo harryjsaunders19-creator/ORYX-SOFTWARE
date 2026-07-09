@@ -17,6 +17,7 @@ import { jobService } from "@/modules/jobs/services/job-service"
 import { useSupabaseJobs } from "@/lib/supabase/feature-flags"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { isMissingColumnError } from "@/lib/supabase/archived-filter"
 
 import { geocodeAddress, geocodedAddressKey, searchLocations } from "./geocode-service"
 
@@ -35,6 +36,12 @@ export const GEOCODE_BATCH_SIZE = 50
 
 
 const MAP_COLUMNS = "id, drawing_number, address, site_name, site_address, latitude, longitude, status, client_company, type_of_works, custom_type_description, designer, date_created, location_status, location_source"
+
+const MAP_COLUMNS_MINIMAL = "id, drawing_number, address, latitude, longitude, status, client_company, type_of_works, custom_type_description, designer, date_created"
+
+function isPlottableLocationStatus(status: string | null | undefined): boolean {
+  return status == null || status === "mapped" || status === "manual"
+}
 
 
 
@@ -153,35 +160,48 @@ function toMarker(row: JobMapRow): JobMapMarker {
 
 
 async function loadMappedRows(): Promise<JobMapRow[]> {
-
   if (!useSupabaseJobs()) {
-
     return jobDb.findMappedForMap()
-
   }
 
-  const { data, error } = await createAdminClient()
-
+  let { data, error } = await createAdminClient()
     .from("jobs")
-
     .select(MAP_COLUMNS)
-
     .eq("status", MAP_JOB_STATUS)
-
     .is("archived_at", null)
-
     .not("latitude", "is", null)
-
     .not("longitude", "is", null)
-    .or("location_status.is.null,location_status.eq.mapped,location_status.eq.manual")
     .order("date_created", { ascending: false })
-
     .limit(15000)
 
+  if (error && (
+    isMissingColumnError(error, "site_name")
+    || isMissingColumnError(error, "location_status")
+    || isMissingColumnError(error, "location_source")
+  )) {
+    const fallback = await createAdminClient()
+      .from("jobs")
+      .select(MAP_COLUMNS_MINIMAL)
+      .eq("status", MAP_JOB_STATUS)
+      .is("archived_at", null)
+      .not("latitude", "is", null)
+      .not("longitude", "is", null)
+      .order("date_created", { ascending: false })
+      .limit(15000)
+    data = fallback.data as typeof data
+    error = fallback.error
+  }
   if (error) throw error
 
-  return (data ?? []).map(r => fromSupabaseRow(r as SupabaseMapRow))
-
+  return (data ?? [])
+    .filter(r => isPlottableLocationStatus((r as SupabaseMapRow).location_status))
+    .map(r => fromSupabaseRow({
+      ...(r as SupabaseMapRow),
+      site_name: (r as SupabaseMapRow).site_name ?? null,
+      site_address: (r as SupabaseMapRow).site_address ?? null,
+      location_status: (r as SupabaseMapRow).location_status ?? null,
+      location_source: (r as SupabaseMapRow).location_source ?? null,
+    }))
 }
 
 
@@ -269,11 +289,9 @@ function computeStats(markers: JobMapMarker[], missingLocations: number): JobMap
 
 
 async function geocodeJob(
-
   job: Pick<JobMapRow, "id" | "address" | "siteName" | "siteAddress">,
-
 ): Promise<boolean> {
-
+  await jobService.ensureJobInSqlite(job.id)
   const query = buildGeocodeQuery(job.siteName, job.siteAddress, job.address)
 
   if (!query) {
@@ -363,35 +381,31 @@ export const jobMapService = {
   /** Admin-only — batch geocode completed jobs missing coordinates. */
 
   async geocodeBatch(limit = GEOCODE_BATCH_SIZE): Promise<BulkGeocodeResult> {
-
-    const pending = jobDb.findNeedingGeocode(limit)
+    const pending = useSupabaseJobs()
+      ? (await this.getMissingLocations())
+        .slice(0, limit)
+        .map(j => ({
+          id: j.id,
+          address: j.siteAddress || j.address,
+          siteName: j.siteName,
+          siteAddress: j.siteAddress,
+        }))
+      : jobDb.findNeedingGeocode(limit)
 
     let located = 0
-
     let needsReview = 0
-
     for (const job of pending) {
-
       if (await geocodeJob(job)) located++
-
       else needsReview++
-
     }
 
     const remaining = await this.countPendingGeocode()
-
     return {
-
       processed: pending.length,
-
       located,
-
       needsReview,
-
       pending: remaining,
-
     }
-
   },
 
 

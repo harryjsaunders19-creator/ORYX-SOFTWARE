@@ -84,6 +84,24 @@ function popupHtml(marker: JobMapMarker): string {
   </div>`
 }
 
+function MapInvalidateSize() {
+  const map = useMap()
+  useEffect(() => {
+    const fix = () => { try { map.invalidateSize() } catch { /* ignore */ } }
+    const t = window.setTimeout(fix, 0)
+    const t2 = window.setTimeout(fix, 250)
+    const el = map.getContainer()
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(fix) : null
+    ro?.observe(el)
+    return () => {
+      window.clearTimeout(t)
+      window.clearTimeout(t2)
+      ro?.disconnect()
+    }
+  }, [map])
+  return null
+}
+
 function MapSessionView() {
   const map = useMap()
 
@@ -216,18 +234,24 @@ function ImperativeClusterLayer({
       return () => { loadGenRef.current++ }
     }
 
-    const cluster = createMarkerClusterGroup({
-      chunkedLoading: true,
-      chunkInterval: 50,
-      maxClusterRadius: 50,
-      showCoverageOnHover: false,
-      disableClusteringAtZoom: 16,
-    })
+    const total = markers.length
+    const cluster = typeof createMarkerClusterGroup === "function"
+      ? createMarkerClusterGroup({
+        chunkedLoading: true,
+        chunkInterval: 50,
+        maxClusterRadius: 50,
+        showCoverageOnHover: false,
+        disableClusteringAtZoom: 16,
+      })
+      : null
+    if (!cluster) {
+      onProgress(total, total)
+      return () => { loadGenRef.current++ }
+    }
     clusterRef.current = cluster
     map.addLayer(cluster)
 
     let index = 0
-    const total = markers.length
     const dimClient = highlightClient
     onProgress(0, total)
 
@@ -327,6 +351,7 @@ export const JobMapCanvas = memo(function JobMapCanvas({
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer attribution={tiles.attribution} url={tiles.url} />
+        <MapInvalidateSize />
         <MapSessionView />
         <FlyToTarget target={flyTarget} />
         <FitAllMarkers markers={inRegionMarkers} enabled={autoFit} ready={markersReady || inRegionMarkers.length === 0} />

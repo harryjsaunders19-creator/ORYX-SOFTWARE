@@ -83,18 +83,20 @@ export default function JobMapPage() {
     if (cached) {
       setRawData(cached)
       setDataLoading(false)
-      return
     }
 
     let cancelled = false
-    setDataLoading(true)
+    if (!cached) setDataLoading(true)
     fetchMapData()
       .then(data => {
         if (cancelled) return
         setJobMapCache(data)
         setRawData(data)
+        if (data.markers.length > 0 && !sessionStorage.getItem("oryx-job-map-view")) {
+          setAutoFit(true)
+        }
       })
-      .catch(() => toast("Failed to load job map", "error"))
+      .catch(() => { if (!cached) toast("Failed to load job map", "error") })
       .finally(() => { if (!cancelled) setDataLoading(false) })
     return () => { cancelled = true }
   }, [toast])
