@@ -44,13 +44,18 @@ if (!loadEnvLocal()) {
   process.exit(1)
 }
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
+const url =
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+  process.env.SUPABASE_URL?.trim()
+const anonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+  process.env.SUPABASE_PUBLISHABLE_KEY?.trim()
 
 if (!url || !anonKey) {
   console.error("✗ Missing env vars in .env.local:")
-  if (!url) console.error("    NEXT_PUBLIC_SUPABASE_URL")
-  if (!anonKey) console.error("    NEXT_PUBLIC_SUPABASE_ANON_KEY")
+  if (!url) console.error("    NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL)")
+  if (!anonKey) console.error("    NEXT_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)")
   console.error("\n  Get both from Supabase Dashboard → Project Settings → API")
   process.exit(1)
 }

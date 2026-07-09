@@ -23,7 +23,7 @@ import { geocodeAddress, geocodedAddressKey, searchLocations } from "./geocode-s
 
 import { getMapMarkerIconKey, jobDescriptionFromRow, isWithinUkIreland } from "../constants"
 
-import { buildGeocodeQuery } from "../utils/job-address"
+import { assessGeocodeInput, compareMissingLocationQueue } from "../utils/job-address"
 
 import { markersToCsv as buildMarkersCsv } from "../csv-export"
 
@@ -159,6 +159,37 @@ function toMarker(row: JobMapRow): JobMapMarker {
 
 
 
+function enrichMissingJob(
+  row: {
+    id: string
+    drawingNumber: string
+    siteName: string | null
+    siteAddress: string | null
+    address: string
+    clientCompany: string
+    dateCompleted: string | null
+    locationStatus: string | null
+  },
+): MissingLocationJob {
+  const assessment = assessGeocodeInput(
+    row.siteName,
+    row.siteAddress,
+    row.address,
+    row.locationStatus,
+  )
+  return {
+    id: row.id,
+    drawingNumber: row.drawingNumber,
+    siteName: row.siteName,
+    siteAddress: row.siteAddress,
+    address: row.address,
+    clientCompany: row.clientCompany,
+    dateCompleted: row.dateCompleted ?? null,
+    locationStatus: row.locationStatus as MissingLocationJob["locationStatus"],
+    queueReason: assessment.queueReason,
+  }
+}
+
 async function loadMappedRows(): Promise<JobMapRow[]> {
   if (!useSupabaseJobs()) {
     return jobDb.findMappedForMap()
@@ -169,6 +200,7 @@ async function loadMappedRows(): Promise<JobMapRow[]> {
     .select(MAP_COLUMNS)
     .eq("status", MAP_JOB_STATUS)
     .is("archived_at", null)
+    .is("parent_job_id", null)
     .not("latitude", "is", null)
     .not("longitude", "is", null)
     .order("date_created", { ascending: false })
@@ -184,6 +216,7 @@ async function loadMappedRows(): Promise<JobMapRow[]> {
       .select(MAP_COLUMNS_MINIMAL)
       .eq("status", MAP_JOB_STATUS)
       .is("archived_at", null)
+      .is("parent_job_id", null)
       .not("latitude", "is", null)
       .not("longitude", "is", null)
       .order("date_created", { ascending: false })
@@ -223,6 +256,8 @@ async function countMissingLocations(): Promise<number> {
     .eq("status", MAP_JOB_STATUS)
 
     .is("archived_at", null)
+
+    .is("parent_job_id", null)
 
     .or("latitude.is.null,longitude.is.null,location_status.eq.needs_review")
 
@@ -289,35 +324,32 @@ function computeStats(markers: JobMapMarker[], missingLocations: number): JobMap
 
 
 async function geocodeJob(
-  job: Pick<JobMapRow, "id" | "address" | "siteName" | "siteAddress">,
+  job: Pick<JobMapRow, "id" | "address" | "siteName" | "siteAddress" | "locationStatus">,
+  options: { strict?: boolean } = {},
 ): Promise<boolean> {
   await jobService.ensureJobInSqlite(job.id)
-  const query = buildGeocodeQuery(job.siteName, job.siteAddress, job.address)
+  const assessment = assessGeocodeInput(
+    job.siteName,
+    job.siteAddress,
+    job.address,
+    job.locationStatus,
+  )
 
-  if (!query) {
-
+  if (!assessment.query || !assessment.autoEligible) {
     await jobService.markLocationNeedsReview(job.id)
-
     return false
-
   }
 
-  const result = await geocodeAddress(query)
+  const result = await geocodeAddress(assessment.query, { strict: options.strict ?? true })
 
   if (!result) {
-
     await jobService.markLocationNeedsReview(job.id)
-
     return false
-
   }
 
-  const key = geocodedAddressKey(query)
-
+  const key = geocodedAddressKey(assessment.query)
   await jobService.saveGeocode(job.id, result.lat, result.lng, key)
-
   return true
-
 }
 
 
@@ -329,51 +361,36 @@ export const jobMapService = {
 
 
   async getMissingLocations(): Promise<MissingLocationJob[]> {
-
     if (!useSupabaseJobs()) {
-
       return jobDb.findMissingLocations()
-
+        .map(enrichMissingJob)
+        .sort(compareMissingLocationQueue)
     }
 
     const { data, error } = await createAdminClient()
-
       .from("jobs")
-
       .select("id, drawing_number, site_name, site_address, address, client_company, date_completed, location_status")
-
       .eq("status", MAP_JOB_STATUS)
-
       .is("archived_at", null)
-
+      .is("parent_job_id", null)
       .or("latitude.is.null,longitude.is.null,location_status.eq.needs_review")
-
       .order("date_completed", { ascending: false })
-
       .limit(5000)
 
     if (error) throw error
 
-    return (data ?? []).map(row => ({
-
-      id: row.id as string,
-
-      drawingNumber: row.drawing_number as string,
-
-      siteName: row.site_name as string | null,
-
-      siteAddress: row.site_address as string | null,
-
-      address: row.address as string,
-
-      clientCompany: row.client_company as string,
-
-      dateCompleted: row.date_completed as string | null,
-
-      locationStatus: row.location_status as MissingLocationJob["locationStatus"],
-
-    }))
-
+    return (data ?? [])
+      .map(row => enrichMissingJob({
+        id: row.id as string,
+        drawingNumber: row.drawing_number as string,
+        siteName: row.site_name as string | null,
+        siteAddress: row.site_address as string | null,
+        address: row.address as string,
+        clientCompany: row.client_company as string,
+        dateCompleted: row.date_completed as string | null,
+        locationStatus: row.location_status as string | null,
+      }))
+      .sort(compareMissingLocationQueue)
   },
 
 
@@ -381,16 +398,22 @@ export const jobMapService = {
   /** Admin-only — batch geocode completed jobs missing coordinates. */
 
   async geocodeBatch(limit = GEOCODE_BATCH_SIZE): Promise<BulkGeocodeResult> {
+    const eligible = (await this.getMissingLocations())
+      .filter(j => j.queueReason === "auto_ready")
+      .slice(0, limit)
+
     const pending = useSupabaseJobs()
-      ? (await this.getMissingLocations())
-        .slice(0, limit)
-        .map(j => ({
+      ? eligible.map(j => ({
           id: j.id,
           address: j.siteAddress || j.address,
           siteName: j.siteName,
           siteAddress: j.siteAddress,
+          locationStatus: j.locationStatus,
         }))
-      : jobDb.findNeedingGeocode(limit)
+      : jobDb.findNeedingGeocode(limit).filter(job => {
+          const assessment = assessGeocodeInput(job.siteName, job.siteAddress, job.address)
+          return assessment.autoEligible
+        })
 
     let located = 0
     let needsReview = 0

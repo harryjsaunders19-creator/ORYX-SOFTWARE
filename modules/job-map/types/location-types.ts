@@ -6,6 +6,8 @@ export type LocationSource = (typeof LOCATION_SOURCES)[number]
 
 export type JobMapLocationFilter = "completed" | "missing" | "manual"
 
+export type GeocodeQueueReason = "auto_ready" | "incomplete_address" | "geocode_failed" | "no_address"
+
 export interface MissingLocationJob {
   id: string
   drawingNumber: string
@@ -15,6 +17,7 @@ export interface MissingLocationJob {
   clientCompany: string
   dateCompleted: string | null
   locationStatus: LocationStatus | null
+  queueReason: GeocodeQueueReason
 }
 
 export interface BulkGeocodeResult {

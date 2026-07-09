@@ -144,8 +144,17 @@ async function geocodeViaNominatim(query: string, countryCodes: string): Promise
   }
 }
 
+export interface GeocodeOptions {
+  /** When true, only geocode the exact address (postcode lookup + one full-text attempt). */
+  strict?: boolean
+}
+
 /** Geocode a UK/Ireland site address — postcodes.io, then Photon, then Nominatim. */
-export async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
+export async function geocodeAddress(
+  address: string,
+  options: GeocodeOptions = {},
+): Promise<GeocodeResult | null> {
+  const strict = options.strict ?? false
   const postcode = extractUkPostcode(address)
   if (postcode) {
     const fromPostcode = await geocodeViaPostcodesIo(postcode)
@@ -154,20 +163,24 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
 
   const eircode = extractEircode(address)
   if (eircode) {
-    for (const query of buildGeocodeAttempts(`${eircode}, Ireland`)) {
+    const eircodeQueries = strict
+      ? [`${eircode}, Ireland`]
+      : buildGeocodeAttempts(`${eircode}, Ireland`)
+    for (const query of eircodeQueries) {
       const fromNominatim = await geocodeViaNominatim(query, "ie")
       if (fromNominatim) return fromNominatim
     }
   }
 
   const countryCodes = looksIrish(address) ? "ie,gb" : "gb,ie"
+  const attempts = strict ? [address.trim()].filter(Boolean) : buildGeocodeAttempts(address)
 
-  for (const query of buildGeocodeAttempts(address)) {
+  for (const query of attempts) {
     const fromPhoton = await geocodeViaPhoton(query)
     if (fromPhoton) return fromPhoton
   }
 
-  for (const query of buildGeocodeAttempts(address)) {
+  for (const query of attempts) {
     const fromNominatim = await geocodeViaNominatim(query, countryCodes)
     if (fromNominatim) return fromNominatim
   }

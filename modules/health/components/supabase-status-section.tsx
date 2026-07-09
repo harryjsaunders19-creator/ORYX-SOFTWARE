@@ -83,10 +83,22 @@ export function SupabaseStatusSection() {
               <p className="text-xs text-t3 mt-0.5 truncate">
                 {data.url ?? "Not connected"}
                 {data.onVercel && " · Vercel"}
+                {data.anonHealthOk === false && data.serviceRoleOk && " · anon key invalid (service role OK)"}
                 {data.sqliteStillActive && " · SQLite fallback active for some modules"}
               </p>
             </div>
           </div>
+
+          {data.warnings.length > 0 && (
+            <div className={cn(surfaceCard, "mb-4 p-4 border-wn-bd bg-wn-bg/40")}>
+              <p className="text-xs font-semibold text-wn-tx mb-2">Warnings ({data.warnings.length})</p>
+              <ul className="space-y-1 text-xs text-t2 list-disc pl-4">
+                {data.warnings.slice(0, 8).map(warning => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {data.issues.length > 0 && (
             <div className={cn(surfaceCard, "mb-4 p-4")}>

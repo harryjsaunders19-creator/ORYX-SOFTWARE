@@ -53,6 +53,7 @@ export type SupabaseStatusReport = {
   }>
   flags: ReturnType<typeof supabaseModuleFlags>
   issues: string[]
+  warnings: string[]
   goLiveSteps: readonly string[]
   sqliteStillActive: boolean
   summary: {
@@ -213,6 +214,7 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
   const serviceRoleSet = !!getSupabaseServiceRoleKey()
   const flags = supabaseModuleFlags()
   const issues: string[] = []
+  const warnings: string[] = []
 
   if (!configured) {
     return {
@@ -227,6 +229,7 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
       infrastructure: [],
       flags,
       issues: ["Supabase public env vars are not fully set."],
+      warnings: [],
       goLiveSteps: SUPABASE_GO_LIVE_STEPS,
       sqliteStillActive: true,
       summary: { modulesReady: 0, modulesTotal: SUPABASE_MIGRATION_MODULES.length, tablesReady: 0, tablesTotal: 0, healthy: false },
@@ -253,7 +256,7 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
       )
     }
   } else if (!anonHealthOk && serviceRoleOk) {
-    issues.push(
+    warnings.push(
       `Anon key failed auth health check${connectivity.anonDetail ? ` (${connectivity.anonDetail})` : ""} — copy the anon / publishable key from Supabase → Project Settings → API into Vercel as NEXT_PUBLIC_SUPABASE_ANON_KEY, then redeploy. Server reads/writes work via service role.`,
     )
   }
@@ -318,8 +321,7 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
     0,
   )
   const modulesReady = modules.filter(m => m.ready).length
-  const blockingIssues = issues.filter(i => !i.startsWith("Anon key failed"))
-  const healthy = connected && adminConfigured && modules.every(m => m.ready) && blockingIssues.length === 0
+  const healthy = connected && adminConfigured && modules.every(m => m.ready) && issues.length === 0
 
   const maskedUrl = getSupabaseUrl()!.replace(/^(https:\/\/[^.]+).*/, "$1.***.supabase.co")
 
@@ -336,6 +338,7 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
     infrastructure,
     flags,
     issues: [...new Set(issues)],
+    warnings: [...new Set(warnings)],
     goLiveSteps: SUPABASE_GO_LIVE_STEPS,
     sqliteStillActive: !adminConfigured || !flags.jobs,
     summary: {
@@ -350,7 +353,7 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
       : connected
         ? anonHealthOk
           ? `Supabase connected — ${modulesReady}/${modules.length} modules ready.`
-          : `Supabase connected via service role — ${modulesReady}/${modules.length} modules ready. Update anon key in Vercel when convenient.`
+          : `Supabase connected via service role — ${modulesReady}/${modules.length} modules ready.`
         : "Env vars set but Supabase is not reachable.",
   }
 }

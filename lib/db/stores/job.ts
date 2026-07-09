@@ -297,8 +297,8 @@ export const jobDb = {
 
   deadlineStats(): { overdueCount: number; dueTodayCount: number; dueThisWeekCount: number } {
     const overdueCount    = (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'").get() as { n: number }).n
-    const dueTodayCount   = (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate = date('now')").get() as { n: number }).n
-    const dueThisWeekCount= (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days')").get() as { n: number }).n
+    const dueTodayCount   = (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate = date('now') AND status != 'ISSUED'").get() as { n: number }).n
+    const dueThisWeekCount= (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days') AND status != 'ISSUED'").get() as { n: number }).n
     return { overdueCount, dueTodayCount, dueThisWeekCount }
   },
 
@@ -331,8 +331,8 @@ export const jobDb = {
     if (where.notInvoiced)   { clauses.push("invoiceId IS NULL") }
     if (where.invoiced)      { clauses.push("invoiceId IS NOT NULL") }
     if (where.overdue)       { clauses.push("requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'") }
-    if (where.dueToday)      { clauses.push("requiredByDate IS NOT NULL AND requiredByDate = date('now')") }
-    if (where.dueThisWeek)   { clauses.push("requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days')") }
+    if (where.dueToday)      { clauses.push("requiredByDate IS NOT NULL AND requiredByDate = date('now') AND status != 'ISSUED'") }
+    if (where.dueThisWeek)   { clauses.push("requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days') AND status != 'ISSUED'") }
     const sql = `SELECT COUNT(*) as n FROM Job WHERE ${clauses.join(" AND ")}`
     return (db.prepare(sql).get(...params) as { n: number }).n
   },
@@ -379,19 +379,29 @@ export const jobDb = {
     return db.prepare("SELECT * FROM Job WHERE archivedAt IS NOT NULL ORDER BY archivedAt DESC").all() as JobRow[]
   },
 
-  findNeedingGeocode(limit: number): Pick<JobRow, "id" | "address" | "siteName" | "siteAddress">[] {
+  findNeedingGeocode(limit: number): Pick<JobRow, "id" | "address" | "siteName" | "siteAddress" | "locationStatus">[] {
     return db.prepare(`
-      SELECT id, address, siteName, siteAddress FROM Job
+      SELECT id, address, siteName, siteAddress, locationStatus FROM Job
       WHERE status = 'ISSUED'
         AND archivedAt IS NULL
+        AND parentJobId IS NULL
         AND (latitude IS NULL OR longitude IS NULL)
         AND (locationStatus IS NULL OR locationStatus = 'needs_review')
       ORDER BY dateCreated DESC
       LIMIT ?
-    `).all(limit) as Pick<JobRow, "id" | "address" | "siteName" | "siteAddress">[]
+    `).all(limit) as Pick<JobRow, "id" | "address" | "siteName" | "siteAddress" | "locationStatus">[]
   },
 
-  findMissingLocations(): import("@/modules/job-map/types/location-types").MissingLocationJob[] {
+  findMissingLocations(): Array<{
+    id: string
+    drawingNumber: string
+    siteName: string | null
+    siteAddress: string | null
+    address: string
+    clientCompany: string
+    dateCompleted: string | null
+    locationStatus: string | null
+  }> {
     return db.prepare(`
       SELECT
         id, drawingNumber, siteName, siteAddress, address, clientCompany,
@@ -399,11 +409,21 @@ export const jobDb = {
       FROM Job
       WHERE status = 'ISSUED'
         AND archivedAt IS NULL
+        AND parentJobId IS NULL
         AND (
           latitude IS NULL OR longitude IS NULL OR locationStatus = 'needs_review'
         )
       ORDER BY dateCompleted DESC, dateCreated DESC
-    `).all() as import("@/modules/job-map/types/location-types").MissingLocationJob[]
+    `).all() as Array<{
+      id: string
+      drawingNumber: string
+      siteName: string | null
+      siteAddress: string | null
+      address: string
+      clientCompany: string
+      dateCompleted: string | null
+      locationStatus: string | null
+    }>
   },
 
   countMissingLocations(): number {
@@ -411,6 +431,7 @@ export const jobDb = {
       SELECT COUNT(*) as n FROM Job
       WHERE status = 'ISSUED'
         AND archivedAt IS NULL
+        AND parentJobId IS NULL
         AND (
           latitude IS NULL OR longitude IS NULL OR locationStatus = 'needs_review'
         )
@@ -422,6 +443,7 @@ export const jobDb = {
       SELECT COUNT(*) as n FROM Job
       WHERE status = 'ISSUED'
         AND archivedAt IS NULL
+        AND parentJobId IS NULL
         AND (latitude IS NULL OR longitude IS NULL)
         AND (locationStatus IS NULL OR locationStatus = 'needs_review')
     `).get() as { n: number }).n
@@ -445,6 +467,7 @@ export const jobDb = {
       FROM Job
       WHERE status = 'ISSUED'
         AND archivedAt IS NULL
+        AND parentJobId IS NULL
         AND latitude IS NOT NULL
         AND longitude IS NOT NULL
         AND (locationStatus IS NULL OR locationStatus IN ('mapped', 'manual'))

@@ -1,17 +1,35 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { MapPin, RefreshCw } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useToast } from "@/shared/ui/toast"
-import type { MissingLocationJob } from "../types/location-types"
-import { displaySiteName } from "../utils/job-address"
+import { cn } from "@/shared/utils"
+import type { GeocodeQueueReason, MissingLocationJob } from "../types/location-types"
+import { displaySiteName, GEOCODE_QUEUE_LABELS } from "../utils/job-address"
 
 const JobMapManualPinDialog = dynamic(
   () => import("./job-map-manual-pin-dialog").then(m => m.JobMapManualPinDialog),
   { ssr: false },
 )
+
+type QueueFilter = "all" | GeocodeQueueReason
+
+const QUEUE_FILTERS: { id: QueueFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "incomplete_address", label: "Needs manual" },
+  { id: "geocode_failed", label: "Failed auto" },
+  { id: "auto_ready", label: "Ready for auto" },
+  { id: "no_address", label: "No address" },
+]
+
+const QUEUE_BADGE_CLASS: Record<GeocodeQueueReason, string> = {
+  incomplete_address: "text-wa-tx",
+  geocode_failed: "text-dn-tx",
+  auto_ready: "text-ok-tx",
+  no_address: "text-t4",
+}
 
 interface Props {
   isAdmin: boolean
@@ -31,6 +49,7 @@ export function JobMapMissingLocations({ isAdmin, onLocated }: Props) {
   const [loading, setLoading] = useState(true)
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [pinJob, setPinJob] = useState<MissingLocationJob | null>(null)
+  const [queueFilter, setQueueFilter] = useState<QueueFilter>("all")
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -44,6 +63,23 @@ export function JobMapMissingLocations({ isAdmin, onLocated }: Props) {
   }, [toast])
 
   useEffect(() => { load() }, [load])
+
+  const counts = useMemo(() => {
+    const tally: Record<QueueFilter, number> = {
+      all: jobs.length,
+      auto_ready: 0,
+      incomplete_address: 0,
+      geocode_failed: 0,
+      no_address: 0,
+    }
+    for (const job of jobs) tally[job.queueReason]++
+    return tally
+  }, [jobs])
+
+  const visibleJobs = useMemo(
+    () => queueFilter === "all" ? jobs : jobs.filter(j => j.queueReason === queueFilter),
+    [jobs, queueFilter],
+  )
 
   const retry = useCallback(async (job: MissingLocationJob) => {
     setRetryingId(job.id)
@@ -73,7 +109,7 @@ export function JobMapMissingLocations({ isAdmin, onLocated }: Props) {
     toast("Location saved — project added to map", "success")
   }, [load, onLocated, toast])
 
-  const empty = !loading && jobs.length === 0
+  const empty = !loading && visibleJobs.length === 0
 
   return (
     <>
@@ -90,54 +126,85 @@ export function JobMapMissingLocations({ isAdmin, onLocated }: Props) {
           </Button>
         </div>
 
+        <div className="px-4 py-2 border-b border-bd flex flex-wrap gap-1.5">
+          {QUEUE_FILTERS.map(filter => (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => setQueueFilter(filter.id)}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-medium border transition-colors",
+                queueFilter === filter.id
+                  ? "border-ac bg-ac/10 text-ac"
+                  : "border-bd text-t3 hover:text-t1 hover:border-t4",
+              )}
+            >
+              {filter.label}
+              <span className="ml-1 tabular-nums text-t4">{counts[filter.id]}</span>
+            </button>
+          ))}
+        </div>
+
         {loading && (
           <p className="px-4 py-8 text-sm text-t3 text-center">Loading projects…</p>
         )}
 
         {empty && (
-          <p className="px-4 py-8 text-sm text-t3 text-center">All completed projects have map locations.</p>
+          <p className="px-4 py-8 text-sm text-t3 text-center">
+            {jobs.length === 0
+              ? "All completed original jobs have map locations."
+              : "No projects in this queue."}
+          </p>
         )}
 
-        {!loading && jobs.length > 0 && (
+        {!loading && visibleJobs.length > 0 && (
           <div className="divide-y divide-bd max-h-[min(70vh,720px)] overflow-y-auto thin-scroll">
-            {jobs.map(job => (
-              <div key={job.id} className="px-4 py-4 flex flex-col sm:flex-row sm:items-start gap-4">
-                <div className="flex-1 min-w-0 space-y-1">
-                  <p className="text-sm font-semibold text-t1 font-mono">{job.drawingNumber}</p>
-                  <p className="text-xs text-t3">
-                    <span className="text-t4 uppercase tracking-wide font-medium">Site: </span>
-                    {displaySiteName(job.siteName, job.address)}
-                  </p>
-                  <p className="text-xs text-t3">
-                    <span className="text-t4 uppercase tracking-wide font-medium">Address: </span>
-                    {job.siteAddress?.trim() || job.address}
-                  </p>
-                  <p className="text-xs text-t3">{job.clientCompany}</p>
-                  {job.dateCompleted && (
-                    <p className="text-xs text-t4">Completed {job.dateCompleted.slice(0, 10)}</p>
-                  )}
-                  <p className="text-[11px] font-medium text-wa-tx uppercase tracking-wide pt-1">
-                    {job.locationStatus === "needs_review" ? "Needs Review" : "Needs Location"}
-                  </p>
-                </div>
-                {isAdmin && (
-                  <div className="flex flex-wrap gap-2 shrink-0">
-                    <Button size="sm" variant="primary" className="h-8 text-xs" onClick={() => setPinJob(job)}>
-                      Locate Manually
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 text-xs"
-                      disabled={retryingId === job.id}
-                      onClick={() => retry(job)}
-                    >
-                      {retryingId === job.id ? "Trying…" : "Try Again"}
-                    </Button>
+            {visibleJobs.map(job => {
+              const canRetry = job.queueReason === "auto_ready" || job.queueReason === "geocode_failed"
+              return (
+                <div key={job.id} className="px-4 py-4 flex flex-col sm:flex-row sm:items-start gap-4">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="text-sm font-semibold text-t1 font-mono">{job.drawingNumber}</p>
+                    <p className="text-xs text-t3">
+                      <span className="text-t4 uppercase tracking-wide font-medium">Site: </span>
+                      {displaySiteName(job.siteName, job.address)}
+                    </p>
+                    <p className="text-xs text-t3">
+                      <span className="text-t4 uppercase tracking-wide font-medium">Address: </span>
+                      {job.siteAddress?.trim() || job.address || "—"}
+                    </p>
+                    <p className="text-xs text-t3">{job.clientCompany}</p>
+                    {job.dateCompleted && (
+                      <p className="text-xs text-t4">Completed {job.dateCompleted.slice(0, 10)}</p>
+                    )}
+                    <p className={cn(
+                      "text-[11px] font-medium uppercase tracking-wide pt-1",
+                      QUEUE_BADGE_CLASS[job.queueReason],
+                    )}>
+                      {GEOCODE_QUEUE_LABELS[job.queueReason]}
+                    </p>
                   </div>
-                )}
-              </div>
-            ))}
+                  {isAdmin && (
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <Button size="sm" variant="primary" className="h-8 text-xs" onClick={() => setPinJob(job)}>
+                        Locate Manually
+                      </Button>
+                      {canRetry && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          disabled={retryingId === job.id}
+                          onClick={() => retry(job)}
+                        >
+                          {retryingId === job.id ? "Trying…" : "Try Again"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

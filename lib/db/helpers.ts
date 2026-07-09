@@ -45,8 +45,8 @@ export function buildWhere(where: WhereClause = {}): { sql: string; params: unkn
   if (where.billingPending)   { clauses.push("status = 'ISSUED' AND invoiceId IS NULL AND (billingStatus IS NULL OR billingStatus != 'EXPORTED_TO_ACCOUNTS')") }
   if (where.overdue)            { clauses.push("requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'") }
   if (where.overdueOrDueToday)  { clauses.push("requiredByDate IS NOT NULL AND requiredByDate <= date('now') AND status != 'ISSUED'") }
-  if (where.dueToday)         { clauses.push("requiredByDate IS NOT NULL AND requiredByDate = date('now')") }
-  if (where.dueThisWeek)      { clauses.push("requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days')") }
+  if (where.dueToday)         { clauses.push("requiredByDate IS NOT NULL AND requiredByDate = date('now') AND status != 'ISSUED'") }
+  if (where.dueThisWeek)      { clauses.push("requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days') AND status != 'ISSUED'") }
   if (where.hasDeadline)      { clauses.push("requiredByDate IS NOT NULL") }
   if (where.status)           { clauses.push("status = ?");                        params.push(where.status) }
   if (where.unassigned)       { clauses.push("(designer = '' OR designer IS NULL)") }

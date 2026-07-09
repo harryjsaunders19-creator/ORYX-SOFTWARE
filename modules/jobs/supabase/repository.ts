@@ -153,13 +153,14 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
     q = q.not("required_by_date", "is", null).lte("required_by_date", todayIsoDate()).neq("status", "ISSUED")
   }
   if (where.dueToday) {
-    q = q.not("required_by_date", "is", null).eq("required_by_date", todayIsoDate())
+    q = q.not("required_by_date", "is", null).eq("required_by_date", todayIsoDate()).neq("status", "ISSUED")
   }
   if (where.dueThisWeek) {
     q = q
       .not("required_by_date", "is", null)
       .gte("required_by_date", todayIsoDate())
       .lte("required_by_date", weekEndIsoDate())
+      .neq("status", "ISSUED")
   }
   if (where.hasQuote) q = q.not("quote_value", "is", null).gt("quote_value", 0)
   return q
