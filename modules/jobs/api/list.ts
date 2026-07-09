@@ -224,7 +224,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(job, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/jobs]", err)
+    const detail = err && typeof err === "object" && "message" in err
+      ? String((err as { message: unknown }).message)
+      : String(err)
+    console.error("[POST /api/jobs]", detail, err)
     return NextResponse.json({ error: "Failed to create job" }, { status: 500 })
   }
 }

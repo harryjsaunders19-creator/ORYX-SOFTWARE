@@ -18,6 +18,7 @@ import { supabaseBillingRepo } from "@/lib/supabase/repositories/billing"
 import { useSupabaseBilling, useSupabaseJobs, useSupabaseQuotes } from "@/lib/supabase/feature-flags"
 
 let _seeded = false
+let _seedInFlight: Promise<void> | null = null
 
 function seedBatchRefSequenceFromSqlite(year: number): void {
   try {
@@ -37,50 +38,58 @@ function seedBatchRefSequenceFromSqlite(year: number): void {
   }
 }
 
+async function runSeed(): Promise<void> {
+  const year = new Date().getFullYear()
+  const promises: Promise<void>[] = []
+
+  if (useSupabaseJobs()) {
+    promises.push(
+      supabaseJobRepo.maxGlobalDrawingSequence().then(maxSeq => {
+        if (maxSeq > 0) sequenceDb.seedSequence(DRAWING_SEQUENCE_KEY, maxSeq)
+      }),
+      supabaseJobRepo.maxRefSequences().then(rows => {
+        for (const { prefix, year: y, maxSeq } of rows) sequenceDb.seedRefSequence(prefix, y, maxSeq)
+      }),
+    )
+  }
+
+  if (useSupabaseQuotes()) {
+    promises.push(
+      supabaseQuoteRepo.maxQuoteRefSequences().then(rows => {
+        for (const { prefix, year: y, maxSeq } of rows) sequenceDb.seedRefSequence(prefix, y, maxSeq)
+      }),
+    )
+  }
+
+  if (useSupabaseBilling()) {
+    promises.push(
+      supabaseBillingRepo.maxBatchRefSequence(year).then(maxSeq => {
+        if (maxSeq > 0) sequenceDb.seedRefSequence("BATCH", year, maxSeq)
+      }),
+    )
+  }
+
+  if (promises.length) {
+    await Promise.all(promises)
+  }
+
+  seedBatchRefSequenceFromSqlite(year)
+  console.log("[seed-sequences] Sequences seeded from Supabase/SQLite")
+  _seeded = true
+}
+
 export async function ensureSequencesSeeded(): Promise<void> {
   if (_seeded) return
-  _seeded = true
-  try {
-    const year = new Date().getFullYear()
-    const promises: Promise<void>[] = []
-
-    if (useSupabaseJobs()) {
-      promises.push(
-        supabaseJobRepo.maxGlobalDrawingSequence().then(maxSeq => {
-          if (maxSeq > 0) sequenceDb.seedSequence(DRAWING_SEQUENCE_KEY, maxSeq)
-        }),
-        supabaseJobRepo.maxRefSequences().then(rows => {
-          for (const { prefix, year: y, maxSeq } of rows) sequenceDb.seedRefSequence(prefix, y, maxSeq)
-        }),
-      )
-    }
-
-    if (useSupabaseQuotes()) {
-      promises.push(
-        supabaseQuoteRepo.maxQuoteRefSequences().then(rows => {
-          for (const { prefix, year: y, maxSeq } of rows) sequenceDb.seedRefSequence(prefix, y, maxSeq)
-        }),
-      )
-    }
-
-    if (useSupabaseBilling()) {
-      promises.push(
-        supabaseBillingRepo.maxBatchRefSequence(year).then(maxSeq => {
-          if (maxSeq > 0) sequenceDb.seedRefSequence("BATCH", year, maxSeq)
-        }),
-      )
-    }
-
-    if (promises.length) {
-      await Promise.all(promises)
-    }
-
-    seedBatchRefSequenceFromSqlite(year)
-    console.log("[seed-sequences] Sequences seeded from Supabase/SQLite")
-  } catch (err) {
-    console.error("[seed-sequences] Failed, will retry on next request:", err)
-    _seeded = false
+  if (!_seedInFlight) {
+    _seedInFlight = runSeed().catch(err => {
+      console.error("[seed-sequences] Failed, will retry on next request:", err)
+      _seeded = false
+      throw err
+    }).finally(() => {
+      _seedInFlight = null
+    })
   }
+  await _seedInFlight
 }
 
 /** Always sync BATCH-YYYY-NNN counter from Supabase before allocating a new export batch. */

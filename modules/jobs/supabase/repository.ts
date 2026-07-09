@@ -12,6 +12,7 @@ import { isDrawingNumberListSort, sortJobsForList } from "../job-list-sort"
 import {
   jobsArchivedFilterEnabled,
   noteJobsArchivedFromError,
+  isMissingColumnError,
 } from "@/lib/supabase/archived-filter"
 import {
   sortColumn,
@@ -35,12 +36,50 @@ function isMissingCommercialExtrasColumn(error: { code?: string; message?: strin
     && /variation_fees|additional_charges/.test(error.message)
 }
 
-/** Omit columns added in 005_job_commercial_extras.sql when Supabase hasn't migrated yet. */
-function withoutCommercialExtras(row: SupabaseJobRow): Omit<SupabaseJobRow, "variation_fees" | "additional_charges"> {
-  const { variation_fees: _v, additional_charges: _a, ...rest } = row
-  return rest
+/** Parse PostgREST / Postgres "column not found" errors so we can omit that field and retry. */
+function missingColumnFromError(error: { code?: string; message?: string } | null): string | null {
+  if (!error?.message) return null
+  const quoted = error.message.match(/'([^']+)'\s+column/i)
+  if (quoted?.[1]) return quoted[1]
+  for (const col of [
+    "site_name", "site_address", "location_status", "location_source",
+    "latitude", "longitude", "geocoded_at", "geocoded_address",
+    "variation_fees", "additional_charges",
+  ]) {
+    if (isMissingColumnError(error, col)) return col
+  }
+  return null
 }
 
+/**
+ * Upsert a job row, omitting columns that are not yet in the remote schema
+ * (e.g. migration 020 not applied on Supabase). Prevents job creation 500s.
+ */
+async function upsertJobRow(
+  row: SupabaseJobRow,
+  onConflict: "id" | "drawing_number",
+): Promise<void> {
+  const payload: Record<string, unknown> = { ...row }
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const { error } = await table().upsert(payload, { onConflict })
+    if (!error) return
+
+    const missing = missingColumnFromError(error)
+    if (missing && missing in payload) {
+      delete payload[missing]
+      continue
+    }
+    if (isMissingCommercialExtrasColumn(error)) {
+      delete payload.variation_fees
+      delete payload.additional_charges
+      continue
+    }
+    throw error
+  }
+  throw new Error("Job upsert failed: too many missing-column retries")
+}
+
+/** Omit columns added in 005_job_commercial_extras.sql when Supabase hasn't migrated yet. */
 function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
   // Soft-delete filter: exclude archived by default (requires 011_soft_delete.sql).
   if (jobsArchivedFilterEnabled()) {
@@ -228,33 +267,22 @@ export const supabaseJobRepo = {
   },
 
   async upsert(job: JobRow): Promise<void> {
-    const row = toSupabaseRow(job)
-    let { error } = await table().upsert(row, { onConflict: "id" })
-    if (isMissingCommercialExtrasColumn(error)) {
-      ;({ error } = await table().upsert(withoutCommercialExtras(row), { onConflict: "id" }))
-    }
-    if (error) throw error
+    await upsertJobRow(toSupabaseRow(job), "id")
   },
 
   async upsertMany(jobs: JobRow[]): Promise<void> {
     if (!jobs.length) return
-    const rows = jobs.map(toSupabaseRow)
-    let { error } = await table().upsert(rows, { onConflict: "id" })
-    if (isMissingCommercialExtrasColumn(error)) {
-      ;({ error } = await table().upsert(rows.map(withoutCommercialExtras), { onConflict: "id" }))
+    for (const job of jobs) {
+      await upsertJobRow(toSupabaseRow(job), "id")
     }
-    if (error) throw error
   },
 
   /** Excel import — upsert by drawing_number so a retry after partial import still succeeds. */
   async upsertManyForImport(jobs: JobRow[]): Promise<void> {
     if (!jobs.length) return
-    const rows = jobs.map(toSupabaseRow)
-    let { error } = await table().upsert(rows, { onConflict: "drawing_number" })
-    if (isMissingCommercialExtrasColumn(error)) {
-      ;({ error } = await table().upsert(rows.map(withoutCommercialExtras), { onConflict: "drawing_number" }))
+    for (const job of jobs) {
+      await upsertJobRow(toSupabaseRow(job), "drawing_number")
     }
-    if (error) throw error
   },
 
   async delete(id: string): Promise<boolean> {
