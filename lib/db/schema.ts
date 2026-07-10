@@ -629,6 +629,31 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_pvault_service ON PasswordVaultEntry(serviceNameLower);
   CREATE INDEX IF NOT EXISTS idx_pvault_category ON PasswordVaultEntry(categoryLower);
+
+  CREATE TABLE IF NOT EXISTS SiteVisitCalculation (
+    id                       TEXT PRIMARY KEY,
+    label                    TEXT,
+    createdBy                TEXT NOT NULL,
+    createdByName            TEXT,
+    siteAddress              TEXT NOT NULL,
+    siteLat                  REAL,
+    siteLng                  REAL,
+    oneWayDistanceMiles      REAL NOT NULL,
+    oneWayDurationMinutes    REAL NOT NULL,
+    siteHours                REAL NOT NULL,
+    mileageRate              REAL NOT NULL DEFAULT 0.45,
+    hourlyRate               REAL NOT NULL DEFAULT 95,
+    vatRate                  REAL NOT NULL DEFAULT 0.2,
+    mileageCost              REAL NOT NULL,
+    labourCost               REAL NOT NULL,
+    subtotal                 REAL NOT NULL,
+    vat                      REAL NOT NULL,
+    grandTotal               REAL NOT NULL,
+    createdAt                TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updatedAt                TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_site_visit_calc_created ON SiteVisitCalculation(createdAt DESC);
 `)
 
 // ── Seed calendar categories ────────────────────────────────────────

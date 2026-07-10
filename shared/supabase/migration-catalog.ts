@@ -159,6 +159,16 @@ export const SUPABASE_MIGRATION_MODULES: SupabaseModuleSpec[] = [
     verifyScript: "npm run supabase:verify-password-vault",
     tables: ["password_vault_entries"],
   },
+  {
+    id: "site-visit-calculations",
+    label: "Site visit calculations",
+    flagKey: "siteVisitCalculations",
+    envVar: "SUPABASE_SITE_VISIT_CALCULATIONS",
+    migration: "025_site_visit_calculations.sql",
+    syncScript: "(no sync — created in app)",
+    tables: ["site_visit_calculations"],
+    dependsOn: ["users"],
+  },
 ]
 
 /** Infrastructure migrations applied after core tables. */

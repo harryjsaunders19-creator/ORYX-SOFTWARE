@@ -2,7 +2,7 @@ import type { ElementType } from "react"
 import {
   LayoutDashboard, FolderOpen, Activity, Receipt, CalendarDays,
   Building2, AlertTriangle, FileText, Users as UsersIcon, DatabaseBackup, Archive,
-  GitBranch, UsersRound, KeyRound, MapPin,
+  GitBranch, UsersRound, KeyRound, MapPin, Calculator,
 } from "lucide-react"
 
 export const NAV_ICONS: Record<string, ElementType> = {
@@ -11,6 +11,7 @@ export const NAV_ICONS: Record<string, ElementType> = {
   "hold-list": AlertTriangle,
   jobs: GitBranch,
   "job-map": MapPin,
+  "site-visit-calculator": Calculator,
   quotes: FileText,
   calendar: CalendarDays,
   employees: UsersRound,

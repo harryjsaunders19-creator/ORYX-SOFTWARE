@@ -36,6 +36,7 @@ export function supabaseModuleFlags() {
     employees:      useSupabaseEmployees(),
     leave:          useSupabaseLeave(),
     passwordVault:  useSupabasePasswordVault(),
+    siteVisitCalculations: useSupabaseSiteVisitCalculations(),
   }
 }
 
@@ -89,6 +90,10 @@ export function useSupabaseLeave(): boolean {
 
 export function useSupabasePasswordVault(): boolean {
   return flag("SUPABASE_PASSWORD_VAULT")
+}
+
+export function useSupabaseSiteVisitCalculations(): boolean {
+  return flag("SUPABASE_SITE_VISIT_CALCULATIONS")
 }
 
 /**
