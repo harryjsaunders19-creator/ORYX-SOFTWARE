@@ -1,7 +1,8 @@
 /**
  * POST /api/users/[id]/reset-password
  */
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { userService } from "../services/user-service"
 import { requireRole } from "@/shared/auth/auth"
 import { generateTempPassword, hashPassword } from "@/lib/password"
@@ -26,7 +27,6 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
 
     return NextResponse.json({ tempPassword })
   } catch (err) {
-    console.error("[POST /api/users/[id]/reset-password]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("users.api.reset-password", err)
   }
 }

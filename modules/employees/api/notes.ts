@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn } from "@/shared/auth/auth"
 import { employeeService, canViewNotes } from "@/modules/employees"
 
@@ -16,8 +17,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     const employee = await employeeService.getDetail(auth.user, id)
     return NextResponse.json({ notes: employee?.notes ?? [] })
   } catch (err) {
-    console.error("[GET /api/employees/[id]/notes]", err)
-    return NextResponse.json({ error: "Failed to load notes" }, { status: 500 })
+    return apiInternalError("employees.api.notes", err)
   }
 }
 
@@ -36,7 +36,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     if (!note) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     return NextResponse.json({ note }, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/employees/[id]/notes]", err)
-    return NextResponse.json({ error: "Failed to save note" }, { status: 500 })
+    return apiInternalError("employees.api.notes", err)
   }
 }

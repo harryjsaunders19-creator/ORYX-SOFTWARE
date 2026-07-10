@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireRole } from "@/shared/auth/auth"
 import { jobMapService } from "../services/job-map-service"
 
@@ -28,7 +29,6 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error("[PATCH /api/job-map/locations/[id]]", err)
-    return NextResponse.json({ error: "Failed to save location" }, { status: 500 })
+    return apiInternalError("job-map.api.location", err)
   }
 }

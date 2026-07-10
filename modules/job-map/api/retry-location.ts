@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireRole } from "@/shared/auth/auth"
 import { jobMapService } from "../services/job-map-service"
 
@@ -14,7 +15,6 @@ export async function POST(_req: Request, { params }: Ctx) {
     const result = await jobMapService.retryGeocode(id)
     return NextResponse.json(result)
   } catch (err) {
-    console.error("[POST /api/job-map/locations/[id]/retry]", err)
-    return NextResponse.json({ error: "Geocoding failed" }, { status: 500 })
+    return apiInternalError("job-map.api.retry-location", err)
   }
 }

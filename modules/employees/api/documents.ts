@@ -1,4 +1,5 @@
-import fs from "fs"
+import fs from "fs"import { apiInternalError } from "@/shared/api-errors"
+
 import path from "path"
 import { NextRequest, NextResponse } from "next/server"
 import { createId } from "@paralleldrive/cuid2"
@@ -26,8 +27,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     const documents = employeeDocumentDb.findByUser(id, includeRestricted)
     return NextResponse.json({ documents })
   } catch (err) {
-    console.error("[GET /api/employees/[id]/documents]", err)
-    return NextResponse.json({ error: "Failed to load documents" }, { status: 500 })
+    return apiInternalError("employees.api.documents", err)
   }
 }
 
@@ -85,7 +85,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     await employeeService.logActivity(id, "DOCUMENT_UPLOADED", name, auth.user)
     return NextResponse.json({ document: doc }, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/employees/[id]/documents]", err)
-    return NextResponse.json({ error: "Failed to upload document" }, { status: 500 })
+    return apiInternalError("employees.api.documents", err)
   }
 }

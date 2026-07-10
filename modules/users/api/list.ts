@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { userService } from "../services/user-service"
 import { withoutPassword } from "../types/user-types"
 import { createId } from "@paralleldrive/cuid2"
@@ -14,8 +15,7 @@ export async function GET() {
     const users = (await userService.findMany()).map(withoutPassword)
     return NextResponse.json({ users, total: users.length })
   } catch (err) {
-    console.error("[GET /api/users]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("users.api.list", err)
   }
 }
 
@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ user: withoutPassword(user), tempPassword }, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/users]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("users.api.list", err)
   }
 }

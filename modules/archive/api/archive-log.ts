@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn } from "@/shared/auth/auth"
 import { archiveLogService } from "../services/archive-log-service"
 
@@ -10,7 +11,6 @@ export async function GET() {
     const entries = await archiveLogService.findMany(500)
     return NextResponse.json(entries)
   } catch (err) {
-    console.error("[GET /api/archive-log]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("archive.api.archive-log", err)
   }
 }

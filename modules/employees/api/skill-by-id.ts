@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
 
@@ -13,7 +14,6 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     if (!ok) return NextResponse.json({ error: "Forbidden or not found" }, { status: 403 })
     return NextResponse.json({ deleted: true })
   } catch (err) {
-    console.error("[DELETE /api/employees/[id]/skills/[skillId]]", err)
-    return NextResponse.json({ error: "Failed to delete skill" }, { status: 500 })
+    return apiInternalError("employees.api.skill-by-id", err)
   }
 }

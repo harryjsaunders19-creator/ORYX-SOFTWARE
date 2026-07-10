@@ -15,7 +15,6 @@ import {
   DialogTitle, DialogBody,
 } from "@/shared/ui/dialog"
 import { useToast } from "@/shared/ui/toast"
-import { useUser }  from "@/shared/providers/user-context"
 import { formatGBP } from "@/shared/utils/utils"
 import { apiFetch } from "@/shared/hooks/use-api"
 import { PageHeader, PageShell, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
@@ -25,7 +24,6 @@ type HoldListData = { holds: ClientHoldWithClient[]; total: number }
 
 
 export default function HoldListPage() {
-  const { userName } = useUser()
   const { toast }    = useToast()
 
   const [data,        setData]        = useState<HoldListData | null>(null)
@@ -77,7 +75,7 @@ export default function HoldListPage() {
     try {
       const res = await fetch(`/api/clients/${selectedClient.id}/hold`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: reason.trim(), notes: notes.trim() || null, addedBy: userName }),
+        body: JSON.stringify({ reason: reason.trim(), notes: notes.trim() || null }),
       })
       if (!res.ok) { toast("Failed to add hold", "error"); return }
       toast(`${selectedClient.name} placed on hold`, "info")
@@ -94,7 +92,7 @@ export default function HoldListPage() {
     try {
       const res = await fetch(`/api/clients/${removed.clientId}/hold`, {
         method: "DELETE", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ removedBy: userName, removedReason: removeReason.trim() || null }),
+        body: JSON.stringify({ removedReason: removeReason.trim() || null }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string; detail?: string }
@@ -116,7 +114,7 @@ export default function HoldListPage() {
     try {
       const res = await fetch(`/api/clients/${editItem.clientId}/hold`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: editReason.trim(), notes: editNotes.trim() || null, addedBy: userName }),
+        body: JSON.stringify({ reason: editReason.trim(), notes: editNotes.trim() || null }),
       })
       if (!res.ok) { toast("Failed to update hold", "error"); return }
       toast("Hold updated", "success")

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
@@ -24,7 +25,6 @@ export async function GET(req: NextRequest) {
 
     return listResponse({ ...result, page, limit })
   } catch (err) {
-    console.error("[GET /api/employees]", err)
-    return NextResponse.json({ error: "Failed to load employees" }, { status: 500 })
+    return apiInternalError("employees.api.list", err)
   }
 }

@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { billingHandoffService } from "../services/billing-handoff-service"
 import { requireRole } from "@/shared/auth/auth"
 
@@ -10,7 +11,6 @@ export async function GET() {
     const batches = await billingHandoffService.findBatches({ take: 100 })
     return NextResponse.json({ batches })
   } catch (err) {
-    console.error("[GET /api/billing-handoffs/batches]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("billing.api.batches-list", err)
   }
 }

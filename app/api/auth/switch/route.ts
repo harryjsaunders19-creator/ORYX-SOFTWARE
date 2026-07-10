@@ -7,7 +7,8 @@
  *
  * Body: { userId: string }
  */
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { userService } from "@/lib/services/user-service"
 import { SESSION_COOKIE, getRealUser } from "@/lib/auth"
@@ -64,7 +65,6 @@ export async function POST(req: NextRequest) {
     await setSessionCookies(res, target.id, realUser.id)
     return res
   } catch (err) {
-    console.error("[POST /api/auth/switch]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("app.auth.switch.route", err)
   }
 }

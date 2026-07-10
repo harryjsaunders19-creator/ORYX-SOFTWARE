@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+import { logError } from "@/shared/logger"
+
 import { requireRole } from "@/shared/auth/auth"
 import { importFromExcelBuffer } from "../services/excel-import"
 import { formatImportError } from "../services/import-excel-bulk"
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result)
   } catch (err) {
-    console.error("[POST /api/import/excel]", err)
+    logError("import_export.api.import_excel", err)
     return NextResponse.json(
       { error: `Import failed: ${formatImportError(err)}` },
       { status: 500 },

@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn } from "@/shared/auth/auth"
 import { jobMapService } from "../services/job-map-service"
 
@@ -10,7 +11,6 @@ export async function GET() {
     const jobs = await jobMapService.getMissingLocations()
     return NextResponse.json({ jobs })
   } catch (err) {
-    console.error("[GET /api/job-map/missing-locations]", err)
-    return NextResponse.json({ error: "Failed to load missing locations" }, { status: 500 })
+    return apiInternalError("job-map.api.missing-locations", err)
   }
 }

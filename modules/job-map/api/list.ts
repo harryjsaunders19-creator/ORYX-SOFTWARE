@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn } from "@/shared/auth/auth"
 import { jobMapService } from "../services/job-map-service"
 
@@ -13,7 +14,6 @@ export async function GET() {
       headers: { "Cache-Control": "private, max-age=60" },
     })
   } catch (err) {
-    console.error("[GET /api/job-map]", err)
-    return NextResponse.json({ error: "Failed to load job map" }, { status: 500 })
+    return apiInternalError("job-map.api.list", err)
   }
 }

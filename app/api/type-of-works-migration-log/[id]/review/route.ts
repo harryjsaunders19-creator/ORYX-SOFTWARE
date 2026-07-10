@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { typeOfWorksMigrationLogDb } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
 
@@ -18,7 +19,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json(updated)
   } catch (err) {
-    console.error("[POST /api/type-of-works-migration-log/[id]/review]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("app.type-of-works-migration-log.id.review.route", err)
   }
 }

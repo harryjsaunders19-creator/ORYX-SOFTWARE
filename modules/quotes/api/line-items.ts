@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { quoteService } from "../services/quote-service"
 import { requireSignIn } from "@/shared/auth/auth"
 
@@ -12,7 +13,6 @@ export async function GET(_req: Request, { params }: Ctx) {
     const lineItems = await quoteService.findLineItemsForQuote(id)
     return NextResponse.json({ lineItems })
   } catch (err) {
-    console.error("[GET /api/quotes/[id]/line-items]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("quotes.api.line-items", err)
   }
 }

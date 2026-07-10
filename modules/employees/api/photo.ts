@@ -1,4 +1,5 @@
-import fs from "fs"
+import fs from "fs"import { apiInternalError } from "@/shared/api-errors"
+
 import path from "path"
 import { NextRequest, NextResponse } from "next/server"
 import { createId } from "@paralleldrive/cuid2"
@@ -46,8 +47,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       headers: { "Content-Type": mime, "Cache-Control": "private, max-age=3600" },
     })
   } catch (err) {
-    console.error("[GET /api/employees/[id]/photo]", err)
-    return NextResponse.json({ error: "Failed to load photo" }, { status: 500 })
+    return apiInternalError("employees.api.photo", err)
   }
 }
 
@@ -95,8 +95,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     await employeeService.logActivity(id, "PHOTO_UPLOADED", filename, auth.user)
     return NextResponse.json({ profilePhotoPath: relPath })
   } catch (err) {
-    console.error("[POST /api/employees/[id]/photo]", err)
-    return NextResponse.json({ error: "Failed to upload photo" }, { status: 500 })
+    return apiInternalError("employees.api.photo", err)
   }
 }
 
@@ -118,7 +117,6 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     await employeeService.logActivity(id, "PHOTO_REMOVED", null, auth.user)
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error("[DELETE /api/employees/[id]/photo]", err)
-    return NextResponse.json({ error: "Failed to remove photo" }, { status: 500 })
+    return apiInternalError("employees.api.photo", err)
   }
 }

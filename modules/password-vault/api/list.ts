@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireRole } from "@/shared/auth/auth"
 import { passwordVaultService } from "../services/vault-service"
@@ -16,8 +17,7 @@ export async function GET(req: NextRequest) {
     const entries = await passwordVaultService.findMany({ search, sort })
     return listResponse({ entries, total: entries.length })
   } catch (err) {
-    console.error("[GET /api/password-vault]", err)
-    return NextResponse.json({ error: "Failed to load password vault" }, { status: 500 })
+    return apiInternalError("password-vault.api.list", err)
   }
 }
 
@@ -38,7 +38,6 @@ export async function POST(req: NextRequest) {
     const entry = await passwordVaultService.create(parsed.data)
     return NextResponse.json({ entry }, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/password-vault]", err)
-    return NextResponse.json({ error: "Failed to create vault entry" }, { status: 500 })
+    return apiInternalError("password-vault.api.list", err)
   }
 }

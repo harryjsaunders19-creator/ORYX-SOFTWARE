@@ -1,7 +1,8 @@
 /**
  * GET /api/clients/[id]/analytics
  */
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireRole } from "@/shared/auth/auth"
 import { clientService } from "../services/client-service"
 import { jobService } from "@/lib/services/job-service"
@@ -90,7 +91,6 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
     return NextResponse.json(analytics)
   } catch (err) {
-    console.error("[GET /api/clients/[id]/analytics]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("clients.api.analytics", err)
   }
 }

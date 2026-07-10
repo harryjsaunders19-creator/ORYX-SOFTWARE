@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
 import { leaveService } from "../services/leave-service"
@@ -25,8 +26,7 @@ export async function GET(req: NextRequest) {
 
     return listResponse({ requests })
   } catch (err) {
-    console.error("[GET /api/leave/requests]", err)
-    return NextResponse.json({ error: "Failed to load leave requests" }, { status: 500 })
+    return apiInternalError("leave.api.requests", err)
   }
 }
 
@@ -64,7 +64,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 422 })
     }
   } catch (err) {
-    console.error("[POST /api/leave/requests]", err)
-    return NextResponse.json({ error: "Failed to create leave request" }, { status: 500 })
+    return apiInternalError("leave.api.requests", err)
   }
 }

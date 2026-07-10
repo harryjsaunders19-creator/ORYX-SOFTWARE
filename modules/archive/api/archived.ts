@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireRole } from "@/shared/auth/auth"
 import { jobService } from "@/lib/services/job-service"
 import { quoteService } from "@/lib/services/quote-service"
@@ -38,10 +39,6 @@ export async function GET() {
       warnings,
     })
   } catch (err) {
-    console.error("[GET /api/archived]", err)
-    return NextResponse.json(
-      { error: "Failed to load archived items", detail: errorMessage(err) },
-      { status: 500 },
-    )
+    return apiInternalError("archive.api.archived", err, undefined, { exposeDetail: true })
   }
 }

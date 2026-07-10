@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn, requireRole } from "@/shared/auth/auth"
 import type { UpdateCalendarEventData } from "../types/calendar-types"
 import { calendarService } from "../services/calendar-service"
@@ -17,8 +18,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json(event)
   } catch (err) {
-    console.error("[GET /api/calendar/events/[id]]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("calendar.api.event-by-id", err)
   }
 }
 
@@ -69,8 +69,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     return NextResponse.json(full)
   } catch (err) {
-    console.error("[PATCH /api/calendar/events/[id]]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("calendar.api.event-by-id", err)
   }
 }
 
@@ -84,7 +83,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     await calendarService.delete(id)
     return NextResponse.json({ deleted: true })
   } catch (err) {
-    console.error("[DELETE /api/calendar/events/[id]]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("calendar.api.event-by-id", err)
   }
 }

@@ -5,7 +5,8 @@
  * After the change, reconciles the DrawingSequence counter so
  * future auto-generated numbers continue correctly.
  */
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireRole } from "@/shared/auth/auth"
 import { jobService } from "../services/job-service"
 import { sequenceDb } from "@/lib/db"
@@ -58,7 +59,6 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const updated = await jobService.syncFromSqlite(id)
     return NextResponse.json(updated)
   } catch (err) {
-    console.error("[PATCH /api/jobs/[id]/drawing-number]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.api.drawing-number", err)
   }
 }

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { billingHandoffService } from "../services/billing-handoff-service"
 import { requireRole } from "@/shared/auth/auth"
 import { parseOptionalMoney } from "@/shared/utils/utils"
@@ -32,7 +33,6 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     return NextResponse.json({ handoff: result })
   } catch (err) {
-    console.error("[PATCH /api/billing-handoffs/[id]]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("billing.api.by-id", err)
   }
 }

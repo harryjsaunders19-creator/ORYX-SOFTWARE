@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireRole } from "@/shared/auth/auth"
 import { jobService } from "../services/job-service"
 
@@ -18,7 +19,6 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
     if (!restored) return NextResponse.json({ error: "Restore failed" }, { status: 500 })
     return NextResponse.json({ ok: true, job: restored })
   } catch (err) {
-    console.error("[POST /api/jobs/[id]/restore]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.api.restore", err)
   }
 }

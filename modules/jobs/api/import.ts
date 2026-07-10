@@ -14,6 +14,9 @@
  * Auth: requires sign-in (any role).
  */
 import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
+import { logError } from "@/shared/logger"
+
 import { requireRole } from "@/shared/auth/auth"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/lib/services/client-service"
@@ -212,7 +215,7 @@ export async function POST(req: NextRequest) {
           })
           imported.push({ drawingNumber, address: row.address, clientCompany: resolvedClientCompany })
         } catch (err) {
-          console.error(`[import] Failed to create job for row ${row.rowIndex}:`, err)
+          logError("jobs.api.import.row", err, { rowIndex: row.rowIndex })
           skipped.push({ rowIndex: row.rowIndex, reasons: ["Database error"] })
         }
       }
@@ -239,7 +242,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Unsupported content type" }, { status: 400 })
   } catch (err) {
-    console.error("[POST /api/jobs/import]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.api.import", err)
   }
 }

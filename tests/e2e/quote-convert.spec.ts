@@ -61,4 +61,47 @@ test.describe("Quote convert API", () => {
     const err = await convertRes.json() as { error?: string }
     expect(err.error).toMatch(/accepted/i)
   })
+
+  test("blocks convert when client is on hold", async ({ page }) => {
+    await loginAsAdmin(page)
+
+    const clientName = `E2E Hold Client ${Date.now()}`
+    const createClientRes = await page.request.post("/api/clients", {
+      data: { name: clientName, billingAddress: "1 Test Street" },
+    })
+    expect(createClientRes.ok(), await createClientRes.text()).toBeTruthy()
+    const client = await createClientRes.json() as { id: string }
+
+    const holdRes = await page.request.post(`/api/clients/${client.id}/hold`, {
+      data: { reason: "E2E test hold — unpaid invoices" },
+    })
+    expect(holdRes.status(), await holdRes.text()).toBe(201)
+
+    const today = new Date().toISOString().slice(0, 10)
+    const quoteRes = await page.request.post("/api/quotes", {
+      data: {
+        clientId: client.id,
+        clientCompany: clientName,
+        address: "1 Test Street, Bristol",
+        typeOfWorks: "Temporary Roof",
+        quoteValue: "2000",
+        quoteDate: today,
+      },
+    })
+    expect(quoteRes.ok(), await quoteRes.text()).toBeTruthy()
+    const quote = await quoteRes.json() as { id: string }
+
+    await page.request.patch(`/api/quotes/${quote.id}`, { data: { status: "ACCEPTED" } })
+
+    const blocked = await page.request.post(`/api/quotes/${quote.id}/convert`, { data: {} })
+    expect(blocked.status()).toBe(422)
+    const blockedBody = await blocked.json() as { onHold?: boolean; holdReason?: string }
+    expect(blockedBody.onHold).toBe(true)
+    expect(blockedBody.holdReason).toBeTruthy()
+
+    const proceed = await page.request.post(`/api/quotes/${quote.id}/convert`, {
+      data: { proceedDespiteHold: true, designer: "Test Designer" },
+    })
+    expect(proceed.status(), await proceed.text()).toBe(201)
+  })
 })

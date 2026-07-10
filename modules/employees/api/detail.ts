@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
@@ -16,8 +17,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     return resourceResponse({ employee, access: await employeeService.getAccess(auth.user, id) })
   } catch (err) {
-    console.error("[GET /api/employees/[id]]", err)
-    return NextResponse.json({ error: "Failed to load employee" }, { status: 500 })
+    return apiInternalError("employees.api.detail", err)
   }
 }
 
@@ -77,7 +77,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
     return resourceResponse({ profile })
   } catch (err) {
-    console.error("[PATCH /api/employees/[id]]", err)
-    return NextResponse.json({ error: "Failed to update employee" }, { status: 500 })
+    return apiInternalError("employees.api.detail", err)
   }
 }

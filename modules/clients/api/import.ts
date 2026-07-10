@@ -6,6 +6,9 @@
  *   2. application/json with { rows, mode: "commit" } → bulk insert
  */
 import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
+import { logError } from "@/shared/logger"
+
 import { requireRole } from "@/shared/auth/auth"
 import { clientService } from "../services/client-service"
 import { createId } from "@paralleldrive/cuid2"
@@ -139,7 +142,7 @@ export async function POST(req: NextRequest) {
           })
           imported.push({ name: row.name.trim(), accountCode: row.accountCode?.trim() || "" })
         } catch (err) {
-          console.error(`[client import] Failed row ${row.rowIndex}:`, err)
+          logError("clients.api.import.row", err, { rowIndex: row.rowIndex })
           skipped.push({ rowIndex: row.rowIndex, reasons: ["Database error"] })
         }
       }
@@ -154,7 +157,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Unsupported content type" }, { status: 400 })
   } catch (err) {
-    console.error("[POST /api/clients/import]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("clients.api.import", err)
   }
 }

@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn } from "@/shared/auth/auth"
 import { calendarService } from "../services/calendar-service"
 import { filterUserCategories } from "../config/category-config"
@@ -11,7 +12,6 @@ export async function GET() {
     const all = await calendarService.categories()
     return NextResponse.json({ categories: filterUserCategories(all) })
   } catch (err) {
-    console.error("[GET /api/calendar/categories]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("calendar.api.categories", err)
   }
 }

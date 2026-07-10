@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { typeOfWorksMigrationLogDb } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
 
@@ -14,7 +15,6 @@ export async function GET(req: NextRequest) {
     const stats   = typeOfWorksMigrationLogDb.stats()
     return NextResponse.json({ entries, stats })
   } catch (err) {
-    console.error("[GET /api/type-of-works-migration-log]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("app.type-of-works-migration-log.route", err)
   }
 }

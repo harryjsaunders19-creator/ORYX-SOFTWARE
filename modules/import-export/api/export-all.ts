@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { format } from "date-fns"
 import { requireRole } from "@/shared/auth/auth"
 import { globalExportToBuffer } from "../services/global-export"
@@ -18,7 +19,6 @@ export async function GET() {
       },
     })
   } catch (err) {
-    console.error("[GET /api/export/all]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("import-export.api.export-all", err)
   }
 }

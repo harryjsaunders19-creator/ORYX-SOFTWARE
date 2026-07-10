@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { userService } from "../services/user-service"
 import { withoutPassword } from "../types/user-types"
 import { requireRole } from "@/shared/auth/auth"
@@ -56,8 +57,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json(withoutPassword(updated))
   } catch (err) {
-    console.error("[PATCH /api/users/[id]]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("users.api.by-id", err)
   }
 }
 
@@ -82,7 +82,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ deleted: true })
   } catch (err) {
-    console.error("[DELETE /api/users/[id]]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("users.api.by-id", err)
   }
 }

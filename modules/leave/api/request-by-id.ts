@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn } from "@/shared/auth/auth"
 import { canAcceptLeave } from "../permissions"
 import { leaveService } from "../services/leave-service"
@@ -56,7 +57,6 @@ export async function PATCH(
 
     return NextResponse.json({ error: "Unknown action" }, { status: 422 })
   } catch (err) {
-    console.error("[PATCH /api/leave/requests/[id]]", err)
-    return NextResponse.json({ error: "Failed to update leave request" }, { status: 500 })
+    return apiInternalError("leave.api.request-by-id", err)
   }
 }

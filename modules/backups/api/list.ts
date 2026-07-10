@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireRole } from "@/shared/auth/auth"
 import { backupRecordService } from "../services/backup-record-service"
 import { startBackup, BACKUPS_DIR } from "../backup-service"
@@ -14,8 +15,7 @@ export async function GET() {
     ])
     return NextResponse.json({ backups, auditLog, backupsDir: BACKUPS_DIR })
   } catch (err) {
-    console.error("[GET /api/backups]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("backups.api.list", err)
   }
 }
 
@@ -37,7 +37,6 @@ export async function POST(_req: NextRequest) {
 
     return NextResponse.json({ job }, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/backups]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("backups.api.list", err)
   }
 }

@@ -1,7 +1,8 @@
 /**
  * POST /api/auth/exit-impersonation
  */
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { SESSION_COOKIE, getRealUser } from "@/lib/auth"
 import { setSessionCookies } from "@/lib/auth-cookies"
@@ -28,7 +29,6 @@ export async function POST(req: NextRequest) {
     await setSessionCookies(res, realUser.id, realUser.id)
     return res
   } catch (err) {
-    console.error("[POST /api/auth/exit-impersonation]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("app.auth.exit-impersonation.route", err)
   }
 }

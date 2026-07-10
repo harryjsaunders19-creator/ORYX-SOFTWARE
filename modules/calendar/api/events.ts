@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
 import { calendarService } from "../services/calendar-service"
@@ -60,8 +61,7 @@ export async function GET(req: NextRequest) {
 
     return listResponse({ events })
   } catch (err) {
-    console.error("[GET /api/calendar/events]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("calendar.api.events", err)
   }
 }
 
@@ -111,7 +111,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(full, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/calendar/events]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("calendar.api.events", err)
   }
 }

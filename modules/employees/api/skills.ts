@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
 import { SKILL_CATEGORIES, type SkillCategory } from "@/modules/employees"
@@ -30,7 +31,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     if (!skill) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     return NextResponse.json({ skill }, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/employees/[id]/skills]", err)
-    return NextResponse.json({ error: "Failed to add skill" }, { status: 500 })
+    return apiInternalError("employees.api.skills", err)
   }
 }

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn } from "@/shared/auth/auth"
 import { employeeActivityDb } from "@/lib/db/stores"
 import { employeeService } from "@/modules/employees"
@@ -16,7 +17,6 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     const activity = employeeActivityDb.findByUser(id, 50)
     return NextResponse.json({ activity })
   } catch (err) {
-    console.error("[GET /api/employees/[id]/activity]", err)
-    return NextResponse.json({ error: "Failed to load activity" }, { status: 500 })
+    return apiInternalError("employees.api.activity", err)
   }
 }

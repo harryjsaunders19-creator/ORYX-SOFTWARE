@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
 import { leaveService } from "../services/leave-service"
@@ -23,7 +24,6 @@ export async function GET(req: NextRequest) {
 
     return listResponse({ requests })
   } catch (err) {
-    console.error("[GET /api/leave/approved]", err)
-    return NextResponse.json({ error: "Failed to load approved leave" }, { status: 500 })
+    return apiInternalError("leave.api.approved", err)
   }
 }

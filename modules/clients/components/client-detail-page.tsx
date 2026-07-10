@@ -50,7 +50,7 @@ export default function ClientDetailPage() {
   const [holdNotes, setHoldNotes] = useState("")
   const [removeOpen, setRemoveOpen] = useState(false)
   const [removeReason, setRemoveReason] = useState("")
-  const { userName, isAdmin } = useUser()
+  const { isAdmin } = useUser()
   const [analytics, setAnalytics] = useState<ClientAnalytics | null>(null)
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export default function ClientDetailPage() {
     try {
       const res = await fetch(`/api/clients/${id}/hold`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: holdReason.trim(), notes: holdNotes.trim() || null, addedBy: userName }),
+        body: JSON.stringify({ reason: holdReason.trim(), notes: holdNotes.trim() || null }),
       })
       if (!res.ok) { toast("Failed to add hold", "error"); return }
       const h = await res.json() as ClientHold
@@ -98,7 +98,7 @@ export default function ClientDetailPage() {
     try {
       const res = await fetch(`/api/clients/${id}/hold`, {
         method: "DELETE", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ removedBy: userName, removedReason: removeReason.trim() || null }),
+        body: JSON.stringify({ removedReason: removeReason.trim() || null }),
       })
       if (!res.ok) { toast("Failed to remove hold", "error"); return }
       setHold(null); setRemoveOpen(false); setRemoveReason("")

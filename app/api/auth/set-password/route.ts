@@ -1,7 +1,8 @@
 /**
  * POST /api/auth/set-password
  */
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { getCurrentUser } from "@/lib/auth"
 import { setSessionCookies } from "@/lib/auth-cookies"
 import { userService } from "@/lib/services/user-service"
@@ -41,7 +42,6 @@ export async function POST(req: NextRequest) {
     await setSessionCookies(res, user.id, user.id)
     return res
   } catch (err) {
-    console.error("[POST /api/auth/set-password]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("app.auth.set-password.route", err)
   }
 }

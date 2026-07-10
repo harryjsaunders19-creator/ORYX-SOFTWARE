@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireRole } from "@/shared/auth/auth"
 import { jobMapService, GEOCODE_BATCH_SIZE } from "../services/job-map-service"
 
@@ -11,7 +12,6 @@ export async function POST() {
     const result = await jobMapService.geocodeBatch(GEOCODE_BATCH_SIZE)
     return NextResponse.json(result)
   } catch (err) {
-    console.error("[POST /api/job-map/geocode]", err)
-    return NextResponse.json({ error: "Geocoding failed" }, { status: 500 })
+    return apiInternalError("job-map.api.geocode", err)
   }
 }

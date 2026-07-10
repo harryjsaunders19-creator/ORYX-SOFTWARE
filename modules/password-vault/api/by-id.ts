@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireRole } from "@/shared/auth/auth"
 import { passwordVaultService } from "../services/vault-service"
 import { parseUpdateBody } from "./validation"
@@ -37,8 +38,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ entry })
   } catch (err) {
-    console.error("[PATCH /api/password-vault/[id]]", err)
-    return NextResponse.json({ error: "Failed to update vault entry" }, { status: 500 })
+    return apiInternalError("password-vault.api.by-id", err)
   }
 }
 
@@ -52,7 +52,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ deleted: true })
   } catch (err) {
-    console.error("[DELETE /api/password-vault/[id]]", err)
-    return NextResponse.json({ error: "Failed to delete vault entry" }, { status: 500 })
+    return apiInternalError("password-vault.api.by-id", err)
   }
 }

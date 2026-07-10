@@ -1,4 +1,5 @@
-import fs from "fs"
+import fs from "fs"import { apiInternalError } from "@/shared/api-errors"
+
 import { NextRequest, NextResponse } from "next/server"
 import { requireSignIn } from "@/shared/auth/auth"
 import {
@@ -39,8 +40,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       },
     })
   } catch (err) {
-    console.error("[GET /api/employees/[id]/documents/[docId]]", err)
-    return NextResponse.json({ error: "Download failed" }, { status: 500 })
+    return apiInternalError("employees.api.document-by-id", err)
   }
 }
 
@@ -64,7 +64,6 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     await employeeService.logActivity(id, "DOCUMENT_DELETED", doc.name, auth.user)
     return NextResponse.json({ deleted: true })
   } catch (err) {
-    console.error("[DELETE /api/employees/[id]/documents/[docId]]", err)
-    return NextResponse.json({ error: "Delete failed" }, { status: 500 })
+    return apiInternalError("employees.api.document-by-id", err)
   }
 }

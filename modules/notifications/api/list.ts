@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { requireSignIn } from "@/shared/auth/auth"
 import { notificationService } from "../services/notification-service"
 import { listResponse } from "@/shared/utils/api-cache"
@@ -10,7 +11,6 @@ export async function GET() {
 
     return listResponse(await notificationService.list(auth.user))
   } catch (err) {
-    console.error("[GET /api/notifications]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("notifications.api.list", err)
   }
 }

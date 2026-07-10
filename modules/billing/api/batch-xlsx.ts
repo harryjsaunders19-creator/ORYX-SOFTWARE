@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+
 import { billingHandoffService } from "../services/billing-handoff-service"
 import { buildAccountsHandoverWorkbook, workbookToBuffer } from "../billing-export"
 import { requireRole } from "@/shared/auth/auth"
@@ -37,8 +38,6 @@ export async function GET(_req: Request, { params }: Ctx) {
       },
     })
   } catch (err) {
-    console.error("[GET /api/billing-handoffs/batches/[id]/xlsx]", err)
-    const message = err instanceof Error ? err.message : "Internal server error"
-    return NextResponse.json({ error: message }, { status: 500 })
+    return apiInternalError("billing.api.batch_xlsx", err)
   }
 }
