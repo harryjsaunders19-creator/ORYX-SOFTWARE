@@ -135,6 +135,28 @@ async function probeTable(table: string): Promise<TableProbe> {
   }
 }
 
+/** Migration 023 — paginated drawing-number sort requires this column. */
+async function probeJobsListSortKey(): Promise<{ ready: boolean; error?: string }> {
+  try {
+    const { error } = await createAdminClient()
+      .from("jobs")
+      .select("list_sort_key")
+      .limit(1)
+    if (error) {
+      if (/list_sort_key/i.test(error.message)) {
+        return {
+          ready: false,
+          error: "jobs.list_sort_key missing — run supabase/migrations/023_job_list_sort_key.sql",
+        }
+      }
+      return { ready: false, error: error.message }
+    }
+    return { ready: true }
+  } catch (err) {
+    return { ready: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
 async function moduleReport(
   spec: SupabaseModuleSpec,
   flags: ReturnType<typeof supabaseModuleFlags>,
@@ -311,6 +333,13 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
         issues.push("Missing archived_at on jobs — run 011_soft_delete.sql (breaks dashboard).")
       }
     } catch { /* ignore */ }
+  }
+
+  if (adminConfigured && connected && flags.jobs) {
+    const sortKey = await probeJobsListSortKey()
+    if (!sortKey.ready && sortKey.error) {
+      warnings.push(sortKey.error)
+    }
   }
 
   issues.push(...collectIssues(modules, infrastructure, adminConfigured))

@@ -16,6 +16,7 @@ import {
 } from "@/lib/revision-chain"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
+import { apiInternalError } from "@/shared/api-errors"
 
 /**
  * Compute canAddRevision without an extra DB round trip.
@@ -95,8 +96,7 @@ export async function GET(req: NextRequest) {
     const jobs = flagRevisions(rawJobs, allForRevisions)
     return listResponse({ jobs, total, page, limit })
   } catch (err) {
-    console.error("[GET /api/jobs]", err)
-    return NextResponse.json({ error: "Failed to load jobs" }, { status: 500 })
+    return apiInternalError("jobs.list.get", err)
   }
 }
 
@@ -242,10 +242,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(job, { status: 201 })
   } catch (err) {
-    const detail = err && typeof err === "object" && "message" in err
-      ? String((err as { message: unknown }).message)
-      : String(err)
-    console.error("[POST /api/jobs]", detail, err)
-    return NextResponse.json({ error: "Failed to create job" }, { status: 500 })
+    return apiInternalError("jobs.list.create", err, undefined, { exposeDetail: true })
   }
 }

@@ -21,4 +21,28 @@ export function logError(event: string, err: unknown, fields?: Record<string, un
     error: err instanceof Error ? err.message : String(err),
     ...(err instanceof Error && err.stack ? { stack: err.stack } : {}),
   }, "error")
+  notifyErrorWebhook(event, err, fields)
+}
+
+const webhookUrl = () => process.env.ERROR_WEBHOOK_URL?.trim() || ""
+
+/** Fire-and-forget optional webhook — never blocks the request path. */
+function notifyErrorWebhook(
+  event: string,
+  err: unknown,
+  fields?: Record<string, unknown>,
+): void {
+  const url = webhookUrl()
+  if (!url) return
+  const body = JSON.stringify({
+    event,
+    error: err instanceof Error ? err.message : String(err),
+    fields,
+    ts: new Date().toISOString(),
+  })
+  void fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+  }).catch(() => { /* webhook must not break app */ })
 }

@@ -6,6 +6,7 @@ import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { cancelRecordForJob } from "@/lib/cancel-record"
+import { apiInternalError } from "@/shared/api-errors"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -22,8 +23,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       : job
     return resourceResponse(payload)
   } catch (err) {
-    console.error("[GET /api/jobs/[id]]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.by_id.get", err)
   }
 }
 
@@ -125,8 +125,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json(job)
   } catch (err) {
-    console.error("[PATCH /api/jobs/[id]]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.by_id.patch", err)
   }
 }
 
@@ -160,7 +159,6 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ ok: true, archived: true, job: archived })
   } catch (err) {
-    console.error("[DELETE /api/jobs/[id]]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.by_id.delete", err)
   }
 }

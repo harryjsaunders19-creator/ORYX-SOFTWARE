@@ -5,6 +5,10 @@ import { createRequire } from "node:module"
 const require = createRequire(import.meta.url)
 const { resolveWorksFromQuote } = require("../../modules/quotes/convert-works.ts")
 const { canViewEmployeePhoto } = require("../../modules/employees/permissions.ts")
+const {
+  validateQuoteForConvert,
+  quoteConvertHoldResponse,
+} = require("../../modules/quotes/convert-validate.ts")
 
 describe("resolveWorksFromQuote", () => {
   it("keeps a standard type of works unchanged", () => {
@@ -45,6 +49,40 @@ describe("resolveWorksFromQuote", () => {
       description: null,
     })
     assert.equal(out.customTypeDescription?.length, 500)
+  })
+})
+
+describe("validateQuoteForConvert", () => {
+  it("rejects missing quotes", () => {
+    const r = validateQuoteForConvert(null)
+    assert.equal(r.ok, false)
+    assert.equal(r.status, 404)
+  })
+
+  it("rejects non-accepted quotes", () => {
+    const r = validateQuoteForConvert({ status: "DRAFT", jobId: null })
+    assert.equal(r.ok, false)
+    assert.equal(r.status, 422)
+  })
+
+  it("rejects already-converted quotes", () => {
+    const r = validateQuoteForConvert({ status: "ACCEPTED", jobId: "job-1" })
+    assert.equal(r.ok, false)
+    assert.equal(r.status, 409)
+  })
+
+  it("accepts convertible quotes", () => {
+    const r = validateQuoteForConvert({ status: "ACCEPTED", jobId: null })
+    assert.equal(r.ok, true)
+  })
+})
+
+describe("quoteConvertHoldResponse", () => {
+  it("returns hold payload for UI modal", () => {
+    const r = quoteConvertHoldResponse("Unpaid invoices")
+    assert.equal(r.status, 422)
+    assert.equal(r.body.onHold, true)
+    assert.equal(r.body.holdReason, "Unpaid invoices")
   })
 })
 

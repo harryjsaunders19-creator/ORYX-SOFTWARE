@@ -14,9 +14,10 @@ import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
-import { errorMessage } from "@/shared/utils/error-message"
 import { resolveWorksFromQuote } from "../convert-works"
+import { validateQuoteForConvert, quoteConvertHoldResponse } from "../convert-validate"
 import { logError, logEvent } from "@/shared/logger"
+import { apiInternalError } from "@/shared/api-errors"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -27,11 +28,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const { id } = await params
     await quoteService.expirePastDue()
     const quote = await quoteService.findUnique(id)
-    if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
-    if (quote.status !== "ACCEPTED")
-      return NextResponse.json({ error: "Only accepted quotes can be converted to jobs" }, { status: 422 })
-    if (quote.jobId)
-      return NextResponse.json({ error: "This quote has already been converted to a job" }, { status: 409 })
+    const validation = validateQuoteForConvert(quote)
+    if (!validation.ok) {
+      return NextResponse.json(validation.body, { status: validation.status })
+    }
 
     let body: Record<string, unknown> = {}
     try { body = await req.json() } catch { /* body optional */ }
@@ -39,41 +39,38 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const changedBy      = actorName(auth.user)
     const designer       = body.designer  ? String(body.designer).trim() : ""
     const requiredByDate = resolveRequiredByDate(body.requiredByDate ? String(body.requiredByDate) : null)
-    const works          = resolveWorksFromQuote(quote)
+    const works          = resolveWorksFromQuote(quote!)
     const proceedDespiteHold = body.proceedDespiteHold === true
 
-    if (quote.clientId && !proceedDespiteHold) {
-      const hold = await holdService.activeHoldForClient(quote.clientId)
+    if (quote!.clientId && !proceedDespiteHold) {
+      const hold = await holdService.activeHoldForClient(quote!.clientId)
       if (hold) {
-        return NextResponse.json({
-          error: "Client is on hold",
-          onHold: true,
-          holdReason: hold.reason,
-        }, { status: 422 })
+        const blocked = quoteConvertHoldResponse(hold.reason)
+        return NextResponse.json(blocked.body, { status: blocked.status })
       }
     }
 
     await ensureSequencesSeeded()
-    await ensureClientInSqlite(quote.clientId)
+    await ensureClientInSqlite(quote!.clientId)
 
     const jobId = createId()
     const job = await jobService.create({
       id:             jobId,
       drawingNumber:  allocateDrawingNumber(),
       itemType:       "DESIGN",
-      address:        quote.address?.trim() || "Address TBC",
+      address:        quote!.address?.trim() || "Address TBC",
       typeOfWorks:           works.typeOfWorks,
       customTypeDescription: works.customTypeDescription,
-      clientCompany:  quote.clientCompany,
-      clientId:       quote.clientId ?? undefined,
-      requestedBy:    quote.contactName ?? quote.clientCompany,
+      clientCompany:  quote!.clientCompany,
+      clientId:       quote!.clientId ?? undefined,
+      requestedBy:    quote!.contactName ?? quote!.clientCompany,
       status:         "NEW_REQUEST",
       designer,
       dateCompleted:  null,
-      notes:          quote.notes ?? null,
-      quoteValue:     quote.quoteValue,
-      quoteReference: quote.quoteNumber,
-      quoteDate:      quote.quoteDate,
+      notes:          quote!.notes ?? null,
+      quoteValue:     quote!.quoteValue,
+      quoteReference: quote!.quoteNumber,
+      quoteDate:      quote!.quoteDate,
       requiredByDate,
       parentJobId:    null,
       revisionLetter: null,
@@ -89,10 +86,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     logEvent("quote.convert.success", { quoteId: id, jobId: job.id, drawingNumber: job.drawingNumber })
     return NextResponse.json({ job, quote: updatedQuote }, { status: 201 })
   } catch (err) {
-    logError("quote.convert.error", err)
-    return NextResponse.json(
-      { error: "Internal server error", detail: errorMessage(err) },
-      { status: 500 },
-    )
+    return apiInternalError("quote.convert.error", err, undefined, { exposeDetail: true })
   }
 }

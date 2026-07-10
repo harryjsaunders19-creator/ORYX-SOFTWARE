@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { billingHandoffService } from "../services/billing-handoff-service"
 import { buildAccountsHandoverWorkbook, workbookToBuffer } from "../billing-export"
 import { requireRole, actorName } from "@/shared/auth/auth"
-import { logError, logEvent } from "@/shared/logger"
+import { logEvent } from "@/shared/logger"
+import { apiInternalError } from "@/shared/api-errors"
 
 /** Large exports sync many handoffs + snapshots to Supabase — allow up to 60s. */
 export const maxDuration = 60
@@ -48,13 +49,6 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (err) {
-    logError("billing.export.error", err)
-    const message =
-      err instanceof Error
-        ? err.message
-        : err && typeof err === "object" && "message" in err
-          ? String((err as { message: unknown }).message)
-          : "Internal server error"
-    return NextResponse.json({ error: message }, { status: 500 })
+    return apiInternalError("billing.export.error", err, undefined, { exposeDetail: true })
   }
 }
