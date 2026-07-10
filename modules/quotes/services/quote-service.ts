@@ -14,7 +14,7 @@ import type {
   UpdateQuoteData,
 } from "../types/quote-types"
 import { quoteDb, quoteLineItemDb } from "@/lib/db/stores"
-import { useSupabaseQuotes } from "@/lib/supabase/feature-flags"
+import { useSupabaseQuotes, isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { supabaseQuoteRepo } from "../supabase/repository"
 import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils/utils"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
@@ -23,9 +23,11 @@ import { archiveLogService } from "@/lib/services/archive-log-service"
 import { nowIso } from "@/lib/db/helpers"
 import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
 import { invalidateQuotePdf } from "../pdf/cache"
+import { createId as nanoid } from "@paralleldrive/cuid2"
+import { nextRefNumberAsync } from "@/shared/supabase/sequence-service"
 
 async function mirrorQuote(quote: QuoteRow | null) {
-  if (quote && useSupabaseQuotes()) await supabaseQuoteRepo.upsert(quote)
+  if (quote && useSupabaseQuotes() && !isSupabaseOnly()) await supabaseQuoteRepo.upsert(quote)
 }
 
 /**
@@ -34,6 +36,10 @@ async function mirrorQuote(quote: QuoteRow | null) {
  * updates would otherwise return null → 404.
  */
 async function ensureQuoteInSqlite(id: string): Promise<boolean> {
+  if (isSupabaseOnly()) {
+    const quote = await supabaseQuoteRepo.findUnique(id)
+    return quote !== null
+  }
   if (!useSupabaseQuotes()) return quoteDb.findUnique(id) !== null
   if (quoteDb.findUnique(id)) return true
   const quote = await supabaseQuoteRepo.findUnique(id)
@@ -72,6 +78,38 @@ export const quoteService = {
   },
 
   async create(data: CreateQuoteData): Promise<QuoteRow> {
+    if (isSupabaseOnly()) {
+      const now = nowIso()
+      const id = data.id ?? nanoid()
+      const quoteNumber = data.quoteNumber ?? await nextRefNumberAsync("Q")
+      const quote: QuoteRow = {
+        id,
+        quoteNumber,
+        clientId: data.clientId ?? null,
+        clientCompany: data.clientCompany.trim(),
+        contactName: data.contactName?.trim() || null,
+        address: data.address.trim(),
+        description: data.description.trim(),
+        typeOfWorks: data.typeOfWorks?.trim() || null,
+        customTypeDescription: data.customTypeDescription?.trim() || null,
+        quoteValue: data.quoteValue,
+        quoteDate: data.quoteDate,
+        expiryDate: data.expiryDate ?? null,
+        status: data.status ?? "DRAFT",
+        notes: data.notes?.trim() || null,
+        jobId: null,
+        createdBy: data.createdBy ?? "System",
+        pdfPath: null,
+        preparedBy: null,
+        vatRate: data.vatRate ?? null,
+        archivedAt: null,
+        archivedBy: null,
+        createdAt: now,
+        updatedAt: now,
+      }
+      await supabaseQuoteRepo.upsert(quote)
+      return quote
+    }
     // Ensure the client exists in SQLite before writing — Quote.clientId has a
     // FK constraint on Client.id, and the SQLite Client table is empty on a
     // fresh Vercel container.
@@ -82,6 +120,36 @@ export const quoteService = {
   },
 
   async update(id: string, data: UpdateQuoteData): Promise<QuoteRow | null> {
+    if (isSupabaseOnly()) {
+      const existing = await supabaseQuoteRepo.findUnique(id)
+      if (!existing) return null
+      const now = nowIso()
+      const quote: QuoteRow = {
+        ...existing,
+        clientId: data.clientId !== undefined ? data.clientId : existing.clientId,
+        clientCompany: data.clientCompany ?? existing.clientCompany,
+        contactName: data.contactName !== undefined ? data.contactName : existing.contactName,
+        address: data.address ?? existing.address,
+        description: data.description ?? existing.description,
+        typeOfWorks: data.typeOfWorks !== undefined ? data.typeOfWorks : existing.typeOfWorks,
+        customTypeDescription: data.customTypeDescription !== undefined
+          ? data.customTypeDescription
+          : existing.customTypeDescription,
+        quoteValue: data.quoteValue ?? existing.quoteValue,
+        quoteDate: data.quoteDate ?? existing.quoteDate,
+        expiryDate: data.expiryDate !== undefined ? data.expiryDate : existing.expiryDate,
+        status: data.status ?? existing.status,
+        notes: data.notes !== undefined ? data.notes : existing.notes,
+        jobId: data.jobId !== undefined ? data.jobId : existing.jobId,
+        pdfPath: data.pdfPath !== undefined ? data.pdfPath : existing.pdfPath,
+        preparedBy: data.preparedBy !== undefined ? data.preparedBy : existing.preparedBy,
+        vatRate: data.vatRate !== undefined ? data.vatRate : existing.vatRate,
+        updatedAt: now,
+      }
+      await supabaseQuoteRepo.upsert(quote)
+      invalidateQuotePdf(id)
+      return quote
+    }
     // Ensure the quote exists in SQLite (it only lives in Supabase on a fresh container).
     await ensureQuoteInSqlite(id)
     // If linking this quote to a job, ensure that job is in SQLite (Quote.jobId FK).
@@ -97,6 +165,11 @@ export const quoteService = {
    * when job_id is still null so concurrent converts cannot double-link.
    */
   async linkToJob(quoteId: string, jobId: string): Promise<QuoteRow | null> {
+    if (isSupabaseOnly()) {
+      const linked = await supabaseQuoteRepo.linkJobId(quoteId, jobId)
+      if (linked) invalidateQuotePdf(quoteId)
+      return linked
+    }
     const quoteReady = await ensureQuoteInSqlite(quoteId)
     if (!quoteReady) return null
     await ensureJobInSqliteForBilling(jobId)
@@ -123,11 +196,13 @@ export const quoteService = {
     if (pdfPath === null) invalidateQuotePdf(id)
     if (useSupabaseQuotes()) {
       await supabaseQuoteRepo.updatePdfPath(id, pdfPath)
-      try {
-        await ensureQuoteInSqlite(id)
-        quoteDb.update(id, { pdfPath })
-      } catch (err) {
-        console.warn("[quoteService.updatePdfPath] SQLite mirror failed:", err)
+      if (!isSupabaseOnly()) {
+        try {
+          await ensureQuoteInSqlite(id)
+          quoteDb.update(id, { pdfPath })
+        } catch (err) {
+          console.warn("[quoteService.updatePdfPath] SQLite mirror failed:", err)
+        }
       }
       return
     }

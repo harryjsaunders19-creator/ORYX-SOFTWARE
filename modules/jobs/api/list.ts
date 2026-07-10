@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/lib/services/client-service"
-import { allocateDrawingNumber, sequenceDb } from "@/lib/db"
+import { allocateDrawingNumberAsync, nextRefNumberAsync } from "@/shared/supabase/sequence-service"
+import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { createId } from "@paralleldrive/cuid2"
 import { VALID_ITEM_TYPES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE } from "@/lib/constants"
@@ -169,19 +170,19 @@ export async function POST(req: NextRequest) {
 
     // Seed sequence counters from Supabase once per container so we never
     // generate a drawing number that already exists in Supabase.
-    await ensureSequencesSeeded()
+    if (!isSupabaseOnly()) await ensureSequencesSeeded()
 
     // Generate reference number based on item type
     let drawingNumber: string
     if (itemType === "DESIGN") {
-      drawingNumber = allocateDrawingNumber()
+      drawingNumber = await allocateDrawingNumberAsync()
     } else if (itemType === "REVISION") {
       // Revisions are created via POST /api/jobs/[id]/revisions — not here
       return NextResponse.json({ error: "Create revisions via POST /api/jobs/[parentId]/revisions" }, { status: 422 })
     } else {
       // Site Visit, Survey, Inspection
       const prefix = REF_PREFIXES[itemType]
-      drawingNumber = sequenceDb.nextRefNumber(prefix)
+      drawingNumber = await nextRefNumberAsync(prefix)
     }
 
     // Resolve clientId and clientCompany together

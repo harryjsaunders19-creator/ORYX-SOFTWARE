@@ -3,20 +3,21 @@
  *
  * When SUPABASE_HOLDS=true:
  *   - Reads come from Supabase
- *   - Writes go to Supabase first, then best-effort SQLite mirror
+ *   - Writes go to Supabase (SQLite mirror only in dual-write local dev)
  */
-import { db } from "@/lib/db/connection"
 import type { ClientHoldRow, ClientHoldWithClientRow } from "../types/hold-types"
 import { holdDb } from "@/lib/db/stores"
 import { nowIso } from "@/lib/db/helpers"
-import { clientService, ensureClientInSqlite } from "../../services/client-service"
-import { useSupabaseHolds, useSupabaseClients } from "@/lib/supabase/feature-flags"
+import { clientService } from "../../services/client-service"
+import { useSupabaseHolds, useSupabaseClients, useSupabaseJobs, isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { supabaseHoldRepo } from "../supabase/repository"
 import { supabaseClientRepo } from "../../supabase/repository"
+import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 
 async function mirrorHoldToSqlite(hold: ClientHoldRow | null): Promise<void> {
-  if (!hold) return
+  if (!hold || isSupabaseOnly()) return
   try {
+    const { ensureClientInSqlite } = await import("../../services/client-service")
     await ensureClientInSqlite(hold.clientId)
     holdDb.rawUpsert(hold)
   } catch (err) {
@@ -25,10 +26,15 @@ async function mirrorHoldToSqlite(hold: ClientHoldRow | null): Promise<void> {
 }
 
 /** Batch job stats for many clients in one query (avoids N+1 in hold enrichment). */
-function batchClientJobStats(clientIds: string[]): Map<string, { activeJobCount: number; quoteValueTotal: number }> {
+async function batchClientJobStats(
+  clientIds: string[],
+): Promise<Map<string, { activeJobCount: number; quoteValueTotal: number }>> {
+  if (!clientIds.length) return new Map()
+  if (useSupabaseJobs()) {
+    return supabaseJobRepo.clientJobStatsForHolds(clientIds)
+  }
+  const { db } = await import("@/lib/db/connection")
   const map = new Map<string, { activeJobCount: number; quoteValueTotal: number }>()
-  if (!clientIds.length) return map
-
   const placeholders = clientIds.map(() => "?").join(",")
   const rows = db.prepare(`
     SELECT clientId,
@@ -57,7 +63,7 @@ async function enrichAllWithClientStats(holds: ClientHoldRow[]): Promise<ClientH
     useSupabaseClients()
       ? supabaseClientRepo.findManyByIds(clientIds)
       : clientService.findManyByIds(clientIds),
-    Promise.resolve(batchClientJobStats(clientIds)),
+    batchClientJobStats(clientIds),
   ])
   const clientNameById = new Map(clients.filter(Boolean).map(c => [c!.id, c!.name]))
 
@@ -134,6 +140,7 @@ export const holdService = {
       return hold
     }
 
+    const { ensureClientInSqlite } = await import("../../services/client-service")
     await ensureClientInSqlite(data.clientId)
     const hold = holdDb.addHold(data)
     await mirror(hold)
@@ -160,6 +167,7 @@ export const holdService = {
       return hold
     }
 
+    const { ensureClientInSqlite } = await import("../../services/client-service")
     await ensureClientInSqlite(data.clientId)
     const hold = holdDb.removeHold(data)
     await mirror(hold)

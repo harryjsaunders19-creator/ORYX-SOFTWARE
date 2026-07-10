@@ -180,6 +180,11 @@ export const supabaseBillingRepo = {
     if (error) throw error
   },
 
+  async deleteHandoff(id: string): Promise<void> {
+    const { error } = await handoffs().delete().eq("id", id)
+    throwSupabaseError(error)
+  },
+
   async handoffsForBatch(batchId: string): Promise<BillingHandoffRow[]> {
     const { data, error } = await handoffs()
       .select("*")

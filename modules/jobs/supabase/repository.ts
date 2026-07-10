@@ -326,6 +326,28 @@ export const supabaseJobRepo = {
     return map
   },
 
+  /** Active job count + quoted value per client — used by hold list enrichment. */
+  async clientJobStatsForHolds(
+    clientIds: string[],
+  ): Promise<Map<string, { activeJobCount: number; quoteValueTotal: number }>> {
+    const map = new Map<string, { activeJobCount: number; quoteValueTotal: number }>()
+    if (!clientIds.length) return map
+    const { data, error } = await table()
+      .select("client_id, status, quote_value")
+      .in("client_id", clientIds)
+    if (error) throw error
+    for (const row of data ?? []) {
+      const clientId = row.client_id as string
+      if (!clientId) continue
+      const entry = map.get(clientId) ?? { activeJobCount: 0, quoteValueTotal: 0 }
+      if (row.status !== "ISSUED") entry.activeJobCount += 1
+      const qv = row.quote_value != null ? Number(row.quote_value) : 0
+      if (qv > 0) entry.quoteValueTotal += qv
+      map.set(clientId, entry)
+    }
+    return map
+  },
+
   async findUnique(id: string): Promise<JobRow | null> {
     const { data, error } = await table().select("*").eq("id", id).maybeSingle()
     if (error) throw error

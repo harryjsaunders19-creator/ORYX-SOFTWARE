@@ -167,6 +167,7 @@ export const SUPABASE_INFRA_MIGRATIONS = [
   { id: "indexes", label: "Performance indexes", migration: "012_indexes.sql", tables: [] },
   { id: "job-map", label: "Job map / geocoding", migration: "018_job_geocoding.sql (+ 019_job_map_indexes.sql + 020_job_location.sql)", tables: ["jobs"] },
   { id: "job-list-sort", label: "Job list sort key", migration: "023_job_list_sort_key.sql", tables: ["jobs"] },
+  { id: "app-sequences", label: "App sequences (drawing/ref counters)", migration: "024_app_sequences.sql", tables: ["app_sequences"] },
 ] as const
 
 export const SUPABASE_GO_LIVE_STEPS = [

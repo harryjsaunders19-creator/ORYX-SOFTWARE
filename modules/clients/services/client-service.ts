@@ -17,7 +17,7 @@ import { clientDb } from "@/lib/db/stores"
 import type { ClientRow, CreateClientData, UpdateClientData } from "../types/client-types"
 import type { ClientContactInput } from "../types/client-contact-types"
 import { primaryContactFields } from "../types/client-contact-types"
-import { useSupabaseClients, useSupabaseJobs, useSupabaseHolds } from "@/lib/supabase/feature-flags"
+import { useSupabaseClients, useSupabaseJobs, useSupabaseHolds, isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { supabaseClientRepo } from "../supabase/repository"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { supabaseHoldRepo } from "../hold/supabase/repository"
@@ -75,7 +75,7 @@ async function batchClientMeta(
  * container the SQLite Client table is empty.
  */
 export async function ensureClientInSqlite(clientId: string | null | undefined): Promise<void> {
-  if (!clientId || !useSupabaseClients()) return
+  if (!clientId || !useSupabaseClients() || isSupabaseOnly()) return
   if (clientDb.findUnique(clientId)) return
   try {
     const client = await supabaseClientRepo.findUnique(clientId)
@@ -162,7 +162,7 @@ export const clientService = {
     } else {
       const now = nowIso()
       created = await supabaseClientRepo.create(payload, now)
-      mirrorCreate(payload)
+      if (!isSupabaseOnly()) mirrorCreate(payload)
     }
 
     if (data.contacts !== undefined) {
@@ -207,7 +207,7 @@ export const clientService = {
     if (!existing) return null
     const updated = await supabaseClientRepo.update(id, patch, existing, nowIso())
     if (updated) {
-      mirrorUpdate(id, patch)
+      if (!isSupabaseOnly()) mirrorUpdate(id, patch)
       if (data.contacts !== undefined) {
         await clientContactService.replaceForClient(id, data.contacts)
       }
@@ -225,7 +225,7 @@ export const clientService = {
     } else {
       await probeArchivedColumns()
       updated = await supabaseClientRepo.archive(id, archiverId, now)
-      if (updated) {
+      if (updated && !isSupabaseOnly()) {
         await ensureClientInSqlite(id)
         clientDb.update(id, { active: 0, archivedAt: now, archivedBy: archiverId })
       }
@@ -259,7 +259,7 @@ export const clientService = {
       updated = clientDb.update(id, { active: 1, archivedAt: null, archivedBy: null })
     } else {
       updated = await supabaseClientRepo.restore(id, now)
-      if (updated) {
+      if (updated && !isSupabaseOnly()) {
         await ensureClientInSqlite(id)
         clientDb.update(id, { active: 1, archivedAt: null, archivedBy: null })
       }

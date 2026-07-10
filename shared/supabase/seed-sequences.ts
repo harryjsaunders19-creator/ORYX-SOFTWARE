@@ -16,6 +16,7 @@ import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
 import { supabaseBillingRepo } from "@/lib/supabase/repositories/billing"
 import { useSupabaseBilling, useSupabaseJobs, useSupabaseQuotes } from "@/lib/supabase/feature-flags"
+import { isSupabaseOnly } from "./feature-flags"
 
 let _seeded = false
 let _seedInFlight: Promise<void> | null = null
@@ -84,6 +85,7 @@ async function runSeed(): Promise<void> {
 }
 
 export async function ensureSequencesSeeded(): Promise<void> {
+  if (isSupabaseOnly()) return
   if (_seeded) return
   if (!_seedInFlight) {
     _seedInFlight = runSeed().catch(err => {
@@ -99,6 +101,7 @@ export async function ensureSequencesSeeded(): Promise<void> {
 
 /** Always sync BATCH-YYYY-NNN counter from Supabase before allocating a new export batch. */
 export async function ensureBatchSequenceSeeded(): Promise<void> {
+  if (isSupabaseOnly()) return
   const year = new Date().getFullYear()
   seedBatchRefSequenceFromSqlite(year)
   if (!useSupabaseBilling()) return

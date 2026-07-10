@@ -49,6 +49,7 @@ const MIGRATION_ORDER = [
   "020_job_location.sql",
   "021_client_contacts.sql",
   "023_job_list_sort_key.sql",
+  "024_app_sequences.sql",
 ]
 
 const header = `-- =============================================================================

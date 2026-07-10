@@ -7,8 +7,11 @@
  */
 import type { StatusHistoryRow } from "../types/history-types"
 import { historyDb } from "@/lib/db/stores"
-import { useSupabaseStatusHistory } from "@/lib/supabase/feature-flags"
+import { useSupabaseStatusHistory, isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { supabaseStatusHistoryRepo } from "../supabase/status-history-repository"
+import { supabaseJobRepo } from "../supabase/repository"
+import { createId as nanoid } from "@paralleldrive/cuid2"
+import { nowIso } from "@/lib/db/helpers"
 
 export const historyService = {
   async forJob(jobId: string): Promise<StatusHistoryRow[]> {
@@ -17,6 +20,20 @@ export const historyService = {
   },
 
   async addNote(jobId: string, note: string, changedBy: string): Promise<StatusHistoryRow> {
+    if (isSupabaseOnly()) {
+      const job = await supabaseJobRepo.findUnique(jobId)
+      const entry: StatusHistoryRow = {
+        id: nanoid(),
+        jobId,
+        fromStatus: job?.status ?? null,
+        toStatus: job?.status ?? "",
+        changedBy,
+        changedAt: nowIso(),
+        note,
+      }
+      await supabaseStatusHistoryRepo.upsert(entry)
+      return entry
+    }
     const entry = historyDb.addNote(jobId, note, changedBy)
     if (useSupabaseStatusHistory()) await supabaseStatusHistoryRepo.upsert(entry)
     return entry
@@ -24,7 +41,7 @@ export const historyService = {
 
   /** Mirror all history rows for a job after jobDb writes. */
   async syncForJob(jobId: string): Promise<void> {
-    if (!useSupabaseStatusHistory()) return
+    if (!useSupabaseStatusHistory() || isSupabaseOnly()) return
     const rows = historyDb.forJob(jobId)
     await supabaseStatusHistoryRepo.syncForJob(jobId, rows)
   },

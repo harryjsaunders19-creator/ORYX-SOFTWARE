@@ -90,3 +90,11 @@ export function useSupabaseLeave(): boolean {
 export function useSupabasePasswordVault(): boolean {
   return flag("SUPABASE_PASSWORD_VAULT")
 }
+
+/**
+ * Production / Vercel mode: Supabase is the sole data store.
+ * SQLite is only used when the service-role key is absent (local dev).
+ */
+export function isSupabaseOnly(): boolean {
+  return isSupabaseAdminConfigured()
+}

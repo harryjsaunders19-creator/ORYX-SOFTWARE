@@ -10,8 +10,11 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return   // skip on the edge runtime — better-sqlite3 and the scheduler both need real Node
-  const { startBackupScheduler } = await import("@/lib/backup-scheduler")
-  startBackupScheduler()
+  const { isSupabaseOnly } = await import("@/lib/supabase/feature-flags")
+  if (!isSupabaseOnly()) {
+    const { startBackupScheduler } = await import("@/lib/backup-scheduler")
+    startBackupScheduler()
+  }
   const { startQuoteExpiryScheduler } = await import("@/lib/quote-expiry-scheduler")
   startQuoteExpiryScheduler()
 }

@@ -8,9 +8,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { quoteService } from "../services/quote-service"
 import { jobService } from "@/lib/services/job-service"
 import { createId } from "@paralleldrive/cuid2"
-import { allocateDrawingNumber } from "@/lib/db"
+import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
+import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
@@ -50,13 +51,15 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       }
     }
 
-    await ensureSequencesSeeded()
-    await ensureClientInSqlite(quote!.clientId)
+    if (!isSupabaseOnly()) {
+      await ensureSequencesSeeded()
+      await ensureClientInSqlite(quote!.clientId)
+    }
 
     const jobId = createId()
     const job = await jobService.create({
       id:             jobId,
-      drawingNumber:  allocateDrawingNumber(),
+      drawingNumber:  await allocateDrawingNumberAsync(),
       itemType:       "DESIGN",
       address:        quote!.address?.trim() || "Address TBC",
       typeOfWorks:           works.typeOfWorks,
@@ -79,6 +82,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     const updatedQuote = await quoteService.linkToJob(id, job.id)
     if (!updatedQuote) {
+      await jobService.delete(job.id)
       logError("quote.convert.link_failed", new Error("quote link failed"), { quoteId: id, jobId: job.id })
       return NextResponse.json({ error: "Failed to link quote to job" }, { status: 500 })
     }

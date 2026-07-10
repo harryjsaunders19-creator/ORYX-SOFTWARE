@@ -14,8 +14,9 @@ import type { CreateJobData, JobRow, UpdateJobData } from "../types/job-types"
 import type { FindManyOptions, WhereClause } from "@/lib/db/helpers"
 import { jobDb, commercialDb } from "@/lib/db/stores"
 import { allocateDrawingNumber } from "@/lib/db"
-import { useSupabaseJobs } from "@/lib/supabase/feature-flags"
+import { useSupabaseJobs, isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { supabaseJobRepo, isDuplicateDrawingNumberError } from "../supabase/repository"
+import { jobSupabaseWrites } from "./job-supabase-writes"
 import { historyService } from "./history-service"
 import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
@@ -25,10 +26,11 @@ import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 
 async function mirror(job: JobRow | null) {
-  if (job && useSupabaseJobs()) await supabaseJobRepo.upsert(job)
+  if (job && useSupabaseJobs() && !isSupabaseOnly()) await supabaseJobRepo.upsert(job)
 }
 
 async function mirrorHistory(jobId: string) {
+  if (isSupabaseOnly()) return
   try {
     await historyService.syncForJob(jobId)
     await billingHandoffService.syncJobHandoffs(jobId)
@@ -66,6 +68,10 @@ async function mirrorNewJob(job: JobRow): Promise<JobRow> {
  * constraints for revisions, billing handoff) work correctly.
  */
 async function ensureJobInSqlite(id: string): Promise<boolean> {
+  if (isSupabaseOnly()) {
+    const job = await supabaseJobRepo.findUnique(id)
+    return job !== null
+  }
   if (!useSupabaseJobs()) return jobDb.findUnique(id) !== null
   if (jobDb.findUnique(id)) return true
   const job = await supabaseJobRepo.findUnique(id)
@@ -143,6 +149,7 @@ export const jobService = {
   },
 
   async create(data: CreateJobData): Promise<JobRow> {
+    if (isSupabaseOnly()) return jobSupabaseWrites.create(data)
     if (useSupabaseJobs()) await ensureSequencesSeeded()
     if (data.clientId) await ensureClientInSqlite(data.clientId)
     // If this is a revision, its parentJobId must exist in SQLite for FK constraints.
@@ -153,6 +160,7 @@ export const jobService = {
   },
 
   async update(id: string, data: UpdateJobData): Promise<JobRow | null> {
+    if (isSupabaseOnly()) return jobSupabaseWrites.update(id, data)
     await ensureJobInSqlite(id)
     const job = jobDb.update(id, data)
     await mirror(job)
@@ -161,6 +169,7 @@ export const jobService = {
   },
 
   async assignDesigner(id: string, designer: string, changedBy: string): Promise<{ job: JobRow } | null> {
+    if (isSupabaseOnly()) return jobSupabaseWrites.assignDesigner(id, designer, changedBy)
     await ensureJobInSqlite(id)
     const result = jobDb.assignDesigner(id, designer, changedBy)
     if (result) {
@@ -185,11 +194,13 @@ export const jobService = {
       const ok = await supabaseJobRepo.archive(id, archiverId, now)
       if (!ok) return null
       const updated = await supabaseJobRepo.findUnique(id)
-      try {
-        await ensureJobInSqlite(id)
-        jobDb.archive(id, archiverId, now)
-      } catch (err) {
-        console.warn("[jobService.archive] SQLite mirror failed:", err)
+      if (!isSupabaseOnly()) {
+        try {
+          await ensureJobInSqlite(id)
+          jobDb.archive(id, archiverId, now)
+        } catch (err) {
+          console.warn("[jobService.archive] SQLite mirror failed:", err)
+        }
       }
       archiveLogService.log({
         entityType: "job", entityId: id,
@@ -226,11 +237,13 @@ export const jobService = {
       const ok = await supabaseJobRepo.restore(id, now)
       if (!ok) return null
       const updated = await supabaseJobRepo.findUnique(id)
-      try {
-        await ensureJobInSqlite(id)
-        jobDb.restore(id, now)
-      } catch (err) {
-        console.warn("[jobService.restore] SQLite mirror failed:", err)
+      if (!isSupabaseOnly()) {
+        try {
+          await ensureJobInSqlite(id)
+          jobDb.restore(id, now)
+        } catch (err) {
+          console.warn("[jobService.restore] SQLite mirror failed:", err)
+        }
       }
       archiveLogService.log({
         entityType: "job", entityId: id,
@@ -261,6 +274,11 @@ export const jobService = {
   },
 
   async delete(id: string): Promise<boolean> {
+    if (isSupabaseOnly()) {
+      const ok = await supabaseJobRepo.delete(id)
+      if (ok) await historyService.deleteForJob(id)
+      return ok
+    }
     await ensureJobInSqlite(id)
     const ok = jobDb.delete(id)
     if (ok) {
@@ -375,6 +393,23 @@ export const jobService = {
     longitude: number,
     geocodedAddress: string,
   ): Promise<JobRow | null> {
+    if (isSupabaseOnly()) {
+      const existing = await supabaseJobRepo.findUnique(id)
+      if (!existing) return null
+      const now = nowIso()
+      const updated: JobRow = {
+        ...existing,
+        latitude,
+        longitude,
+        geocodedAt: now,
+        geocodedAddress,
+        locationStatus: "mapped",
+        locationSource: "geocoded",
+        updatedAt: now,
+      }
+      await supabaseJobRepo.upsert(updated)
+      return updated
+    }
     await ensureJobInSqlite(id)
     const updated = jobDb.saveGeocode(id, latitude, longitude, geocodedAddress)
     await mirror(updated)
@@ -386,6 +421,23 @@ export const jobService = {
     latitude: number,
     longitude: number,
   ): Promise<JobRow | null> {
+    if (isSupabaseOnly()) {
+      const existing = await supabaseJobRepo.findUnique(id)
+      if (!existing) return null
+      const now = nowIso()
+      const updated: JobRow = {
+        ...existing,
+        latitude,
+        longitude,
+        geocodedAt: now,
+        geocodedAddress: null,
+        locationStatus: "manual",
+        locationSource: "manual",
+        updatedAt: now,
+      }
+      await supabaseJobRepo.upsert(updated)
+      return updated
+    }
     await ensureJobInSqlite(id)
     const updated = jobDb.saveLocation(id, latitude, longitude, "manual", "manual", null)
     await mirror(updated)
@@ -393,6 +445,23 @@ export const jobService = {
   },
 
   async markLocationNeedsReview(id: string): Promise<JobRow | null> {
+    if (isSupabaseOnly()) {
+      const existing = await supabaseJobRepo.findUnique(id)
+      if (!existing) return null
+      const now = nowIso()
+      const updated: JobRow = {
+        ...existing,
+        latitude: null,
+        longitude: null,
+        geocodedAt: null,
+        geocodedAddress: null,
+        locationStatus: "needs_review",
+        locationSource: null,
+        updatedAt: now,
+      }
+      await supabaseJobRepo.upsert(updated)
+      return updated
+    }
     await ensureJobInSqlite(id)
     const updated = jobDb.markLocationNeedsReview(id)
     await mirror(updated)

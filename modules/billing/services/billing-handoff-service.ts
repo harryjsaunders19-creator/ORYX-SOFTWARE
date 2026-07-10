@@ -13,11 +13,16 @@ import type {
   BillingHandoffRow,
 } from "../types/billing-types"
 import { billingHandoffDb, jobDb, type AccountsHandoverSnapshot } from "@/lib/db/stores"
-import { useSupabaseBilling, useSupabaseJobs } from "@/lib/supabase/feature-flags"
+import { useSupabaseBilling, useSupabaseJobs, isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { supabaseBillingRepo } from "../supabase/repository"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
 import { ensureBatchSequenceSeeded } from "@/lib/supabase/seed-sequences"
+import { buildAccountsHandoverSnapshotAsync } from "./billing-snapshot-builder"
+import { nextRefNumberAsync } from "@/shared/supabase/sequence-service"
+import { createId as nanoid } from "@paralleldrive/cuid2"
+import { nowIso } from "@/lib/db/helpers"
+import { totalJobCommercialValue } from "@/lib/utils"
 
 const SYNC_CHUNK = 25
 
@@ -27,7 +32,7 @@ const SYNC_CHUNK = 25
  * can run unchanged on Vercel.
  */
 async function ensureBillingHandoffsInSqlite(ids: string[]): Promise<void> {
-  if (!useSupabaseBilling()) return
+  if (!useSupabaseBilling() || isSupabaseOnly()) return
 
   const rows = await supabaseBillingRepo.findManyByIds(ids)
   const byId = new Map(rows.map(r => [r.id, r]))
@@ -114,6 +119,60 @@ export const billingHandoffService = {
     exportDate: string
     notes?: string | null
   }): Promise<{ batch: BillingExportBatchRow; snapshots: AccountsHandoverSnapshot[] }> {
+    if (isSupabaseOnly()) {
+      if (!data.handoffIds.length) throw new Error("No items selected for export")
+      const handoffs = await supabaseBillingRepo.findManyByIds(data.handoffIds)
+      const byId = new Map(handoffs.map(h => [h.id, h]))
+      for (const id of data.handoffIds) {
+        const h = byId.get(id)
+        if (!h) throw new Error(`Item ${id} not found`)
+        if (h.clearedByAccountsAt) throw new Error(`${h.drawingNumber} has already been cleared`)
+      }
+      const orderedHandoffs = data.handoffIds.map(id => byId.get(id)!)
+      const batchId = nanoid()
+      const batchNumber = await nextRefNumberAsync("BATCH")
+      const now = nowIso()
+      const snapshots = await Promise.all(
+        orderedHandoffs.map(h => buildAccountsHandoverSnapshotAsync(h)),
+      )
+      if (!snapshots.length) throw new Error("Export produced no snapshot rows")
+
+      const batch: BillingExportBatchRow = {
+        id: batchId,
+        batchNumber,
+        exportDate: data.exportDate,
+        exportedBy: data.exportedBy,
+        recordCount: orderedHandoffs.length,
+        notes: data.notes ?? null,
+        createdAt: now,
+      }
+      await supabaseBillingRepo.upsertBatch(batch)
+
+      const snapshotRows: BillingExportSnapshotRow[] = orderedHandoffs.map((h, i) => ({
+        id: nanoid(),
+        batchId,
+        handoffId: h.id,
+        snapshotJson: JSON.stringify(snapshots[i]),
+        createdAt: now,
+      }))
+      await supabaseBillingRepo.upsertSnapshots(snapshotRows)
+
+      await supabaseBillingRepo.clearHandoffsForExport({
+        handoffIds: data.handoffIds,
+        batchId,
+        clearedAt: now,
+        clearedBy: data.exportedBy,
+        notes: data.notes,
+      })
+
+      const stillAwaiting = await supabaseBillingRepo.countUnclearedAmong(data.handoffIds)
+      if (stillAwaiting > 0) {
+        throw new Error(`${stillAwaiting} item(s) failed to move to Cleared in Supabase`)
+      }
+
+      return { batch, snapshots }
+    }
+
     await ensureBatchSequenceSeeded()
     await ensureBillingHandoffsInSqlite(data.handoffIds)
     const result = billingHandoffDb.createExportBatch(data)
@@ -168,6 +227,25 @@ export const billingHandoffService = {
   },
 
   async updateQuoteValue(handoffId: string, quoteValue: number): Promise<BillingHandoffRow | { error: string }> {
+    if (isSupabaseOnly()) {
+      const handoff = await supabaseBillingRepo.findUnique(handoffId)
+      if (!handoff) return { error: "Not found" }
+      if (handoff.clearedByAccountsAt) return { error: "Cannot edit a cleared item" }
+      if (quoteValue < 0) return { error: "Value cannot be negative" }
+      const job = await supabaseJobRepo.findUnique(handoff.sourceJobId)
+      if (!job) return { error: "Source job not found" }
+      const now = nowIso()
+      const updatedJob = { ...job, quoteValue, updatedAt: now }
+      await supabaseJobRepo.upsert(updatedJob)
+      const snapshotValue = totalJobCommercialValue(updatedJob) ?? quoteValue
+      const updatedHandoff: BillingHandoffRow = {
+        ...handoff,
+        quoteValue: snapshotValue,
+        updatedAt: now,
+      }
+      await supabaseBillingRepo.upsertHandoff(updatedHandoff)
+      return updatedHandoff
+    }
     await ensureBillingHandoffsInSqlite([handoffId])
     const result = billingHandoffDb.updateQuoteValue(handoffId, quoteValue)
     if ("error" in result) return result
@@ -179,7 +257,7 @@ export const billingHandoffService = {
 
   /** Mirror handoffs for a job after jobDb side effects (ISSUED / revert). */
   async syncJobHandoffs(jobId: string): Promise<void> {
-    if (!useSupabaseBilling()) return
+    if (!useSupabaseBilling() || isSupabaseOnly()) return
     const rows = billingHandoffDb.findHistoryBySourceJobId(jobId)
     await supabaseBillingRepo.replaceHandoffsForJob(jobId, rows)
   },

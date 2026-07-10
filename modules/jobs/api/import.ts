@@ -20,7 +20,8 @@ import { logError } from "@/shared/logger"
 import { requireRole } from "@/shared/auth/auth"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/lib/services/client-service"
-import { allocateDrawingNumber, peekNextDrawingNumber, sequenceDb } from "@/lib/db"
+import { allocateDrawingNumberAsync, nextRefNumberAsync } from "@/shared/supabase/sequence-service"
+import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { createId } from "@paralleldrive/cuid2"
 import { isValidWorksType, OTHER_WORKS_TYPE, VALID_STATUSES, REF_PREFIX_BY_ITEM_TYPE } from "@/lib/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
@@ -165,7 +166,7 @@ export async function POST(req: NextRequest) {
         // Generate drawing number
         let drawingNumber: string
         if (itemType === "DESIGN") {
-          drawingNumber = allocateDrawingNumber()
+          drawingNumber = await allocateDrawingNumberAsync()
         } else if (itemType === "REVISION") {
           skipped.push({ rowIndex: row.rowIndex, reasons: ["Revisions cannot be imported — use the revision creation flow"] })
           continue
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
             skipped.push({ rowIndex: row.rowIndex, reasons: [`Unknown item type: "${itemType}"`] })
             continue
           }
-          drawingNumber = sequenceDb.nextRefNumber(prefix)
+          drawingNumber = await nextRefNumberAsync(prefix)
         }
 
         // Resolve client
@@ -225,11 +226,12 @@ export async function POST(req: NextRequest) {
       // high as the highest drawing number now in the database, so the
       // next manually created job continues the sequence correctly even
       // if something unexpected happened during the bulk insert.
-      if (imported.length > 0) {
+      if (imported.length > 0 && !isSupabaseOnly()) {
+        const { sequenceDb } = await import("@/lib/db")
         sequenceDb.syncFromExistingJobs()
       }
 
-      const nextDrawingNumber = peekNextDrawingNumber()
+      const nextDrawingNumber = await (await import("@/shared/supabase/sequence-service")).peekNextDrawingNumberAsync()
 
       return NextResponse.json({
         imported: imported.length,
