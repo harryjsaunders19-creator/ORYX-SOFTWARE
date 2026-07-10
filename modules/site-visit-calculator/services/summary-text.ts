@@ -30,13 +30,17 @@ export function buildSummaryText(result: SiteVisitCalculationResult): string {
     `One-way drive time: ${formatDuration(result.oneWayDurationMinutes)}`,
     `Return drive time: ${formatDuration(result.returnDurationMinutes)}`,
     `Time on site: ${formatHours(result.siteHours)}`,
+    result.billableSiteHours > result.siteHours
+      ? `On-site time billed: ${formatHours(result.billableSiteHours)} (1 hr minimum)`
+      : null,
+    `Labour billed: ${formatHours(result.billableLabourHours)} @ ${formatGBP(result.rates.hourlyRate)}/hr`,
     "",
     `Mileage (${formatGBP(result.rates.mileagePerMile)}/mi × ${formatMiles(result.returnDistanceMiles)}): ${formatGBP(result.mileageCost)}`,
-    `Labour (${formatGBP(result.rates.hourlyRate)}/hr): ${formatGBP(result.labourCost)}`,
+    `Labour (${result.billableLabourHours} hr × ${formatGBP(result.rates.hourlyRate)}): ${formatGBP(result.labourCost)}`,
     "",
     `Subtotal: ${formatGBP(result.subtotal)}`,
     `VAT (${Math.round(result.rates.vatRate * 100)}%): ${formatGBP(result.vat)}`,
     `Grand Total: ${formatGBP(result.grandTotal)}`,
-  ]
+  ].filter((line): line is string => line != null)
   return lines.join("\n")
 }

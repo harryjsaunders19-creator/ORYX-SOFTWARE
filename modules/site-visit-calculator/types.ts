@@ -27,6 +27,12 @@ export interface SiteVisitCalculationResult {
   oneWayDurationMinutes: number
   returnDurationMinutes: number
   siteHours: number
+  /** Billable one-way drive time (rounded up to half-hour steps). */
+  returnBillableDriveHours: number
+  /** On-site hours billed (minimum 1 hr). */
+  billableSiteHours: number
+  /** Total billable hours for labour at the hourly rate (half-hour steps). */
+  billableLabourHours: number
   rates: SiteVisitRates
   mileageCost: number
   labourCost: number

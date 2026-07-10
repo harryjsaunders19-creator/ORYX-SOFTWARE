@@ -23,3 +23,6 @@ export const DEFAULT_SITE_HOURS = 1
 
 export const MIN_SITE_HOURS = 0.5
 export const MAX_SITE_HOURS = 24
+
+/** Minimum on-site time charged (even if a shorter duration is selected). */
+export const MIN_BILLABLE_SITE_HOURS = 1

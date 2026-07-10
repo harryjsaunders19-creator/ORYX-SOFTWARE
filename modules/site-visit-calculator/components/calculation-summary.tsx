@@ -84,11 +84,24 @@ export function CalculationSummary({
         <Stat label="One-way drive" value={fmtDuration(result.oneWayDurationMinutes)} />
         <Stat label="Return drive" value={fmtDuration(result.returnDurationMinutes)} />
         <Stat label="Time on site" value={`${result.siteHours} hr`} />
+        <Stat
+          label="Labour billed"
+          value={`${result.billableLabourHours} hr @ ${formatGBP(result.rates.hourlyRate)}/hr`}
+        />
       </div>
+
+      {result.billableSiteHours > result.siteHours && (
+        <p className="text-xs text-t3">
+          On-site time billed at {result.billableSiteHours} hr minimum.
+        </p>
+      )}
 
       <div className="border-t border-bd pt-4 space-y-2 text-sm">
         <Row label="Mileage" value={formatGBP(result.mileageCost)} />
-        <Row label="Labour" value={formatGBP(result.labourCost)} />
+        <Row
+          label={`Labour (${result.billableLabourHours} hr)`}
+          value={formatGBP(result.labourCost)}
+        />
         <Row label="Subtotal" value={formatGBP(result.subtotal)} />
         <Row label={`VAT (${Math.round(result.rates.vatRate * 100)}%)`} value={formatGBP(result.vat)} />
         <div className="flex justify-between font-semibold text-t1 text-base pt-2 border-t border-bd">
