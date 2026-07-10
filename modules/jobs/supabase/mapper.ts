@@ -2,6 +2,7 @@
  * lib/supabase/mappers/job.ts — map between JobRow (app) and Supabase row (snake_case).
  */
 import type { JobRow } from "../types/job-types"
+import { computeJobListSortKey } from "../job-list-sort"
 
 export interface SupabaseJobRow {
   id: string
@@ -42,6 +43,7 @@ export interface SupabaseJobRow {
   site_address: string | null
   location_status: string | null
   location_source: string | null
+  list_sort_key: string | null
   created_at: string
   updated_at: string
 }
@@ -96,7 +98,7 @@ export function toJobRow(row: SupabaseJobRow): JobRow {
   }
 }
 
-export function toSupabaseRow(job: JobRow): SupabaseJobRow {
+export function toSupabaseRow(job: JobRow): SupabaseJobRow & { list_sort_key: string } {
   return {
     id: job.id,
     drawing_number: job.drawingNumber,
@@ -136,6 +138,7 @@ export function toSupabaseRow(job: JobRow): SupabaseJobRow {
     site_address: job.siteAddress,
     location_status: job.locationStatus,
     location_source: job.locationSource,
+    list_sort_key: computeJobListSortKey(job.drawingNumber, job.parentJobId, job.revisionLetter),
     created_at: job.createdAt,
     updated_at: job.updatedAt,
   }

@@ -4,13 +4,11 @@ import { Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { JOB_STATUSES } from "@/lib/constants"
 import { StatusBadge } from "@/components/status-badge"
-import { useUser }     from "@/components/user-context"
 import { useToast }    from "@/components/ui/toast"
 
 export function StatusWorkflow({ jobId, currentStatus, onStatusChange }: {
   jobId: string; currentStatus: string; onStatusChange: (s: string) => void
 }) {
-  const { userName } = useUser()
   const { toast }    = useToast()
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -23,7 +21,7 @@ export function StatusWorkflow({ jobId, currentStatus, onStatusChange }: {
       const res = await fetch(`/api/jobs/${jobId}`, {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ status: next, changedBy: userName }),
+        body:    JSON.stringify({ status: next }),
       })
       if (!res.ok) throw new Error()
       toast(`Status → ${JOB_STATUSES.find(s => s.value === next)?.label ?? next}`, "success")

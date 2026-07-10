@@ -8,7 +8,6 @@ import { Button }   from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label }    from "@/components/ui/label"
 import { StatusBadge } from "@/components/status-badge"
-import { useUser }  from "@/components/user-context"
 import { useToast } from "@/components/ui/toast"
 import { nextRevisionLetter } from "@/lib/constants"
 import { revisionParentId } from "@/lib/revision-chain"
@@ -24,7 +23,6 @@ interface Props {
 export function RevisionsPanel({ job, onRevisionCreated }: Props) {
   const router   = useRouter()
   const pathname = usePathname()
-  const { userName } = useUser()
   const { toast }    = useToast()
 
   const [revisions, setRevisions] = useState<Job[]>([])
@@ -89,7 +87,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
       const res = await fetch(`/api/jobs/${job.id}/revisions`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ notes: notes.trim() || null, changedBy: userName }),
+        body:    JSON.stringify({ notes: notes.trim() || null }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }

@@ -414,7 +414,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const isCheckingQueue = mode === "checking"
   const router       = useRouter()
   const { toast }    = useToast()
-  const { userName, isAdmin } = useUser()
+  const { isAdmin } = useUser()
 
   const [holdClientIds, setHoldClientIds] = useState<Set<string>>(new Set())
   const [designers,    setDesigners]    = useState<string[]>([])
@@ -557,7 +557,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     try {
       const res = await fetch(`/api/jobs/${editJob.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, changedBy: userName }),
+        body: JSON.stringify({ ...form }),
       })
       if (!res.ok) { toast("Failed to save changes", "error"); throw new Error() }
       toast("Changes saved", "success")
@@ -600,7 +600,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     try {
       const res = await fetch(`/api/jobs/${job.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: value, changedBy: userName }),
+        body: JSON.stringify({ [field]: value }),
       })
       if (!res.ok) {
         toast(field === "status" ? "Failed to change status" : "Failed to assign designer", "error")
@@ -619,7 +619,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       toast("Network error", "error")
       await mutate()
     }
-  }, [mutate, userName, toast])
+  }, [mutate, toast])
 
   // One-click revision — no modal, no fields. Letter is auto-assigned server-side.
   const handleQuickRevision = useCallback(async (job: Job) => {
@@ -627,7 +627,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     try {
       const res = await fetch(`/api/jobs/${job.id}/revisions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ changedBy: userName }),
+        body: JSON.stringify({}),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
@@ -640,7 +640,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     } catch { toast("Network error", "error") }
     finally { setCreatingRevisionFor(null) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userName])
+  }, [])
 
   const handleExport = async () => {
     const qs = new URLSearchParams({

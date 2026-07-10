@@ -50,6 +50,7 @@ function missingColumnFromError(error: { code?: string; message?: string } | nul
     "site_name", "site_address", "location_status", "location_source",
     "latitude", "longitude", "geocoded_at", "geocoded_address",
     "variation_fees", "additional_charges",
+    "list_sort_key",
   ]) {
     if (isMissingColumnError(error, col)) return col
   }
@@ -170,21 +171,103 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
   return q
 }
 
+async function fetchRevisionRowsForWhere(
+  where: WhereClause = {},
+): Promise<{ id: string; parentJobId: string | null }[]> {
+  const { data, error } = await applyWhere(
+    table().select("id, parent_job_id"),
+    where,
+  ).not("parent_job_id", "is", null)
+  if (error) throw error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({
+    id: r.id as string,
+    parentJobId: r.parent_job_id as string | null,
+  }))
+}
+
+/** Legacy in-memory sort when migration 023 (list_sort_key) is not applied yet. */
+async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
+  jobs: JobRow[]
+  total: number
+  allForRevisions: { id: string; parentJobId: string | null }[]
+}> {
+  const dir = opts.orderBy?.dir ?? "asc"
+  const { data: sortData, count, error: sortErr } = await applyWhere(
+    table().select("id,drawing_number,parent_job_id,revision_letter,created_at", { count: "exact" }),
+    opts.where,
+  )
+  if (sortErr) throw sortErr
+
+  const totalRows = count ?? 0
+  if (totalRows > DRAWING_SORT_WARN_ROWS) {
+    logEvent("jobs.list.drawing_sort_large_dataset", { totalRows }, "warn")
+  }
+
+  type SortRow = { id: string; drawingNumber: string; parentJobId: string | null; revisionLetter: string | null; createdAt: string }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allSortRows: SortRow[] = (sortData ?? []).map((r: any) => ({
+    id:             r.id              as string,
+    drawingNumber:  r.drawing_number  as string,
+    parentJobId:    r.parent_job_id   as string | null,
+    revisionLetter: r.revision_letter as string | null,
+    createdAt:      r.created_at      as string,
+  }))
+
+  const sorted  = sortJobsForList<SortRow>(allSortRows, dir)
+  const skip    = opts.skip ?? 0
+  const page    = opts.take != null ? sorted.slice(skip, skip + opts.take) : sorted.slice(skip)
+  const pageIds = page.map(r => r.id)
+
+  if (!pageIds.length) {
+    return { jobs: [], total: count ?? 0, allForRevisions: allSortRows }
+  }
+
+  const { data: pageData, error: pageErr } = await table().select("*").in("id", pageIds)
+  if (pageErr) throw pageErr
+
+  const byId = new Map((pageData ?? []).map(r => [r.id as string, toJobRow(r)]))
+  const jobs = pageIds.map(id => byId.get(id)).filter((r): r is JobRow => r != null)
+
+  return { jobs, total: count ?? allSortRows.length, allForRevisions: allSortRows }
+}
+
+/** Paginated drawing-number sort via list_sort_key (migration 023). */
+async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
+  jobs: JobRow[]
+  total: number
+  allForRevisions: { id: string; parentJobId: string | null }[]
+}> {
+  const dir = opts.orderBy?.dir ?? "asc"
+  const asc = dir === "asc"
+  let q = applyWhere(table().select("*", { count: "exact" }), opts.where)
+    .order("list_sort_key", { ascending: asc })
+    .order("created_at", { ascending: asc })
+  if (opts.skip != null && opts.take != null) {
+    q = q.range(opts.skip, opts.skip + opts.take - 1)
+  } else if (opts.take != null) {
+    q = q.limit(opts.take)
+  }
+  const { data, count, error } = await q
+  if (error) {
+    if (isMissingColumnError(error, "list_sort_key")) {
+      return findManyDrawingSortInMemory(opts)
+    }
+    throw error
+  }
+  const allForRevisions = await fetchRevisionRowsForWhere(opts.where)
+  return { jobs: (data ?? []).map(toJobRow), total: count ?? 0, allForRevisions }
+}
+
 export const supabaseJobRepo = {
   /**
    * Returns a page of jobs AND the total count.
    *
-   * Drawing-number sort (the default): uses a 2-pass approach to avoid
-   * fetching all columns for every row in the dataset.
-   *   Pass 1 — lightweight SELECT of 5 columns for all matching rows:
-   *     builds the sort order, total count, and canAddRevision data.
-   *   Pass 2 — full SELECT * for only the 25 (or fewer) page rows by ID.
+   * Drawing-number sort (the default): paginated ORDER BY list_sort_key when
+   * migration 023 is applied; falls back to in-memory sort otherwise.
+   * Revision flags use a lightweight query for rows with parent_job_id set.
    *
-   * At 1,000 jobs this reduces data transfer by ~10× compared with a
-   * single SELECT * across the whole table.
-   *
-   * For all other sort fields Supabase handles ordering natively, so a
-   * single paginated query with range() is sufficient.
+   * For all other sort fields Supabase handles ordering natively.
    */
   async findManyWithCount(opts: FindManyOptions = {}): Promise<{
     jobs: JobRow[]
@@ -195,46 +278,7 @@ export const supabaseJobRepo = {
     const dir   = opts.orderBy?.dir   ?? "asc"
 
     if (isDrawingNumberListSort(field)) {
-      // Pass 1: minimal columns — enough for sorting and revision flagging.
-      const { data: sortData, count, error: sortErr } = await applyWhere(
-        table().select("id,drawing_number,parent_job_id,revision_letter,created_at", { count: "exact" }),
-        opts.where,
-      )
-      if (sortErr) throw sortErr
-
-      const totalRows = count ?? 0
-      if (totalRows > DRAWING_SORT_WARN_ROWS) {
-        logEvent("jobs.list.drawing_sort_large_dataset", { totalRows }, "warn")
-      }
-
-      type SortRow = { id: string; drawingNumber: string; parentJobId: string | null; revisionLetter: string | null; createdAt: string }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allSortRows: SortRow[] = (sortData ?? []).map((r: any) => ({
-        id:             r.id             as string,
-        drawingNumber:  r.drawing_number as string,
-        parentJobId:    r.parent_job_id  as string | null,
-        revisionLetter: r.revision_letter as string | null,
-        createdAt:      r.created_at     as string,
-      }))
-
-      const sorted  = sortJobsForList<SortRow>(allSortRows, dir)
-      const skip    = opts.skip ?? 0
-      const page    = opts.take != null ? sorted.slice(skip, skip + opts.take) : sorted.slice(skip)
-      const pageIds = page.map(r => r.id)
-
-      if (!pageIds.length) {
-        return { jobs: [], total: count ?? 0, allForRevisions: allSortRows }
-      }
-
-      // Pass 2: full data for the page rows only (≤ 25 rows).
-      const { data: pageData, error: pageErr } = await table().select("*").in("id", pageIds)
-      if (pageErr) throw pageErr
-
-      // Preserve the sort order established in pass 1.
-      const byId = new Map((pageData ?? []).map(r => [r.id as string, toJobRow(r)]))
-      const jobs  = pageIds.map(id => byId.get(id)).filter((r): r is JobRow => r != null)
-
-      return { jobs, total: count ?? allSortRows.length, allForRevisions: allSortRows }
+      return findManyDrawingSortPaginated({ ...opts, orderBy: { field, dir } })
     }
 
     const col = sortColumn(field)

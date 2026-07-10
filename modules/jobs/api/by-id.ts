@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/lib/services/client-service"
 import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE, type JobStatusValue } from "@/lib/constants"
-import { requireSignIn, requireRole } from "@/shared/auth/auth"
+import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { cancelRecordForJob } from "@/lib/cancel-record"
@@ -115,7 +115,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       const err = applyOptionalMoneyField(body, field, data)
       if (err) return err
     }
-    data.changedBy = auth.user.name || auth.user.email || "System"
+    data.changedBy = actorName(auth.user)
 
     if (Object.keys(data).length <= 1) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 })

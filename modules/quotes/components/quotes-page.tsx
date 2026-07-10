@@ -20,7 +20,6 @@ import { ClientCombobox } from "@/components/client-combobox"
 import { DesignerCombobox } from "@/components/designer-combobox"
 import { QuickCreateClientModal } from "@/components/quick-create-client-modal"
 import { useToast } from "@/shared/ui/toast"
-import { useUser }  from "@/shared/providers/user-context"
 import { formatGBP, cn, parseLocalDate, defaultRequiredByDate, getQuoteExpiryInfo, quoteExpiryBadgeClass } from "@/shared/utils/utils"
 import { OTHER_WORKS_TYPE } from "@/lib/constants"
 import { inferQuoteWorksFromDescription, quoteWorksDisplayLabel } from "../quote-works"
@@ -637,7 +636,6 @@ function QuoteTableRow({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSetSt
 const MemoQuoteTableRow = memo(QuoteTableRow)
 
 function QuotesInner() {
-  const { userName } = useUser()
   const { toast }    = useToast()
   const searchParams = useSearchParams()
 
@@ -681,7 +679,7 @@ function QuotesInner() {
     try {
       const res = await fetch("/api/quotes", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, status: "DRAFT", createdBy: userName }),
+        body: JSON.stringify({ ...form, status: "DRAFT" }),
       })
       const body = await res.json() as Quote & { error?: string }
       if (!res.ok) { toast(body.error ?? "Failed to create quote", "error"); return }

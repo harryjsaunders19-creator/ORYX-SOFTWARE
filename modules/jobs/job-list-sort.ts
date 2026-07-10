@@ -3,6 +3,8 @@
  * immediately after their parent in letter order (A, B, C…).
  */
 
+import { parseOryxDrawingSequence } from "@/lib/drawing-number"
+
 export interface JobListSortRow {
   drawingNumber: string
   parentJobId: string | null
@@ -39,4 +41,26 @@ export function sortJobsForList<T extends JobListSortRow>(jobs: T[], dir: "asc" 
 
 export function isDrawingNumberListSort(field: string | undefined): boolean {
   return !field || field === "drawingNumber"
+}
+
+/**
+ * Zero-padded key for Postgres ORDER BY — matches compareJobsForList ordering.
+ * ORYX drawings: `{seq}-{revOrd}`; non-ORYX refs prefixed with Z.
+ */
+export function computeJobListSortKey(
+  drawingNumber: string,
+  parentJobId: string | null,
+  revisionLetter: string | null,
+): string {
+  const base = parentJobId ? jobListSortBase(drawingNumber) : drawingNumber
+  const seq = parseOryxDrawingSequence(base)
+  if (seq != null) {
+    const revOrd =
+      revisionLetter && /^[A-Z]$/.test(revisionLetter)
+        ? revisionLetter.charCodeAt(0) - 64
+        : 0
+    return `${String(seq).padStart(4, "0")}-${String(revOrd).padStart(2, "0")}`
+  }
+  const revSuffix = revisionLetter ? `-${revisionLetter}` : ""
+  return `Z${base}${revSuffix}`
 }

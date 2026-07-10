@@ -6,7 +6,6 @@ import {
 import { Button }  from "@/components/ui/button"
 import { Input }   from "@/components/ui/input"
 import { Label }   from "@/components/ui/label"
-import { useUser } from "@/components/user-context"
 import { useToast } from "@/components/ui/toast"
 import type { Job } from "@/lib/types"
 
@@ -17,7 +16,6 @@ interface Props {
 }
 
 export function AssignDesignerModal({ job, onClose, onSaved }: Props) {
-  const { userName } = useUser()
   const { toast }    = useToast()
   const [name,    setName]    = useState("")
   const [saving,  setSaving]  = useState(false)
@@ -40,7 +38,7 @@ export function AssignDesignerModal({ job, onClose, onSaved }: Props) {
       const res = await fetch(`/api/jobs/${job.id}/assign`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ designer: name.trim(), changedBy: userName }),
+        body:    JSON.stringify({ designer: name.trim() }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }

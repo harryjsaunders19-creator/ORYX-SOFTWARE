@@ -6,7 +6,6 @@ import { getJobStatus }  from "@/lib/constants"
 import { STATUS_DOT }    from "@/components/status-badge"
 import { Button }        from "@/components/ui/button"
 import { Textarea }      from "@/components/ui/textarea"
-import { useUser }       from "@/components/user-context"
 import { useToast }      from "@/components/ui/toast"
 import { cn }            from "@/lib/utils"
 import type { StatusHistoryEntry } from "@/lib/types"
@@ -14,7 +13,6 @@ import type { StatusHistoryEntry } from "@/lib/types"
 export function StatusHistory({ jobId, onUpdate }: {
   jobId: string; onUpdate?: () => void
 }) {
-  const { userName } = useUser()
   const { toast }    = useToast()
   const [entries, setEntries]   = useState<StatusHistoryEntry[]>([])
   const [loading, setLoading]   = useState(true)
@@ -40,7 +38,7 @@ export function StatusHistory({ jobId, onUpdate }: {
     try {
       const res = await fetch(`/api/jobs/${jobId}/history`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note: draft.trim(), changedBy: userName }),
+        body: JSON.stringify({ note: draft.trim() }),
       })
       if (!res.ok) throw new Error()
       setDraft(""); setAddNote(false)

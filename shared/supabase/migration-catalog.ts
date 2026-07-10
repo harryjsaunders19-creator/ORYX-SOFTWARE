@@ -166,6 +166,7 @@ export const SUPABASE_INFRA_MIGRATIONS = [
   { id: "soft-delete", label: "Soft delete / archive", migration: "011_soft_delete.sql (+ 022_fix_archive_log_rls.sql)", tables: ["archive_log"] },
   { id: "indexes", label: "Performance indexes", migration: "012_indexes.sql", tables: [] },
   { id: "job-map", label: "Job map / geocoding", migration: "018_job_geocoding.sql (+ 019_job_map_indexes.sql + 020_job_location.sql)", tables: ["jobs"] },
+  { id: "job-list-sort", label: "Job list sort key", migration: "023_job_list_sort_key.sql", tables: ["jobs"] },
 ] as const
 
 export const SUPABASE_GO_LIVE_STEPS = [

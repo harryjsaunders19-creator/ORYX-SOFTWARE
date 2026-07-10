@@ -74,7 +74,7 @@ export default function JobDetailPage() {
   const id     = params.id as string
   const router = useRouter()
   const { toast }    = useToast()
-  const { userName, isAdmin } = useUser()
+  const { isAdmin } = useUser()
 
   const [job,        setJob]        = useState<Job | null>(null)
   const [parentJob,  setParentJob]  = useState<Job | null>(null)  // if this is a revision
@@ -128,7 +128,7 @@ export default function JobDetailPage() {
     try {
       const res = await fetch(`/api/jobs/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, changedBy: userName }),
+        body: JSON.stringify({ ...form }),
       })
       if (!res.ok) { toast("Failed to save", "error"); throw new Error() }
       toast("Saved", "success")
