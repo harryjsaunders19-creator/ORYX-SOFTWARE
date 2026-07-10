@@ -12,6 +12,8 @@ import { useSupabaseUsers } from "@/lib/supabase/feature-flags"
 import { verifyPassword } from "@/lib/password"
 import { checkLoginRateLimit } from "@/lib/login-rate-limit"
 import { setSessionCookies } from "@/lib/auth-cookies"
+import { apiInternalError } from "@/shared/api-errors"
+import { logError } from "@/shared/logger"
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
       try {
         await supabaseUserRepo.upsert(user)
       } catch (err) {
-        console.error("[login] Failed to sync user to Supabase — session would not survive across serverless containers:", err)
+        logError("auth.login.supabase_sync", err, { userId: user.id })
         return NextResponse.json(
           { error: "Database sync error. Check SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL environment variables, and ensure migration 008_users.sql has been run in Supabase." },
           { status: 503 },
@@ -86,7 +88,6 @@ export async function POST(req: NextRequest) {
 
     return res
   } catch (err) {
-    console.error("[POST /api/auth/login]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("auth.login", err)
   }
 }

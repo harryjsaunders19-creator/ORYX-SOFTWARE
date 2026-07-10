@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser, getRealUser } from "@/lib/auth"
+import { apiInternalError } from "@/shared/api-errors"
 
 export async function GET() {
   try {
@@ -13,7 +14,6 @@ export async function GET() {
       realUser: impersonating ? { id: realUser!.id, name: realUser!.name } : null,
     })
   } catch (err) {
-    console.error("[GET /api/auth/session]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("auth.session.get", err)
   }
 }

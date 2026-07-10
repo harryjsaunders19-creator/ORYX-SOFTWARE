@@ -5,6 +5,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { requireSignIn } from "@/shared/auth/auth"
 import { parseContactsFromBody } from "./parse-contacts"
 import { canViewClientAnalytics } from "@/shared/auth/permissions"
+import { apiInternalError } from "@/shared/api-errors"
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,8 +30,7 @@ export async function GET(req: NextRequest) {
 
     return listResponse({ clients: redacted, total, page, limit })
   } catch (err) {
-    console.error("[GET /api/clients]", err)
-    return NextResponse.json({ error: "Failed to load clients" }, { status: 500 })
+    return apiInternalError("clients.list.get", err)
   }
 }
 
@@ -70,7 +70,6 @@ export async function POST(req: NextRequest) {
     const savedContacts = await clientService.contactsForClient(client.id)
     return NextResponse.json({ ...client, contacts: savedContacts }, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/clients]", err)
-    return NextResponse.json({ error: "Failed to create client" }, { status: 500 })
+    return apiInternalError("clients.list.create", err)
   }
 }

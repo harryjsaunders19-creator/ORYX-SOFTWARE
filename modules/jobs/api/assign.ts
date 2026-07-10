@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "../services/job-service"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { apiInternalError } from "@/shared/api-errors"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -26,7 +27,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     return NextResponse.json({ job: result.job })
   } catch (err) {
-    console.error("[POST /api/jobs/[id]/assign]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.assign", err)
   }
 }

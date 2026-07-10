@@ -5,6 +5,8 @@ import { clientService } from "@/lib/services/client-service"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "../quote-works"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
+import { apiInternalError } from "@/shared/api-errors"
+import { logBackgroundError } from "@/shared/logger"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
 
@@ -33,7 +35,7 @@ export async function GET(req: NextRequest) {
     // Run expiry in the background — don't block the read response.
     // Quotes will appear as expired on the *next* page load at worst.
     quoteService.expirePastDue().catch(err =>
-      console.error("[quotes] background expirePastDue failed:", err),
+      logBackgroundError("quotes.expire_past_due", err),
     )
     const [quotes, total, expiringSoonCount, expiredClearableCount] = await Promise.all([
       quoteService.findMany({ ...opts, skip: (page - 1) * limit, take: limit }),
@@ -42,8 +44,8 @@ export async function GET(req: NextRequest) {
       Promise.resolve(quoteService.countExpiredDeletable()),
     ])
     return listResponse({ quotes, total, page, limit, expiringSoonCount, expiredClearableCount })
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (err) {
+    return apiInternalError("quotes.list.get", err)
   }
 }
 
@@ -129,7 +131,7 @@ export async function POST(req: NextRequest) {
     if (lineItems.length) await quoteService.replaceLineItems(quote.id, lineItems)
 
     return NextResponse.json(quote, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (err) {
+    return apiInternalError("quotes.list.create", err, undefined, { exposeDetail: true })
   }
 }

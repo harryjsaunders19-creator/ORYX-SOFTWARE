@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { billingHandoffService } from "../services/billing-handoff-service"
 import { requireRole } from "@/shared/auth/auth"
+import { apiInternalError } from "@/shared/api-errors"
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
@@ -27,7 +28,6 @@ export async function GET(req: NextRequest) {
     ])
     return NextResponse.json({ handoffs, ...stats })
   } catch (err) {
-    console.error("[GET /api/billing-handoffs]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("billing.list.get", err)
   }
 }

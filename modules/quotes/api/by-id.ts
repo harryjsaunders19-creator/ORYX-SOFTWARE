@@ -3,7 +3,8 @@ import { quoteService } from "../services/quote-service"
 import { requireSignIn, requireRole } from "@/shared/auth/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "../quote-works"
 import { resourceResponse } from "@/shared/utils/api-cache"
-import { errorMessage } from "@/shared/utils/error-message"
+import { apiInternalError } from "@/shared/api-errors"
+import { logBackgroundError } from "@/shared/logger"
 import type { UpdateQuoteData } from "../types/quote-types"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
@@ -28,7 +29,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const { id } = await params
   // Run expiry in the background — don't block the single-quote read.
   quoteService.expirePastDue().catch(err =>
-    console.error("[quotes/id] background expirePastDue failed:", err),
+    logBackgroundError("quotes.by_id.expire_past_due", err),
   )
   const quote  = await quoteService.findUnique(id)
   if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -135,8 +136,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     return NextResponse.json(updated)
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (err) {
+    return apiInternalError("quotes.by_id.patch", err)
   }
 }
 
@@ -153,7 +154,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ ok: true, archived: true, quote: archived })
   } catch (err) {
-    console.error("[DELETE /api/quotes/[id]]", err)
-    return NextResponse.json({ error: "Failed to archive quote", detail: errorMessage(err) }, { status: 500 })
+    return apiInternalError("quotes.by_id.delete", err, undefined, { exposeDetail: true })
   }
 }

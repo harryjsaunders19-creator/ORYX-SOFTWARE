@@ -23,6 +23,7 @@ import { canAddRevisionFrom, buildLatestRevisionMap, revisionParentId } from "@/
 import { createId } from "@paralleldrive/cuid2"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { defaultRequiredByDate } from "@/shared/utils/utils"
+import { apiInternalError } from "@/shared/api-errors"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -39,8 +40,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const revisions = await jobService.revisionsForJob(parentId)
     return NextResponse.json({ revisions })
   } catch (err) {
-    console.error("[GET /api/jobs/[id]/revisions]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.revisions.get", err)
   }
 }
 
@@ -127,7 +127,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     return NextResponse.json(revision, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/jobs/[id]/revisions]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.revisions.create", err)
   }
 }

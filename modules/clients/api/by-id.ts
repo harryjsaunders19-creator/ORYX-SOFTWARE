@@ -3,7 +3,7 @@ import { clientService } from "../services/client-service"
 import { requireSignIn, requireRole } from "@/shared/auth/auth"
 import { canViewCommercialValues, canViewClientAnalytics } from "@/shared/auth/permissions"
 import { resourceResponse } from "@/shared/utils/api-cache"
-import { errorMessage } from "@/shared/utils/error-message"
+import { apiInternalError } from "@/shared/api-errors"
 import { parseContactsFromBody } from "./parse-contacts"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -29,8 +29,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const stats = { ...rawStats, totalInvoicedValue: canViewCommercialValues(role) ? rawStats.totalInvoicedValue : null }
     return resourceResponse({ client, contacts, stats, jobs })
   } catch (err) {
-    console.error("[GET /api/clients/[id]]", err)
-    return NextResponse.json({ error: "Failed to load client" }, { status: 500 })
+    return apiInternalError("clients.by_id.get", err)
   }
 }
 
@@ -72,8 +71,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const savedContacts = await clientService.contactsForClient(id)
     return NextResponse.json({ ...updated, contacts: savedContacts })
   } catch (err) {
-    console.error("[PATCH /api/clients/[id]]", err)
-    return NextResponse.json({ error: "Failed to update client" }, { status: 500 })
+    return apiInternalError("clients.by_id.patch", err)
   }
 }
 
@@ -87,7 +85,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ archived: true, client: archived })
   } catch (err) {
-    console.error("[DELETE /api/clients/[id]]", err)
-    return NextResponse.json({ error: "Failed to archive client", detail: errorMessage(err) }, { status: 500 })
+    return apiInternalError("clients.by_id.delete", err, undefined, { exposeDetail: true })
   }
 }

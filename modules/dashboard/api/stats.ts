@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
 import { canViewCommercialValues, type Role } from "@/shared/auth/permissions"
-import { errorMessage } from "@/lib/error-message"
 import { statsService } from "../services/stats-service"
+import { apiInternalError } from "@/shared/api-errors"
 
 export async function GET(req: NextRequest) {
   try {
@@ -59,8 +59,6 @@ export async function GET(req: NextRequest) {
       weekEvents:  calendarFrom && calendarTo ? weekEvents : undefined,
     })
   } catch (err) {
-    console.error("[GET /api/stats]", err)
-    const detail = errorMessage(err)
-    return NextResponse.json({ error: "Internal server error", detail }, { status: 500 })
+    return apiInternalError("dashboard.stats.get", err, undefined, { exposeDetail: true })
   }
 }

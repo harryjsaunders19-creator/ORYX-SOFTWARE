@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "../services/job-service"
 import { historyService } from "../services/history-service"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { apiInternalError } from "@/shared/api-errors"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -15,8 +16,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const history = await historyService.forJob(id)
     return NextResponse.json({ history })
   } catch (err) {
-    console.error("[GET /api/jobs/[id]/history]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.history.get", err)
   }
 }
 
@@ -41,7 +41,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const entry = await historyService.addNote(id, note, changedBy)
     return NextResponse.json(entry, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/jobs/[id]/history]", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return apiInternalError("jobs.history.note", err)
   }
 }

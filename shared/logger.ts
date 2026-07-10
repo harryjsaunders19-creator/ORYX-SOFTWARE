@@ -24,6 +24,11 @@ export function logError(event: string, err: unknown, fields?: Record<string, un
   notifyErrorWebhook(event, err, fields)
 }
 
+/** Log background task failures without failing the parent request. */
+export function logBackgroundError(event: string, err: unknown, fields?: Record<string, unknown>): void {
+  logError(event, err, fields)
+}
+
 const webhookUrl = () => process.env.ERROR_WEBHOOK_URL?.trim() || ""
 
 /** Fire-and-forget optional webhook — never blocks the request path. */
