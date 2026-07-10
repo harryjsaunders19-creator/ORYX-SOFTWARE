@@ -8,8 +8,8 @@
 -- fresh project (idempotent: IF NOT EXISTS throughout).
 --
 -- After this:
---   1. Set Vercel env vars (SUPABASE_*, VAULT_ENCRYPTION_KEY, AUTH_SECRET)
---   2. Log in with admin@test.com / admin123 (seeded at end of this file)
+--   1. Set Vercel env vars (see README production checklist)
+--   2. Log in with seeded accounts — passwords must be changed on first login
 --   3. npm run supabase:sync-all  (from a machine with SQLite data)
 --   4. System Health → Supabase — confirm all modules green
 -- =============================================================================
@@ -1315,9 +1315,12 @@ create policy "Service role full access on site_visit_calculations"
 notify pgrst, 'reload schema';
 
 -- ─── seed-admin.sql (default logins) ───
--- Default login accounts after a clean bootstrap (dev / recovery only).
--- Passwords: admin@test.com → admin123, engineer@test.com → engineer123
--- Change or remove in production once real users are synced via npm run supabase:sync-users.
+-- Default login accounts after a clean bootstrap (local dev / first-time recovery only).
+-- Initial passwords: admin@test.com → admin123, engineer@test.com → engineer123
+-- Users must set a new password on first login (must_change_password = true).
+--
+-- Re-running bootstrap will NOT reset existing passwords (on conflict skips credential updates).
+-- For production: sync real users via npm run supabase:sync-users, then disable or delete these accounts.
 
 insert into public.app_users (
   id, name, email, email_lower, role, active,
@@ -1331,7 +1334,7 @@ insert into public.app_users (
     'ADMIN',
     true,
     '$2b$12$wVrk8AKFzoiXEI7Omnk.T.dglEnJb2dJ3tCQb6WzMwjZFTcWcAdJS',
-    false,
+    true,
     now(),
     now()
   ),
@@ -1343,7 +1346,7 @@ insert into public.app_users (
     'ENGINEER',
     true,
     '$2b$12$/DdL.xz2gZCeQ9D6iOROkurSonjZLdrEZJ/yzZfDf3kQvoAiUW0gy',
-    false,
+    true,
     now(),
     now()
   )
@@ -1351,8 +1354,6 @@ on conflict (email_lower) do update set
   name = excluded.name,
   role = excluded.role,
   active = true,
-  password_hash = excluded.password_hash,
-  must_change_password = false,
   updated_at = now();
 
 notify pgrst, 'reload schema';

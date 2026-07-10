@@ -80,6 +80,7 @@ function BackupsInner() {
   const [backups, setBackups]       = useState<BackupJob[]>([])
   const [auditLog, setAuditLog]     = useState<AuditEntry[]>([])
   const [backupsDir, setBackupsDir] = useState("")
+  const [localBackupSupported, setLocalBackupSupported] = useState(true)
   const [loading, setLoading]       = useState(true)
   const [starting, setStarting]     = useState(false)
   const [exportingJson, setExportingJson]     = useState(false)
@@ -92,10 +93,16 @@ function BackupsInner() {
     try {
       const res = await fetch("/api/backups")
       if (!res.ok) throw new Error()
-      const data = await res.json() as { backups: BackupJob[]; auditLog: AuditEntry[]; backupsDir: string }
+      const data = await res.json() as {
+        backups: BackupJob[]
+        auditLog: AuditEntry[]
+        backupsDir: string
+        localBackupSupported?: boolean
+      }
       setBackups(data.backups)
       setAuditLog(data.auditLog)
       setBackupsDir(data.backupsDir)
+      setLocalBackupSupported(data.localBackupSupported !== false)
     } catch { toast("Failed to load backups", "error") }
     finally { setLoading(false) }
   }, [toast])
@@ -209,9 +216,22 @@ function BackupsInner() {
 
   return (
     <PageShell>
+      {!localBackupSupported && (
+        <DataPanel className="mb-4 p-4 border border-bd bg-surface-low text-sm text-t1">
+          <p className="font-medium">Supabase is your production database</p>
+          <p className="mt-1 text-t2">
+            Scheduled SQLite backups do not run on Vercel. Use Supabase&apos;s built-in backups
+            for disaster recovery, or export data with Excel/JSON below.
+          </p>
+        </DataPanel>
+      )}
       <PageHeader
         title="System Backup"
-        description={`Automated daily at ~02:00 · ${backups.length} backup${backups.length !== 1 ? "s" : ""} recorded`}
+        description={
+          localBackupSupported
+            ? `Automated daily at ~02:00 · ${backups.length} backup${backups.length !== 1 ? "s" : ""} recorded`
+            : `Export tools only · ${backups.length} historical backup record${backups.length !== 1 ? "s" : ""}`
+        }
         actions={
           <>
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
@@ -257,6 +277,7 @@ function BackupsInner() {
                 onChange={e => { const f = e.target.files?.[0]; if (f) importExcel(f); e.target.value = "" }}
               />
             </label>
+            {localBackupSupported && (
             <Button
               variant="primary"
               size="sm"
@@ -266,6 +287,7 @@ function BackupsInner() {
               <Play className="h-3.5 w-3.5" />
               {starting ? "Starting…" : "Run backup now"}
             </Button>
+            )}
           </>
         }
       />

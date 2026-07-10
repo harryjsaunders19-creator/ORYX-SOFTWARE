@@ -44,9 +44,10 @@
     "supabase:sync-leave": "node scripts/sync-hr-to-supabase.mjs leave",
     "supabase:sync-hr": "node scripts/sync-hr-to-supabase.mjs all",
     "supabase:verify-password-vault": "node scripts/verify-password-vault-migration.mjs",
+    "supabase:verify-site-visit-calculations": "node scripts/verify-site-visit-calculations-migration.mjs",
     "supabase:sync-password-vault": "node scripts/sync-password-vault-to-supabase.mjs",
     "supabase:sync-all": "node scripts/sync-clients-to-supabase.mjs && node scripts/sync-jobs-to-supabase.mjs && node scripts/sync-quotes-to-supabase.mjs && node scripts/sync-status-history-to-supabase.mjs && node scripts/sync-holds-to-supabase.mjs && node scripts/sync-billing-to-supabase.mjs && node scripts/sync-calendar-to-supabase.mjs && node scripts/sync-users-to-supabase.mjs && node scripts/sync-identity-log-to-supabase.mjs && node scripts/sync-backups-to-supabase.mjs && node scripts/sync-hr-to-supabase.mjs all && node scripts/sync-password-vault-to-supabase.mjs",
-    "supabase:verify-all": "node scripts/verify-clients-migration.mjs && node scripts/verify-jobs-migration.mjs && node scripts/verify-quotes-migration.mjs && node scripts/verify-status-history-migration.mjs && node scripts/verify-holds-migration.mjs && node scripts/verify-billing-migration.mjs && node scripts/verify-calendar-migration.mjs && node scripts/verify-users-migration.mjs && node scripts/verify-identity-log-migration.mjs && node scripts/verify-backups-migration.mjs && node scripts/verify-hr-migration.mjs && node scripts/verify-password-vault-migration.mjs",
+    "supabase:verify-all": "node scripts/verify-clients-migration.mjs && node scripts/verify-jobs-migration.mjs && node scripts/verify-quotes-migration.mjs && node scripts/verify-status-history-migration.mjs && node scripts/verify-holds-migration.mjs && node scripts/verify-billing-migration.mjs && node scripts/verify-calendar-migration.mjs && node scripts/verify-users-migration.mjs && node scripts/verify-identity-log-migration.mjs && node scripts/verify-backups-migration.mjs && node scripts/verify-hr-migration.mjs && node scripts/verify-password-vault-migration.mjs && node scripts/verify-site-visit-calculations-migration.mjs",
     "generate:stress-export": "node scripts/generate-stress-test-export.mjs"
   },
   "dependencies": {

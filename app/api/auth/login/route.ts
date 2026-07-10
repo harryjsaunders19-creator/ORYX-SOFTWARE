@@ -84,7 +84,9 @@ export async function POST(req: NextRequest) {
       realUser: null,
     })
 
-    await setSessionCookies(res, user.id, user.id)
+    await setSessionCookies(res, user.id, user.id, {
+      mustChangePassword: user.mustChangePassword === 1,
+    })
 
     return res
   } catch (err) {

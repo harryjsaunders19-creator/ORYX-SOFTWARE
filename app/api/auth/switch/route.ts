@@ -46,7 +46,9 @@ export async function POST(req: NextRequest) {
         await identitySwitchLogService.log({ action: "IMPERSONATION_ENDED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name, detail: "Returned to own identity via switch" })
       }
       const res = NextResponse.json({ user: target, isImpersonating: false })
-      await setSessionCookies(res, target.id, realUser.id)
+      await setSessionCookies(res, target.id, realUser.id, {
+        mustChangePassword: target.mustChangePassword === 1,
+      })
       return res
     }
 

@@ -166,6 +166,7 @@ export const SUPABASE_MIGRATION_MODULES: SupabaseModuleSpec[] = [
     envVar: "SUPABASE_SITE_VISIT_CALCULATIONS",
     migration: "025_site_visit_calculations.sql",
     syncScript: "(no sync — created in app)",
+    verifyScript: "npm run supabase:verify-site-visit-calculations",
     tables: ["site_visit_calculations"],
     dependsOn: ["users"],
   },
@@ -181,9 +182,11 @@ export const SUPABASE_INFRA_MIGRATIONS = [
 ] as const
 
 export const SUPABASE_GO_LIVE_STEPS = [
-  "Create a Supabase project and copy URL, anon key, and service role key into Vercel env vars.",
-  "In Supabase SQL Editor: run supabase/00-drop-all.sql then supabase/01-bootstrap.sql (includes default admin@test.com / admin123). Regenerate after migration edits: npm run supabase:bootstrap",
+  "Create a Supabase project and copy URL, anon key, and service role key into Vercel env vars (see README production checklist).",
+  "In Supabase SQL Editor: run supabase/00-drop-all.sql then supabase/01-bootstrap.sql. Regenerate after migration edits: npm run supabase:bootstrap",
+  "Bootstrap seeds admin@test.com / engineer@test.com (dev passwords) with must-change-password on first login. Sync real users via npm run supabase:sync-users for production.",
   "From a machine with your SQLite data: npm run supabase:sync-all",
+  "Set ORS_API_KEY on Vercel for site visit routing. Run npm run supabase:verify-site-visit-calculations.",
   "Visit System Health → Supabase and confirm all modules show tables ready.",
   "Deploy — modules read from Supabase automatically when SUPABASE_SERVICE_ROLE_KEY is set (opt out per module with SUPABASE_<MODULE>=false).",
 ] as const

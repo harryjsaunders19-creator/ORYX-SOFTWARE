@@ -63,8 +63,8 @@ const header = `-- =============================================================
 -- fresh project (idempotent: IF NOT EXISTS throughout).
 --
 -- After this:
---   1. Set Vercel env vars (SUPABASE_*, VAULT_ENCRYPTION_KEY, AUTH_SECRET)
---   2. Log in with admin@test.com / admin123 (seeded at end of this file)
+--   1. Set Vercel env vars (see README production checklist)
+--   2. Log in with seeded accounts — passwords must be changed on first login
 --   3. npm run supabase:sync-all  (from a machine with SQLite data)
 --   4. System Health → Supabase — confirm all modules green
 -- =============================================================================

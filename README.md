@@ -1,52 +1,93 @@
 # Oryx Design — Job Tracker
 
-Scaffold design job management system. Runs entirely locally — no cloud services,
-no Docker, no database server.
+Scaffold design job management for ORYX. **Local dev** uses SQLite; **production (Vercel)** uses Supabase Postgres.
 
-## Quick start
+## Quick start (local)
 
 ```bash
 npm install
+cp .env.example .env.local   # optional for local dev
 npm run dev
 # → http://localhost:3000
 ```
 
-On first start, `lib/db/` automatically creates the SQLite database at
-`.data/oryx.db` and runs the schema migration. No manual steps needed.
+On first start, `lib/db/` creates SQLite at `.data/oryx.db` and runs migrations automatically.
+
+Default dev logins (SQLite only, when `ALLOW_BOOTSTRAP_TEST_ACCOUNTS` is not blocked): `admin@test.com` / `admin123`
 
 ## Testing
 
-End-to-end tests use Playwright. Browsers are downloaded automatically on `npm install`.
-If tests fail with "Executable doesn't exist", run:
-
 ```bash
-npm run test:unit    # auth, path validation, PDF cache (Node test runner)
-npm run test:e2e:setup
+npm run test:unit
+npm run test:e2e:setup   # if Playwright browser missing
 npm run test:e2e
 ```
 
-Default login for tests: `admin@test.com` / `admin123`
+CI runs typecheck, unit tests, lint, build, and e2e on every push to `main`.
 
-## Supabase (production on Vercel)
+## Production on Vercel + Supabase
 
-The app supports **SQLite locally** and **Supabase Postgres in production**. Module services dual-write: SQLite first, then mirror to Supabase when configured.
+### 1. Database setup (Supabase SQL Editor)
 
-### Quick setup (Vercel)
+Run **in order** on a fresh project (or after a deliberate wipe):
 
-1. Create a [Supabase](https://supabase.com) project
-2. In Supabase SQL Editor, run **`supabase/setup-vercel.sql`** then **`supabase/setup-vercel-part2.sql`**
-3. Add to Vercel environment variables:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `AUTH_SECRET`, `BACKUP_DOWNLOAD_SECRET`, `COOKIE_SECURE=true`
-4. From a machine with your SQLite data: `npm run supabase:sync-all`
-5. Redeploy — modules use Supabase automatically when the service role key is set
-6. Admin → **System Health → Supabase integration** (or `GET /api/supabase/status`)
+1. `supabase/00-drop-all.sql` — drops all ORYX tables
+2. `supabase/01-bootstrap.sql` — full schema (migrations 001–025)
+
+Regenerate `01-bootstrap.sql` after editing migrations:
+
+```bash
+npm run supabase:bootstrap
+```
+
+> **Do not use** deprecated `setup-vercel.sql` — it stops at migration 017.
+
+Bootstrap seeds `admin@test.com` and `engineer@test.com` with **must-change-password** on first login. Re-running bootstrap **does not reset** existing user passwords. For production, sync real users from SQLite:
+
+```bash
+npm run supabase:sync-users
+```
+
+### 2. Vercel environment variables (required)
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side Postgres access (**never** expose to client) |
+| `AUTH_SECRET` | Session cookie signing (`openssl rand -base64 32`) |
+| `VAULT_ENCRYPTION_KEY` | Password vault AES-256-GCM |
+| `BACKUP_DOWNLOAD_SECRET` | Signed backup download links |
+| `COOKIE_SECURE` | Set `true` on HTTPS |
+| `ORS_API_KEY` | Site visit routing ([OpenRouteService](https://openrouteservice.org/)) — **required in production** |
+
+Optional but recommended:
+
+| Variable | Purpose |
+|----------|---------|
+| `ERROR_WEBHOOK_URL` | Slack/Datadog error notifications |
+| `SUPABASE_SITE_VISIT_CALCULATIONS` | Default on when service role is set |
+| `SUPABASE_PASSWORD_VAULT` | Default on when service role is set |
+
+When `SUPABASE_SERVICE_ROLE_KEY` is set, all modules use Supabase by default. Disable one with `SUPABASE_<MODULE>=false`.
+
+### 3. Sync existing SQLite data
+
+From a machine with your `.data/oryx.db`:
+
+```bash
+npm run supabase:check
+npm run supabase:sync-all
+npm run supabase:verify-all
+```
+
+### 4. Verify before go-live
+
+- Admin → **System Health → Supabase** (or `GET /api/supabase/status`)
+- `npm run supabase:verify-site-visit-calculations` — confirms migration 025 + `ORS_API_KEY`
+- Log in, change bootstrap passwords, confirm core flows (jobs, quotes, site visit calculator)
 
 ### Module flags
-
-When `SUPABASE_SERVICE_ROLE_KEY` is set, **all modules default to Supabase**. Disable one with `SUPABASE_<MODULE>=false`. Omit the service role key entirely for SQLite-only local dev.
 
 | Flag | Module |
 |------|--------|
@@ -62,48 +103,26 @@ When `SUPABASE_SERVICE_ROLE_KEY` is set, **all modules default to Supabase**. Di
 | `SUPABASE_BACKUPS` | Backup metadata |
 | `SUPABASE_EMPLOYEES` | HR profiles |
 | `SUPABASE_LEAVE` | Leave requests |
+| `SUPABASE_PASSWORD_VAULT` | Account passwords |
+| `SUPABASE_SITE_VISIT_CALCULATIONS` | Site visit calculator saves |
 
-### Incremental migration (existing SQLite data)
+### Backups on Vercel
+
+Local SQLite backups **do not run** when Supabase is the data store. Use Supabase project backups for disaster recovery, or export via Admin → Backups (Excel/JSON).
+
+## Database (local)
 
 ```bash
-npm run supabase:check          # env + connectivity
-npm run supabase:verify-all     # compare SQLite vs Supabase counts
-npm run supabase:sync-all       # copy all modules to Supabase
+npm run db:seed      # sample Bristol jobs
+npm run db:reset     # wipe and re-seed
+npm run db:check     # health CLI
 ```
 
-Individual scripts: `supabase:sync-clients`, `supabase:sync-jobs`, … see `package.json`.
-
-Migrations live in `supabase/migrations/` (001–016). Run in order if not using the setup SQL bundles.
-
-
-## Database
-
-### Seed sample data
-```bash
-npm run db:seed     # adds sample Bristol scaffold jobs
-```
-
-### Reset and re-seed
-```bash
-npm run db:reset    # deletes oryx.db and re-seeds
-```
-
-### Check database health
-```bash
-npm run db:check    # CLI check — prints job count and DB path
-```
-
-### Health check page
-Visit http://localhost:3000/health for a live dashboard showing:
-- Database connection status
-- Read/write test results
-- Sequence generator status
-- Job count
+Health dashboard: http://localhost:3000/health
 
 ## Environment variables
 
-Copy `.env.example` to `.env.local` and adjust for your environment. See
-`synology.env` for a production (Synology/Docker) example.
+Copy `.env.example` to `.env.local`. See `synology.env` for Synology/Docker reference.
 
 ## Stack
 
@@ -111,47 +130,10 @@ Copy `.env.example` to `.env.local` and adjust for your environment. See
 |-----------|-------------------------------------|
 | Framework | Next.js 16 (App Router)             |
 | Language  | TypeScript                          |
-| Database  | SQLite via **better-sqlite3**       |
+| Database  | SQLite (local) / Supabase Postgres (prod) |
 | Styling   | Tailwind CSS                        |
 | UI        | Radix UI primitives                 |
 
-> **Why not Prisma?** Prisma requires downloading native binary engines from
-> `binaries.prisma.sh`. This host is blocked in many CI, Docker, and managed
-> environments. `better-sqlite3` compiles from source using the system Node
-> headers and has zero runtime download requirements.
-
 ## Drawing numbers
 
-Auto-assigned on job creation:
-
-```
-YY/ORYX/MM/NNN    →    26/ORYX/06/001
-```
-
-The sequence resets each calendar month. Atomic SQLite transaction prevents
-duplicates under concurrent load.
-
-## API
-
-| Method | Path                | Description              |
-|--------|---------------------|--------------------------|
-| GET    | /api/jobs           | List/search/filter jobs  |
-| POST   | /api/jobs           | Create a job             |
-| GET    | /api/jobs/:id       | Get a single job         |
-| PATCH  | /api/jobs/:id       | Update a job             |
-| DELETE | /api/jobs/:id       | Delete a job             |
-| GET    | /api/stats          | Dashboard statistics     |
-| GET    | /api/health         | System health check      |
-
-### GET /api/jobs query params
-
-| Param         | Default    | Notes                                      |
-|---------------|------------|--------------------------------------------|
-| page          | 1          |                                            |
-| limit         | 25         | Max 100                                    |
-| search        | ""         | Searches drawing no, address, client, etc  |
-| status        | ""         | Filter by job status                       |
-| invoiceStatus | ""         | Filter by invoice status                   |
-| sortBy        | createdAt  | createdAt, drawingNumber, clientCompany… |
-| sortDir       | desc       | asc or desc                                |
-| export        | false      | true = all matching rows, no pagination    |
+Auto-assigned on job creation: `YY/ORYX/MM/NNN` → `26/ORYX/06/001` (resets monthly).

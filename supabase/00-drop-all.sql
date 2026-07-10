@@ -11,6 +11,8 @@
 --   2. 01-bootstrap.sql
 -- =============================================================================
 
+drop table if exists public.site_visit_calculations cascade;
+drop table if exists public.app_sequences cascade;
 drop table if exists public.leave_calendar_links cascade;
 drop table if exists public.leave_requests cascade;
 drop table if exists public.password_vault_entries cascade;

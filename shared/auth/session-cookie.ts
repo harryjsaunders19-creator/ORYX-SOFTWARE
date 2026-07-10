@@ -7,6 +7,8 @@
 
 export const SESSION_COOKIE = "oryx_uid"
 export const REAL_SESSION_COOKIE = "oryx_real_uid"
+/** Set when the active user must change password before using the app. */
+export const MUST_CHANGE_PASSWORD_COOKIE = "oryx_must_chg"
 
 const VERSION = "v1"
 const enc = new TextEncoder()
