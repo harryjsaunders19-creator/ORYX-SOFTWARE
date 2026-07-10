@@ -51,6 +51,7 @@ const WIPE_TABLES = [
   "quotes",
   "jobs",
   "client_holds",
+  "client_contacts",
   "archive_log",
   "clients",
 ] as const

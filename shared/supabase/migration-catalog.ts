@@ -171,7 +171,7 @@ export const SUPABASE_INFRA_MIGRATIONS = [
 
 export const SUPABASE_GO_LIVE_STEPS = [
   "Create a Supabase project and copy URL, anon key, and service role key into Vercel env vars.",
-  "Run supabase/setup-vercel.sql then supabase/setup-vercel-part2.sql in the Supabase SQL Editor.",
+  "In Supabase SQL Editor: run supabase/00-drop-all.sql then supabase/01-bootstrap.sql (includes default admin@test.com / admin123). Regenerate after migration edits: npm run supabase:bootstrap",
   "From a machine with your SQLite data: npm run supabase:sync-all",
   "Visit System Health → Supabase and confirm all modules show tables ready.",
   "Deploy — modules read from Supabase automatically when SUPABASE_SERVICE_ROLE_KEY is set (opt out per module with SUPABASE_<MODULE>=false).",

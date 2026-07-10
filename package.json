@@ -18,6 +18,7 @@
     "db:reset": "node -e \"require('fs').rmSync('.data/oryx.db',{force:true}); require('fs').rmSync('.data/oryx.db-shm',{force:true}); require('fs').rmSync('.data/oryx.db-wal',{force:true})\" && npx tsx prisma/seed.ts",
     "db:check": "node scripts/check-db.mjs",
     "supabase:check": "node scripts/check-supabase.mjs",
+    "supabase:bootstrap": "node scripts/build-supabase-bootstrap.mjs",
     "supabase:verify-clients": "node scripts/verify-clients-migration.mjs",
     "supabase:sync-clients": "node scripts/sync-clients-to-supabase.mjs",
     "supabase:verify-jobs": "node scripts/verify-jobs-migration.mjs",

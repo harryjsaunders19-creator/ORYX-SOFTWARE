@@ -1,4 +1,7 @@
 -- =============================================================================
+-- DEPRECATED — use supabase/00-drop-all.sql + supabase/01-bootstrap.sql instead.
+-- (01-bootstrap is generated from supabase/migrations via npm run supabase:bootstrap)
+-- =============================================================================
 -- ORYX Full Supabase Setup — Run this ONCE in Supabase SQL Editor
 -- Paste the entire file → click Run. All tables are created safely (IF NOT EXISTS).
 -- After this, set these env vars in Vercel → Settings → Environment Variables:

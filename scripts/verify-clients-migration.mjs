@@ -59,12 +59,41 @@ if (error) {
 console.log("✓ public.clients table exists")
 console.log(`✓ Supabase client count: ${count ?? 0}`)
 
+const { error: contactsErr, count: contactCount } = await supabase
+  .from("client_contacts")
+  .select("*", { count: "exact", head: true })
+
+if (contactsErr) {
+  if (contactsErr.message.includes("does not exist") || contactsErr.code === "42P01") {
+    console.error("✗ Table public.client_contacts does not exist yet")
+    console.error("  Run supabase/01-bootstrap.sql (includes migration 021)")
+    process.exit(1)
+  }
+  console.error("✗ Supabase error (client_contacts):", contactsErr.message)
+  process.exit(1)
+}
+
+console.log("✓ public.client_contacts table exists")
+console.log(`✓ Supabase contact count: ${contactCount ?? 0}`)
+
 const dbPath = process.env.DB_PATH ?? join(projectRoot, ".data", "oryx.db")
 if (existsSync(dbPath)) {
   const Database = require("better-sqlite3")
   const db = new Database(dbPath, { readonly: true })
   const sqliteCount = db.prepare("SELECT COUNT(*) as n FROM Client").get().n
   console.log(`✓ SQLite client count:   ${sqliteCount}`)
+  const hasContactTable = db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ClientContact'",
+  ).get()
+  if (hasContactTable) {
+    const sqliteContacts = db.prepare("SELECT COUNT(*) as n FROM ClientContact").get().n
+    console.log(`✓ SQLite contact count:  ${sqliteContacts}`)
+    if (sqliteContacts > 0 && (contactCount ?? 0) === 0) {
+      console.log("\n→ SQLite has contacts but Supabase is empty. Run: npm run supabase:sync-clients")
+    } else if (sqliteContacts === (contactCount ?? 0)) {
+      console.log("✓ Contact counts match")
+    }
+  }
   if (sqliteCount > 0 && (count ?? 0) === 0) {
     console.log("\n→ SQLite has clients but Supabase is empty. Run: npm run supabase:sync-clients")
   } else if (sqliteCount === (count ?? 0)) {
