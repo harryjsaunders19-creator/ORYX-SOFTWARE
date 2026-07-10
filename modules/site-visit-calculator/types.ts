@@ -33,9 +33,13 @@ export interface SiteVisitCalculationResult {
   billableSiteHours: number
   /** Total billable hours for labour at the hourly rate (half-hour steps). */
   billableLabourHours: number
+  /** True when one-way drive exceeds 3.5 hr and the day rate applies. */
+  isDayRate: boolean
   rates: SiteVisitRates
   mileageCost: number
   labourCost: number
+  /** Mileage + labour before rounding to £95 intervals. */
+  rawSubtotal: number
   subtotal: number
   vat: number
   grandTotal: number

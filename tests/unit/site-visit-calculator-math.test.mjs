@@ -3,6 +3,9 @@ import assert from "node:assert/strict"
 import {
   buildCalculationResult,
   computeBillableLabourHours,
+  computeFeeTotals,
+  qualifiesForDayRate,
+  roundUpToBillingInterval,
   validateSiteHours,
   milesFromMetres,
   minutesFromSeconds,
@@ -22,7 +25,7 @@ describe("site visit calculator math", () => {
     assert.equal(result.returnDurationMinutes, 80)
   })
 
-  it("calculates mileage at HMRC rate", () => {
+  it("calculates mileage at HMRC rate (whole pounds)", () => {
     const result = buildCalculationResult({
       officeAddress: "Office",
       siteAddress: "Site",
@@ -53,7 +56,14 @@ describe("site visit calculator math", () => {
     assert.equal(billing.billableLabourHours, 1)
   })
 
-  it("bills 2.5 hr actual trip as 3 hr labour (0.5 hr site, 1 hr each way)", () => {
+  it("rounds ex-VAT total up to nearest £95", () => {
+    assert.equal(roundUpToBillingInterval(94), 95)
+    assert.equal(roundUpToBillingInterval(95), 95)
+    assert.equal(roundUpToBillingInterval(96), 190)
+    assert.equal(roundUpToBillingInterval(294), 380)
+  })
+
+  it("bills 2.5 hr actual trip as 3 hr labour rounded to £380 ex VAT", () => {
     const result = buildCalculationResult({
       officeAddress: "Office",
       siteAddress: "Site",
@@ -65,6 +75,10 @@ describe("site visit calculator math", () => {
     })
     assert.equal(result.billableLabourHours, 3)
     assert.equal(result.labourCost, 285)
+    assert.equal(result.rawSubtotal, 294)
+    assert.equal(result.subtotal, 380)
+    assert.equal(result.vat, 76)
+    assert.equal(result.grandTotal, 456)
   })
 
   it("includes rounded drive + site time in labour", () => {
@@ -77,12 +91,40 @@ describe("site visit calculator math", () => {
       route: { oneWayDistanceMiles: 10, oneWayDurationMinutes: 30 },
       rates: { mileagePerMile: 0.45, hourlyRate: 95, vatRate: 0.2 },
     })
-    // 30 min each way → 0.5 hr per leg → 1 hr return drive + 1 hr site = 2 hr × £95
     assert.equal(result.billableLabourHours, 2)
     assert.equal(result.labourCost, 190)
+    assert.equal(result.subtotal, 285)
+    assert.equal(result.grandTotal, 342)
   })
 
-  it("applies 20% VAT to subtotal", () => {
+  it("applies day rate when one-way drive exceeds 3.5 hours", () => {
+    assert.equal(qualifiesForDayRate(210), false)
+    assert.equal(qualifiesForDayRate(211), true)
+
+    const result = buildCalculationResult({
+      officeAddress: "Office",
+      siteAddress: "Site",
+      siteLat: null,
+      siteLng: null,
+      siteHours: 2,
+      route: { oneWayDistanceMiles: 200, oneWayDurationMinutes: 220 },
+      rates: { mileagePerMile: 0.45, hourlyRate: 95, vatRate: 0.2 },
+    })
+    assert.equal(result.isDayRate, true)
+    assert.equal(result.labourCost, 950)
+    assert.equal(result.mileageCost, 180)
+    assert.equal(result.rawSubtotal, 1130)
+    assert.equal(result.subtotal, 1140)
+    assert.equal(result.vat, 228)
+    assert.equal(result.grandTotal, 1368)
+  })
+
+  it("applies 20% VAT to rounded subtotal as whole pounds", () => {
+    const totals = computeFeeTotals(0, 95, 0.2)
+    assert.equal(totals.subtotal, 95)
+    assert.equal(totals.vat, 19)
+    assert.equal(totals.grandTotal, 114)
+
     const result = buildCalculationResult({
       officeAddress: "Office",
       siteAddress: "Site",

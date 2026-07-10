@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
-import { ORYX_OFFICE } from "../constants"
+import { ORYX_OFFICE, DAY_RATE_DRIVE_THRESHOLD_HOURS } from "../constants"
 import type { SiteVisitCalculationResult } from "../types"
 import { buildSummaryText } from "../services/summary-text"
 import { formatGBP } from "@/shared/utils/utils"
@@ -54,23 +54,29 @@ export async function buildSiteVisitPdfBuffer(
     ["One-way drive time", fmtDuration(result.oneWayDurationMinutes)],
     ["Return drive time", fmtDuration(result.returnDurationMinutes)],
     ["Time on site", `${result.siteHours} hr`],
-    ["Labour billed", `${result.billableLabourHours} hr @ ${formatGBP(result.rates.hourlyRate)}/hr`],
+    result.isDayRate
+      ? ["Labour", `Day rate ${formatGBP(result.labourCost)} (>${DAY_RATE_DRIVE_THRESHOLD_HOURS} hr drive)`]
+      : ["Labour billed", `${result.billableLabourHours} hr @ ${formatGBP(result.rates.hourlyRate)}/hr`],
     ["", ""],
     ["Mileage cost", formatGBP(result.mileageCost)],
-    ["Labour cost", `${formatGBP(result.labourCost)} (${result.billableLabourHours} hr)`],
-    ["Subtotal", formatGBP(result.subtotal)],
+    result.isDayRate
+      ? ["Labour cost", formatGBP(result.labourCost)]
+      : ["Labour cost", `${formatGBP(result.labourCost)} (${result.billableLabourHours} hr)`],
+    ["Total (ex VAT)", formatGBP(result.subtotal)],
     [`VAT (${Math.round(result.rates.vatRate * 100)}%)`, formatGBP(result.vat)],
-    ["Grand Total", formatGBP(result.grandTotal)],
+    ["Total (inc VAT)", formatGBP(result.grandTotal)],
   ]
 
   for (const [label, value] of rows) {
     if (!label && !value) { y -= 4; continue }
-    page.drawText(label, { x: MARGIN, y, size: 10, font })
+    const isTotal = label === "Total (ex VAT)" || label === "Total (inc VAT)"
+    const rowFont = isTotal ? fontBold : font
+    page.drawText(label, { x: MARGIN, y, size: isTotal ? 11 : 10, font: rowFont })
     page.drawText(value, {
-      x: PAGE_WIDTH - MARGIN - font.widthOfTextAtSize(value, 10),
+      x: PAGE_WIDTH - MARGIN - rowFont.widthOfTextAtSize(value, isTotal ? 11 : 10),
       y,
-      size: 10,
-      font: label === "Grand Total" ? fontBold : font,
+      size: isTotal ? 11 : 10,
+      font: rowFont,
     })
     y -= 16
   }

@@ -13,6 +13,15 @@ export const DEFAULT_MILEAGE_RATE = 0.45
 /** Engineer hourly charge (pounds per hour). */
 export const DEFAULT_HOURLY_RATE = 95
 
+/** Labour fees round up to this interval (ex VAT). */
+export const BILLING_INTERVAL = DEFAULT_HOURLY_RATE
+
+/** Flat day rate when one-way drive exceeds the threshold (ex VAT). */
+export const DAY_RATE = 950
+
+/** One-way drive beyond this duration triggers the day rate. */
+export const DAY_RATE_DRIVE_THRESHOLD_HOURS = 3.5
+
 /** Standard UK VAT rate. */
 export const DEFAULT_VAT_RATE = 0.2
 

@@ -2,6 +2,7 @@
 
 import { formatGBP } from "@/shared/utils/utils"
 import type { SiteVisitCalculationResult } from "../types"
+import { DAY_RATE_DRIVE_THRESHOLD_HOURS } from "../constants"
 import { DataPanel } from "@/shared/layouts/page-layout"
 import { Building2, MapPin, PoundSterling } from "lucide-react"
 
@@ -86,11 +87,21 @@ export function CalculationSummary({
         <Stat label="Time on site" value={`${result.siteHours} hr`} />
         <Stat
           label="Labour billed"
-          value={`${result.billableLabourHours} hr @ ${formatGBP(result.rates.hourlyRate)}/hr`}
+          value={
+            result.isDayRate
+              ? `Day rate ${formatGBP(result.labourCost)}`
+              : `${result.billableLabourHours} hr @ ${formatGBP(result.rates.hourlyRate)}/hr`
+          }
         />
       </div>
 
-      {result.billableSiteHours > result.siteHours && (
+      {result.isDayRate && (
+        <p className="text-xs text-t3">
+          One-way drive exceeds {DAY_RATE_DRIVE_THRESHOLD_HOURS} hours — day rate applied.
+        </p>
+      )}
+
+      {result.billableSiteHours > result.siteHours && !result.isDayRate && (
         <p className="text-xs text-t3">
           On-site time billed at {result.billableSiteHours} hr minimum.
         </p>
@@ -99,16 +110,24 @@ export function CalculationSummary({
       <div className="border-t border-bd pt-4 space-y-2 text-sm">
         <Row label="Mileage" value={formatGBP(result.mileageCost)} />
         <Row
-          label={`Labour (${result.billableLabourHours} hr)`}
+          label={result.isDayRate ? "Labour (day rate)" : `Labour (${result.billableLabourHours} hr)`}
           value={formatGBP(result.labourCost)}
         />
-        <Row label="Subtotal" value={formatGBP(result.subtotal)} />
+        {result.subtotal > result.rawSubtotal && (
+          <p className="text-xs text-t3">
+            Total rounded up to the nearest {formatGBP(result.rates.hourlyRate)} (ex VAT).
+          </p>
+        )}
+        <div className="flex justify-between font-bold text-t1 text-base pt-2 border-t border-bd">
+          <span>Total (ex VAT)</span>
+          <span className="tabular-nums">{formatGBP(result.subtotal)}</span>
+        </div>
         <Row label={`VAT (${Math.round(result.rates.vatRate * 100)}%)`} value={formatGBP(result.vat)} />
-        <div className="flex justify-between font-semibold text-t1 text-base pt-2 border-t border-bd">
+        <div className="flex justify-between font-bold text-t1 text-lg pt-1">
           <span className="flex items-center gap-1">
-            <PoundSterling className="h-4 w-4" /> Grand Total
+            <PoundSterling className="h-4 w-4" /> Total (inc VAT)
           </span>
-          <span>{formatGBP(result.grandTotal)}</span>
+          <span className="tabular-nums">{formatGBP(result.grandTotal)}</span>
         </div>
       </div>
     </DataPanel>

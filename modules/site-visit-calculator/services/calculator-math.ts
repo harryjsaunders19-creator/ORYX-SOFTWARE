@@ -1,4 +1,7 @@
 import {
+  BILLING_INTERVAL,
+  DAY_RATE,
+  DAY_RATE_DRIVE_THRESHOLD_HOURS,
   DEFAULT_HOURLY_RATE,
   DEFAULT_MILEAGE_RATE,
   DEFAULT_VAT_RATE,
@@ -44,10 +47,23 @@ export function roundMoney(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+/** Round up to the nearest billing interval (default £95, whole pounds). */
+export function roundUpToBillingInterval(
+  amount: number,
+  interval: number = BILLING_INTERVAL,
+): number {
+  if (amount <= 0) return 0
+  return Math.ceil(amount / interval) * interval
+}
+
 /** Round drive duration up to the nearest half hour (45 min → 1 hr, 1 hr 15 → 1.5 hr). */
 export function roundUpDriveMinutesToHours(minutes: number): number {
   if (minutes <= 0) return 0
   return Math.ceil(minutes / 30) / 2
+}
+
+export function qualifiesForDayRate(oneWayDurationMinutes: number): boolean {
+  return oneWayDurationMinutes > DAY_RATE_DRIVE_THRESHOLD_HOURS * 60
 }
 
 /**
@@ -77,6 +93,50 @@ export function computeBillableLabourHours(
   }
 }
 
+export function computeMileageCost(
+  returnDistanceMiles: number,
+  mileagePerMile: number,
+): number {
+  return Math.ceil(returnDistanceMiles * mileagePerMile)
+}
+
+export function computeLabourCost(
+  oneWayDurationMinutes: number,
+  siteHours: number,
+  hourlyRate: number,
+): {
+  labourCost: number
+  isDayRate: boolean
+  billing: ReturnType<typeof computeBillableLabourHours>
+} {
+  const billing = computeBillableLabourHours(oneWayDurationMinutes, siteHours)
+  if (qualifiesForDayRate(oneWayDurationMinutes)) {
+    return { labourCost: DAY_RATE, isDayRate: true, billing }
+  }
+  return {
+    labourCost: billing.billableLabourHours * hourlyRate,
+    isDayRate: false,
+    billing,
+  }
+}
+
+export function computeFeeTotals(
+  mileageCost: number,
+  labourCost: number,
+  vatRate: number,
+): {
+  rawSubtotal: number
+  subtotal: number
+  vat: number
+  grandTotal: number
+} {
+  const rawSubtotal = mileageCost + labourCost
+  const subtotal = roundUpToBillingInterval(rawSubtotal)
+  const vat = Math.round(subtotal * vatRate)
+  const grandTotal = subtotal + vat
+  return { rawSubtotal, subtotal, vat, grandTotal }
+}
+
 /** Office → site → office: double one-way distance and driving time. */
 export function buildCalculationResult(params: {
   officeAddress: string
@@ -91,16 +151,13 @@ export function buildCalculationResult(params: {
   const returnDistanceMiles = roundMoney(params.route.oneWayDistanceMiles * 2)
   const returnDurationMinutes = roundMoney(params.route.oneWayDurationMinutes * 2)
 
-  const billing = computeBillableLabourHours(
+  const { labourCost, isDayRate, billing } = computeLabourCost(
     params.route.oneWayDurationMinutes,
     params.siteHours,
+    rates.hourlyRate,
   )
-
-  const mileageCost = roundMoney(returnDistanceMiles * rates.mileagePerMile)
-  const labourCost = roundMoney(billing.billableLabourHours * rates.hourlyRate)
-  const subtotal = roundMoney(mileageCost + labourCost)
-  const vat = roundMoney(subtotal * rates.vatRate)
-  const grandTotal = roundMoney(subtotal + vat)
+  const mileageCost = computeMileageCost(returnDistanceMiles, rates.mileagePerMile)
+  const totals = computeFeeTotals(mileageCost, labourCost, rates.vatRate)
 
   return {
     officeAddress: params.officeAddress,
@@ -115,12 +172,14 @@ export function buildCalculationResult(params: {
     returnBillableDriveHours: billing.returnBillableDriveHours,
     billableSiteHours: billing.billableSiteHours,
     billableLabourHours: billing.billableLabourHours,
+    isDayRate,
     rates,
     mileageCost,
     labourCost,
-    subtotal,
-    vat,
-    grandTotal,
+    rawSubtotal: totals.rawSubtotal,
+    subtotal: totals.subtotal,
+    vat: totals.vat,
+    grandTotal: totals.grandTotal,
   }
 }
 
