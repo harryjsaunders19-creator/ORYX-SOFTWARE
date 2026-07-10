@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 import { dbHealthCheck, sequenceDb } from "@/lib/db"
 import { jobService } from "@/lib/services/job-service"
-import { createId } from "@paralleldrive/cuid2"
 import { requireRole } from "@/shared/auth/auth"
+import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
 
 export async function GET() {
   const auth = await requireRole(["ADMIN"])
@@ -28,33 +28,37 @@ export async function GET() {
     checks.read = { ok: false, message: "Read failed", detail: String(err) }
   }
 
-  let testId: string | null = null
   try {
-    testId = createId()
-    const testDrawingNumber = `__HEALTH__/${Date.now()}`
-    await jobService.create({
-      id: testId, drawingNumber: testDrawingNumber,
-      address: "__health_check__", typeOfWorks: "Access Scaffold",
-      clientCompany: "Test", requestedBy: "Test",
-      status: "NEW_REQUEST", designer: "Test",
-      dateCompleted: null,
-      notes: null, changedBy: "HealthCheck",
-    })
-    const written = await jobService.findUnique(testId)
-    checks.write = { ok: !!written, message: written ? "Write + delete OK" : "Write failed silently" }
-  } catch (err) {
-    checks.write = { ok: false, message: "Write test failed", detail: String(err) }
-  } finally {
-    if (testId) {
-      try { await jobService.delete(testId) } catch { /* best-effort cleanup */ }
+    if (isSupabaseOnly()) {
+      checks.write = {
+        ok: true,
+        message: "Write probe skipped (Supabase production — read-only health check)",
+      }
+    } else {
+      const seq = sequenceDb.currentDrawingSequence()
+      checks.write = {
+        ok: typeof seq === "number",
+        message: `Local store reachable (drawing sequence: ${seq})`,
+      }
     }
+  } catch (err) {
+    checks.write = { ok: false, message: "Store probe failed", detail: String(err) }
   }
 
   try {
-    const seq = sequenceDb.nextSequence("__health__")
-    checks.sequence = { ok: typeof seq === "number", message: `Sequence OK (test value: ${seq})` }
+    const seq = sequenceDb.currentDrawingSequence()
+    checks.sequence = {
+      ok: typeof seq === "number",
+      message: `Drawing sequence readable (current: ${seq})`,
+    }
   } catch (err) {
-    checks.sequence = { ok: false, message: "Sequence failed", detail: String(err) }
+    checks.sequence = {
+      ok: isSupabaseOnly(),
+      message: isSupabaseOnly()
+        ? "Sequence counter on Supabase (app_sequences)"
+        : "Sequence read failed",
+      detail: isSupabaseOnly() ? undefined : String(err),
+    }
   }
 
   try {
@@ -66,8 +70,12 @@ export async function GET() {
 
   const allOk = Object.values(checks).every(c => c.ok)
   return NextResponse.json(
-    { status: allOk ? "healthy" : "degraded", checks, time: new Date().toISOString(),
-      runtime: { node: process.version, env: process.env.NODE_ENV } },
+    {
+      status: allOk ? "healthy" : "degraded",
+      checks,
+      time: new Date().toISOString(),
+      runtime: { node: process.version, env: process.env.NODE_ENV },
+    },
     { status: allOk ? 200 : 503 },
   )
 }

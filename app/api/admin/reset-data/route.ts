@@ -45,6 +45,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, cleared: counts })
   } catch (err) {
-    return apiInternalError("app.admin.reset-data.route", err, undefined, { exposeDetail: true })
+    return apiInternalError("app.admin.reset-data.route", err)
   }
 }

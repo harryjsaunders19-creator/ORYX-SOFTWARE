@@ -10,7 +10,7 @@ insert into public.app_users (
   password_hash, must_change_password, created_at, updated_at
 ) values
   (
-    'bootstrap-admin-001',
+    'bootstrap-admin-00000001',
     'Admin',
     'admin@test.com',
     'admin@test.com',
@@ -22,7 +22,7 @@ insert into public.app_users (
     now()
   ),
   (
-    'bootstrap-engineer-001',
+    'bootstrap-engineer-00000001',
     'Engineer',
     'engineer@test.com',
     'engineer@test.com',

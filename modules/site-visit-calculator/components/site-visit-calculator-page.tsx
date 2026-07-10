@@ -362,7 +362,7 @@ export default function SiteVisitCalculatorPage() {
         </div>
 
         <div className="site-visit-print-only">
-          <CalculationSummary result={result} />
+          <CalculationSummary result={result} printId="site-visit-summary-print" />
         </div>
       </PageShell>
   )

@@ -48,6 +48,10 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const existing = await savedCalculationService.findUnique(id)
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
+    if (auth.user.role !== "ADMIN" && existing.createdBy !== auth.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
     await savedCalculationService.delete(id)
     return NextResponse.json({ ok: true })
   } catch (err) {
