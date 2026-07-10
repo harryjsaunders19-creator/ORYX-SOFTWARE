@@ -32,6 +32,10 @@ import {
   shouldUseBulkImport,
 } from "./import-excel-bulk"
 import { useSupabaseClients, useSupabaseJobs, useSupabaseQuotes } from "@/lib/supabase/feature-flags"
+import {
+  MAX_IMPORT_LOOKUP_ROWS,
+  MAX_IMPORT_SHEET_ROWS,
+} from "../constants"
 
 // ── Label → internal code maps ────────────────────────────────────────────────
 
@@ -42,6 +46,17 @@ const STATUS_BY_LABEL = Object.fromEntries(
 const ITEM_TYPE_BY_LABEL = Object.fromEntries(
   WORK_ITEM_TYPES.map(t => [t.label.toLowerCase(), t.value]),
 )
+
+function cappedSheetRows(sheet: ExcelJS.Worksheet, result: SheetResult): ExcelJS.Row[] {
+  const rows = sheetDataRows(sheet)
+  if (rows.length > MAX_IMPORT_SHEET_ROWS) {
+    result.errors.push(
+      `Sheet "${sheet.name}" has ${rows.length} rows — only the first ${MAX_IMPORT_SHEET_ROWS} were imported`,
+    )
+    return rows.slice(0, MAX_IMPORT_SHEET_ROWS)
+  }
+  return rows
+}
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -125,7 +140,7 @@ async function importClients(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 
   let allClients: ClientRow[]
   try {
-    allClients = await clientService.findManyWithMeta({ take: 10000 })
+    allClients = await clientService.findManyWithMeta({ take: MAX_IMPORT_LOOKUP_ROWS })
   } catch (err) {
     result.errors.push(`Could not load existing clients: ${formatImportError(err)}`)
     return result
@@ -142,7 +157,7 @@ async function importClients(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
   let createCount = 0
   let updateCount = 0
 
-  for (const row of sheetDataRows(sheet)) {
+  for (const row of cappedSheetRows(sheet, result)) {
     const name = str(row.getCell(1))
     if (!name) { result.skipped++; continue }
 
@@ -228,7 +243,7 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 
   let allJobs: Awaited<ReturnType<typeof jobService.findMany>>
   try {
-    allJobs = await jobService.findMany({ take: 50000 })
+    allJobs = await jobService.findMany({ take: MAX_IMPORT_LOOKUP_ROWS })
   } catch (err) {
     result.errors.push(`Could not load existing jobs: ${formatImportError(err)}`)
     return result
@@ -237,7 +252,7 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 
   let allClients: Awaited<ReturnType<typeof clientService.findManyWithMeta>>
   try {
-    allClients = await clientService.findManyWithMeta({ take: 10000 })
+    allClients = await clientService.findManyWithMeta({ take: MAX_IMPORT_LOOKUP_ROWS })
   } catch (err) {
     result.errors.push(`Could not load clients for job linking: ${formatImportError(err)}`)
     return result
@@ -248,7 +263,7 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
   let createCount = 0
   let updateCount = 0
 
-  for (const row of sheetDataRows(sheet)) {
+  for (const row of cappedSheetRows(sheet, result)) {
     const drawingNumber = str(row.getCell(1))
     if (!drawingNumber) { result.skipped++; continue }
 
@@ -374,7 +389,7 @@ async function importQuotes(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 
   let allQuotes: Awaited<ReturnType<typeof quoteService.findMany>>
   try {
-    allQuotes = await quoteService.findMany({ take: 50000 })
+    allQuotes = await quoteService.findMany({ take: MAX_IMPORT_LOOKUP_ROWS })
   } catch (err) {
     result.errors.push(`Could not load existing quotes: ${formatImportError(err)}`)
     return result
@@ -383,7 +398,7 @@ async function importQuotes(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 
   let allClients: Awaited<ReturnType<typeof clientService.findManyWithMeta>>
   try {
-    allClients = await clientService.findManyWithMeta({ take: 10000 })
+    allClients = await clientService.findManyWithMeta({ take: MAX_IMPORT_LOOKUP_ROWS })
   } catch (err) {
     result.errors.push(`Could not load clients for quote linking: ${formatImportError(err)}`)
     return result
@@ -394,7 +409,7 @@ async function importQuotes(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
   let createCount = 0
   let updateCount = 0
 
-  for (const row of sheetDataRows(sheet)) {
+  for (const row of cappedSheetRows(sheet, result)) {
     const quoteNumber = str(row.getCell(1))
     if (!quoteNumber) { result.skipped++; continue }
 

@@ -14,6 +14,7 @@ import {
   noteJobsArchivedFromError,
   isMissingColumnError,
 } from "@/lib/supabase/archived-filter"
+import { logEvent } from "@/shared/logger"
 import {
   sortColumn,
   todayIsoDate,
@@ -22,6 +23,9 @@ import {
   weekEndIsoDate,
   type SupabaseJobRow,
 } from "./mapper"
+
+/** Above this count, drawing-number list sort loads all matching IDs into memory. */
+const DRAWING_SORT_WARN_ROWS = 8_000
 import { parseOryxDrawingSequence } from "@/lib/drawing-number"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -197,6 +201,11 @@ export const supabaseJobRepo = {
         opts.where,
       )
       if (sortErr) throw sortErr
+
+      const totalRows = count ?? 0
+      if (totalRows > DRAWING_SORT_WARN_ROWS) {
+        logEvent("jobs.list.drawing_sort_large_dataset", { totalRows }, "warn")
+      }
 
       type SortRow = { id: string; drawingNumber: string; parentJobId: string | null; revisionLetter: string | null; createdAt: string }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

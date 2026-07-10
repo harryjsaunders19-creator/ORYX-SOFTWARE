@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "../services/job-service"
 import { historyService } from "../services/history-service"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireSignIn, actorName } from "@/shared/auth/auth"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -29,12 +29,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    let body: { note?: string; changedBy?: string }
+    let body: { note?: string }
     try { body = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
 
     const note      = body.note?.trim()
-    const changedBy = body.changedBy?.trim() || "System"
+    const changedBy = actorName(auth.user)
 
     if (!note) return NextResponse.json({ error: "note is required" }, { status: 422 })
 

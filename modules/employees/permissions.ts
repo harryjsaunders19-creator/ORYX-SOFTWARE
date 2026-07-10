@@ -71,6 +71,15 @@ export function canViewNotes(access: EmployeeAccess): boolean {
   return access === "admin" || access === "manager"
 }
 
+/** Profile photo download — active colleagues only; blocks arbitrary user-id probing. */
+export function canViewEmployeePhoto(opts: {
+  viewerActive: boolean
+  targetHasProfile: boolean
+  targetUserActive: boolean
+}): boolean {
+  return opts.viewerActive && opts.targetHasProfile && opts.targetUserActive
+}
+
 export function canEditNotes(access: EmployeeAccess): boolean {
   return access === "admin" || access === "manager"
 }

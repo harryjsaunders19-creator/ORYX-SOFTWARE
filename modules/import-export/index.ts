@@ -6,6 +6,12 @@ export {
   buildGlobalExportWorkbook,
   globalExportToBuffer,
 } from "./services/global-export"
+export {
+  MAX_GLOBAL_EXPORT_ROWS,
+  MAX_JOB_LIST_EXPORT_ROWS,
+  MAX_IMPORT_SHEET_ROWS,
+  MAX_IMPORT_LOOKUP_ROWS,
+} from "./constants"
 
 export {
   importFromExcelBuffer,

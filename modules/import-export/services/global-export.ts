@@ -25,6 +25,7 @@ import { historyService }        from "@/lib/services/history-service"
 import { passwordVaultService }  from "@/modules/password-vault"
 import { getJobStatus, getWorkItemType } from "@/lib/constants"
 import { format } from "date-fns"
+import { MAX_GLOBAL_EXPORT_ROWS } from "../constants"
 
 const SITE_VISIT_ID    = "cat_site_visit"
 const TEAMS_MEETING_ID = "cat_teams_meeting"
@@ -71,10 +72,13 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   wb.modified = new Date()
 
   // ── 1. Jobs ─────────────────────────────────────────────────────────────────
-  const jobs = await jobService.findMany({ orderBy: { field: "dateCreated", dir: "desc" } })
+  const jobs = await jobService.findMany({
+    orderBy: { field: "dateCreated", dir: "desc" },
+    take: MAX_GLOBAL_EXPORT_ROWS,
+  })
 
   const clientAccountCodes = new Map<string, string>()
-  ;(await clientService.findManyWithMeta({ take: 10000 })).forEach(c => {
+  ;(await clientService.findManyWithMeta({ take: MAX_GLOBAL_EXPORT_ROWS })).forEach(c => {
     if (c.accountCode) clientAccountCodes.set(c.id, c.accountCode)
   })
 
@@ -117,7 +121,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   applyColFmt(jobSheet, 11, GBP_FMT, jobs.length)
 
   // ── 2. Clients ──────────────────────────────────────────────────────────────
-  const clients = await clientService.findManyWithMeta({ take: 10000 })
+  const clients = await clientService.findManyWithMeta({ take: MAX_GLOBAL_EXPORT_ROWS })
   const clientSheet = wb.addWorksheet("Clients")
   clientSheet.columns = [
     { width: 28 }, { width: 12 }, { width: 20 }, { width: 16 },
@@ -137,7 +141,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   }
 
   // ── 3. Quotes ───────────────────────────────────────────────────────────────
-  const quotes = await quoteService.findMany({ take: 10000 })
+  const quotes = await quoteService.findMany({ take: MAX_GLOBAL_EXPORT_ROWS })
   const quoteSheet = wb.addWorksheet("Quotes")
   quoteSheet.columns = [
     { width: 14 }, { width: 12 }, { width: 28 }, { width: 20 },

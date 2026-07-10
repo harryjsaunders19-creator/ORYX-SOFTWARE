@@ -6,7 +6,8 @@ import { allocateDrawingNumber, sequenceDb } from "@/lib/db"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { createId } from "@paralleldrive/cuid2"
 import { VALID_ITEM_TYPES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE } from "@/lib/constants"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { MAX_JOB_LIST_EXPORT_ROWS } from "@/modules/import-export/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import {
@@ -14,6 +15,7 @@ import {
   canAddRevisionFrom,
 } from "@/lib/revision-chain"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
+import { holdService } from "@/modules/clients/hold/services/hold-service"
 
 /**
  * Compute canAddRevision without an extra DB round trip.
@@ -70,12 +72,18 @@ export async function GET(req: NextRequest) {
     }
 
     if (exportAll) {
-      const { jobs: rawJobs, allForRevisions } = await jobService.findManyWithCount({
+      const { jobs: rawJobs, total, allForRevisions } = await jobService.findManyWithCount({
         where,
         orderBy: { field: sortBy, dir: sortDir },
+        take: MAX_JOB_LIST_EXPORT_ROWS,
       })
       const jobs = flagRevisions(rawJobs, allForRevisions)
-      return listResponse({ jobs, total: jobs.length })
+      return listResponse({
+        jobs,
+        total,
+        exported: jobs.length,
+        truncated: total > jobs.length,
+      })
     }
 
     const { jobs: rawJobs, total, allForRevisions } = await jobService.findManyWithCount({
@@ -143,8 +151,7 @@ export async function POST(req: NextRequest) {
     }
 
     const id        = createId()
-    const changedBy = typeof body.changedBy === "string" && body.changedBy.trim()
-      ? body.changedBy.trim() : "System"
+    const changedBy = actorName(auth.user)
     const designer  = typeof body.designer === "string" ? body.designer.trim() : ""
 
     const rawQuote = body.quoteValue !== undefined && body.quoteValue !== null && body.quoteValue !== ""
@@ -190,6 +197,17 @@ export async function POST(req: NextRequest) {
     } else if (resolvedClientCompany) {
       const client = await clientService.findByName(resolvedClientCompany)
       if (client) resolvedClientId = client.id
+    }
+
+    if (resolvedClientId && body.proceedDespiteHold !== true) {
+      const hold = await holdService.activeHoldForClient(resolvedClientId)
+      if (hold) {
+        return NextResponse.json({
+          error: "Client is on hold",
+          onHold: true,
+          holdReason: hold.reason,
+        }, { status: 422 })
+      }
     }
 
     const job = await jobService.create({

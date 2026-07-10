@@ -17,6 +17,7 @@ export {
   canUploadRestrictedDocuments,
   canViewNotes,
   canEditNotes,
+  canViewEmployeePhoto,
   canEditEmployeeField,
   filterPatchByAccess,
   isAdmin,

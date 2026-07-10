@@ -81,3 +81,8 @@ export async function requireSignIn(): Promise<RoleCheckResult> {
   }
   return { user }
 }
+
+/** Display name for audit fields — never trust client-supplied changedBy. */
+export function actorName(user: UserRow): string {
+  return user.name?.trim() || user.email?.trim() || "System"
+}

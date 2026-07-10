@@ -6,6 +6,7 @@ import { format } from "date-fns"
 import {
   Plus, FileText, Download, CheckCircle2, XCircle,
   Loader2, ArrowRight, Clock, FileDown, Trash2, Archive,
+  ChevronLeft, ChevronRight, AlertTriangle,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
@@ -26,6 +27,7 @@ import { inferQuoteWorksFromDescription, quoteWorksDisplayLabel } from "../quote
 import { TypeOfWorksCombobox } from "@/components/type-of-works-combobox"
 import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
+import { useMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
 import { QUOTE_STATUSES } from "@/lib/types"
 import type { Quote, Client } from "@/lib/types"
@@ -39,6 +41,8 @@ type QuotesData = {
   expiringSoonCount?: number
   expiredClearableCount?: number
 }
+
+const QUOTE_PAGE_LIMIT = 25
 
 function statusMeta(status: string) {
   return QUOTE_STATUSES.find(s => s.value === status) ?? QUOTE_STATUSES[0]
@@ -342,20 +346,34 @@ function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
   onClose: () => void
   onConverted: () => void
 }) {
-  const { userName }  = useUser()
   const { toast }     = useToast()
   const [designer,       setDesigner]       = useState("")
   const [requiredByDate, setRequiredByDate] = useState(defaultRequiredByDate)
   const [saving,         setSaving]         = useState(false)
+  const [holdWarning,    setHoldWarning]    = useState<string | null>(null)
 
-  const submit = async () => {
+  const doConvert = async (proceedDespiteHold = false) => {
     setSaving(true)
     try {
       const res = await fetch(`/api/quotes/${quote.id}/convert`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ designer: designer.trim(), requiredByDate: requiredByDate || null, changedBy: userName }),
+        body: JSON.stringify({
+          designer: designer.trim(),
+          requiredByDate: requiredByDate || null,
+          proceedDespiteHold,
+        }),
       })
-      const body = await res.json() as { job?: { drawingNumber: string }; error?: string; detail?: string }
+      const body = await res.json() as {
+        job?: { drawingNumber: string }
+        error?: string
+        detail?: string
+        onHold?: boolean
+        holdReason?: string
+      }
+      if (res.status === 422 && body.onHold) {
+        setHoldWarning(body.holdReason ?? body.error ?? "This client is on hold")
+        return
+      }
       if (!res.ok) {
         const msg = body.detail?.trim() || body.error || "Failed to create job"
         toast(msg, "error")
@@ -367,8 +385,12 @@ function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
     finally { setSaving(false) }
   }
 
+  const submit = () => { setHoldWarning(null); void doConvert(false) }
+  const proceedDespiteHold = () => { setHoldWarning(null); void doConvert(true) }
+
   return (
-    <Dialog open onOpenChange={o => { if (!o) onClose() }}>
+    <>
+    <Dialog open onOpenChange={o => { if (!o && !saving) onClose() }}>
       <DialogContent size="sm">
         <DialogHeader><DialogTitle>Create job from {quote.quoteNumber}</DialogTitle></DialogHeader>
         <DialogBody className="space-y-4">
@@ -403,6 +425,34 @@ function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {holdWarning && (
+      <div
+        className="fixed inset-0 z-[300] flex items-center justify-center"
+        style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+      >
+        <div className="bg-sr rounded-xl border-2 border-dn shadow-modal w-[calc(100vw-2rem)] max-w-[440px] overflow-hidden">
+          <div className="bg-dn px-6 py-4 flex items-center gap-3">
+            <AlertTriangle className="h-6 w-6 text-white shrink-0" />
+            <div>
+              <p className="text-base font-bold text-white">Client On Hold</p>
+              <p className="text-white/85 text-xs mt-0.5">This client is restricted from receiving new work.</p>
+            </div>
+          </div>
+          <div className="px-6 py-5">
+            <div className="bg-dn-bg border border-dn-bd rounded-md px-4 py-3 mb-5">
+              <p className="text-xs font-semibold text-dn uppercase tracking-wider mb-1">Reason</p>
+              <p className="text-sm text-dn-tx font-medium">{holdWarning}</p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setHoldWarning(null)} disabled={saving}>Cancel</Button>
+              <Button variant="danger" onClick={proceedDespiteHold} loading={saving}>Proceed anyway</Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
@@ -413,6 +463,121 @@ export default function QuotesPage() {
     </Suspense>
   )
 }
+
+function QuoteRowActions({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
+  quote: Quote
+  pdfGenerating: string | null
+  onGeneratePdf: (q: Quote) => void
+  onEdit: (q: Quote) => void
+  onSetStatus: (q: Quote, status: string) => void
+  onConvert: (q: Quote) => void
+  onArchive: (q: Quote) => void
+}) {
+  return (
+    <div className="flex items-center gap-1 justify-end flex-wrap">
+      {q.pdfPath ? (
+        <a href={resolveQuotePdfUrl(q.id, q.pdfPath) ?? "#"} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg" title="Open PDF">
+          <FileDown className="h-3.5 w-3.5" />
+        </a>
+      ) : (
+        <button onClick={() => onGeneratePdf(q)} disabled={pdfGenerating === q.id}
+          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg disabled:opacity-50"
+          title="Generate PDF">
+          {pdfGenerating === q.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+        </button>
+      )}
+      <Button variant="ghost" size="sm" onClick={() => onEdit(q)}>Edit</Button>
+      {q.status === "DRAFT" && (
+        <Button variant="ghost" size="sm" onClick={() => onSetStatus(q, "SENT")}>
+          <Clock className="h-3.5 w-3.5" /> Sent
+        </Button>
+      )}
+      {(q.status === "DRAFT" || q.status === "SENT")
+        && getQuoteExpiryInfo(q.expiryDate, q.status).severity !== "expired" && (
+        <>
+          <Button variant="ghost" size="sm" className="text-ok-tx hover:bg-ok-bg" onClick={() => onSetStatus(q, "ACCEPTED")}>
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="sm" className="text-dn hover:bg-dn-bg" onClick={() => onSetStatus(q, "REJECTED")}>
+            <XCircle className="h-3.5 w-3.5" />
+          </Button>
+        </>
+      )}
+      {q.status === "ACCEPTED" && !q.jobId && (
+        <Button variant="primary" size="sm" onClick={() => onConvert(q)}>Create Job</Button>
+      )}
+      {!q.jobId && (
+        <Button variant="ghost" size="sm" className="text-t4 hover:text-wn-tx hover:bg-wn-bg" title="Archive quote" onClick={() => onArchive(q)}>
+          <Archive className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </div>
+  )
+}
+
+const QuoteMobileCard = memo(function QuoteMobileCard({
+  quote: q,
+  pdfGenerating,
+  onGeneratePdf,
+  onEdit,
+  onSetStatus,
+  onConvert,
+  onArchive,
+}: {
+  quote: Quote
+  pdfGenerating: string | null
+  onGeneratePdf: (q: Quote) => void
+  onEdit: (q: Quote) => void
+  onSetStatus: (q: Quote, status: string) => void
+  onConvert: (q: Quote) => void
+  onArchive: (q: Quote) => void
+}) {
+  return (
+    <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <span className="font-mono text-xs font-bold text-ac">{q.quoteNumber}</span>
+          <p className="text-sm font-medium text-t1 mt-1 truncate">{q.clientCompany}</p>
+          {q.contactName && <p className="text-xs text-t3 truncate">{q.contactName}</p>}
+          <p className="text-xs text-t2 mt-1 line-clamp-2">
+            {quoteWorksDisplayLabel(q.typeOfWorks, q.customTypeDescription, q.description)}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-sm font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
+          {q.vatRate != null && <p className="text-[10px] text-t4">+{q.vatRate}% VAT</p>}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-t3">
+        <span className="tabular-nums">{format(parseLocalDate(q.quoteDate), "d MMM yyyy")}</span>
+        <QuoteExpiryCell quote={q} />
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <QuoteStatusBadge status={q.status} />
+        {q.jobId && (
+          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="text-[11px] text-ac hover:underline">
+            View job →
+          </Link>
+        )}
+      </div>
+
+      <div className="pt-2 border-t border-bd/60">
+        <QuoteRowActions
+          quote={q}
+          pdfGenerating={pdfGenerating}
+          onGeneratePdf={onGeneratePdf}
+          onEdit={onEdit}
+          onSetStatus={onSetStatus}
+          onConvert={onConvert}
+          onArchive={onArchive}
+        />
+      </div>
+    </div>
+  )
+})
 
 function QuoteTableRow({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
   quote: Quote
@@ -456,45 +621,15 @@ function QuoteTableRow({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSetSt
         )}
       </td>
       <td className="px-4 py-3">
-        <div className="flex items-center gap-1 justify-end flex-wrap">
-          {q.pdfPath ? (
-            <a href={resolveQuotePdfUrl(q.id, q.pdfPath) ?? "#"} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg" title="Open PDF">
-              <FileDown className="h-3.5 w-3.5" />
-            </a>
-          ) : (
-            <button onClick={() => onGeneratePdf(q)} disabled={pdfGenerating === q.id}
-              className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg disabled:opacity-50"
-              title="Generate PDF">
-              {pdfGenerating === q.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            </button>
-          )}
-          <Button variant="ghost" size="sm" onClick={() => onEdit(q)}>Edit</Button>
-          {q.status === "DRAFT" && (
-            <Button variant="ghost" size="sm" onClick={() => onSetStatus(q, "SENT")}>
-              <Clock className="h-3.5 w-3.5" /> Sent
-            </Button>
-          )}
-          {(q.status === "DRAFT" || q.status === "SENT")
-            && getQuoteExpiryInfo(q.expiryDate, q.status).severity !== "expired" && (
-            <>
-              <Button variant="ghost" size="sm" className="text-ok-tx hover:bg-ok-bg" onClick={() => onSetStatus(q, "ACCEPTED")}>
-                <CheckCircle2 className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="sm" className="text-dn hover:bg-dn-bg" onClick={() => onSetStatus(q, "REJECTED")}>
-                <XCircle className="h-3.5 w-3.5" />
-              </Button>
-            </>
-          )}
-          {q.status === "ACCEPTED" && !q.jobId && (
-            <Button variant="primary" size="sm" onClick={() => onConvert(q)}>Create Job</Button>
-          )}
-          {!q.jobId && (
-            <Button variant="ghost" size="sm" className="text-t4 hover:text-wn-tx hover:bg-wn-bg" title="Archive quote" onClick={() => onArchive(q)}>
-              <Archive className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
+        <QuoteRowActions
+          quote={q}
+          pdfGenerating={pdfGenerating}
+          onGeneratePdf={onGeneratePdf}
+          onEdit={onEdit}
+          onSetStatus={onSetStatus}
+          onConvert={onConvert}
+          onArchive={onArchive}
+        />
       </td>
     </tr>
   )
@@ -509,6 +644,7 @@ function QuotesInner() {
   const [search,     setSearch]     = useState(() => searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
   const [statusFilter, setStatusFilter] = useState("ALL")
+  const [page, setPage] = useState(1)
   const [createOpen, setCreateOpen] = useState(false)
   const [editQuote,  setEditQuote]  = useState<Quote | null>(null)
   const [convertQuote, setConvertQuote] = useState<Quote | null>(null)
@@ -519,10 +655,13 @@ function QuotesInner() {
   const [archiveQuote, setArchiveQuote] = useState<Quote | null>(null)
   const [archiving,    setArchiving]    = useState(false)
 
+  useEffect(() => { setPage(1) }, [debouncedSearch, statusFilter])
+
   const apiKey = `/api/quotes?${new URLSearchParams({
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(statusFilter !== "ALL" && { status: statusFilter }),
-    limit: "100",
+    page: String(page),
+    limit: String(QUOTE_PAGE_LIMIT),
   })}`
   const { data, error, isLoading, isValidating, mutate } = useApi<QuotesData>(apiKey)
 
@@ -530,6 +669,8 @@ function QuotesInner() {
 
   const loading = isLoading && !data
   const refreshing = isValidating && !!data
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / QUOTE_PAGE_LIMIT)) : 1
+  const isMobile = useMediaQuery("(max-width: 767px)")
 
   const handleEdit = useCallback((q: Quote) => setEditQuote(q), [])
   const handleConvert = useCallback((q: Quote) => setConvertQuote(q), [])
@@ -738,6 +879,21 @@ function QuotesInner() {
             }
           />
         </DataPanel>
+      ) : isMobile ? (
+        <div className={cn("space-y-2.5 transition-opacity", refreshing && "opacity-60")}>
+          {data.quotes.map(q => (
+            <QuoteMobileCard
+              key={q.id}
+              quote={q}
+              pdfGenerating={pdfGenerating}
+              onGeneratePdf={generatePdf}
+              onEdit={handleEdit}
+              onSetStatus={setStatus}
+              onConvert={handleConvert}
+              onArchive={handleArchiveOpen}
+            />
+          ))}
+        </div>
       ) : (
         <DataPanel className={cn("overflow-x-auto overscroll-x-contain transition-opacity", refreshing && "opacity-60")}>
           <table className="w-full min-w-[720px] text-sm">
@@ -769,6 +925,24 @@ function QuotesInner() {
             </tbody>
           </table>
         </DataPanel>
+      )}
+
+      {data && totalPages > 1 && (
+        <div className="flex items-center justify-between gap-4 mt-4 px-1">
+          <p className="text-xs text-t3">
+            {((page - 1) * QUOTE_PAGE_LIMIT) + 1}–{Math.min(page * QUOTE_PAGE_LIMIT, data.total)} of{" "}
+            <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-xs text-t3 tabular-nums px-2">{page} / {totalPages}</span>
+            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Create dialog */}

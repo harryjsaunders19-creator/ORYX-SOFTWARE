@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
 import { quoteService } from "../services/quote-service"
 import { clientService } from "@/lib/services/client-service"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "../quote-works"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
       expiryDate,
       status,
       notes:        body.notes ? String(body.notes).trim() : null,
-      createdBy:    body.createdBy ? String(body.createdBy) : "System",
+      createdBy:    actorName(auth.user),
       vatRate,
     })
 

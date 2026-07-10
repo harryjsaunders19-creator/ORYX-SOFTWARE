@@ -530,13 +530,19 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const handleCreate = async (form: JobFormData) => {
     setCreateSaving(true)
     try {
+      const { proceedDespiteHold, ...payload } = form
       const res = await fetch("/api/jobs", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, changedBy: userName }),
+        body: JSON.stringify({ ...payload, proceedDespiteHold }),
       })
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string }
-        toast(body.error ?? "Failed to create job", "error"); throw new Error()
+        const body = await res.json().catch(() => ({})) as { error?: string; onHold?: boolean; holdReason?: string }
+        if (res.status === 422 && body.onHold) {
+          toast(body.holdReason ?? body.error ?? "Client is on hold", "error")
+        } else {
+          toast(body.error ?? "Failed to create job", "error")
+        }
+        throw new Error()
       }
       const job = await res.json() as Job
       toast(`${job.drawingNumber} created`, "success")
@@ -650,7 +656,11 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       ...(onlyRevisions && { onlyRevisions: "true" }),
     })
     try {
-      const { jobs } = await fetch(`/api/jobs?${qs}`).then(r => r.json()) as { jobs: Job[] }
+      const { jobs, truncated, total } = await fetch(`/api/jobs?${qs}`).then(r => r.json()) as {
+        jobs: Job[]
+        truncated?: boolean
+        total?: number
+      }
       const headers = ["Drawing No.","Address","Type of Works","Custom Type Description","Client","Requested By","Item Type","Status","Designer","Quote Value","Quote Ref","Date Created","Date Completed","Originally Entered As","Notes"]
       const rows = jobs.map(j => [
         j.drawingNumber, j.address, j.typeOfWorks, j.customTypeDescription ?? "", j.clientCompany, j.requestedBy,
@@ -667,7 +677,12 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       const a = document.createElement("a")
       a.href = url; a.download = `oryx-jobs-${format(new Date(), "yyyy-MM-dd")}.csv`; a.click()
       URL.revokeObjectURL(url)
-      toast(`Exported ${jobs.length} job${jobs.length !== 1 ? "s" : ""}`, "success")
+      toast(
+        truncated && total != null
+          ? `Exported ${jobs.length} of ${total} jobs (limit reached — narrow filters for a full export)`
+          : `Exported ${jobs.length} job${jobs.length !== 1 ? "s" : ""}`,
+        truncated ? "info" : "success",
+      )
     } catch { toast("Export failed", "error") }
   }
 

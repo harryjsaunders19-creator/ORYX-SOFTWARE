@@ -4,8 +4,9 @@ import Link from "next/link"
 import { format, startOfWeek, endOfWeek } from "date-fns"
 import {
   MapPin, Video, Receipt, Briefcase,
-  AlertOctagon, ClipboardCheck, AlertTriangle, Clock,
+  AlertOctagon, ClipboardCheck, AlertTriangle, Clock, RefreshCw,
 } from "lucide-react"
+import { Button } from "@/shared/ui/button"
 import { useUser } from "@/shared/providers/user-context"
 import { cn, getDeadlineInfo } from "@/shared/utils/utils"
 import { apiFetch } from "@/shared/hooks/use-api"
@@ -72,6 +73,7 @@ export function DashboardStats() {
   const toStr     = format(weekEnd, "yyyy-MM-dd")
 
   const loadAll = useCallback(() => {
+    setLoading(true)
     setError(null)
     const params = new URLSearchParams({ calendarFrom: fromStr, calendarTo: toStr })
     apiFetch(`/api/stats?${params}`)
@@ -98,9 +100,12 @@ export function DashboardStats() {
   const teamsMeetings = events.filter(e => e.categoryId === TEAMS_MEETING_ID)
 
   if (error) return (
-    <div className="bg-dn-bg border border-dn-bd rounded-md p-4 text-sm text-dn-tx space-y-2">
+    <div className="bg-dn-bg border border-dn-bd rounded-md p-4 text-sm text-dn-tx space-y-3">
       <p className="font-medium">Failed to load dashboard data.</p>
       <p className="text-xs text-t3">{error}</p>
+      <Button variant="outline" size="sm" onClick={loadAll}>
+        <RefreshCw className="h-3.5 w-3.5" /> Retry
+      </Button>
     </div>
   )
   if (loading) return (

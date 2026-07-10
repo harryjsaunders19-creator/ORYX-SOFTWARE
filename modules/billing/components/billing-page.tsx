@@ -9,10 +9,10 @@ import { Textarea } from "@/shared/ui/textarea"
 import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
 import { useToast } from "@/shared/ui/toast"
-import { useUser } from "@/shared/providers/user-context"
 import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, DataPanel, KpiTile, TabBar } from "@/shared/layouts/page-layout"
-import { formatGBP, formatDisplayDate } from "@/shared/utils/utils"
+import { formatGBP, formatDisplayDate, cn } from "@/shared/utils/utils"
+import { useMediaQuery } from "@/shared/hooks/use-media-query"
 import type { BillingHandoff, BillingExportBatch } from "@/lib/types"
 
 type View = "awaiting" | "cleared" | "history"
@@ -49,7 +49,6 @@ function ExportModal({ count, onClose, onExported }: {
   onClose: () => void
   onExported: (batchNumber: string) => void
 }) {
-  const { userName } = useUser()
   const { toast } = useToast()
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
@@ -59,7 +58,7 @@ function ExportModal({ count, onClose, onExported }: {
     try {
       const res = await fetch("/api/billing-handoffs/export", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handoffIds, exportedBy: userName, notes: notes.trim() || null }),
+        body: JSON.stringify({ handoffIds, notes: notes.trim() || null }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
@@ -116,8 +115,9 @@ function ExportModal({ count, onClose, onExported }: {
   )
 }
 
-function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
-  item: BillingHandoff; view: View; selected: boolean; onToggle: (id: string) => void
+function HandoffQuoteValue({ item, view, onQuoteSaved }: {
+  item: BillingHandoff
+  view: View
   onQuoteSaved?: () => void
 }) {
   const { toast } = useToast()
@@ -151,6 +151,127 @@ function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
     }
   }
 
+  if (item.quoteValue != null) {
+    return <span className="text-t1 font-medium tabular-nums">{formatGBP(item.quoteValue)}</span>
+  }
+  if (view === "awaiting") {
+    return (
+      <div className="flex items-center gap-1.5">
+        <Input
+          type="text"
+          inputMode="decimal"
+          placeholder="0.00"
+          value={draftValue}
+          onChange={e => setDraftValue(e.target.value)}
+          className="h-7 w-24 text-xs tabular-nums"
+          disabled={saving}
+        />
+        <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" loading={saving} onClick={saveQuote}>
+          Save
+        </Button>
+      </div>
+    )
+  }
+  return <span>—</span>
+}
+
+function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved }: {
+  item: BillingHandoff
+  view: View
+  selected: boolean
+  onToggle: (id: string) => void
+  onQuoteSaved?: () => void
+}) {
+  return (
+    <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5">
+      <div className="flex items-start gap-2">
+        {view === "awaiting" && (
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-ac mt-1 shrink-0"
+            checked={selected}
+            onChange={() => onToggle(item.id)}
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-xs font-bold text-ac">{item.drawingNumber}</span>
+            <WorkItemTypeBadge itemType={item.itemType} size="sm" />
+          </div>
+          <p className="text-sm font-medium text-t1 mt-1">{item.clientCompany}</p>
+          <p className="text-xs text-t3 mt-0.5 line-clamp-2">{item.address}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap text-xs">
+        <TypeOfWorksBadge typeOfWorks={item.typeOfWorks} customTypeDescription={item.customTypeDescription} size="sm" />
+        <span className="text-t3 tabular-nums">{formatDisplayDate(item.completionDate)}</span>
+        {item.designer && <span className="text-t2 truncate">{item.designer}</span>}
+      </div>
+
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-bd/60">
+        <HandoffQuoteValue item={item} view={view} onQuoteSaved={onQuoteSaved} />
+        <Link href={`/jobs/${item.sourceJobId}`} className="text-xs text-ac hover:text-ach font-medium inline-flex items-center gap-1 shrink-0">
+          View job <ArrowUpRight className="h-3 w-3" />
+        </Link>
+      </div>
+
+      {view === "cleared" && (
+        <p className="text-[11px] text-t3">
+          Cleared {item.clearedByAccountsAt ? format(new Date(item.clearedByAccountsAt), "d MMM yyyy") : "—"}
+          {item.clearedBy ? ` · ${item.clearedBy}` : ""}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function BatchMobileCard({ batch }: { batch: BillingExportBatch }) {
+  const { toast } = useToast()
+  const [downloading, setDownloading] = useState(false)
+  const redownload = async () => {
+    setDownloading(true)
+    try {
+      const res = await fetch(`/api/billing-handoffs/batches/${batch.id}/xlsx`)
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "Failed to download", "error")
+        return
+      }
+      await downloadResponse(res, `${batch.batchNumber}.xlsx`)
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Network error", "error")
+    }
+    finally { setDownloading(false) }
+  }
+
+  return (
+    <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <span className="font-mono text-xs font-bold text-ac">{batch.batchNumber}</span>
+          <p className="text-xs text-t3 mt-1 tabular-nums">{formatDisplayDate(batch.exportDate)}</p>
+        </div>
+        <span className="text-sm font-semibold text-t1 tabular-nums">{batch.recordCount} rows</span>
+      </div>
+      <p className="text-xs text-t2">{batch.exportedBy}</p>
+      {batch.notes && <p className="text-xs text-t3 line-clamp-2">{batch.notes}</p>}
+      <button
+        onClick={redownload}
+        disabled={downloading}
+        className="text-xs text-ac hover:text-ach font-medium inline-flex items-center gap-1 disabled:opacity-50"
+      >
+        {downloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+        Download
+      </button>
+    </div>
+  )
+}
+
+function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
+  item: BillingHandoff; view: View; selected: boolean; onToggle: (id: string) => void
+  onQuoteSaved?: () => void
+}) {
   return (
     <tr className="hover:bg-pg">
       {view === "awaiting" && (
@@ -166,26 +287,7 @@ function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
       <td className="px-4 py-3 text-t3 tabular-nums whitespace-nowrap">{formatDisplayDate(item.completionDate)}</td>
       <td className="px-4 py-3 text-t2 whitespace-nowrap">{item.designer || <span className="text-t4 italic">Unassigned</span>}</td>
       <td className="px-4 py-3 text-t1 font-medium tabular-nums whitespace-nowrap">
-        {item.quoteValue != null ? (
-          formatGBP(item.quoteValue)
-        ) : view === "awaiting" ? (
-          <div className="flex items-center gap-1.5">
-            <Input
-              type="text"
-              inputMode="decimal"
-              placeholder="0.00"
-              value={draftValue}
-              onChange={e => setDraftValue(e.target.value)}
-              className="h-7 w-24 text-xs tabular-nums"
-              disabled={saving}
-            />
-            <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" loading={saving} onClick={saveQuote}>
-              Save
-            </Button>
-          </div>
-        ) : (
-          "—"
-        )}
+        <HandoffQuoteValue item={item} view={view} onQuoteSaved={onQuoteSaved} />
       </td>
       {view === "cleared" && (
         <>
@@ -306,6 +408,7 @@ function BillingPageInner() {
   )
 
   const colCount = view === "awaiting" ? 10 : view === "cleared" ? 10 : 6
+  const isMobile = useMediaQuery("(max-width: 767px)")
 
   return (
     <PageShell wide className="space-y-5">
@@ -343,6 +446,19 @@ function BillingPageInner() {
       )}
 
       {view === "history" ? (
+        isMobile ? (
+          <div className="space-y-2.5">
+            {batches === null ? (
+              <DataPanel className="px-4 py-10 text-center text-t4">
+                <Loader2 className="h-4 w-4 animate-spin inline" />
+              </DataPanel>
+            ) : batches.length === 0 ? (
+              <DataPanel className="px-4 py-10 text-center text-t4 text-xs">No exports yet.</DataPanel>
+            ) : (
+              batches.map(b => <BatchMobileCard key={b.id} batch={b} />)
+            )}
+          </div>
+        ) : (
         <DataPanel className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -366,6 +482,36 @@ function BillingPageInner() {
             </tbody>
           </table>
         </DataPanel>
+        )
+      ) : isMobile ? (
+        <div className="space-y-2.5">
+          {view === "awaiting" && items && items.length > 0 && (
+            <label className="flex items-center gap-2 text-xs text-t3 px-1 min-h-11">
+              <input type="checkbox" className="h-4 w-4 accent-ac" checked={selected.size === items.length} onChange={toggleAll} />
+              Select all on this page
+            </label>
+          )}
+          {items === null ? (
+            <DataPanel className="px-4 py-10 text-center text-t4">
+              <Loader2 className="h-4 w-4 animate-spin inline" />
+            </DataPanel>
+          ) : items.length === 0 ? (
+            <DataPanel className="px-4 py-10 text-center text-t4 text-xs">
+              {view === "awaiting" ? "Nothing awaiting accounts action." : "Nothing cleared yet."}
+            </DataPanel>
+          ) : (
+            items.map(item => (
+              <HandoffMobileCard
+                key={item.id}
+                item={item}
+                view={view}
+                selected={selected.has(item.id)}
+                onToggle={toggle}
+                onQuoteSaved={() => load(view)}
+              />
+            ))
+          )}
+        </div>
       ) : (
         <DataPanel className="overflow-x-auto">
           <table className="w-full text-xs">

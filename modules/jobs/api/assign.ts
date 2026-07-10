@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "../services/job-service"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireSignIn, actorName } from "@/shared/auth/auth"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -17,8 +17,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
 
     const designer  = typeof body.designer  === "string" ? body.designer.trim()  : ""
-    const changedBy = typeof body.changedBy === "string" && body.changedBy.trim()
-      ? body.changedBy.trim() : "System"
+    const changedBy = actorName(auth.user)
 
     if (!designer) return NextResponse.json({ error: "Designer name is required" }, { status: 422 })
 

@@ -1,7 +1,7 @@
 /**
  * POST /api/quotes/[id]/convert
  * Converts an accepted quote into a new Job.
- * Body: { designer?, requiredByDate? }
+ * Body: { designer?, requiredByDate?, proceedDespiteHold? }
  * Returns: { job, quote }
  */
 import { NextRequest, NextResponse } from "next/server"
@@ -9,26 +9,16 @@ import { quoteService } from "../services/quote-service"
 import { jobService } from "@/lib/services/job-service"
 import { createId } from "@paralleldrive/cuid2"
 import { allocateDrawingNumber } from "@/lib/db"
-import { OTHER_WORKS_TYPE } from "@/lib/constants"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
+import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { errorMessage } from "@/shared/utils/error-message"
-import type { QuoteRow } from "../types/quote-types"
+import { resolveWorksFromQuote } from "../convert-works"
+import { logError, logEvent } from "@/shared/logger"
 
 type Ctx = { params: Promise<{ id: string }> }
-
-function resolveWorksFromQuote(quote: QuoteRow): { typeOfWorks: string; customTypeDescription: string | null } {
-  if (quote.typeOfWorks?.trim() && quote.typeOfWorks !== OTHER_WORKS_TYPE) {
-    return { typeOfWorks: quote.typeOfWorks.trim(), customTypeDescription: null }
-  }
-  const custom = (quote.customTypeDescription ?? quote.description ?? "").trim()
-  return {
-    typeOfWorks: OTHER_WORKS_TYPE,
-    customTypeDescription: (custom || "Converted from quote").slice(0, 500),
-  }
-}
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   const auth = await requireSignIn()
@@ -46,10 +36,22 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     let body: Record<string, unknown> = {}
     try { body = await req.json() } catch { /* body optional */ }
 
-    const changedBy      = auth.user.name || "System"
+    const changedBy      = actorName(auth.user)
     const designer       = body.designer  ? String(body.designer).trim() : ""
     const requiredByDate = resolveRequiredByDate(body.requiredByDate ? String(body.requiredByDate) : null)
     const works          = resolveWorksFromQuote(quote)
+    const proceedDespiteHold = body.proceedDespiteHold === true
+
+    if (quote.clientId && !proceedDespiteHold) {
+      const hold = await holdService.activeHoldForClient(quote.clientId)
+      if (hold) {
+        return NextResponse.json({
+          error: "Client is on hold",
+          onHold: true,
+          holdReason: hold.reason,
+        }, { status: 422 })
+      }
+    }
 
     await ensureSequencesSeeded()
     await ensureClientInSqlite(quote.clientId)
@@ -80,13 +82,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     const updatedQuote = await quoteService.linkToJob(id, job.id)
     if (!updatedQuote) {
-      console.error("[POST /api/quotes/[id]/convert] job created but quote link failed", { quoteId: id, jobId: job.id })
+      logError("quote.convert.link_failed", new Error("quote link failed"), { quoteId: id, jobId: job.id })
       return NextResponse.json({ error: "Failed to link quote to job" }, { status: 500 })
     }
 
+    logEvent("quote.convert.success", { quoteId: id, jobId: job.id, drawingNumber: job.drawingNumber })
     return NextResponse.json({ job, quote: updatedQuote }, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/quotes/[id]/convert]", err)
+    logError("quote.convert.error", err)
     return NextResponse.json(
       { error: "Internal server error", detail: errorMessage(err) },
       { status: 500 },

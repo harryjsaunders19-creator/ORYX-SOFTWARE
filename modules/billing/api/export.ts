@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { billingHandoffService } from "../services/billing-handoff-service"
 import { buildAccountsHandoverWorkbook, workbookToBuffer } from "../billing-export"
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, actorName } from "@/shared/auth/auth"
+import { logError, logEvent } from "@/shared/logger"
 
 /** Large exports sync many handoffs + snapshots to Supabase — allow up to 60s. */
 export const maxDuration = 60
@@ -11,11 +12,11 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    const body = await req.json() as { handoffIds?: string[]; exportedBy?: string; notes?: string | null }
+    const body = await req.json() as { handoffIds?: string[]; notes?: string | null }
     const handoffIds = Array.isArray(body.handoffIds) ? body.handoffIds : []
     if (!handoffIds.length) return NextResponse.json({ error: "No items selected" }, { status: 422 })
 
-    const exportedBy = body.exportedBy ? String(body.exportedBy) : "System"
+    const exportedBy = actorName(auth.user)
     const exportDate = new Date().toISOString().slice(0, 10)
 
     const { batch, snapshots } = await billingHandoffService.createExportBatch({
@@ -31,6 +32,12 @@ export async function POST(req: NextRequest) {
     })
     const buf = await workbookToBuffer(wb)
 
+    logEvent("billing.export.success", {
+      batchNumber: batch.batchNumber,
+      recordCount: snapshots.length,
+      exportedBy,
+    })
+
     return new NextResponse(new Uint8Array(buf), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -41,7 +48,7 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (err) {
-    console.error("[POST /api/billing-handoffs/export]", err)
+    logError("billing.export.error", err)
     const message =
       err instanceof Error
         ? err.message

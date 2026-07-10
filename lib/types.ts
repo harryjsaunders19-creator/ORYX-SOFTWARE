@@ -275,6 +275,7 @@ export interface JobFormData {
   variationFees: string
   additionalCharges: string
   requiredByDate:  string
+  proceedDespiteHold?: boolean
 }
 
 export interface JobsResponse {

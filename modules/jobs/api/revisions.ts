@@ -21,7 +21,7 @@ import { jobService } from "../services/job-service"
 import { nextRevisionLetter, REVISION_LETTERS } from "@/lib/constants"
 import { canAddRevisionFrom, buildLatestRevisionMap, revisionParentId } from "@/lib/revision-chain"
 import { createId } from "@paralleldrive/cuid2"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { defaultRequiredByDate } from "@/shared/utils/utils"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -101,8 +101,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       letter = nextRevisionLetter(usedLetters)
     }
 
-    const changedBy = typeof body.changedBy === "string" && body.changedBy.trim()
-      ? body.changedBy.trim() : "System"
+    const changedBy = actorName(auth.user)
 
     const baseDrawingNumber = parent.drawingNumber.replace(/ Rev [A-Z]$/, "")
     const revDrawingNumber  = `${baseDrawingNumber} Rev ${letter}`

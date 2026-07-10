@@ -11,8 +11,10 @@ import {
   resolveEmployeeFilePath,
   PHOTO_MIME,
   MAX_PHOTO_BYTES,
+  canViewEmployeePhoto,
 } from "@/modules/employees"
 import { canEditEmployeeField } from "@/modules/employees"
+import { userService } from "@/lib/services/user-service"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -24,6 +26,14 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     const profile = employeeProfileDb.findUnique(id)
     if (!profile?.profilePhotoPath) {
       return NextResponse.json({ error: "No photo" }, { status: 404 })
+    }
+    const targetUser = await userService.findUnique(id)
+    if (!canViewEmployeePhoto({
+      viewerActive: auth.user.active === 1,
+      targetHasProfile: true,
+      targetUserActive: !!targetUser?.active,
+    })) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     const fullPath = resolveEmployeeFilePath(profile.profilePhotoPath)
     if (!fullPath || !fs.existsSync(fullPath)) {

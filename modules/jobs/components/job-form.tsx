@@ -164,6 +164,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
           holdWarning.pendingSubmit.siteAddress,
           holdWarning.pendingSubmit.address,
         ),
+        proceedDespiteHold: true,
       }
       await onSubmit(payload)
     } catch { /* parent shows toast */ } finally { setSaving(false) }
