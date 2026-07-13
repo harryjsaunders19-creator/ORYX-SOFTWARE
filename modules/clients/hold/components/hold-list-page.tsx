@@ -1,5 +1,5 @@
 "use client"
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import {
@@ -16,7 +16,8 @@ import {
 } from "@/shared/ui/dialog"
 import { useToast } from "@/shared/ui/toast"
 import { formatGBP } from "@/shared/utils/utils"
-import { apiFetch } from "@/shared/hooks/use-api"
+// Perf: SWR caches hold list; mutate() refreshes after add/remove/edit.
+import { useApi } from "@/shared/hooks/use-api"
 import { PageHeader, PageShell, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
 import type { ClientHoldWithClient } from "@/lib/types"
 
@@ -26,8 +27,7 @@ type HoldListData = { holds: ClientHoldWithClient[]; total: number }
 export default function HoldListPage() {
   const { toast }    = useToast()
 
-  const [data,        setData]        = useState<HoldListData | null>(null)
-  const [loading,     setLoading]     = useState(true)
+  const { data, isLoading: loading, mutate: load } = useApi<HoldListData>("/api/hold-list")
   const [addOpen,     setAddOpen]     = useState(false)
   const [removeItem,  setRemoveItem]  = useState<ClientHoldWithClient | null>(null)
   const [editItem,    setEditItem]    = useState<ClientHoldWithClient | null>(null)
@@ -42,19 +42,6 @@ export default function HoldListPage() {
   const [removeReason, setRemoveReason] = useState("")
   const [editReason,  setEditReason]  = useState("")
   const [editNotes,   setEditNotes]   = useState("")
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await apiFetch("/api/hold-list")
-      if (res.ok) setData(await res.json() as HoldListData)
-      else toast("Failed to load hold list", "error")
-    }
-    catch { toast("Failed to load hold list", "error") }
-    finally { setLoading(false) }
-  }, [toast])
-
-  useEffect(() => { load() }, [load])
 
   // Live client search for the add-hold form
   useEffect(() => {
@@ -80,7 +67,7 @@ export default function HoldListPage() {
       if (!res.ok) { toast("Failed to add hold", "error"); return }
       toast(`${selectedClient.name} placed on hold`, "info")
       setAddOpen(false); setSelectedClient(null); setClientSearch(""); setReason(""); setNotes("")
-      load()
+      void load()
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }
@@ -99,9 +86,13 @@ export default function HoldListPage() {
         toast(err.detail ?? err.error ?? "Failed to remove hold", "error")
         return
       }
-      setData(prev => prev
-        ? { holds: prev.holds.filter(h => h.clientId !== removed.clientId), total: prev.total - 1 }
-        : prev)
+      // Perf: optimistic local mutate via SWR (same filter as before)
+      await load(
+        (prev) => prev
+          ? { holds: prev.holds.filter(h => h.clientId !== removed.clientId), total: prev.total - 1 }
+          : prev,
+        { revalidate: false },
+      )
       toast(`${removed.clientName} removed from hold`, "success")
       setRemoveItem(null); setRemoveReason("")
     } catch { toast("Network error", "error") }
@@ -118,7 +109,7 @@ export default function HoldListPage() {
       })
       if (!res.ok) { toast("Failed to update hold", "error"); return }
       toast("Hold updated", "success")
-      setEditItem(null); load()
+      setEditItem(null); void load()
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }

@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { format } from "date-fns"
@@ -15,6 +15,8 @@ import { useToast }          from "@/shared/ui/toast"
 import { useUser }           from "@/shared/providers/user-context"
 import { cn, formatGBP } from "@/shared/utils/utils"
 import { PageShell, BackLink, PageHeader, KpiTile, DataPanel, DetailPanel, surfaceCard } from "@/shared/layouts/page-layout"
+// Perf: SWR caches client detail/hold/analytics across navigations.
+import { useApi } from "@/shared/hooks/use-api"
 import type { Client, ClientStats, ClientHold, Job } from "@/lib/types"
 import type { ClientContactRow } from "@/modules/clients/types/client-contact-types"
 
@@ -40,10 +42,6 @@ export default function ClientDetailPage() {
   const { id }     = useParams() as { id: string }
   const router     = useRouter()
   const { toast }  = useToast()
-  const [detail,   setDetail]   = useState<ClientDetail | null>(null)
-  const [loading,  setLoading]  = useState(true)
-  const [notFound, setNotFound] = useState(false)
-  const [hold,     setHold]     = useState<ClientHold | null>(null)
   const [holdSaving, setHoldSaving] = useState(false)
   const [holdOpen, setHoldOpen] = useState(false)
   const [holdReason, setHoldReason] = useState("")
@@ -51,31 +49,20 @@ export default function ClientDetailPage() {
   const [removeOpen, setRemoveOpen] = useState(false)
   const [removeReason, setRemoveReason] = useState("")
   const { isAdmin } = useUser()
-  const [analytics, setAnalytics] = useState<ClientAnalytics | null>(null)
 
-  useEffect(() => {
-    Promise.all([
-      fetch(`/api/clients/${id}`).then(r => {
-        if (r.status === 404) { setNotFound(true); return null }
-        return r.json() as Promise<ClientDetail>
-      }),
-      fetch(`/api/clients/${id}/hold`).then(r => r.json() as Promise<{ hold: ClientHold | null }>),
-    ])
-      .then(([detail, holdData]) => {
-        if (detail) setDetail(detail)
-        if (holdData?.hold) setHold(holdData.hold)
-      })
-      .catch(() => toast("Failed to load client", "error"))
-      .finally(() => setLoading(false))
-  }, [id, toast])
+  const { data: detail, error: detailError, isLoading, mutate: mutateDetail } = useApi<ClientDetail>(
+    id ? `/api/clients/${id}` : null,
+  )
+  const { data: holdData, mutate: mutateHold } = useApi<{ hold: ClientHold | null }>(
+    id ? `/api/clients/${id}/hold` : null,
+  )
+  const { data: analytics } = useApi<ClientAnalytics>(
+    id && isAdmin ? `/api/clients/${id}/analytics` : null,
+  )
 
-  useEffect(() => {
-    if (!isAdmin) return
-    fetch(`/api/clients/${id}/analytics`)
-      .then(r => { if (!r.ok) throw new Error(); return r.json() as Promise<ClientAnalytics> })
-      .then(setAnalytics)
-      .catch(() => {})
-  }, [id, isAdmin])
+  const hold = holdData?.hold ?? null
+  const notFound = !!detailError && /404|Not found/i.test(detailError.message)
+  const loading = isLoading && !detail
 
   const addToHold = async () => {
     if (!holdReason.trim()) return
@@ -87,7 +74,8 @@ export default function ClientDetailPage() {
       })
       if (!res.ok) { toast("Failed to add hold", "error"); return }
       const h = await res.json() as ClientHold
-      setHold(h); setHoldOpen(false); setHoldReason(""); setHoldNotes("")
+      await mutateHold({ hold: h }, { revalidate: false })
+      setHoldOpen(false); setHoldReason(""); setHoldNotes("")
       toast("Client placed on hold", "info")
     } catch { toast("Network error", "error") }
     finally { setHoldSaving(false) }
@@ -101,7 +89,8 @@ export default function ClientDetailPage() {
         body: JSON.stringify({ removedReason: removeReason.trim() || null }),
       })
       if (!res.ok) { toast("Failed to remove hold", "error"); return }
-      setHold(null); setRemoveOpen(false); setRemoveReason("")
+      await mutateHold({ hold: null }, { revalidate: false })
+      setRemoveOpen(false); setRemoveReason("")
       toast("Client removed from hold", "success")
     } catch { toast("Network error", "error") }
     finally { setHoldSaving(false) }

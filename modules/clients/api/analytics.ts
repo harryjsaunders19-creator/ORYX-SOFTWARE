@@ -1,16 +1,25 @@
 /**
  * GET /api/clients/[id]/analytics
  */
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { requireRole } from "@/shared/auth/auth"
 import { clientService } from "../services/client-service"
 import { jobService } from "@/lib/services/job-service"
-import type { JobRow } from "@/lib/db/job-types"
 
 type Ctx = { params: Promise<{ id: string }> }
 
-function computeAnalytics(jobs: JobRow[]) {
+/** Minimal job shape for analytics — keep in sync with findAnalyticsFields. */
+type AnalyticsJob = {
+  status: string
+  itemType: string
+  quoteValue: number | null
+  dateCreated: string
+  dateCompleted: string | null
+}
+
+function computeAnalytics(jobs: AnalyticsJob[]) {
   const totalJobs = jobs.length
   const completed = jobs.filter(j => j.status === "ISSUED").length
   const inProgress = jobs.filter(j => j.status === "IN_DESIGN").length
@@ -86,7 +95,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const client = await clientService.findUnique(id)
     if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const jobs = await jobService.findMany({ where: { clientId: id }, take: 10000 })
+    // Perf: slim column fetch instead of full JobRow × up to 10k
+    const jobs = await jobService.findAnalyticsFields({ clientId: id, take: 10000 })
     const analytics = computeAnalytics(jobs)
 
     return NextResponse.json(analytics)

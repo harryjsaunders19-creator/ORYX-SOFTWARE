@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
 import { cn } from "@/shared/utils/utils"
+// Perf: SWR dedupes/caches /api/notifications; refreshInterval matches prior 5m poll.
+import { useApi } from "@/shared/hooks/use-api"
 import type { AppNotification, NotificationKind } from "../types/notifications-types"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 
@@ -39,38 +41,25 @@ function formatWhen(iso: string): string {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
 }
 
+type NotificationsPayload = { notifications: AppNotification[]; unreadCount: number }
+
 export function NotificationsMenu() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [notifications, setNotifications] = useState<AppNotification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/notifications", { cache: "no-store" })
-      if (!res.ok) return
-      const data = await res.json() as { notifications: AppNotification[]; unreadCount: number }
-      setNotifications(data.notifications)
-      setUnreadCount(data.unreadCount)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data, isLoading, mutate } = useApi<NotificationsPayload>("/api/notifications", {
+    refreshInterval: POLL_MS,
+  })
+  const notifications = data?.notifications ?? []
+  const unreadCount = data?.unreadCount ?? 0
+  const loading = isLoading && !data
+  const load = useCallback(() => { void mutate() }, [mutate])
 
   useEffect(() => {
-    load()
     const onVisibility = () => {
       if (document.visibilityState === "visible") load()
     }
     document.addEventListener("visibilitychange", onVisibility)
-    const id = setInterval(() => {
-      if (document.visibilityState === "visible") load()
-    }, POLL_MS)
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility)
-      clearInterval(id)
-    }
+    return () => document.removeEventListener("visibilitychange", onVisibility)
   }, [load])
 
   useEffect(() => {
@@ -170,7 +159,7 @@ export function NotificationsMenu() {
             onClick={() => { setOpen(false); router.push("/jobs?deadline=overdue") }}
             className="text-xs text-ac hover:text-ach font-medium"
           >
-            View overdue jobs →
+            View overdue jobs ?
           </button>
         </div>
       </DropdownMenuContent>

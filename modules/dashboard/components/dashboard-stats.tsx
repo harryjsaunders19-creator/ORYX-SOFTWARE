@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, useCallback } from "react"
+import { useMemo } from "react"
 import Link from "next/link"
 import { format, startOfWeek, endOfWeek } from "date-fns"
 import {
@@ -9,8 +9,8 @@ import {
 import { Button } from "@/shared/ui/button"
 import { useUser } from "@/shared/providers/user-context"
 import { cn, getDeadlineInfo } from "@/shared/utils/utils"
-import { apiFetch } from "@/shared/hooks/use-api"
-import { apiErrorDetail } from "@/lib/error-message"
+// Perf: SWR via useApi dedupes/caches /api/stats across revisits (2s dedupe window).
+import { useApi } from "@/shared/hooks/use-api"
 import type { StatsData, DashboardWeekEvent } from "../types/stats-types"
 import type { Job, ClientHoldWithClient } from "@/lib/types"
 
@@ -59,42 +59,24 @@ function SectionHeader({ icon: Icon, accent, title, count, viewAllHref, viewAllL
 export function DashboardStats() {
   const { isAdmin } = useUser()
 
-  const [stats, setStats]               = useState<StatsData | null>(null)
-  const [events, setEvents]             = useState<DashboardWeekEvent[]>([])
-  const [overdueJobs, setOverdueJobs]   = useState<Job[]>([])
-  const [holds, setHolds]               = useState<ClientHoldWithClient[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string | null>(null)
+  // Week bounds are calendar-day stable for the session; memoize so the SWR key is stable.
+  const statsKey = useMemo(() => {
+    const today     = new Date()
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 })
+    const weekEnd   = endOfWeek(today, { weekStartsOn: 1 })
+    const params = new URLSearchParams({
+      calendarFrom: format(weekStart, "yyyy-MM-dd"),
+      calendarTo: format(weekEnd, "yyyy-MM-dd"),
+    })
+    return `/api/stats?${params}`
+  }, [])
 
-  const today     = new Date()
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 })
-  const weekEnd   = endOfWeek(today, { weekStartsOn: 1 })
-  const fromStr   = format(weekStart, "yyyy-MM-dd")
-  const toStr     = format(weekEnd, "yyyy-MM-dd")
+  const { data: stats, error: swrError, isLoading, mutate } = useApi<StatsData>(statsKey)
 
-  const loadAll = useCallback(() => {
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ calendarFrom: fromStr, calendarTo: toStr })
-    apiFetch(`/api/stats?${params}`)
-      .then(async r => {
-        if (!r.ok) {
-          const body = await r.json().catch(() => null)
-          throw new Error(apiErrorDetail(body, r.status))
-        }
-        return r.json() as Promise<StatsData>
-      })
-      .then(s => {
-        setStats(s)
-        setHolds((s.holds ?? []).slice(0, 5))
-        setEvents(s.weekEvents ?? [])
-        setOverdueJobs(s.overdueJobs ?? [])
-      })
-      .catch(err => setError(err instanceof Error ? err.message : "Failed to load dashboard data"))
-      .finally(() => setLoading(false))
-  }, [fromStr, toStr])
-
-  useEffect(() => { loadAll() }, [loadAll])
+  const events: DashboardWeekEvent[] = stats?.weekEvents ?? []
+  const overdueJobs: Job[] = stats?.overdueJobs ?? []
+  const holds: ClientHoldWithClient[] = (stats?.holds ?? []).slice(0, 5)
+  const error = swrError ? (swrError instanceof Error ? swrError.message : "Failed to load dashboard data") : null
 
   const siteVisits    = events.filter(e => e.categoryId === SITE_VISIT_ID)
   const teamsMeetings = events.filter(e => e.categoryId === TEAMS_MEETING_ID)
@@ -103,12 +85,12 @@ export function DashboardStats() {
     <div className="bg-dn-bg border border-dn-bd rounded-md p-4 text-sm text-dn-tx space-y-3">
       <p className="font-medium">Failed to load dashboard data.</p>
       <p className="text-xs text-t3">{error}</p>
-      <Button variant="outline" size="sm" onClick={loadAll}>
+      <Button variant="outline" size="sm" onClick={() => void mutate()}>
         <RefreshCw className="h-3.5 w-3.5" /> Retry
       </Button>
     </div>
   )
-  if (loading) return (
+  if (isLoading && !stats) return (
     <div className="space-y-4">
       <div className="grid grid-cols-12 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="col-span-6 lg:col-span-3 h-28 rounded-2xl skeleton" />)}</div>
       <div className="grid grid-cols-12 gap-4"><div className="col-span-12 lg:col-span-6 h-52 rounded-2xl skeleton" /><div className="col-span-12 lg:col-span-6 h-52 rounded-2xl skeleton" /></div>

@@ -13,6 +13,7 @@ import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, DataPanel, KpiTile, TabBar } from "@/shared/layouts/page-layout"
 import { formatGBP, formatDisplayDate, cn } from "@/shared/utils/utils"
 import { useMediaQuery } from "@/shared/hooks/use-media-query"
+import { useApi } from "@/shared/hooks/use-api"
 import type { BillingHandoff, BillingExportBatch } from "@/lib/types"
 
 type View = "awaiting" | "cleared" | "history"
@@ -344,59 +345,50 @@ function BatchRow({ batch }: { batch: BillingExportBatch }) {
 function BillingPageInner() {
   const { toast } = useToast()
   const [view, setView]   = useState<View>("awaiting")
-  const [items, setItems] = useState<BillingHandoff[] | null>(null)
-  const [batches, setBatches] = useState<BillingExportBatch[] | null>(null)
-  const [stats, setStats] = useState<{ awaitingCount: number; awaitingValue: number; clearedCount: number } | null>(null)
+  // Perf: SWR key includes view so awaiting/cleared/history share the cache correctly.
+  const listKey = view === "history" ? null : `/api/billing-handoffs?view=${view}`
+  const historyKey = view === "history" ? "/api/billing-handoffs/batches" : null
+  const { data: listData, error: listError, isLoading: listLoading, mutate: mutateList } = useApi<{
+    handoffs?: BillingHandoff[]
+    awaitingCount?: number
+    awaitingValue?: number
+    clearedCount?: number
+    error?: string
+  }>(listKey)
+  const { data: historyData, error: historyError, isLoading: historyLoading, mutate: mutateHistory } = useApi<{
+    batches?: BillingExportBatch[]
+    error?: string
+  }>(historyKey)
+
+  const items = view === "history" ? null : (listData?.handoffs ?? (listLoading ? null : []))
+  const batches = view === "history" ? (historyData?.batches ?? (historyLoading ? null : [])) : null
+  const stats = listData ? {
+    awaitingCount: listData.awaitingCount ?? 0,
+    awaitingValue: listData.awaitingValue ?? 0,
+    clearedCount: listData.clearedCount ?? 0,
+  } : null
+  const loadError = !!(listError || historyError ||
+    (listData && !Array.isArray(listData.handoffs) && view !== "history") ||
+    (historyData && !Array.isArray(historyData.batches) && view === "history"))
+
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
-  const [loadError, setLoadError] = useState(false)
+
+  useEffect(() => {
+    if (listError) toast(listError.message || "Failed to load billing queue", "error")
+  }, [listError, toast])
+  useEffect(() => {
+    if (historyError) toast(historyError.message || "Failed to load export history", "error")
+  }, [historyError, toast])
 
   const load = useCallback((v: View) => {
-    setLoadError(false)
-    if (v === "history") {
-      setBatches(null)
-      fetch("/api/billing-handoffs/batches")
-        .then(async r => {
-          const d = await r.json() as { batches?: BillingExportBatch[]; error?: string }
-          if (!r.ok || !Array.isArray(d.batches)) {
-            setBatches([])
-            setLoadError(true)
-            toast(d.error ?? "Failed to load export history", "error")
-            return
-          }
-          setBatches(d.batches)
-        })
-        .catch(() => { setBatches([]); setLoadError(true); toast("Failed to load export history", "error") })
-      return
-    }
-    setItems(null)
+    setView(v)
     setSelected(new Set())
-    fetch(`/api/billing-handoffs?view=${v}`)
-      .then(async r => {
-        const d = await r.json() as {
-          handoffs?: BillingHandoff[]
-          awaitingCount?: number
-          awaitingValue?: number
-          clearedCount?: number
-          error?: string
-        }
-        if (!r.ok || !Array.isArray(d.handoffs)) {
-          setItems([])
-          setLoadError(true)
-          toast(d.error ?? "Failed to load billing queue", "error")
-          return
-        }
-        setItems(d.handoffs)
-        setStats({
-          awaitingCount: d.awaitingCount ?? 0,
-          awaitingValue: d.awaitingValue ?? 0,
-          clearedCount:  d.clearedCount ?? 0,
-        })
-      })
-      .catch(() => { setItems([]); setLoadError(true); toast("Failed to load billing queue", "error") })
-  }, [toast])
+    if (v === "history") void mutateHistory()
+    else void mutateList()
+  }, [mutateHistory, mutateList])
 
-  useEffect(() => { load(view) }, [view, load])
+  useEffect(() => { setSelected(new Set()) }, [view])
 
   const toggle = (id: string) => setSelected(prev => {
     const next = new Set(prev)

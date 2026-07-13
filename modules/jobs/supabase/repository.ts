@@ -28,6 +28,22 @@ import {
 const DRAWING_SORT_WARN_ROWS = 8_000
 import { parseOryxDrawingSequence } from "@/lib/drawing-number"
 
+/**
+ * Perf: list/detail payloads don't need geocode/notes blobs — select only columns
+ * the jobs table + revision flags need. Same JobRow shape via toJobRow (nulls for omitted).
+ */
+const JOB_LIST_SELECT = [
+  "id", "drawing_number", "item_type", "address", "type_of_works", "custom_type_description",
+  "legacy_type_of_works", "client_company", "client_id", "requested_by", "status", "designer",
+  "date_created", "date_completed", "quote_value", "quote_reference", "quote_date",
+  "variation_fees", "additional_charges", "invoice_id", "billing_status", "billing_batch_id",
+  "requested_date", "required_by_date", "parent_job_id", "revision_letter",
+  "archived_at", "archived_by", "created_at", "updated_at",
+].join(",")
+
+/** Perf: analytics only needs status/type/money/dates — avoid transferring full job rows. */
+const JOB_ANALYTICS_SELECT = "status,item_type,quote_value,date_created,date_completed"
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type JobQuery = any
 
@@ -223,10 +239,11 @@ async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
     return { jobs: [], total: count ?? 0, allForRevisions: allSortRows }
   }
 
-  const { data: pageData, error: pageErr } = await table().select("*").in("id", pageIds)
+  const { data: pageData, error: pageErr } = await table().select(JOB_LIST_SELECT).in("id", pageIds)
   if (pageErr) throw pageErr
 
-  const byId = new Map((pageData ?? []).map(r => [r.id as string, toJobRow(r)]))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const byId = new Map((pageData ?? []).map((r: any) => [r.id as string, toJobRow(r as SupabaseJobRow)]))
   const jobs = pageIds.map(id => byId.get(id)).filter((r): r is JobRow => r != null)
 
   return { jobs, total: count ?? allSortRows.length, allForRevisions: allSortRows }
@@ -240,7 +257,7 @@ async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
 }> {
   const dir = opts.orderBy?.dir ?? "asc"
   const asc = dir === "asc"
-  let q = applyWhere(table().select("*", { count: "exact" }), opts.where)
+  let q = applyWhere(table().select(JOB_LIST_SELECT, { count: "exact" }), opts.where)
     .order("list_sort_key", { ascending: asc })
     .order("created_at", { ascending: asc })
   if (opts.skip != null && opts.take != null) {
@@ -256,7 +273,8 @@ async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
     throw error
   }
   const allForRevisions = await fetchRevisionRowsForWhere(opts.where)
-  return { jobs: (data ?? []).map(toJobRow), total: count ?? 0, allForRevisions }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { jobs: (data ?? []).map((r: any) => toJobRow(r as SupabaseJobRow)), total: count ?? 0, allForRevisions }
 }
 
 export const supabaseJobRepo = {
@@ -283,7 +301,7 @@ export const supabaseJobRepo = {
 
     const col = sortColumn(field)
     const asc = dir === "asc"
-    let q = applyWhere(table().select("*", { count: "exact" }), opts.where).order(col, { ascending: asc })
+    let q = applyWhere(table().select(JOB_LIST_SELECT, { count: "exact" }), opts.where).order(col, { ascending: asc })
     if (opts.skip != null && opts.take != null) {
       q = q.range(opts.skip, opts.skip + opts.take - 1)
     } else if (opts.take != null) {
@@ -291,12 +309,46 @@ export const supabaseJobRepo = {
     }
     const { data, count, error } = await q
     if (error) throw error
-    return { jobs: (data ?? []).map(toJobRow), total: count ?? 0 }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return { jobs: (data ?? []).map((r: any) => toJobRow(r as SupabaseJobRow)), total: count ?? 0 }
   },
 
   async findMany(opts: FindManyOptions = {}): Promise<JobRow[]> {
     const { jobs } = await this.findManyWithCount(opts)
     return jobs
+  },
+
+  /**
+   * Perf: slim projection for client analytics — only fields computeAnalytics reads.
+   * Same take/clientId filter semantics as findMany; avoids shipping notes/geo/etc.
+   */
+  async findAnalyticsFields(opts: {
+    clientId: string
+    take?: number
+  }): Promise<{
+    status: string
+    itemType: string
+    quoteValue: number | null
+    dateCreated: string
+    dateCompleted: string | null
+  }[]> {
+    let q = applyWhere(table().select(JOB_ANALYTICS_SELECT), { clientId: opts.clientId })
+    if (opts.take != null) q = q.limit(opts.take)
+    const { data, error } = await q
+    if (error) {
+      if (noteJobsArchivedFromError(error)) {
+        return this.findAnalyticsFields(opts)
+      }
+      throw error
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((r: any) => ({
+      status: r.status as string,
+      itemType: r.item_type as string,
+      quoteValue: r.quote_value != null ? Number(r.quote_value) : null,
+      dateCreated: r.date_created as string,
+      dateCompleted: (r.date_completed as string | null) ?? null,
+    }))
   },
 
   async count(where: WhereClause = {}): Promise<number> {
@@ -314,15 +366,19 @@ export const supabaseJobRepo = {
   async activeJobCountsForClients(clientIds: string[]): Promise<Map<string, number>> {
     const map = new Map<string, number>()
     if (!clientIds.length) return map
-    const { data, error } = await table()
-      .select("client_id")
-      .in("client_id", clientIds)
-      .neq("status", "ISSUED")
-    if (error) throw error
-    for (const row of data ?? []) {
-      const id = row.client_id as string
-      map.set(id, (map.get(id) ?? 0) + 1)
-    }
+    // Perf: head-only COUNT per client avoids transferring every matching job row
+    // (previous implementation selected all client_id rows and tallied in Node).
+    // Intentionally mirrors the prior filter set (status only — no archived_at clause).
+    await Promise.all(
+      clientIds.map(async (id) => {
+        const { count, error } = await table()
+          .select("id", { count: "exact", head: true })
+          .eq("client_id", id)
+          .neq("status", "ISSUED")
+        if (error) throw error
+        map.set(id, count ?? 0)
+      }),
+    )
     return map
   },
 

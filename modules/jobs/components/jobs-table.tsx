@@ -132,8 +132,9 @@ const JobMobileCard = memo(function JobMobileCard({
 }: {
   job: Job
   isOnHold: boolean
-  onOpen: () => void
-  onStatusChange: (status: string) => void
+  // Perf: stable callbacks from parent so memo skips re-render when filters change.
+  onOpen: (jobId: string) => void
+  onStatusChange: (job: Job, status: string) => void
 }) {
   const dl = getJobDeadlineInfo(job)
   const showDeadline = dl.severity !== "none"
@@ -143,8 +144,8 @@ const JobMobileCard = memo(function JobMobileCard({
     <div
       role="button"
       tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onOpen() }}
+      onClick={() => onOpen(job.id)}
+      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onOpen(job.id) }}
       className={cn(
         "rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5 cursor-pointer active:scale-[0.99] transition-transform",
         JOB_ROW_BG[job.status] ?? "",
@@ -173,7 +174,7 @@ const JobMobileCard = memo(function JobMobileCard({
       </div>
 
       <div className="flex items-center justify-between gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
-        <InlineStatusSelect status={job.status} onChange={onStatusChange} size="lg" />
+        <InlineStatusSelect status={job.status} onChange={value => onStatusChange(job, value)} size="lg" />
         {showDeadline && (
           <span className={cn(
             "inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full border",
@@ -621,6 +622,12 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     }
   }, [mutate, toast])
 
+  // Perf: stable handlers so JobMobileCard memo is not busted by inline lambdas per row.
+  const openJob = useCallback((jobId: string) => { router.push(`/jobs/${jobId}`) }, [router])
+  const patchMobileStatus = useCallback((job: Job, status: string) => {
+    void patchJobField(job, "status", status)
+  }, [patchJobField])
+
   // One-click revision — no modal, no fields. Letter is auto-assigned server-side.
   const handleQuickRevision = useCallback(async (job: Job) => {
     setCreatingRevisionFor(job.id)
@@ -923,8 +930,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               key={job.id}
               job={job}
               isOnHold={!!(job.clientId && holdClientIds.has(job.clientId))}
-              onOpen={() => router.push(`/jobs/${job.id}`)}
-              onStatusChange={value => patchJobField(job, "status", value)}
+              onOpen={openJob}
+              onStatusChange={patchMobileStatus}
             />
           ))}
           </div>

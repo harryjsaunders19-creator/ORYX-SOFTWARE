@@ -122,6 +122,36 @@ export const jobService = {
     return supabaseJobRepo.findMany(opts)
   },
 
+  /**
+   * Perf: slim fields for client analytics (Supabase). SQLite falls back to findMany
+   * and maps to the same shape — computeAnalytics stays identical.
+   */
+  async findAnalyticsFields(opts: {
+    clientId: string
+    take?: number
+  }): Promise<{
+    status: string
+    itemType: string
+    quoteValue: number | null
+    dateCreated: string
+    dateCompleted: string | null
+  }[]> {
+    if (!useSupabaseJobs()) {
+      const jobs = await jobDb.findMany({
+        where: { clientId: opts.clientId },
+        take: opts.take,
+      })
+      return jobs.map(j => ({
+        status: j.status,
+        itemType: j.itemType,
+        quoteValue: j.quoteValue,
+        dateCreated: j.dateCreated,
+        dateCompleted: j.dateCompleted,
+      }))
+    }
+    return supabaseJobRepo.findAnalyticsFields(opts)
+  },
+
   async count(where: WhereClause = {}): Promise<number> {
     if (!useSupabaseJobs()) return jobDb.count(where)
     return supabaseJobRepo.count(where)

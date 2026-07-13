@@ -20,6 +20,8 @@ import { formatGBP, getJobDeadlineInfo, deadlineBadgeClass, parseLocalDate, tota
 import { useUser }             from "@/shared/providers/user-context"
 import { PageShell, DetailPanel, BackLink, PageHeader } from "@/shared/layouts/page-layout"
 import { OTHER_WORKS_TYPE }    from "@/lib/constants"
+// Perf: SWR caches job detail across navigations; parent/billing keys follow when known.
+import { useApi } from "@/shared/hooks/use-api"
 import type { Job, JobFormData, BillingHandoff } from "@/lib/types"
 
 const AssignDesignerModal = dynamic(
@@ -76,12 +78,22 @@ export default function JobDetailPage() {
   const { toast }    = useToast()
   const { isAdmin } = useUser()
 
-  const [job,        setJob]        = useState<Job | null>(null)
-  const [parentJob,  setParentJob]  = useState<Job | null>(null)  // if this is a revision
-  const [billingHandoff, setBillingHandoff] = useState<BillingHandoff | null>(null)
-  const [loading,    setLoading]    = useState(true)
+  const { data: job, error: jobError, isLoading, mutate: mutateJob } = useApi<Job>(
+    id ? `/api/jobs/${id}` : null,
+  )
+  const { data: parentJob } = useApi<Job>(
+    job?.parentJobId ? `/api/jobs/${job.parentJobId}` : null,
+  )
+  const { data: billingPayload } = useApi<{ handoff: BillingHandoff | null }>(
+    isAdmin && job ? `/api/billing-handoffs?sourceJobId=${job.id}` : null,
+  )
+  const billingHandoff = billingPayload?.handoff ?? null
+
   const hasData      = useRef(false)
-  const [notFound,   setNotFound]   = useState(false)
+  if (job) hasData.current = true
+  const notFound = !!jobError && /404|Not found/i.test(jobError.message)
+  const loading = isLoading && !job
+
   const [editOpen,   setEditOpen]   = useState(false)
   const [editSaving, setEditSaving] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
@@ -94,34 +106,15 @@ export default function JobDetailPage() {
   const [dnEditValue,  setDnEditValue]  = useState("")
   const [dnEditSaving, setDnEditSaving] = useState(false)
 
+  useEffect(() => {
+    if (jobError && !/404|Not found/i.test(jobError.message)) {
+      toast("Failed to load job", "error")
+    }
+  }, [jobError, toast])
+
   const load = async () => {
-    if (!hasData.current) setLoading(true)
-    try {
-      const res = await fetch(`/api/jobs/${id}`)
-      if (res.status === 404) { setNotFound(true); return }
-      if (!res.ok) throw new Error()
-      const loaded = await res.json() as Job
-      setJob(loaded)
-      hasData.current = true
-
-      // Parent job + billing handoff in parallel after main job is known.
-      const [parentResult, billingResult] = await Promise.all([
-        loaded.parentJobId
-          ? fetch(`/api/jobs/${loaded.parentJobId}`).then(r => r.ok ? r.json() as Promise<Job> : null)
-          : Promise.resolve(null),
-        isAdmin
-          ? fetch(`/api/billing-handoffs?sourceJobId=${loaded.id}`)
-              .then(r => r.ok ? r.json() as Promise<{ handoff: BillingHandoff | null }> : null)
-          : Promise.resolve(null),
-      ])
-      setParentJob(parentResult)
-      setBillingHandoff(billingResult?.handoff ?? null)
-    } catch { toast("Failed to load job", "error") }
-    finally { setLoading(false) }
+    await mutateJob()
   }
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- load uses id/isAdmin from closure; re-running on id change is correct
-  useEffect(() => { if (id) load() }, [id])
 
   const handleEdit = async (form: JobFormData) => {
     setEditSaving(true)
@@ -316,7 +309,7 @@ export default function JobDetailPage() {
             ) : (
               <StatusWorkflow
                 jobId={job.id} currentStatus={job.status}
-                onStatusChange={s => { setJob({ ...job, status: s }); setHistoryKey(k => k + 1) }}
+                onStatusChange={s => { void mutateJob({ ...job, status: s }, { revalidate: false }); setHistoryKey(k => k + 1) }}
               />
             )}
           </DetailPanel>
@@ -514,7 +507,7 @@ export default function JobDetailPage() {
         job={assignOpen ? job : null}
         onClose={() => setAssignOpen(false)}
         onSaved={updated => {
-          setJob(updated)
+          void mutateJob(updated, { revalidate: false })
           setAssignOpen(false)
           setHistoryKey(k => k + 1)
         }}
@@ -620,7 +613,7 @@ export default function JobDetailPage() {
                   })
                   const data = await res.json() as Job & { error?: string }
                   if (!res.ok) { toast(data.error ?? "Failed to update", "error"); return }
-                  setJob(data)
+                  void mutateJob(data, { revalidate: false })
                   setDnEditOpen(false)
                   setHistoryKey(k => k + 1)
                   toast("Drawing number updated", "success")

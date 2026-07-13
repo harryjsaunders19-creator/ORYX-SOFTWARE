@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import "./print.css"
 import {
   PageShell,
@@ -20,6 +20,7 @@ import {
 } from "@/shared/ui/select"
 import { useToast } from "@/shared/ui/toast"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
+import { useApi } from "@/shared/hooks/use-api"
 import { formatGBP } from "@/shared/utils/utils"
 import {
   Building2,
@@ -49,24 +50,20 @@ export default function SiteVisitCalculatorPage() {
   const [result, setResult] = useState<SiteVisitCalculationResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState<SavedSiteVisitCalculation[]>([])
   const [saveLabel, setSaveLabel] = useState("")
   const [showSaved, setShowSaved] = useState(false)
 
   const debouncedAddress = useDebouncedValue(siteAddress, 500)
   const hours = parseFloat(siteHours)
   const calcRef = useRef(0)
+  // Perf: cache identical calculate POSTs (same address/hours/coords) in-session — avoids
+  // repeat geocode/routing when the user tweaks then restores the same inputs.
+  const calcCacheRef = useRef(new Map<string, SiteVisitCalculationResult>())
 
-  const loadSaved = useCallback(async () => {
-    try {
-      const res = await fetch("/api/site-visit-calculator/saved")
-      if (!res.ok) return
-      const data = await res.json()
-      setSaved(data.items ?? [])
-    } catch { /* non-fatal */ }
-  }, [])
-
-  useEffect(() => { loadSaved() }, [loadSaved])
+  const { data: savedData, mutate: mutateSaved } = useApi<{ items: SavedSiteVisitCalculation[] }>(
+    "/api/site-visit-calculator/saved",
+  )
+  const saved = savedData?.items ?? []
 
   useEffect(() => {
     const addr = debouncedAddress.trim()
@@ -77,6 +74,20 @@ export default function SiteVisitCalculatorPage() {
     }
     if (!Number.isFinite(hours) || hours <= 0) {
       setError("Select a valid time on site")
+      return
+    }
+
+    const cacheKey = JSON.stringify({
+      addr,
+      hours,
+      lat: selection?.lat ?? null,
+      lng: selection?.lng ?? null,
+    })
+    const cached = calcCacheRef.current.get(cacheKey)
+    if (cached) {
+      setResult(cached)
+      setError(null)
+      setLoading(false)
       return
     }
 
@@ -103,6 +114,7 @@ export default function SiteVisitCalculatorPage() {
           return
         }
         setResult(data.result)
+        calcCacheRef.current.set(cacheKey, data.result)
       })
       .catch(() => {
         if (id !== calcRef.current) return
@@ -167,7 +179,7 @@ export default function SiteVisitCalculatorPage() {
       }
       toast("Calculation saved", "success")
       setSaveLabel("")
-      loadSaved()
+      void mutateSaved()
     } catch {
       toast("Save failed", "error")
     }
@@ -197,7 +209,7 @@ export default function SiteVisitCalculatorPage() {
   const deleteSaved = async (id: string) => {
     try {
       await fetch(`/api/site-visit-calculator/saved/${id}`, { method: "DELETE" })
-      loadSaved()
+      void mutateSaved()
       toast("Deleted", "success")
     } catch {
       toast("Delete failed", "error")
