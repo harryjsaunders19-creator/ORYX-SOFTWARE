@@ -1,6 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
+import { RequireRole } from "@/shared/auth/require-role"
 
 const JobMapPage = dynamic(
   () => import("@/modules/job-map/components/job-map-page"),
@@ -15,5 +16,9 @@ const JobMapPage = dynamic(
 )
 
 export function JobMapPageShell() {
-  return <JobMapPage />
+  return (
+    <RequireRole roles={["ADMIN"]}>
+      <JobMapPage />
+    </RequireRole>
+  )
 }
