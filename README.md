@@ -65,9 +65,17 @@ Optional but recommended:
 
 | Variable | Purpose |
 |----------|---------|
-| `ERROR_WEBHOOK_URL` | Slack/Datadog error notifications |
+| `ERROR_WEBHOOK_URL` | Slack/Datadog JSON webhook for `logError` / `apiInternalError` |
 | `SUPABASE_SITE_VISIT_CALCULATIONS` | Default on when service role is set |
 | `SUPABASE_PASSWORD_VAULT` | Default on when service role is set |
+
+### Production smoke check
+
+```bash
+PRODUCTION_URL=https://oryx-software.vercel.app npm run smoke:production
+```
+
+Checks `/api/ping` and that anonymous `/api/jobs` returns 401. Also runs weekdays via GitHub Actions (`.github/workflows/smoke.yml`).
 
 When `SUPABASE_SERVICE_ROLE_KEY` is set, all modules use Supabase by default. Disable one with `SUPABASE_<MODULE>=false`.
 

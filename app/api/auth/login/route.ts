@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
-    if (!checkLoginRateLimit(`${clientIp}:${email}`)) {
+    if (!(await checkLoginRateLimit(`${clientIp}:${email}`))) {
       return NextResponse.json(
         { error: "Too many login attempts. Please wait 15 minutes and try again." },
         { status: 429 },

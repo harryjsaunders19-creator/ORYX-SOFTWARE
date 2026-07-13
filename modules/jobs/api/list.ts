@@ -243,6 +243,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(job, { status: 201 })
   } catch (err) {
-    return apiInternalError("jobs.list.create", err, undefined, { exposeDetail: true })
+    return apiInternalError("jobs.list.create", err)
   }
 }

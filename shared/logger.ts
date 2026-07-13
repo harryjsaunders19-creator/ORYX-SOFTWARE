@@ -40,8 +40,11 @@ function notifyErrorWebhook(
   const url = webhookUrl()
   if (!url) return
   const body = JSON.stringify({
+    source: "oryx",
     event,
     error: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack?.split("\n").slice(0, 8).join("\n") : undefined,
+    env: process.env.VERCEL_ENV || process.env.NODE_ENV,
     fields,
     ts: new Date().toISOString(),
   })
