@@ -685,10 +685,9 @@ export const supabaseJobRepo = {
 
   /** Dashboard overdue strip — slim columns, capped. */
   async findOverduePreview(take = 5): Promise<JobRow[]> {
-    let q = applyWhere(table().select(JOB_OVERDUE_PREVIEW_SELECT), { overdue: true })
+    const q = applyWhere(table().select(JOB_OVERDUE_PREVIEW_SELECT), { overdue: true })
       .order("required_by_date", { ascending: true })
       .limit(take)
-    if (jobsArchivedFilterEnabled()) q = q.is("archived_at", null)
     const { data, error } = await q
     if (error) throw error
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
