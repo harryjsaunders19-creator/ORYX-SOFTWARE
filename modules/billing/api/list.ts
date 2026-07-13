@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
     const view   = sp.get("view")   // "awaiting" | "cleared" | omitted = all
     const cleared = view === "cleared" ? true : view === "awaiting" ? false : undefined
-    const limit  = sp.get("limit") ? Math.min(parseInt(sp.get("limit")!), 200) : undefined
+    const limit  = sp.get("limit") ? Math.min(parseInt(sp.get("limit")!), 200) : 200
 
     const [handoffs, stats] = await Promise.all([
       billingHandoffService.findMany({ cleared, take: limit }),

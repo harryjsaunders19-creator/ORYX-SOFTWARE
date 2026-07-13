@@ -6,11 +6,18 @@
  * SUPABASE_<MODULE>=false. Force SQLite-only by omitting SUPABASE_SERVICE_ROLE_KEY.
  *
  * On Vercel, SQLite is ephemeral (/tmp) — Supabase must be the data store.
+ * When process.env.VERCEL === "1" or FORCE_SUPABASE_ONLY=true, flag() always
+ * returns true if admin is configured (ignores SUPABASE_*=false overrides).
  */
 import { isSupabaseAdminConfigured } from "./config"
 
 function flag(name: string): boolean {
   if (!isSupabaseAdminConfigured()) return false
+
+  // Vercel / forced Supabase-only: never allow per-module SQLite fallback.
+  if (process.env.VERCEL === "1" || process.env.FORCE_SUPABASE_ONLY === "true") {
+    return true
+  }
 
   const explicit = process.env[name]?.trim().toLowerCase()
   if (explicit === "false") return false

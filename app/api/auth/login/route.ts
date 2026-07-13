@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         logError("auth.login.supabase_sync", err, { userId: user.id })
         return NextResponse.json(
-          { error: "Database sync error. Check SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL environment variables, and ensure migration 008_users.sql has been run in Supabase." },
+          { error: "Database sync error. Check Supabase configuration and ensure the users migration has been applied." },
           { status: 503 },
         )
       }

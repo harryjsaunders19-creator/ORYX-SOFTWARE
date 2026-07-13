@@ -38,6 +38,24 @@ function isPasswordChangeApi(pathname: string): boolean {
   return matchesPrefix(pathname, PASSWORD_CHANGE_API_PREFIXES)
 }
 
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
+
+/** Reject cross-origin mutating API calls when Origin/Referer is present and mismatches. */
+function originAllowed(request: NextRequest): boolean {
+  const expected = request.nextUrl.origin
+  const origin = request.headers.get("origin")
+  if (origin) return origin === expected
+  const referer = request.headers.get("referer")
+  if (referer) {
+    try {
+      return new URL(referer).origin === expected
+    } catch {
+      return false
+    }
+  }
+  return true
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -58,6 +76,14 @@ export async function proxy(request: NextRequest) {
   // Perf: skip HMAC verify for public API routes (login/session/logout/ping).
   if (pathname.startsWith("/api/") && isPublicApi(pathname)) {
     return NextResponse.next()
+  }
+
+  if (
+    pathname.startsWith("/api/")
+    && MUTATING_METHODS.has(request.method)
+    && !originAllowed(request)
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   // Perf: public pages with no cookie need no HMAC work.

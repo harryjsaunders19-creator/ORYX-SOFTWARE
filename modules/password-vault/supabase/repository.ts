@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { PasswordVaultEntryRow } from "@/lib/db/vault-types"
 import type { VaultSortOrder } from "@/lib/db/stores/vault"
+import { postgrestOrIlike } from "@/shared/supabase/postgrest-filter"
 import {
   toPasswordVaultEntryRow,
   toSupabasePasswordVaultEntryRow,
@@ -17,10 +18,11 @@ export const supabasePasswordVaultRepo = {
   } = {}): Promise<PasswordVaultEntryRow[]> {
     let q = table().select("*")
     if (opts.search?.trim()) {
-      const term = opts.search.trim().toLowerCase()
-      q = q.or(
-        `service_name_lower.ilike.%${term}%,category_lower.ilike.%${term}%,username_lower.ilike.%${term}%`,
+      const orFilter = postgrestOrIlike(
+        ["service_name_lower", "category_lower", "username_lower"],
+        opts.search.trim().toLowerCase(),
       )
+      if (orFilter) q = q.or(orFilter)
     }
     q = q.order("service_name_lower", { ascending: opts.sort !== "desc" })
     const { data, error } = await q

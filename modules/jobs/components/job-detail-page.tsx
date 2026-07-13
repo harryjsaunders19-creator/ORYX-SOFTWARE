@@ -78,16 +78,15 @@ export default function JobDetailPage() {
   const { toast }    = useToast()
   const { isAdmin } = useUser()
 
-  const { data: job, error: jobError, isLoading, mutate: mutateJob } = useApi<Job>(
-    id ? `/api/jobs/${id}` : null,
+  const { data: job, error: jobError, isLoading, mutate: mutateJob } = useApi<
+    Job & { parentJob?: Job | null; billingHandoff?: BillingHandoff | null }
+  >(
+    id
+      ? `/api/jobs/${id}?include=${isAdmin ? "parent,billing" : "parent"}`
+      : null,
   )
-  const { data: parentJob } = useApi<Job>(
-    job?.parentJobId ? `/api/jobs/${job.parentJobId}` : null,
-  )
-  const { data: billingPayload } = useApi<{ handoff: BillingHandoff | null }>(
-    isAdmin && job ? `/api/billing-handoffs?sourceJobId=${job.id}` : null,
-  )
-  const billingHandoff = billingPayload?.handoff ?? null
+  const parentJob = job?.parentJob ?? null
+  const billingHandoff = job?.billingHandoff ?? null
 
   const notFound = !!jobError && /404|Not found/i.test(jobError.message)
   const loading = isLoading && !job

@@ -180,6 +180,7 @@ export const SUPABASE_INFRA_MIGRATIONS = [
   { id: "job-list-sort", label: "Job list sort key", migration: "023_job_list_sort_key.sql", tables: ["jobs"] },
   { id: "app-sequences", label: "App sequences (drawing/ref counters)", migration: "024_app_sequences.sql", tables: ["app_sequences"] },
   { id: "login-rate-limits", label: "Login rate limits", migration: "026_login_rate_limits.sql", tables: ["login_rate_limits"] },
+  { id: "security-sequences-aggregates", label: "Security sequences & aggregates", migration: "027_security_sequences_aggregates.sql", tables: ["app_sequences"] },
 ] as const
 
 export const SUPABASE_GO_LIVE_STEPS = [

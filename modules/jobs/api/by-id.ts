@@ -7,10 +7,11 @@ import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { cancelRecordForJob } from "@/lib/cancel-record"
 import { apiInternalError } from "@/shared/api-errors"
+import { billingHandoffService } from "@/modules/billing"
 
 type Ctx = { params: Promise<{ id: string }> }
 
-export async function GET(_req: NextRequest, { params }: Ctx) {
+export async function GET(req: NextRequest, { params }: Ctx) {
   try {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
@@ -21,7 +22,25 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const payload = job.archivedAt
       ? { ...job, cancelRecord: await cancelRecordForJob(id) }
       : job
-    return resourceResponse(payload)
+
+    const include = new Set(
+      (req.nextUrl.searchParams.get("include") ?? "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean),
+    )
+    if (include.size === 0) return resourceResponse(payload)
+
+    const result: Record<string, unknown> = { ...payload }
+    if (include.has("parent")) {
+      result.parentJob = job.parentJobId
+        ? await jobService.findUnique(job.parentJobId)
+        : null
+    }
+    if (include.has("billing") && auth.user.role === "ADMIN") {
+      result.billingHandoff = await billingHandoffService.findBySourceJobId(id)
+    }
+    return resourceResponse(result)
   } catch (err) {
     return apiInternalError("jobs.by_id.get", err)
   }

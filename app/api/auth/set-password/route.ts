@@ -3,7 +3,7 @@
  */
 import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
 
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser, getRealUser } from "@/lib/auth"
 import { setSessionCookies } from "@/lib/auth-cookies"
 import { userService } from "@/lib/services/user-service"
 import { hashPassword, validatePasswordStrength } from "@/lib/password"
@@ -13,6 +13,13 @@ export async function POST(req: NextRequest) {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
 
+    const realUser = await getRealUser()
+    if (!realUser || realUser.id !== user.id) {
+      return NextResponse.json(
+        { error: "Cannot change password while impersonating" },
+        { status: 403 },
+      )
+    }
     let body: { password?: string; confirmPassword?: string }
     try { body = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }

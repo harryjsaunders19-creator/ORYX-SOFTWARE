@@ -39,13 +39,13 @@ async function currentSequence(name: string): Promise<number | null> {
   return data?.value ?? null
 }
 
+/** Floor the counter to at least `value` — never lowers an existing row (cold-start safe). */
 async function seedSequence(name: string, value: number): Promise<void> {
   if (value <= 0) return
-  const existing = await currentSequence(name)
-  if (existing != null) return
-  const { error } = await createAdminClient()
-    .from("app_sequences")
-    .upsert({ name, value }, { onConflict: "name", ignoreDuplicates: true })
+  const { error } = await createAdminClient().rpc("seed_app_sequence", {
+    p_name: name,
+    p_value: value,
+  })
   if (error) throw error
 }
 

@@ -1,4 +1,5 @@
-import fs from "fs"import { apiInternalError } from "@/shared/api-errors"
+import fs from "fs"
+import { apiInternalError } from "@/shared/api-errors"
 
 import path from "path"
 import { NextRequest, NextResponse } from "next/server"
@@ -12,7 +13,7 @@ import {
   DOC_MIME,
   MAX_DOC_BYTES,
 } from "@/modules/employees"
-import { canManageDocuments, canUploadRestrictedDocuments } from "@/modules/employees"
+import { canManageDocuments, canUploadRestrictedDocuments, canViewDocuments } from "@/modules/employees"
 import { DOCUMENT_CATEGORIES, type DocumentCategory } from "@/modules/employees"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -23,6 +24,9 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
     const access = await employeeService.getAccess(auth.user, id)
+    if (!canViewDocuments(access)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
     const includeRestricted = canUploadRestrictedDocuments(access)
     const documents = employeeDocumentDb.findByUser(id, includeRestricted)
     return NextResponse.json({ documents })

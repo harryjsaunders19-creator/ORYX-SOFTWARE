@@ -14,6 +14,7 @@ import {
   noteJobsArchivedFromError,
   isMissingColumnError,
 } from "@/lib/supabase/archived-filter"
+import { postgrestOrIlike } from "@/shared/supabase/postgrest-filter"
 import { logEvent } from "@/shared/logger"
 import {
   sortColumn,
@@ -139,18 +140,19 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
   }
 
   if (where.search) {
-    const term = where.search.trim()
-    q = q.or(
+    const orFilter = postgrestOrIlike(
       [
-        `drawing_number.ilike.%${term}%`,
-        `address.ilike.%${term}%`,
-        `client_company.ilike.%${term}%`,
-        `requested_by.ilike.%${term}%`,
-        `type_of_works.ilike.%${term}%`,
-        `custom_type_description.ilike.%${term}%`,
-        `designer.ilike.%${term}%`,
-      ].join(","),
+        "drawing_number",
+        "address",
+        "client_company",
+        "requested_by",
+        "type_of_works",
+        "custom_type_description",
+        "designer",
+      ],
+      where.search,
     )
+    if (orFilter) q = q.or(orFilter)
   }
   if (where.typeOfWorks) q = q.eq("type_of_works", where.typeOfWorks)
   if (where.itemType) q = q.eq("item_type", where.itemType)
@@ -518,11 +520,10 @@ export const supabaseJobRepo = {
   },
 
   /**
-   * Dashboard aggregates from a single slim jobs projection.
-   * Perf: replaces ~16 parallel PostgREST head-count round-trips
-   * (per-status + per-item-type + unassigned/originals/revisions/deadlines)
-   * with one select of five columns, tallied in-process. Same filters/semantics
-   * as applyWhere({ archived }) + the previous count helpers.
+   * Dashboard aggregates via job_dashboard_counts RPC when available.
+   * Falls back to a paginated slim scan (1000/page) with the same tally
+   * semantics: archived filter, VALID_STATUSES/VALID_ITEM_TYPES, and
+   * status !== ISSUED for deadline buckets.
    */
   async dashboardCounts(): Promise<{
     byStatus:         { status: string; count: number }[]
@@ -534,17 +535,59 @@ export const supabaseJobRepo = {
     dueTodayCount:    number
     dueThisWeekCount: number
   }> {
+    try {
+      const { data, error } = await createAdminClient().rpc("job_dashboard_counts")
+      if (!error && data && typeof data === "object") {
+        const d = data as Record<string, unknown>
+        const statusMap = new Map<string, number>()
+        for (const row of (Array.isArray(d.byStatus) ? d.byStatus : []) as { status?: string; count?: number }[]) {
+          if (row.status) statusMap.set(row.status, Number(row.count) || 0)
+        }
+        const typeMap = new Map<string, number>()
+        for (const row of (Array.isArray(d.byItemType) ? d.byItemType : []) as { itemType?: string; count?: number }[]) {
+          if (row.itemType) typeMap.set(row.itemType, Number(row.count) || 0)
+        }
+        return {
+          byStatus: VALID_STATUSES
+            .map(status => ({ status, count: statusMap.get(status) ?? 0 }))
+            .filter(r => r.count > 0),
+          byItemType: VALID_ITEM_TYPES
+            .map(itemType => ({ itemType, count: typeMap.get(itemType) ?? 0 }))
+            .filter(r => r.count > 0),
+          unassigned:       Number(d.unassigned) || 0,
+          totalActiveJobs:  Number(d.totalActiveJobs) || 0,
+          totalRevisions:   Number(d.totalRevisions) || 0,
+          overdueCount:     Number(d.overdueCount) || 0,
+          dueTodayCount:    Number(d.dueTodayCount) || 0,
+          dueThisWeekCount: Number(d.dueThisWeekCount) || 0,
+        }
+      }
+    } catch {
+      // Fall through to paginated scan.
+    }
+
     const cols = "status,item_type,designer,parent_job_id,required_by_date"
-    const run = () => {
-      let q = table().select(cols)
-      if (jobsArchivedFilterEnabled()) q = q.is("archived_at", null)
+    const pageSize = 1000
+    let useArchived = jobsArchivedFilterEnabled()
+    const fetchPage = (from: number, archived: boolean) => {
+      let q = table().select(cols).range(from, from + pageSize - 1)
+      if (archived) q = q.is("archived_at", null)
       return q
     }
-    let { data, error } = await run()
+
+    let { data, error } = await fetchPage(0, useArchived)
     if (error && noteJobsArchivedFromError(error)) {
-      ;({ data, error } = await table().select(cols))
+      useArchived = false
+      ;({ data, error } = await fetchPage(0, false))
     }
     if (error) throw error
+
+    const rows = [...(data ?? [])]
+    while ((data?.length ?? 0) === pageSize) {
+      ;({ data, error } = await fetchPage(rows.length, useArchived))
+      if (error) throw error
+      rows.push(...(data ?? []))
+    }
 
     const today = todayIsoDate()
     const weekEnd = weekEndIsoDate()
@@ -557,7 +600,7 @@ export const supabaseJobRepo = {
     let dueTodayCount = 0
     let dueThisWeekCount = 0
 
-    for (const row of data ?? []) {
+    for (const row of rows) {
       const status = row.status as string
       const itemType = row.item_type as string
       statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1)
@@ -578,16 +621,13 @@ export const supabaseJobRepo = {
       }
     }
 
-    const byStatus = VALID_STATUSES
-      .map(status => ({ status, count: statusCounts.get(status) ?? 0 }))
-      .filter(r => r.count > 0)
-    const byItemType = VALID_ITEM_TYPES
-      .map(itemType => ({ itemType, count: typeCounts.get(itemType) ?? 0 }))
-      .filter(r => r.count > 0)
-
     return {
-      byStatus,
-      byItemType,
+      byStatus: VALID_STATUSES
+        .map(status => ({ status, count: statusCounts.get(status) ?? 0 }))
+        .filter(r => r.count > 0),
+      byItemType: VALID_ITEM_TYPES
+        .map(itemType => ({ itemType, count: typeCounts.get(itemType) ?? 0 }))
+        .filter(r => r.count > 0),
       unassigned,
       totalActiveJobs,
       totalRevisions,
@@ -598,12 +638,23 @@ export const supabaseJobRepo = {
   },
 
   async findRecent(take: number) {
-    const { data, error } = await table()
-      .select(
-        "id,drawing_number,item_type,address,status,client_company,designer,quote_value,invoice_id,parent_job_id,revision_letter,created_at",
-      )
-      .order("date_created", { ascending: false })
-      .limit(take)
+    const selectCols =
+      "id,drawing_number,item_type,address,status,client_company,designer,quote_value,invoice_id,parent_job_id,revision_letter,created_at"
+    const run = () => {
+      let q = table()
+        .select(selectCols)
+        .order("date_created", { ascending: false })
+        .limit(take)
+      if (jobsArchivedFilterEnabled()) q = q.is("archived_at", null)
+      return q
+    }
+    let { data, error } = await run()
+    if (error && noteJobsArchivedFromError(error)) {
+      ;({ data, error } = await table()
+        .select(selectCols)
+        .order("date_created", { ascending: false })
+        .limit(take))
+    }
     if (error) throw error
     return (data ?? []).map((row) => ({
       id: row.id as string,
@@ -700,17 +751,29 @@ export const supabaseJobRepo = {
 
   /** Returns the highest ref sequence per prefix+year (e.g. SV/2026 → 5). */
   async maxRefSequences(): Promise<{ prefix: string; year: number; maxSeq: number }[]> {
-    const { data, error } = await table().select("drawing_number").not("drawing_number", "like", "%/ORYX/%")
-    if (error) return []
     const maxByKey = new Map<string, number>()
-    for (const row of (data ?? [])) {
-      const match = (row.drawing_number as string | null)?.match(/^([A-Z]+)-(\d{4})-(\d+)$/)
-      if (!match) continue
-      const [, prefix, yearStr, nnn] = match
-      const mapKey = `${prefix}||${yearStr}`
-      const seq = parseInt(nnn, 10)
-      const prev = maxByKey.get(mapKey) ?? 0
-      if (seq > prev) maxByKey.set(mapKey, seq)
+    const pageSize = 1000
+    try {
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await table()
+          .select("drawing_number")
+          .not("drawing_number", "like", "%/ORYX/%")
+          .range(from, from + pageSize - 1)
+        if (error) return []
+        if (!data?.length) break
+        for (const row of data) {
+          const match = (row.drawing_number as string | null)?.match(/^([A-Z]+)-(\d{4})-(\d+)$/)
+          if (!match) continue
+          const [, prefix, yearStr, nnn] = match
+          const mapKey = `${prefix}||${yearStr}`
+          const seq = parseInt(nnn, 10)
+          const prev = maxByKey.get(mapKey) ?? 0
+          if (seq > prev) maxByKey.set(mapKey, seq)
+        }
+        if (data.length < pageSize) break
+      }
+    } catch {
+      return []
     }
     return Array.from(maxByKey.entries()).map(([mapKey, maxSeq]) => {
       const [prefix, yearStr] = mapKey.split("||")

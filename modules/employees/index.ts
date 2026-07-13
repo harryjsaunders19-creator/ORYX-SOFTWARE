@@ -14,6 +14,7 @@ export {
   canViewEmployee,
   canViewSalary,
   canManageDocuments,
+  canViewDocuments,
   canUploadRestrictedDocuments,
   canViewNotes,
   canEditNotes,

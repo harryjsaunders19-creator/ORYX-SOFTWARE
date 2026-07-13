@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
-    if (!employeeService.getDetail(auth.user, id)) {
+    if (!(await employeeService.getDetail(auth.user, id))) {
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
     const activity = employeeActivityDb.findByUser(id, 50)

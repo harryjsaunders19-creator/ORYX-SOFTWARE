@@ -6,7 +6,6 @@ import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "../quote-works"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { apiInternalError } from "@/shared/api-errors"
-import { logBackgroundError } from "@/shared/logger"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
 
@@ -32,11 +31,6 @@ export async function GET(req: NextRequest) {
     const page   = Math.max(1, parseInt(sp.get("page") ?? "1"))
     const limit  = Math.max(1, Math.min(100, parseInt(sp.get("limit") ?? "25")))
     const opts   = { ...(search && { search }), ...(status && { status }) }
-    // Run expiry in the background — don't block the read response.
-    // Quotes will appear as expired on the *next* page load at worst.
-    quoteService.expirePastDue().catch(err =>
-      logBackgroundError("quotes.expire_past_due", err),
-    )
     const [quotes, total, expiringSoonCount, expiredClearableCount] = await Promise.all([
       quoteService.findMany({ ...opts, skip: (page - 1) * limit, take: limit }),
       quoteService.count(opts),

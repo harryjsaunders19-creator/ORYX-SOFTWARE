@@ -1,4 +1,5 @@
-import fs from "fs"import { apiInternalError } from "@/shared/api-errors"
+import fs from "fs"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { NextRequest, NextResponse } from "next/server"
 import { requireSignIn } from "@/shared/auth/auth"
@@ -7,6 +8,7 @@ import {
   resolveEmployeeFilePath,
   canManageDocuments,
   canUploadRestrictedDocuments,
+  canViewDocuments,
 } from "@/modules/employees"
 import { employeeDocumentDb } from "@/lib/db/stores"
 
@@ -22,6 +24,9 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 })
     }
     const access = await employeeService.getAccess(auth.user, id)
+    if (!canViewDocuments(access)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
     if (doc.restricted && !canUploadRestrictedDocuments(access)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }

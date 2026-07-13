@@ -10,6 +10,9 @@ export function employeeFilesRoot(): string {
 }
 
 export function employeeUserDir(userId: string): string {
+  if (!/^[\w-]+$/.test(userId)) {
+    throw new Error("Invalid employee user id")
+  }
   const dir = path.join(employeeFilesRoot(), userId)
   fs.mkdirSync(dir, { recursive: true })
   return dir

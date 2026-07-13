@@ -6,6 +6,7 @@
  */
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isMissingColumnError } from "@/lib/supabase/archived-filter"
+import { postgrestOrIlike, escapePostgrestFilterValue } from "@/shared/supabase/postgrest-filter"
 import { toClientRow, toSupabaseInsert, toSupabaseRow, toSupabaseUpdate, type SupabaseClientRow } from "./mapper"
 import type { ClientRow, CreateClientData, UpdateClientData } from "../types/client-types"
 
@@ -25,8 +26,11 @@ export const supabaseClientRepo = {
     let q = table().select(CLIENT_LIST_SELECT).order("name", { ascending: true })
     if (opts.activeOnly) q = q.eq("active", true)
     if (opts.search) {
-      const term = opts.search.trim()
-      q = q.or(`name_lower.ilike.%${term}%,contact_name.ilike.%${term}%,email.ilike.%${term}%`)
+      const orFilter = postgrestOrIlike(
+        ["name_lower", "contact_name", "email"],
+        opts.search,
+      )
+      if (orFilter) q = q.or(orFilter)
     }
     if (opts.skip != null && opts.take != null) {
       q = q.range(opts.skip, opts.skip + opts.take - 1)
@@ -42,8 +46,11 @@ export const supabaseClientRepo = {
     let q = table().select("*", { count: "exact", head: true })
     if (opts.activeOnly) q = q.eq("active", true)
     if (opts.search) {
-      const term = opts.search.trim()
-      q = q.or(`name_lower.ilike.%${term}%,contact_name.ilike.%${term}%,email.ilike.%${term}%`)
+      const orFilter = postgrestOrIlike(
+        ["name_lower", "contact_name", "email"],
+        opts.search,
+      )
+      if (orFilter) q = q.or(orFilter)
     }
     const { count, error } = await q
     if (error) throw error
@@ -72,10 +79,12 @@ export const supabaseClientRepo = {
   async search(q: string, limit = 10): Promise<ClientRow[]> {
     const lower = q.trim().toLowerCase()
     if (!lower) return this.findMany({ activeOnly: true, take: limit })
+    const safe = escapePostgrestFilterValue(lower)
+    if (!safe) return this.findMany({ activeOnly: true, take: limit })
     const { data, error } = await table()
       .select("*")
       .eq("active", true)
-      .ilike("name_lower", `%${lower}%`)
+      .ilike("name_lower", `%${safe}%`)
       .order("name", { ascending: true })
       .limit(limit)
     if (error) throw error

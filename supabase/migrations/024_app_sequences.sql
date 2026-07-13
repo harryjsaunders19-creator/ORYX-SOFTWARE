@@ -23,3 +23,4 @@ end;
 $$;
 
 grant execute on function public.bump_app_sequence(text, int) to service_role;
+revoke execute on function public.bump_app_sequence(text, int) from public, anon, authenticated;

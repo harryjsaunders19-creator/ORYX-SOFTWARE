@@ -12,6 +12,7 @@ import {
   quotesArchivedFilterEnabled,
   noteQuotesArchivedFromError,
 } from "@/lib/supabase/archived-filter"
+import { postgrestOrIlike } from "@/shared/supabase/postgrest-filter"
 import {
   toQuoteLineItemRow,
   toQuoteRow,
@@ -61,15 +62,11 @@ function applyQuoteFilters(q: QuoteQuery, opts: QuoteListOptionsExt): QuoteQuery
   }
 
   if (opts.search) {
-    const term = opts.search.trim()
-    q = q.or(
-      [
-        `quote_number.ilike.%${term}%`,
-        `client_company.ilike.%${term}%`,
-        `address.ilike.%${term}%`,
-        `description.ilike.%${term}%`,
-      ].join(","),
+    const orFilter = postgrestOrIlike(
+      ["quote_number", "client_company", "address", "description"],
+      opts.search,
     )
+    if (orFilter) q = q.or(orFilter)
   }
   if (opts.status) q = q.eq("status", opts.status)
   if (opts.clientId) q = q.eq("client_id", opts.clientId)
@@ -277,24 +274,47 @@ export const supabaseQuoteRepo = {
     acceptedValue: number
     conversionRate: number
   }> {
-    // Perf: one slim status+value scan replaces 2×N PostgREST round-trips
-    // (head count + sum per quote status).
-    const run = () =>
-      applyQuoteFilters(quotesTable().select("status,quote_value"), {})
-    let { data, error } = await run()
-    if (error && noteQuotesArchivedFromError(error)) {
-      ;({ data, error } = await run())
+    try {
+      const { data, error } = await createAdminClient().rpc("quote_stats_agg")
+      if (!error && data && typeof data === "object") {
+        const d = data as Record<string, unknown>
+        return {
+          total:          Number(d.total) || 0,
+          draft:          Number(d.draft) || 0,
+          sent:           Number(d.sent) || 0,
+          accepted:       Number(d.accepted) || 0,
+          rejected:       Number(d.rejected) || 0,
+          expired:        Number(d.expired) || 0,
+          totalValue:     Number(d.totalValue) || 0,
+          acceptedValue:  Number(d.acceptedValue) || 0,
+          conversionRate: Number(d.conversionRate) || 0,
+        }
+      }
+    } catch {
+      // Fall through to paginated scan.
     }
-    if (error) throw error
 
+    // Perf: paginated slim status+value scan (avoids PostgREST 1000-row cap).
+    const pageSize = 1000
     const counts = new Map<string, number>()
     const values = new Map<string, number>()
-    for (const row of data ?? []) {
-      const status = row.status as string
-      counts.set(status, (counts.get(status) ?? 0) + 1)
-      const qv = row.quote_value != null ? Number(row.quote_value) : 0
-      // Match PostgREST sum(): nulls ignored; zeros don't change the total.
-      values.set(status, (values.get(status) ?? 0) + qv)
+    for (let from = 0; ; from += pageSize) {
+      const run = () =>
+        applyQuoteFilters(quotesTable().select("status,quote_value"), {})
+          .range(from, from + pageSize - 1)
+      let { data, error } = await run()
+      if (error && noteQuotesArchivedFromError(error)) {
+        ;({ data, error } = await run())
+      }
+      if (error) throw error
+      if (!data?.length) break
+      for (const row of data) {
+        const status = row.status as string
+        counts.set(status, (counts.get(status) ?? 0) + 1)
+        const qv = row.quote_value != null ? Number(row.quote_value) : 0
+        values.set(status, (values.get(status) ?? 0) + qv)
+      }
+      if (data.length < pageSize) break
     }
 
     const cnt = (s: string) => counts.get(s) ?? 0
@@ -324,17 +344,28 @@ export const supabaseQuoteRepo = {
 
   /** Returns the highest quote/batch sequence per prefix+year (e.g. Q/2026 → 12). */
   async maxQuoteRefSequences(): Promise<{ prefix: string; year: number; maxSeq: number }[]> {
-    const { data, error } = await quotesTable().select("quote_number")
-    if (error) return []
     const maxByKey = new Map<string, number>()
-    for (const row of (data ?? [])) {
-      const match = (row.quote_number as string | null)?.match(/^([A-Z]+)-(\d{4})-(\d+)$/)
-      if (!match) continue
-      const [, prefix, yearStr, nnn] = match
-      const mapKey = `${prefix}||${yearStr}`
-      const seq = parseInt(nnn, 10)
-      const prev = maxByKey.get(mapKey) ?? 0
-      if (seq > prev) maxByKey.set(mapKey, seq)
+    const pageSize = 1000
+    try {
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await quotesTable()
+          .select("quote_number")
+          .range(from, from + pageSize - 1)
+        if (error) return []
+        if (!data?.length) break
+        for (const row of data) {
+          const match = (row.quote_number as string | null)?.match(/^([A-Z]+)-(\d{4})-(\d+)$/)
+          if (!match) continue
+          const [, prefix, yearStr, nnn] = match
+          const mapKey = `${prefix}||${yearStr}`
+          const seq = parseInt(nnn, 10)
+          const prev = maxByKey.get(mapKey) ?? 0
+          if (seq > prev) maxByKey.set(mapKey, seq)
+        }
+        if (data.length < pageSize) break
+      }
+    } catch {
+      return []
     }
     return Array.from(maxByKey.entries()).map(([mapKey, maxSeq]) => {
       const [prefix, yearStr] = mapKey.split("||")

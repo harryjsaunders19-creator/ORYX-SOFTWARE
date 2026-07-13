@@ -63,6 +63,11 @@ export function canManageDocuments(access: EmployeeAccess): boolean {
   return access === "admin" || access === "manager"
 }
 
+/** View document metadata/files — admin, manager of the employee, or self. */
+export function canViewDocuments(access: EmployeeAccess): boolean {
+  return access === "admin" || access === "manager" || access === "self"
+}
+
 export function canUploadRestrictedDocuments(access: EmployeeAccess): boolean {
   return access === "admin" || access === "manager"
 }

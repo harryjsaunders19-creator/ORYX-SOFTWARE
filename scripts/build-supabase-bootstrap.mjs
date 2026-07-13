@@ -52,6 +52,7 @@ const MIGRATION_ORDER = [
   "024_app_sequences.sql",
   "025_site_visit_calculations.sql",
   "026_login_rate_limits.sql",
+  "027_security_sequences_aggregates.sql",
 ]
 
 const header = `-- =============================================================================

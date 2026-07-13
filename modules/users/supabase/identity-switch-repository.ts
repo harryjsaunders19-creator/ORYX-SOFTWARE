@@ -19,14 +19,32 @@ export const supabaseIdentitySwitchRepo = {
   },
 
   async findForUser(userId: string, opts: { take?: number } = {}): Promise<IdentitySwitchLogRow[]> {
-    let q = table()
+    // Use two .eq queries instead of .or with raw ids (avoids filter injection).
+    let asReal = table()
       .select("*")
-      .or(`real_user_id.eq.${userId},target_user_id.eq.${userId}`)
+      .eq("real_user_id", userId)
       .order("created_at", { ascending: false })
-    if (opts.take != null) q = q.limit(opts.take)
-    const { data, error } = await q
-    if (error) throw error
-    return (data ?? []).map(toIdentitySwitchLogRow)
+    let asTarget = table()
+      .select("*")
+      .eq("target_user_id", userId)
+      .order("created_at", { ascending: false })
+    if (opts.take != null) {
+      asReal = asReal.limit(opts.take)
+      asTarget = asTarget.limit(opts.take)
+    }
+    const [realRes, targetRes] = await Promise.all([asReal, asTarget])
+    if (realRes.error) throw realRes.error
+    if (targetRes.error) throw targetRes.error
+
+    const byId = new Map<string, IdentitySwitchLogRow>()
+    for (const row of [...(realRes.data ?? []), ...(targetRes.data ?? [])]) {
+      const mapped = toIdentitySwitchLogRow(row)
+      byId.set(mapped.id, mapped)
+    }
+    const merged = Array.from(byId.values()).sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    )
+    return opts.take != null ? merged.slice(0, opts.take) : merged
   },
 
   async upsert(row: IdentitySwitchLogRow): Promise<void> {

@@ -346,7 +346,7 @@ function BillingPageInner() {
   const { toast } = useToast()
   const [view, setView]   = useState<View>("awaiting")
   // Perf: SWR key includes view so awaiting/cleared/history share the cache correctly.
-  const listKey = view === "history" ? null : `/api/billing-handoffs?view=${view}`
+  const listKey = view === "history" ? null : `/api/billing-handoffs?view=${view}&limit=200`
   const historyKey = view === "history" ? "/api/billing-handoffs/batches" : null
   const { data: listData, error: listError, isLoading: listLoading, mutate: mutateList } = useApi<{
     handoffs?: BillingHandoff[]
