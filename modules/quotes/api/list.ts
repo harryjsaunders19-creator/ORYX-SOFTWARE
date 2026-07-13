@@ -132,6 +132,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(quote, { status: 201 })
   } catch (err) {
-    return apiInternalError("quotes.list.create", err, undefined, { exposeDetail: true })
+    return apiInternalError("quotes.list.create", err)
   }
 }

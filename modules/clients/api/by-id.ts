@@ -85,6 +85,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ archived: true, client: archived })
   } catch (err) {
-    return apiInternalError("clients.by_id.delete", err, undefined, { exposeDetail: true })
+    return apiInternalError("clients.by_id.delete", err)
   }
 }

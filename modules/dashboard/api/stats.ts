@@ -59,6 +59,6 @@ export async function GET(req: NextRequest) {
       weekEvents:  calendarFrom && calendarTo ? weekEvents : undefined,
     })
   } catch (err) {
-    return apiInternalError("dashboard.stats.get", err, undefined, { exposeDetail: true })
+    return apiInternalError("dashboard.stats.get", err)
   }
 }

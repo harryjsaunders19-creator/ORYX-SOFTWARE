@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { logError } from "@/shared/logger"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { requireRole } from "@/shared/auth/auth"
 import { importFromExcelBuffer } from "../services/excel-import"
-import { formatImportError } from "../services/import-excel-bulk"
 
 /** Large imports batch-upsert to Supabase — allow up to 60s on Vercel (see vercel.json). */
 export const maxDuration = 60
@@ -33,10 +32,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result)
   } catch (err) {
-    logError("import_export.api.import_excel", err)
-    return NextResponse.json(
-      { error: `Import failed: ${formatImportError(err)}` },
-      { status: 500 },
-    )
+    return apiInternalError("import_export.api.import_excel", err)
   }
 }

@@ -23,17 +23,21 @@ function parseLineItems(raw: unknown): { description: string; amount: number; va
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireSignIn()
+  try {
+    const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
 
-  const { id } = await params
-  // Run expiry in the background — don't block the single-quote read.
-  quoteService.expirePastDue().catch(err =>
-    logBackgroundError("quotes.by_id.expire_past_due", err),
-  )
-  const quote  = await quoteService.findUnique(id)
-  if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  return resourceResponse(quote)
+    const { id } = await params
+    // Run expiry in the background — don't block the single-quote read.
+    quoteService.expirePastDue().catch(err =>
+      logBackgroundError("quotes.by_id.expire_past_due", err),
+    )
+    const quote = await quoteService.findUnique(id)
+    if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    return resourceResponse(quote)
+  } catch (err) {
+    return apiInternalError("quotes.by_id.get", err)
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
@@ -154,6 +158,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ ok: true, archived: true, quote: archived })
   } catch (err) {
-    return apiInternalError("quotes.by_id.delete", err, undefined, { exposeDetail: true })
+    return apiInternalError("quotes.by_id.delete", err)
   }
 }

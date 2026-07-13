@@ -39,6 +39,6 @@ export async function GET() {
       warnings,
     })
   } catch (err) {
-    return apiInternalError("archive.api.archived", err, undefined, { exposeDetail: true })
+    return apiInternalError("archive.api.archived", err)
   }
 }

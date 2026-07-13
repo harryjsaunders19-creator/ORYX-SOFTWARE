@@ -90,6 +90,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     logEvent("quote.convert.success", { quoteId: id, jobId: job.id, drawingNumber: job.drawingNumber })
     return NextResponse.json({ job, quote: updatedQuote }, { status: 201 })
   } catch (err) {
-    return apiInternalError("quote.convert.error", err, undefined, { exposeDetail: true })
+    return apiInternalError("quote.convert.error", err)
   }
 }

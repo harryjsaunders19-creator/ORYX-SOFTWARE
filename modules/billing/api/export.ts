@@ -49,6 +49,6 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (err) {
-    return apiInternalError("billing.export.error", err, undefined, { exposeDetail: true })
+    return apiInternalError("billing.export.error", err)
   }
 }

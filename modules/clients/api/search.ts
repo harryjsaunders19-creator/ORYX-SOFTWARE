@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { holdService } from "../hold/services/hold-service"
 import { clientService } from "../services/client-service"
 import { requireSignIn } from "@/shared/auth/auth"
+import { apiInternalError } from "@/shared/api-errors"
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
       holdReason: reasonByClientId.get(c.id) ?? null,
     }))
     return NextResponse.json({ clients: clientsWithHold })
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (err) {
+    return apiInternalError("clients.api.search", err)
   }
 }

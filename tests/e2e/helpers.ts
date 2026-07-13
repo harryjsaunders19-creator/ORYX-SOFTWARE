@@ -15,6 +15,8 @@ export async function loginAsAdmin(page: Page) {
 }
 
 export async function loginAsEngineer(page: Page) {
+  // Clear any prior session so role switches in the same test are reliable.
+  await page.context().clearCookies()
   await page.goto("/login")
   await page.locator("#email").fill("engineer@test.com")
   await page.locator("#password").fill("engineer123")

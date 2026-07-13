@@ -65,6 +65,6 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     if (!hold) return NextResponse.json({ error: "Client is not currently on hold" }, { status: 404 })
     return NextResponse.json(hold)
   } catch (err) {
-    return apiInternalError("clients.hold.by_client.delete", err, undefined, { exposeDetail: true })
+    return apiInternalError("clients.hold.by_client.delete", err)
   }
 }

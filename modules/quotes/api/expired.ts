@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { quoteService } from "../services/quote-service"
 import { requireRole } from "@/shared/auth/auth"
+import { apiInternalError } from "@/shared/api-errors"
 
 export async function DELETE() {
   try {
@@ -10,7 +11,7 @@ export async function DELETE() {
     await quoteService.expirePastDue()
     const { archived } = await quoteService.clearExpired(auth.user.id, auth.user.name)
     return NextResponse.json({ archived })
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (err) {
+    return apiInternalError("quotes.api.expired", err)
   }
 }
