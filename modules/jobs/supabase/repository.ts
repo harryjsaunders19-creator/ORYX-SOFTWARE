@@ -422,6 +422,17 @@ export const supabaseJobRepo = {
     return (data ?? []).map(toJobRow)
   },
 
+  /** Slim fetch for calendar enrichment — only fields needed for drawing-number labels. */
+  async findManyByIdsSlim(ids: string[]): Promise<Pick<JobRow, "id" | "drawingNumber">[]> {
+    if (!ids.length) return []
+    const { data, error } = await table().select("id, drawing_number").in("id", ids)
+    if (error) throw error
+    return (data ?? []).map(row => ({
+      id: row.id as string,
+      drawingNumber: row.drawing_number as string,
+    }))
+  },
+
   async revisionsForJob(parentId: string): Promise<JobRow[]> {
     const { data, error } = await table()
       .select("*")

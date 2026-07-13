@@ -16,6 +16,20 @@ import { userService } from "@/lib/services/user-service"
 import { SESSION_COOKIE, getRealUser } from "@/lib/auth"
 import { setSessionCookies } from "@/lib/auth-cookies"
 import { verifySessionToken } from "@/lib/session-cookie"
+import { logError } from "@/shared/logger"
+
+async function softAuditLog(
+  entry: Parameters<typeof identitySwitchLogService.log>[0],
+): Promise<void> {
+  try {
+    await identitySwitchLogService.log(entry)
+  } catch (err) {
+    logError("auth.switch.audit", err, {
+      action: entry.action,
+      realUserId: entry.realUserId,
+    })
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,7 +59,7 @@ export async function POST(req: NextRequest) {
       const store = req.cookies
       const currentActiveId = await verifySessionToken(store.get(SESSION_COOKIE)?.value)
       if (currentActiveId && currentActiveId !== realUser.id) {
-        await identitySwitchLogService.log({ action: "IMPERSONATION_ENDED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name, detail: "Returned to own identity via switch" })
+        await softAuditLog({ action: "IMPERSONATION_ENDED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name, detail: "Returned to own identity via switch" })
       }
       const res = NextResponse.json({ user: withoutPassword(target), isImpersonating: false })
       await setSessionCookies(res, target.id, realUser.id, {
@@ -60,11 +74,11 @@ export async function POST(req: NextRequest) {
     // impersonating a non-admin can't use that session to impersonate a
     // third identity; only logging out and back in as the real admin can.
     if (realUser.role !== "ADMIN") {
-      await identitySwitchLogService.log({ action: "IMPERSONATION_REJECTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
+      await softAuditLog({ action: "IMPERSONATION_REJECTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
       return NextResponse.json({ error: "Only administrators can switch to another account. Log out and sign back in as yourself if you need a different identity." }, { status: 403 })
     }
 
-    await identitySwitchLogService.log({ action: "IMPERSONATION_STARTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
+    await softAuditLog({ action: "IMPERSONATION_STARTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
     const res = NextResponse.json({
       user: withoutPassword(target),
       isImpersonating: true,

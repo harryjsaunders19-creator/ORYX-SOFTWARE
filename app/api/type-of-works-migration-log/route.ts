@@ -1,9 +1,15 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { typeOfWorksMigrationLogDb } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
+import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
 
 export async function GET(req: NextRequest) {
+  if (isSupabaseOnly() || process.env.VERCEL === "1") {
+    return NextResponse.json({ error: "Not available in this environment" }, { status: 501 })
+  }
+
   const auth = await requireRole(["ADMIN"])
   if (auth instanceof NextResponse) return auth
 

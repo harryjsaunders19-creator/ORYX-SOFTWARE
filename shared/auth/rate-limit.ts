@@ -174,4 +174,6 @@ export const RATE_PRESETS = {
   mapSearch: { windowMs: 60 * 1000, maxAttempts: 60 },
   siteVisitCalc: { windowMs: 60 * 60 * 1000, maxAttempts: 30 },
   import: { windowMs: 60 * 60 * 1000, maxAttempts: 10 },
+  export: { windowMs: 60 * 60 * 1000, maxAttempts: 5 },
+  billingExport: { windowMs: 60 * 60 * 1000, maxAttempts: 10 },
 } as const

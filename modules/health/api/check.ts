@@ -69,6 +69,49 @@ export async function GET() {
 
     try {
       const { createAdminClient } = await import("@/lib/supabase/admin")
+      const { error } = await createAdminClient()
+        .from("jobs")
+        .select("list_sort_key")
+        .limit(1)
+      if (error && /list_sort_key/i.test(error.message)) {
+        checks.listSortKey = {
+          ok: false,
+          message: "jobs.list_sort_key missing — run supabase/migrations/023_job_list_sort_key.sql",
+          detail: error.message,
+        }
+      } else if (error) {
+        throw error
+      } else {
+        checks.listSortKey = { ok: true, message: "list_sort_key column present" }
+      }
+    } catch (err) {
+      checks.listSortKey = { ok: false, message: "list_sort_key probe failed", detail: String(err) }
+    }
+
+    try {
+      const { createAdminClient } = await import("@/lib/supabase/admin")
+      const { error } = await createAdminClient().rpc("job_dashboard_counts")
+      if (error && /job_dashboard_counts|function|does not exist|PGRST202/i.test(error.message)) {
+        checks.jobDashboardCounts = {
+          ok: false,
+          message: "job_dashboard_counts RPC missing — apply dashboard counts migration",
+          detail: error.message,
+        }
+      } else if (error) {
+        throw error
+      } else {
+        checks.jobDashboardCounts = { ok: true, message: "job_dashboard_counts RPC available" }
+      }
+    } catch (err) {
+      checks.jobDashboardCounts = {
+        ok: false,
+        message: "job_dashboard_counts probe failed",
+        detail: String(err),
+      }
+    }
+
+    try {
+      const { createAdminClient } = await import("@/lib/supabase/admin")
       const { count, error } = await createAdminClient()
         .from("status_history")
         .select("id", { count: "exact", head: true })

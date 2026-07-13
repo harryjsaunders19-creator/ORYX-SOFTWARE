@@ -10,6 +10,17 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return   // skip on the edge runtime — better-sqlite3 and the scheduler both need real Node
+
+  // Fail the Vercel deploy loudly if the service-role admin client is missing.
+  if (process.env.VERCEL === "1") {
+    const { isSupabaseAdminConfigured } = await import("@/lib/supabase/config")
+    if (!isSupabaseAdminConfigured()) {
+      throw new Error(
+        "VERCEL=1 but Supabase admin is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+      )
+    }
+  }
+
   const { isSupabaseOnly } = await import("@/lib/supabase/feature-flags")
   if (!isSupabaseOnly()) {
     const { startBackupScheduler } = await import("@/lib/backup-scheduler")

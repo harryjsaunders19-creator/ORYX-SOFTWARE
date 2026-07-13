@@ -59,3 +59,10 @@ next-env.d.ts
 /stitch-export/
 stitch-screens-list.json
 stitch-screens.json
+
+# Local agent / batch scratch
+.tmp*
+.tmp-*/
+.tmp-batches/
+.tmp-mcp-exec/
+.cursor/

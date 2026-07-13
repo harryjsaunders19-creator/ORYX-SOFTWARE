@@ -1,16 +1,18 @@
 /**
  * PATCH /api/jobs/[id]/drawing-number
  *
- * Admin-only. Allows manually setting a job's drawing number.
- * After the change, reconciles the DrawingSequence counter so
- * future auto-generated numbers continue correctly.
+ * Admin-only. Sets a job's drawing number in the primary store (Supabase on
+ * Vercel) and floors the global drawing sequence so auto-allocation stays ahead.
  */
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { requireRole } from "@/shared/auth/auth"
 import { jobService } from "../services/job-service"
-import { sequenceDb } from "@/lib/db"
 import { historyService } from "../services/history-service"
+import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { seedDrawingSequenceFromNumber } from "@/shared/supabase/sequence-service"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -36,7 +38,34 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       return NextResponse.json(job)
     }
 
-    // Check for duplicates
+    if (isSupabaseOnly()) {
+      const { data: clash, error } = await createAdminClient()
+        .from("jobs")
+        .select("id")
+        .eq("drawing_number", newNumber)
+        .neq("id", id)
+        .maybeSingle()
+      if (error) throw error
+      if (clash) {
+        return NextResponse.json({
+          error: `Drawing number "${newNumber}" is already used by another job`,
+        }, { status: 409 })
+      }
+
+      const updated = await jobService.setDrawingNumber(id, newNumber)
+      if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+      await historyService.addNote(
+        id,
+        `Drawing number changed: ${job.drawingNumber} → ${newNumber}`,
+        auth.user.name,
+      )
+      await seedDrawingSequenceFromNumber(newNumber)
+      return NextResponse.json(updated)
+    }
+
+    // Local hybrid: SQLite remains source of truth, then mirror.
+    const { db, sequenceDb } = await import("@/lib/db")
     const existing = await jobService.findMany({ take: 10000 })
     const duplicate = existing.find(j => j.drawingNumber === newNumber && j.id !== id)
     if (duplicate) {
@@ -45,15 +74,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       }, { status: 409 })
     }
 
-    // Update the drawing number directly
-    const { db } = await import("@/lib/db")
-    db.prepare('UPDATE Job SET drawingNumber = ?, updatedAt = ? WHERE id = ?')
+    db.prepare("UPDATE Job SET drawingNumber = ?, updatedAt = ? WHERE id = ?")
       .run(newNumber, new Date().toISOString(), id)
 
-    // Log the change in status history
-    await historyService.addNote(id, `Drawing number changed: ${job.drawingNumber} → ${newNumber}`, auth.user.name)
-
-    // Reconcile sequence counter so future numbers don't collide
+    await historyService.addNote(
+      id,
+      `Drawing number changed: ${job.drawingNumber} → ${newNumber}`,
+      auth.user.name,
+    )
     sequenceDb.syncFromExistingJobs()
 
     const updated = await jobService.syncFromSqlite(id)

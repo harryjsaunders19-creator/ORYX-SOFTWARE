@@ -9,6 +9,7 @@ import { SESSION_COOKIE, getRealUser } from "@/lib/auth"
 import { setSessionCookies } from "@/lib/auth-cookies"
 import { verifySessionToken } from "@/lib/session-cookie"
 import { withoutPassword } from "@/modules/users/types/user-types"
+import { logError } from "@/shared/logger"
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,12 +20,16 @@ export async function POST(req: NextRequest) {
 
     const currentActiveId = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)
     if (currentActiveId && currentActiveId !== realUser.id) {
-      await identitySwitchLogService.log({
-        action: "IMPERSONATION_ENDED",
-        realUserId: realUser.id, realUserName: realUser.name,
-        targetUserId: realUser.id, targetUserName: realUser.name,
-        detail: `Exited impersonation (was acting as user ${currentActiveId})`,
-      })
+      try {
+        await identitySwitchLogService.log({
+          action: "IMPERSONATION_ENDED",
+          realUserId: realUser.id, realUserName: realUser.name,
+          targetUserId: realUser.id, targetUserName: realUser.name,
+          detail: `Exited impersonation (was acting as user ${currentActiveId})`,
+        })
+      } catch (err) {
+        logError("auth.exit-impersonation.audit", err, { realUserId: realUser.id })
+      }
     }
 
     const res = NextResponse.json({ user: withoutPassword(realUser), isImpersonating: false })

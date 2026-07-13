@@ -40,26 +40,11 @@ function isPasswordChangeApi(pathname: string): boolean {
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
 
-/** Reject cross-origin mutating API calls when Origin/Referer is present and mismatches. */
+/**
+ * CSRF: require Origin or Referer to match the request origin.
+ * E2E bypass keeps Playwright API calls working without browser Origin headers.
+ */
 function originAllowed(request: NextRequest): boolean {
-  const expected = request.nextUrl.origin
-  const origin = request.headers.get("origin")
-  if (origin) return origin === expected
-  const referer = request.headers.get("referer")
-  if (referer) {
-    try {
-      return new URL(referer).origin === expected
-    } catch {
-      return false
-    }
-  }
-  // Authenticated browser fetch always sends Origin; allow missing for
-  // same-site navigations / older clients on non-login routes.
-  return true
-}
-
-/** Login CSRF: require Origin or Referer to match (no silent allow). */
-function originAllowedStrict(request: NextRequest): boolean {
   if (process.env.E2E === "true") return true
   const expected = request.nextUrl.origin
   const origin = request.headers.get("origin")
@@ -73,6 +58,18 @@ function originAllowedStrict(request: NextRequest): boolean {
     }
   }
   return false
+}
+
+/**
+ * Logout: when Origin/Referer is present it must match; missing headers are
+ * allowed for edge / older clients that omit them on sign-out.
+ */
+function originAllowedForLogout(request: NextRequest): boolean {
+  if (process.env.E2E === "true") return true
+  const origin = request.headers.get("origin")
+  const referer = request.headers.get("referer")
+  if (!origin && !referer) return true
+  return originAllowed(request)
 }
 
 export async function proxy(request: NextRequest) {
@@ -95,21 +92,14 @@ export async function proxy(request: NextRequest) {
   // Perf: skip HMAC for public GET-ish auth routes; mutating public routes
   // still need CSRF Origin checks (especially login).
   if (pathname.startsWith("/api/") && isPublicApi(pathname)) {
-    if (
-      MUTATING_METHODS.has(request.method)
-      && pathname === "/api/auth/login"
-      && !originAllowedStrict(request)
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-    if (
-      MUTATING_METHODS.has(request.method)
-      && pathname !== "/api/auth/login"
-      && pathname !== "/api/auth/logout"
-      && pathname !== "/api/auth/session"
-      && !originAllowed(request)
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (MUTATING_METHODS.has(request.method)) {
+      if (pathname === "/api/auth/logout") {
+        if (!originAllowedForLogout(request)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        }
+      } else if (pathname !== "/api/auth/session" && !originAllowed(request)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
     }
     return NextResponse.next()
   }

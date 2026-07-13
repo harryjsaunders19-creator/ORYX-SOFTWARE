@@ -29,7 +29,13 @@ export default function SetPasswordPage() {
     if (!sessionLoading && !user) router.replace("/login")
   }, [sessionLoading, user, router])
 
-  if (sessionLoading) return null
+  if (sessionLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-pg">
+        <div className="skeleton h-10 w-10 rounded-full" aria-label="Loading" />
+      </div>
+    )
+  }
   if (!user) return null
 
   const allRulesPass = RULES.every(r => r.test(password))

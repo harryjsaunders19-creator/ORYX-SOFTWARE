@@ -285,6 +285,21 @@ export const supabaseBillingRepo = {
     }
   },
 
+  /**
+   * Best-effort cleanup after a failed export (no multi-statement PG transaction yet).
+   * Deletes snapshot rows then the batch row. Does not un-clear handoffs.
+   */
+  async deleteBatchAndSnapshots(batchId: string): Promise<void> {
+    const { error: snapErr } = await snapshots().delete().eq("batch_id", batchId)
+    if (snapErr) {
+      console.warn("[billing] deleteBatchAndSnapshots snapshots:", snapErr.message)
+    }
+    const { error: batchErr } = await batches().delete().eq("id", batchId)
+    if (batchErr) {
+      console.warn("[billing] deleteBatchAndSnapshots batch:", batchErr.message)
+    }
+  },
+
   async snapshotsForBatch(batchId: string): Promise<AccountsHandoverSnapshot[]> {
     const { data, error } = await snapshots().select("*").eq("batch_id", batchId)
     if (error) throw error

@@ -18,6 +18,7 @@ import {
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { apiInternalError } from "@/shared/api-errors"
+import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
 
 /**
  * Compute canAddRevision without an extra DB round trip.
@@ -74,6 +75,9 @@ export async function GET(req: NextRequest) {
     }
 
     if (exportAll) {
+      if (!(await checkRateLimit(`export:${auth.user.id}`, RATE_PRESETS.export))) {
+        return rateLimitedResponse(3600)
+      }
       const { jobs: rawJobs, total, allForRevisions } = await jobService.findManyWithCount({
         where,
         orderBy: { field: sortBy, dir: sortDir },

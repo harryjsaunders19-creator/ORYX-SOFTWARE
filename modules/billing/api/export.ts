@@ -4,6 +4,7 @@ import { buildAccountsHandoverWorkbook, workbookToBuffer } from "../billing-expo
 import { requireRole, actorName } from "@/shared/auth/auth"
 import { logEvent } from "@/shared/logger"
 import { apiInternalError } from "@/shared/api-errors"
+import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
 
 /** Large exports sync many handoffs + snapshots to Supabase — allow up to 60s. */
 export const maxDuration = 60
@@ -11,6 +12,10 @@ export const maxDuration = 60
 export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
   if (auth instanceof NextResponse) return auth
+
+  if (!(await checkRateLimit(`billing-export:${auth.user.id}`, RATE_PRESETS.billingExport))) {
+    return rateLimitedResponse(3600)
+  }
 
   try {
     const body = await req.json() as { handoffIds?: string[]; notes?: string | null }

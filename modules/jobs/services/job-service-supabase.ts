@@ -164,6 +164,10 @@ export const jobService = {
     return supabaseJobRepo.findUnique(id)
   },
 
+  async setDrawingNumber(id: string, drawingNumber: string): Promise<JobRow | null> {
+    return jobSupabaseWrites.setDrawingNumber(id, drawingNumber)
+  },
+
   distinctDesigners(): string[] {
     return []
   },

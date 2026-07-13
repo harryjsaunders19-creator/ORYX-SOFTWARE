@@ -1,19 +1,25 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { typeOfWorksMigrationLogDb } from "@/lib/db"
-import { requireRole } from "@/lib/auth"
+import { requireRole, actorName } from "@/lib/auth"
+import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
+  if (isSupabaseOnly() || process.env.VERCEL === "1") {
+    return NextResponse.json({ error: "Not available in this environment" }, { status: 501 })
+  }
+
   const auth = await requireRole(["ADMIN"])
   if (auth instanceof NextResponse) return auth
 
   try {
     const { id } = await params
-    let body: Record<string, unknown> = {}
-    try { body = await req.json() } catch { /* optional */ }
-    const reviewedBy = body.reviewedBy ? String(body.reviewedBy) : "System"
+    // Body is optional; ignore client-supplied reviewedBy — use the signed-in user.
+    try { await req.json() } catch { /* optional */ }
+    const reviewedBy = actorName(auth.user)
 
     const updated = typeOfWorksMigrationLogDb.markReviewed(id, reviewedBy)
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 })

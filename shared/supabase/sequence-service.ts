@@ -7,6 +7,7 @@ import {
   DRAWING_SEQUENCE_KEY,
   buildDrawingNumber,
   nextDrawingSequenceAfter,
+  parseOryxDrawingSequence,
 } from "@/lib/drawing-number"
 import { isSupabaseOnly } from "./feature-flags"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
@@ -89,6 +90,14 @@ async function ensureRefSequenceInitialized(prefix: string, year: number): Promi
     refInits.set(name, init)
   }
   await init
+}
+
+/** Floor the drawing sequence from a manually set drawing number (never lowers). */
+export async function seedDrawingSequenceFromNumber(drawingNumber: string): Promise<void> {
+  const seq = parseOryxDrawingSequence(drawingNumber)
+  if (seq == null || seq <= 0) return
+  if (!isSupabaseOnly()) return
+  await seedSequence(DRAWING_SEQUENCE_KEY, seq)
 }
 
 /** Allocate the next YY/ORYX/MM/NNN drawing number from Supabase. */

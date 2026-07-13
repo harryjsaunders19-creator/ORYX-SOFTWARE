@@ -122,6 +122,12 @@ Local SQLite backups **do not run** when Supabase is the data store. Use Supabas
 
 Employees and Leave are gated by `shared/experimental/experimental-features.ts` (`employees` / `leave` = `false`). Nav, pages, and APIs stay in the repo but return 404 / stay hidden until those flags are flipped. Do not enable on production without HR review and Supabase migrations 014–016 verified.
 
+### Production checklist (Vercel)
+
+- Keep `employees` / `leave` experimental flags **false** until HR review is complete.
+- Local filesystem backups and employee document files are **not durable** across multiple Vercel instances — use Supabase backups / storage for production durability.
+- `AUTH_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` are **required** on Vercel (boot fails loudly without a configured Supabase admin client).
+
 ### Geocoding (job map + site visit)
 
 Address geocoding uses free public APIs with soft rate limiting in-process (~1 req/s for Nominatim). Fine for a small team; not a bulk-import geocoder. Prefer UK postcodes (postcodes.io) when possible. Site visit **routing** uses OpenRouteService when `ORS_API_KEY` is set.

@@ -13,6 +13,9 @@
     "app/api/quotes/[id]/pdf/route.ts": {
       "maxDuration": 60
     },
+    "app/api/job-map/geocode/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/**": {
       "maxDuration": 30
     }

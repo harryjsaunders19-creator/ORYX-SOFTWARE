@@ -13,7 +13,7 @@ export const MUST_CHANGE_PASSWORD_COOKIE = "oryx_must_chg"
 const VERSION = "v1"
 const enc = new TextEncoder()
 
-export const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 30 // 30 days
+export const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7 // 7 days
 
 export function getAuthSecret(): string {
   const fromEnv = process.env.AUTH_SECRET?.trim()

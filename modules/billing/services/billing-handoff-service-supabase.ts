@@ -35,6 +35,13 @@ export const billingHandoffService = {
     return snapshot!
   },
 
+  /**
+   * Create an export batch, persist snapshots, then clear handoffs.
+   *
+   * Note: this is not a single Postgres transaction. If clearHandoffs fails or
+   * leaves rows uncleared, we best-effort delete the batch + snapshots before
+   * throwing. Full transactional export is a follow-up.
+   */
   async createExportBatch(data: {
     handoffIds: string[]
     exportedBy: string
@@ -76,17 +83,29 @@ export const billingHandoffService = {
     }))
     await supabaseBillingRepo.upsertSnapshots(snapshotRows)
 
-    await supabaseBillingRepo.clearHandoffsForExport({
-      handoffIds: data.handoffIds,
-      batchId,
-      clearedAt: now,
-      clearedBy: data.exportedBy,
-      notes: data.notes,
-    })
+    try {
+      await supabaseBillingRepo.clearHandoffsForExport({
+        handoffIds: data.handoffIds,
+        batchId,
+        clearedAt: now,
+        clearedBy: data.exportedBy,
+        notes: data.notes,
+      })
 
-    const stillAwaiting = await supabaseBillingRepo.countUnclearedAmong(data.handoffIds)
-    if (stillAwaiting > 0) {
-      throw new Error(`${stillAwaiting} item(s) failed to move to Cleared in Supabase`)
+      const stillAwaiting = await supabaseBillingRepo.countUnclearedAmong(data.handoffIds)
+      if (stillAwaiting > 0) {
+        throw new Error(`${stillAwaiting} item(s) failed to move to Cleared in Supabase`)
+      }
+    } catch (err) {
+      try {
+        await supabaseBillingRepo.deleteBatchAndSnapshots(batchId)
+      } catch (cleanupErr) {
+        console.warn(
+          "[billing] export rollback cleanup failed:",
+          cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+        )
+      }
+      throw err
     }
 
     return { batch, snapshots }

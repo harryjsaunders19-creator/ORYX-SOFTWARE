@@ -326,6 +326,13 @@ export const jobService = {
     return job
   },
 
+  async setDrawingNumber(id: string, drawingNumber: string): Promise<JobRow | null> {
+    const existing = jobDb.findUnique(id)
+    if (!existing) return null
+    jobDb.setDrawingNumber(id, drawingNumber)
+    return this.syncFromSqlite(id)
+  },
+
   /** Stats/billing routes — still SQLite until those modules migrate. */
   distinctDesigners(): string[] {
     return jobDb.distinctDesigners()

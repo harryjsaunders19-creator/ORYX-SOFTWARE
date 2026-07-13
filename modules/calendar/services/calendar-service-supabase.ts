@@ -13,8 +13,8 @@ import type {
   UpdateCalendarEventData,
 } from "../types/calendar-types"
 import { userService } from "@/lib/services/user-service"
-import { jobService } from "@/lib/services/job-service"
 import { clientService } from "@/lib/services/client-service"
+import { supabaseJobRepo } from "@/modules/jobs/supabase/repository"
 import { supabaseCalendarRepo } from "../supabase/repository"
 import { enrichEventsWithLeave } from "@/lib/leave/enrichment"
 
@@ -36,7 +36,7 @@ async function enrichMany(
 
   const [assignmentMap, jobs, clients] = await Promise.all([
     supabaseCalendarRepo.getAssignmentsForEvents(eventIds),
-    jobService.findManyByIds(jobIds),
+    supabaseJobRepo.findManyByIdsSlim(jobIds),
     clientService.findManyByIds(clientIds),
   ])
 

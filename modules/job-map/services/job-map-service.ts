@@ -33,6 +33,9 @@ export const MAP_JOB_STATUS = "ISSUED" as const
 
 export const GEOCODE_BATCH_SIZE = 50
 
+/** Cap map markers / missing-location queue size for browser + API payloads. */
+export const MAP_MARKER_LIMIT = 3000
+
 
 
 const MAP_COLUMNS = "id, drawing_number, address, site_name, site_address, latitude, longitude, status, client_company, type_of_works, custom_type_description, designer, date_created, location_status, location_source"
@@ -204,7 +207,7 @@ async function loadMappedRows(): Promise<JobMapRow[]> {
     .not("latitude", "is", null)
     .not("longitude", "is", null)
     .order("date_created", { ascending: false })
-    .limit(15000)
+    .limit(MAP_MARKER_LIMIT)
 
   if (error && (
     isMissingColumnError(error, "site_name")
@@ -220,7 +223,7 @@ async function loadMappedRows(): Promise<JobMapRow[]> {
       .not("latitude", "is", null)
       .not("longitude", "is", null)
       .order("date_created", { ascending: false })
-      .limit(15000)
+      .limit(MAP_MARKER_LIMIT)
     data = fallback.data as typeof data
     error = fallback.error
   }
@@ -375,7 +378,7 @@ export const jobMapService = {
       .is("parent_job_id", null)
       .or("latitude.is.null,longitude.is.null,location_status.eq.needs_review")
       .order("date_completed", { ascending: false })
-      .limit(5000)
+      .limit(MAP_MARKER_LIMIT)
 
     if (error) throw error
 
@@ -492,11 +495,9 @@ export const jobMapService = {
 
 
     const markers = rows
-
       .map(toMarker)
-
       .filter(m => isWithinUkIreland(m.lat, m.lng))
-
+      .slice(0, MAP_MARKER_LIMIT)
 
 
     const { clients, designers } = buildFilterOptions(rows)
