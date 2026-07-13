@@ -118,6 +118,11 @@ export const billingHandoffService = {
     return supabaseBillingRepo.stats()
   },
 
+  /** Dashboard KPI — head count only (no sum / cleared scan). */
+  async awaitingCount(): Promise<number> {
+    return supabaseBillingRepo.awaitingCount()
+  },
+
   async updateQuoteValue(handoffId: string, quoteValue: number): Promise<BillingHandoffRow | { error: string }> {
     const handoff = await supabaseBillingRepo.findUnique(handoffId)
     if (!handoff) return { error: "Not found" }

@@ -60,6 +60,8 @@ export function UserProvider({
   // children while loading (see StitchAppShell).
   const { data, isLoading, mutate } = useApi<SessionResponse>("/api/auth/session", {
     fallbackData: fallbackSession ?? undefined,
+    // Layout already seeded the session — skip an immediate duplicate fetch.
+    ...(fallbackSession ? { revalidateIfStale: false, revalidateOnMount: false } : {}),
   })
 
   const session = data ?? fallbackSession ?? EMPTY_SESSION

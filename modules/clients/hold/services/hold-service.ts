@@ -104,6 +104,33 @@ export const holdService = {
     return enrichAllWithClientStats(holds)
   },
 
+  /**
+   * Dashboard preview: client names only (no per-client job stats), capped.
+   * Use activeCount() for the badge total.
+   */
+  async allActivePreview(take = 5): Promise<ClientHoldWithClientRow[]> {
+    if (!useSupabaseHolds()) {
+      return holdDb.allActive().slice(0, take).map(h => ({
+        ...h,
+        activeJobCount: 0,
+        quoteValueTotal: 0,
+      }))
+    }
+    const holds = (await supabaseHoldRepo.allActiveHolds()).slice(0, take)
+    if (!holds.length) return []
+    const clientIds = [...new Set(holds.map(h => h.clientId).filter(Boolean))]
+    const clients = useSupabaseClients()
+      ? await supabaseClientRepo.findManyByIds(clientIds)
+      : await clientService.findManyByIds(clientIds)
+    const clientNameById = new Map(clients.filter(Boolean).map(c => [c!.id, c!.name]))
+    return holds.map(hold => ({
+      ...hold,
+      clientName: clientNameById.get(hold.clientId) ?? "",
+      activeJobCount: 0,
+      quoteValueTotal: 0,
+    }))
+  },
+
   async activeCount(): Promise<number> {
     if (!useSupabaseHolds()) return holdDb.activeCount()
     return supabaseHoldRepo.activeCount()

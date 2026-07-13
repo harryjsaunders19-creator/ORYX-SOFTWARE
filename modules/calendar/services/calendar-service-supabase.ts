@@ -97,7 +97,10 @@ export const calendarService = {
   async findMany(opts: CalendarEventListOptions): Promise<CalendarEventWithDetails[]> {
     const cats = await categoryMap()
     const events = await enrichMany(await supabaseCalendarRepo.findMany(opts), cats)
-    return enrichEventsWithLeave(events)
+    // Skip leave enrichment when the query already excludes leave categories.
+    const needsLeave = !opts.categoryIds?.length
+      || opts.categoryIds.some(id => id === "cat_leave" || id === "cat_annual_leave")
+    return needsLeave ? enrichEventsWithLeave(events) : events
   },
 
   async findUnique(id: string): Promise<CalendarEventWithDetails | null> {

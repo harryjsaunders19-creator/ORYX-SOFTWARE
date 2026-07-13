@@ -18,6 +18,7 @@ export async function buildDashboardStats(opts: {
   } = await statsService.dashboard({
     calendarFrom: opts.calendarFrom,
     calendarTo: opts.calendarTo,
+    includeBilling: canView,
   })
 
   const count = (status: string) => byStatus.find(s => s.status === status)?.count ?? 0

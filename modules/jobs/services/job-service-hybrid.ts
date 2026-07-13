@@ -346,6 +346,17 @@ export const jobService = {
     return supabaseJobRepo.findRecent(take)
   },
 
+  async findOverduePreview(take = 5) {
+    if (!useSupabaseJobs()) {
+      return jobDb.findMany({
+        where: { overdue: true },
+        orderBy: { field: "requiredByDate", dir: "asc" },
+        take,
+      })
+    }
+    return supabaseJobRepo.findOverduePreview(take)
+  },
+
   async countWhere(where: Parameters<typeof jobDb.countWhere>[0]): Promise<number> {
     if (!useSupabaseJobs()) return jobDb.countWhere(where)
     return supabaseJobRepo.count(where)

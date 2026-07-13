@@ -173,6 +173,11 @@ export const billingHandoffService = {
     return supabaseBillingRepo.stats()
   },
 
+  async awaitingCount(): Promise<number> {
+    if (!useSupabaseBilling()) return billingHandoffDb.stats().awaitingCount
+    return supabaseBillingRepo.awaitingCount()
+  },
+
   async updateQuoteValue(handoffId: string, quoteValue: number): Promise<BillingHandoffRow | { error: string }> {
     await ensureBillingHandoffsInSqlite([handoffId])
     const result = billingHandoffDb.updateQuoteValue(handoffId, quoteValue)

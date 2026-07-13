@@ -80,6 +80,8 @@ export function DashboardStats({
 
   const { data: stats, error: swrError, isLoading, mutate } = useApi<StatsData>(statsKey, {
     fallbackData: fallbackStats ?? undefined,
+    // RSC already built this payload — don't immediately rebuild via /api/stats.
+    ...(fallbackStats ? { revalidateIfStale: false, revalidateOnMount: false } : {}),
   })
 
   const events: DashboardWeekEvent[] = stats?.weekEvents ?? []

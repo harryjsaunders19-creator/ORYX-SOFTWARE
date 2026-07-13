@@ -227,6 +227,14 @@ export const supabaseBillingRepo = {
     }
   },
 
+  async awaitingCount(): Promise<number> {
+    const { count, error } = await handoffs()
+      .select("*", { count: "exact", head: true })
+      .is("cleared_by_accounts_at", null)
+    if (error) throw error
+    return count ?? 0
+  },
+
   async upsertBatch(row: BillingExportBatchRow): Promise<void> {
     const { error } = await batches().upsert(toSupabaseBillingExportBatchRow(row), { onConflict: "id" })
     throwSupabaseError(error)

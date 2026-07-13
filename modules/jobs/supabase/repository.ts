@@ -29,6 +29,9 @@ import {
 const DRAWING_SORT_WARN_ROWS = 8_000
 import { parseOryxDrawingSequence } from "@/lib/drawing-number"
 
+/** Perf: dashboard overdue list only needs id / drawing / address / deadline. */
+const JOB_OVERDUE_PREVIEW_SELECT = "id,drawing_number,address,required_by_date,status,client_company,client_id"
+
 /**
  * Perf: list/detail payloads don't need geocode/notes blobs — select only columns
  * the jobs table + revision flags need. Same JobRow shape via toJobRow (nulls for omitted).
@@ -676,20 +679,20 @@ export const supabaseJobRepo = {
         .limit(take))
     }
     if (error) throw error
-    return (data ?? []).map((row) => ({
-      id: row.id as string,
-      drawingNumber: row.drawing_number as string,
-      itemType: row.item_type as string,
-      address: row.address as string,
-      status: row.status as string,
-      clientCompany: row.client_company as string,
-      designer: (row.designer as string | null) ?? "",
-      quoteValue: row.quote_value != null ? Number(row.quote_value) : null,
-      invoiceId: row.invoice_id as string | null,
-      parentJobId: row.parent_job_id as string | null,
-      revisionLetter: row.revision_letter as string | null,
-      createdAt: row.created_at as string,
-    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((r: any) => toJobRow(r as SupabaseJobRow))
+  },
+
+  /** Dashboard overdue strip — slim columns, capped. */
+  async findOverduePreview(take = 5): Promise<JobRow[]> {
+    let q = applyWhere(table().select(JOB_OVERDUE_PREVIEW_SELECT), { overdue: true })
+      .order("required_by_date", { ascending: true })
+      .limit(take)
+    if (jobsArchivedFilterEnabled()) q = q.is("archived_at", null)
+    const { data, error } = await q
+    if (error) throw error
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((r: any) => toJobRow(r as SupabaseJobRow))
   },
 
   async sumQuoteValue(where: WhereClause = {}): Promise<number> {

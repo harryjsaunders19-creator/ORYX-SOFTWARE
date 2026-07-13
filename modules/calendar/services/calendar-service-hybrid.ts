@@ -122,7 +122,9 @@ export const calendarService = {
     } else {
       events = await enrichMany(await supabaseCalendarRepo.findMany(opts), cats)
     }
-    return enrichEventsWithLeave(events)
+    const needsLeave = !opts.categoryIds?.length
+      || opts.categoryIds.some(id => id === "cat_leave" || id === "cat_annual_leave")
+    return needsLeave ? enrichEventsWithLeave(events) : events
   },
 
   async findUnique(id: string): Promise<CalendarEventWithDetails | null> {

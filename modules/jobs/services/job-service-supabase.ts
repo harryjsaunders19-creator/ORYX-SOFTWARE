@@ -180,6 +180,10 @@ export const jobService = {
     return supabaseJobRepo.findRecent(take)
   },
 
+  async findOverduePreview(take = 5) {
+    return supabaseJobRepo.findOverduePreview(take)
+  },
+
   async countWhere(where: WhereClause & { createdAfter?: string }): Promise<number> {
     return supabaseJobRepo.count(where)
   },
