@@ -88,6 +88,11 @@ async function checkSupabase(key: string): Promise<boolean> {
 
 /** Returns true if the attempt is allowed; false if the caller is rate-limited. */
 export async function checkLoginRateLimit(key: string): Promise<boolean> {
+  // Playwright / CI spin many parallel logins against one server — do not throttle.
+  if (process.env.E2E === "true" || process.env.DISABLE_LOGIN_RATE_LIMIT === "true") {
+    return true
+  }
+
   if (isSupabaseAdminConfigured()) {
     try {
       return await checkSupabase(key)

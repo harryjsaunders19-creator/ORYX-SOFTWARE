@@ -31,4 +31,16 @@ describe("login rate limit (memory)", () => {
     await checkLoginRateLimit(key)
     assert.equal(await remainingLoginAttempts(key), LOGIN_RATE_MAX_ATTEMPTS - 1)
   })
+
+  it("skips limiting when E2E=true", async () => {
+    process.env.E2E = "true"
+    try {
+      const key = "test:e2e@example.com"
+      for (let i = 0; i < LOGIN_RATE_MAX_ATTEMPTS + 5; i++) {
+        assert.equal(await checkLoginRateLimit(key), true)
+      }
+    } finally {
+      delete process.env.E2E
+    }
+  })
 })
