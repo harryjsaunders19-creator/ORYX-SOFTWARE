@@ -50,7 +50,7 @@ export default function ClientDetailPage() {
   const [removeReason, setRemoveReason] = useState("")
   const { isAdmin } = useUser()
 
-  const { data: detail, error: detailError, isLoading, mutate: mutateDetail } = useApi<ClientDetail>(
+  const { data: detail, error: detailError, isLoading } = useApi<ClientDetail>(
     id ? `/api/clients/${id}` : null,
   )
   const { data: holdData, mutate: mutateHold } = useApi<{ hold: ClientHold | null }>(

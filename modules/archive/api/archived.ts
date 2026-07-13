@@ -7,7 +7,6 @@ import { clientService } from "@/lib/services/client-service"
 import { attachCancelRecords } from "../cancel-record"
 import { probeArchivedColumns, jobsArchivedAtAvailable, quotesArchivedAtAvailable } from "@/lib/supabase/archived-filter"
 import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
-import { errorMessage } from "@/shared/utils/error-message"
 
 export async function GET() {
   try {

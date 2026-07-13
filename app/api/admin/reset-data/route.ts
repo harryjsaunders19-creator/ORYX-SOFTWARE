@@ -9,7 +9,6 @@ import { NextRequest, NextResponse } from "next/server"import { apiInternalErro
 
 import { requireRole } from "@/lib/auth"
 import { verifyPassword } from "@/lib/password"
-import { errorMessage } from "@/lib/error-message"
 import { resetSystemData } from "@/lib/services/reset-data-service"
 
 export async function POST(req: NextRequest) {

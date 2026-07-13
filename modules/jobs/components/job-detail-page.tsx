@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { format } from "date-fns"
@@ -89,8 +89,6 @@ export default function JobDetailPage() {
   )
   const billingHandoff = billingPayload?.handoff ?? null
 
-  const hasData      = useRef(false)
-  if (job) hasData.current = true
   const notFound = !!jobError && /404|Not found/i.test(jobError.message)
   const loading = isLoading && !job
 

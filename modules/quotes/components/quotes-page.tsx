@@ -7,7 +7,7 @@ import { format } from "date-fns"
 import {
   Plus, FileText, Download, CheckCircle2, XCircle,
   Loader2, Clock, FileDown, Trash2, Archive,
-  ChevronLeft, ChevronRight, AlertTriangle,
+  ChevronLeft, ChevronRight,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import {

@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { Loader2, AlertTriangle, ArrowRight } from "lucide-react"
+import { AlertTriangle, ArrowRight } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"

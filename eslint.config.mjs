@@ -42,6 +42,23 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local one-off sync/MCP helper scripts (not part of the app build).
+    "scripts/mcp-*.mjs",
+    "scripts/apply-*.mjs",
+    "scripts/emit-*.mjs",
+    "scripts/extract-*.mjs",
+    "scripts/build-grp-files.mjs",
+    "scripts/queue-sync-batches.mjs",
+    "scripts/run-mcp-batches.mjs",
+    "scripts/next-sync-batch.mjs",
+    "scripts/list-mcp-one-batches.mjs",
+    "scripts/mark-batch-applied.mjs",
+    "scripts/generate-mcp-sync-batches.mjs",
+    "scripts/prepare-exec-args.mjs",
+    "scripts/print-exec-args.mjs",
+    "scripts/read-exec-args.mjs",
+    "scripts/run-one-batch-sql.mjs",
+    "scripts/_mcp-*.mjs",
   ]),
 ]);
 

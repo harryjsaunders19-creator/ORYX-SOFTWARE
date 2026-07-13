@@ -1,7 +1,7 @@
 import { test, expect, loginAsAdmin, loginApi } from "./helpers"
 
 test.describe("Site visit calculator", () => {
-  test("admin can calculate a site visit cost", async ({ page, request }) => {
+  test("admin can calculate a site visit cost", async ({ page }) => {
     await loginAsAdmin(page)
     await page.goto("/site-visit-calculator")
 

@@ -231,7 +231,7 @@ function ImperativeClusterLayer({
 
     if (!markers.length) {
       onProgress(0, 0)
-      return () => { loadGenRef.current++ }
+      return () => { loadGenRef.current = gen + 1 }
     }
 
     const total = markers.length
@@ -246,7 +246,7 @@ function ImperativeClusterLayer({
       : null
     if (!cluster) {
       onProgress(total, total)
-      return () => { loadGenRef.current++ }
+      return () => { loadGenRef.current = gen + 1 }
     }
     clusterRef.current = cluster
     map.addLayer(cluster)
@@ -278,7 +278,8 @@ function ImperativeClusterLayer({
     rafRef.current = requestAnimationFrame(addChunk)
 
     return () => {
-      loadGenRef.current++
+      // Lint: use effect-local `gen` — do not read loadGenRef.current in cleanup.
+      loadGenRef.current = gen + 1
       clearCluster()
     }
   }, [markers, highlightClient, map, clearCluster, onProgress])
