@@ -53,7 +53,26 @@ function originAllowed(request: NextRequest): boolean {
       return false
     }
   }
+  // Authenticated browser fetch always sends Origin; allow missing for
+  // same-site navigations / older clients on non-login routes.
   return true
+}
+
+/** Login CSRF: require Origin or Referer to match (no silent allow). */
+function originAllowedStrict(request: NextRequest): boolean {
+  if (process.env.E2E === "true") return true
+  const expected = request.nextUrl.origin
+  const origin = request.headers.get("origin")
+  if (origin) return origin === expected
+  const referer = request.headers.get("referer")
+  if (referer) {
+    try {
+      return new URL(referer).origin === expected
+    } catch {
+      return false
+    }
+  }
+  return false
 }
 
 export async function proxy(request: NextRequest) {
@@ -73,8 +92,25 @@ export async function proxy(request: NextRequest) {
     return NextResponse.json({ error: "This feature is not available yet" }, { status: 404 })
   }
 
-  // Perf: skip HMAC verify for public API routes (login/session/logout/ping).
+  // Perf: skip HMAC for public GET-ish auth routes; mutating public routes
+  // still need CSRF Origin checks (especially login).
   if (pathname.startsWith("/api/") && isPublicApi(pathname)) {
+    if (
+      MUTATING_METHODS.has(request.method)
+      && pathname === "/api/auth/login"
+      && !originAllowedStrict(request)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+    if (
+      MUTATING_METHODS.has(request.method)
+      && pathname !== "/api/auth/login"
+      && pathname !== "/api/auth/logout"
+      && pathname !== "/api/auth/session"
+      && !originAllowed(request)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
     return NextResponse.next()
   }
 

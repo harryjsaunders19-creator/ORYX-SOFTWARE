@@ -4,7 +4,10 @@ export interface PasswordVaultEntry {
   serviceName: string
   loginUrl: string | null
   username: string | null
+  /** Empty on list responses; decrypted only for findUnique / create / update. */
   password: string
+  /** Present on list responses — password was intentionally not decrypted. */
+  passwordRevealed?: false
   category: string | null
   notes: string | null
   createdAt: string

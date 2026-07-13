@@ -118,6 +118,15 @@ export const supabaseQuoteRepo = {
     return data ? toQuoteRow(data) : null
   },
 
+  /** Bulk-fetch quotes by quote_number — one query instead of N. */
+  async findManyByNumbers(quoteNumbers: string[]): Promise<QuoteRow[]> {
+    const unique = [...new Set(quoteNumbers.filter(Boolean))]
+    if (!unique.length) return []
+    const { data, error } = await quotesTable().select("*").in("quote_number", unique)
+    if (error) throw error
+    return (data ?? []).map(toQuoteRow)
+  },
+
   async upsert(quote: QuoteRow): Promise<void> {
     const { error } = await quotesTable().upsert(toSupabaseQuoteRow(quote), { onConflict: "id" })
     if (error) throwSupabaseError(error)

@@ -1178,11 +1178,11 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
     if (!existing) {
       db.prepare(`
         INSERT INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,1,?,0,?,?)
+        VALUES (?,?,?,?,?,1,?,1,?,?)
       `).run(acct.id, acct.name, acct.email, acct.email, acct.role, acct.passwordHash, now, now)
       console.log(`[bootstrapAccounts] Created ${acct.email}`)
     } else if (!existing.passwordHash) {
-      db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?")
+      db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?")
         .run(acct.passwordHash, existing.id)
       console.log(`[bootstrapAccounts] Set password for ${acct.email}`)
     }

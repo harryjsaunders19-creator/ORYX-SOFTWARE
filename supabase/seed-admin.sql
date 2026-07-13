@@ -1,9 +1,10 @@
--- Default login accounts after a clean bootstrap (local dev / first-time recovery only).
+-- Default login accounts after a clean bootstrap (local / first-time recovery ONLY).
 -- Initial passwords: admin@test.com → admin123, engineer@test.com → engineer123
 -- Users must set a new password on first login (must_change_password = true).
 --
--- Re-running bootstrap will NOT reset existing passwords (on conflict skips credential updates).
--- For production: sync real users via npm run supabase:sync-users, then disable or delete these accounts.
+-- Security: ON CONFLICT never reactivates disabled accounts and never resets
+-- passwords. For production, sync real users and keep these rows inactive
+-- (or delete them). Re-running seed must not reopen known test logins.
 
 insert into public.app_users (
   id, name, email, email_lower, role, active,
@@ -36,5 +37,5 @@ insert into public.app_users (
 on conflict (email_lower) do update set
   name = excluded.name,
   role = excluded.role,
-  active = true,
+  -- Never force active=true or reset passwords (would reopen disabled prod accounts).
   updated_at = now();

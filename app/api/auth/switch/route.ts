@@ -7,8 +7,10 @@
  *
  * Body: { userId: string }
  */
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
+import { withoutPassword } from "@/modules/users/types/user-types"
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { userService } from "@/lib/services/user-service"
 import { SESSION_COOKIE, getRealUser } from "@/lib/auth"
@@ -45,7 +47,7 @@ export async function POST(req: NextRequest) {
       if (currentActiveId && currentActiveId !== realUser.id) {
         await identitySwitchLogService.log({ action: "IMPERSONATION_ENDED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name, detail: "Returned to own identity via switch" })
       }
-      const res = NextResponse.json({ user: target, isImpersonating: false })
+      const res = NextResponse.json({ user: withoutPassword(target), isImpersonating: false })
       await setSessionCookies(res, target.id, realUser.id, {
         mustChangePassword: target.mustChangePassword === 1,
       })
@@ -63,7 +65,11 @@ export async function POST(req: NextRequest) {
     }
 
     await identitySwitchLogService.log({ action: "IMPERSONATION_STARTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
-    const res = NextResponse.json({ user: target, isImpersonating: true, realUser: { id: realUser.id, name: realUser.name } })
+    const res = NextResponse.json({
+      user: withoutPassword(target),
+      isImpersonating: true,
+      realUser: { id: realUser.id, name: realUser.name },
+    })
     await setSessionCookies(res, target.id, realUser.id)
     return res
   } catch (err) {

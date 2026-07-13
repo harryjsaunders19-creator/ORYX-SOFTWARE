@@ -428,6 +428,26 @@ export const supabaseJobRepo = {
     return (data ?? []).map(toJobRow)
   },
 
+  /** Bulk-fetch revision children for many parent jobs — one query instead of N. */
+  async revisionsForJobs(parentIds: string[]): Promise<Map<string, JobRow[]>> {
+    const map = new Map<string, JobRow[]>()
+    if (!parentIds.length) return map
+    for (const id of parentIds) map.set(id, [])
+    const { data, error } = await table()
+      .select("*")
+      .in("parent_job_id", parentIds)
+      .order("revision_letter", { ascending: true })
+    if (error) throw error
+    for (const row of data ?? []) {
+      const job = toJobRow(row)
+      if (!job.parentJobId) continue
+      const list = map.get(job.parentJobId) ?? []
+      list.push(job)
+      map.set(job.parentJobId, list)
+    }
+    return map
+  },
+
   async findLatestRevisionsForParents(parentIds: string[]): Promise<JobRow[]> {
     if (!parentIds.length) return []
     const { data, error } = await table()

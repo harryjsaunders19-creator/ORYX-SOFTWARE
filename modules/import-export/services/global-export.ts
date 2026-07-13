@@ -265,7 +265,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   }
 
   // ── 8. Account Passwords ────────────────────────────────────────────────────
-  const vaultEntries = await passwordVaultService.findMany({ sort: "asc" })
+  const vaultEntries = await passwordVaultService.findMany({ sort: "asc", revealPasswords: true })
   const vaultSheet = wb.addWorksheet("Account Passwords")
   vaultSheet.columns = [
     { width: 28 }, { width: 28 }, { width: 24 }, { width: 40 },

@@ -16,6 +16,25 @@ export const supabaseStatusHistoryRepo = {
     return (data ?? []).map(toStatusHistoryRow)
   },
 
+  /** Bulk-fetch status history for many jobs — one query instead of N. */
+  async forJobs(jobIds: string[]): Promise<Map<string, StatusHistoryRow[]>> {
+    const map = new Map<string, StatusHistoryRow[]>()
+    if (!jobIds.length) return map
+    for (const id of jobIds) map.set(id, [])
+    const { data, error } = await table()
+      .select("*")
+      .in("job_id", jobIds)
+      .order("changed_at", { ascending: true })
+    if (error) throw error
+    for (const row of data ?? []) {
+      const history = toStatusHistoryRow(row)
+      const list = map.get(history.jobId) ?? []
+      list.push(history)
+      map.set(history.jobId, list)
+    }
+    return map
+  },
+
   async upsert(row: StatusHistoryRow): Promise<void> {
     const { error } = await table().upsert(toSupabaseStatusHistoryRow(row), { onConflict: "id" })
     if (error) throw error

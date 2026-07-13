@@ -1,28 +1,43 @@
 /**
  * Build billing export snapshots from Supabase data (no SQLite).
+ * Prefer the batch builder for export/recovery paths to avoid N+1 queries.
  */
 import type { BillingHandoffRow } from "../types/billing-types"
 import type { AccountsHandoverSnapshot } from "@/lib/db/stores"
+import type { JobRow } from "@/modules/jobs/types/job-types"
+import type { ClientRow } from "@/modules/clients/types/client-types"
+import type { StatusHistoryRow } from "@/modules/jobs/types/history-types"
+import type { QuoteRow } from "@/modules/quotes/types/quote-types"
 import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
 import { supabaseClientRepo } from "@/modules/clients/supabase/repository"
 import { supabaseStatusHistoryRepo } from "@/modules/jobs/supabase/status-history-repository"
 import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
 
-export async function buildAccountsHandoverSnapshotAsync(
+const NOT_TRACKED = [
+  "Billing Contact (distinct from Contact Name)",
+  "Priority",
+  "Request Source",
+  "Internal References",
+  "Purchase Order Number",
+  "Cost Centre",
+  "Payment Terms",
+  "Surveyor (distinct role from Designer), Survey Date, Survey Notes, Survey References — this application does not track a separate survey workflow from the design workflow, even for itemType='SURVEY' jobs",
+  "Attachments / Documents — this application has no file upload or document storage of any kind",
+  "Description (distinct from Type of Works) for standard categories — only 'Other'-type jobs have a free-text description; Project Description above is populated only when this job was converted from a quote with its own description",
+]
+
+function assembleSnapshot(
   handoff: BillingHandoffRow,
-): Promise<AccountsHandoverSnapshot> {
-  const job = await supabaseJobRepo.findUnique(handoff.sourceJobId)
-  const client = job?.clientId ? await supabaseClientRepo.findUnique(job.clientId) : null
-  const history = job ? await supabaseStatusHistoryRepo.forJob(job.id) : []
+  job: JobRow | null | undefined,
+  client: ClientRow | null | undefined,
+  history: StatusHistoryRow[],
+  sourceQuote: QuoteRow | null | undefined,
+  revisions: JobRow[],
+): AccountsHandoverSnapshot {
   const createdEntry = history.find(h => h.fromStatus === null)
   const completedEntry = [...history].reverse().find(h => h.toStatus === "ISSUED")
   const lastEntry = history[history.length - 1]
 
-  const sourceQuote = job?.quoteReference
-    ? await supabaseQuoteRepo.findByNumber(job.quoteReference)
-    : null
-
-  const revisions = job ? await supabaseJobRepo.revisionsForJob(job.id) : []
   const revisionHistory = revisions.map(r => ({
     drawingNumber: r.drawingNumber,
     revisionLetter: r.revisionLetter,
@@ -33,19 +48,6 @@ export async function buildAccountsHandoverSnapshotAsync(
     charge: r.quoteValue,
   }))
   const revisionChargesTotal = revisions.reduce((sum, r) => sum + (r.quoteValue ?? 0), 0)
-
-  const notTracked = [
-    "Billing Contact (distinct from Contact Name)",
-    "Priority",
-    "Request Source",
-    "Internal References",
-    "Purchase Order Number",
-    "Cost Centre",
-    "Payment Terms",
-    "Surveyor (distinct role from Designer), Survey Date, Survey Notes, Survey References — this application does not track a separate survey workflow from the design workflow, even for itemType='SURVEY' jobs",
-    "Attachments / Documents — this application has no file upload or document storage of any kind",
-    "Description (distinct from Type of Works) for standard categories — only 'Other'-type jobs have a free-text description; Project Description above is populated only when this job was converted from a quote with its own description",
-  ]
 
   return {
     handoffId: handoff.id,
@@ -129,6 +131,54 @@ export async function buildAccountsHandoverSnapshotAsync(
       note: "This application has no file upload or document storage — no attachment metadata exists to export.",
       items: [],
     },
-    notTracked,
+    notTracked: NOT_TRACKED,
   }
+}
+
+/** Single-handoff builder (kept for callers that need one snapshot). */
+export async function buildAccountsHandoverSnapshotAsync(
+  handoff: BillingHandoffRow,
+): Promise<AccountsHandoverSnapshot> {
+  const [snapshot] = await buildAccountsHandoverSnapshotsBatch([handoff])
+  return snapshot!
+}
+
+/**
+ * Batch-build accounts handover snapshots for many handoffs.
+ * Loads jobs, clients, status history, quotes, and revisions in bulk — no per-handoff N+1.
+ */
+export async function buildAccountsHandoverSnapshotsBatch(
+  handoffs: BillingHandoffRow[],
+): Promise<AccountsHandoverSnapshot[]> {
+  if (!handoffs.length) return []
+
+  const jobIds = [...new Set(handoffs.map(h => h.sourceJobId).filter(Boolean))]
+  const jobs = await supabaseJobRepo.findManyByIds(jobIds)
+  const jobById = new Map(jobs.map(j => [j.id, j]))
+
+  const clientIds = [...new Set(jobs.map(j => j.clientId).filter((id): id is string => !!id))]
+  const quoteNumbers = [
+    ...new Set(jobs.map(j => j.quoteReference).filter((n): n is string => !!n)),
+  ]
+
+  const [clients, historyByJob, quotes, revisionsByParent] = await Promise.all([
+    supabaseClientRepo.findManyByIds(clientIds),
+    supabaseStatusHistoryRepo.forJobs(jobIds),
+    supabaseQuoteRepo.findManyByNumbers(quoteNumbers),
+    supabaseJobRepo.revisionsForJobs(jobIds),
+  ])
+
+  const clientById = new Map(clients.map(c => [c.id, c]))
+  const quoteByNumber = new Map(quotes.map(q => [q.quoteNumber, q]))
+
+  return handoffs.map(handoff => {
+    const job = jobById.get(handoff.sourceJobId) ?? null
+    const client = job?.clientId ? clientById.get(job.clientId) ?? null : null
+    const history = job ? (historyByJob.get(job.id) ?? []) : []
+    const sourceQuote = job?.quoteReference
+      ? quoteByNumber.get(job.quoteReference) ?? null
+      : null
+    const revisions = job ? (revisionsByParent.get(job.id) ?? []) : []
+    return assembleSnapshot(handoff, job, client, history, sourceQuote, revisions)
+  })
 }

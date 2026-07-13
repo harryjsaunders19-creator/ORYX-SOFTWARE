@@ -1,12 +1,14 @@
 /**
  * POST /api/auth/exit-impersonation
  */
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { SESSION_COOKIE, getRealUser } from "@/lib/auth"
 import { setSessionCookies } from "@/lib/auth-cookies"
 import { verifySessionToken } from "@/lib/session-cookie"
+import { withoutPassword } from "@/modules/users/types/user-types"
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const res = NextResponse.json({ user: realUser, isImpersonating: false })
+    const res = NextResponse.json({ user: withoutPassword(realUser), isImpersonating: false })
     await setSessionCookies(res, realUser.id, realUser.id)
     return res
   } catch (err) {

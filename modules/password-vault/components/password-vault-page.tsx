@@ -104,25 +104,65 @@ function VaultForm({ formId, initial, onSubmit, isEdit }: {
   )
 }
 
-function PasswordCell({ password, onCopy }: { password: string; onCopy: () => void }) {
+function PasswordCell({
+  entryId,
+  password,
+  toast,
+}: {
+  entryId: string
+  password: string
+  toast: (msg: string, type?: "success" | "error") => void
+}) {
   const [visible, setVisible] = useState(false)
+  const [revealed, setRevealed] = useState(password)
+  const [loading, setLoading] = useState(false)
+
+  async function ensurePassword(): Promise<string | null> {
+    if (revealed) return revealed
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/password-vault/${entryId}`)
+      if (!res.ok) throw new Error()
+      const entry = await res.json() as PasswordVaultEntry
+      setRevealed(entry.password)
+      return entry.password
+    } catch {
+      toast("Failed to reveal password", "error")
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="flex items-center gap-1.5 min-w-[140px]">
       <span className="font-mono text-xs text-t1 truncate max-w-[120px]">
-        {visible ? password : "••••••••"}
+        {visible && revealed ? revealed : "••••••••"}
       </span>
       <button
         type="button"
-        onClick={() => setVisible(v => !v)}
-        className="p-1 rounded text-t3 hover:text-t1 hover:bg-pg"
+        disabled={loading}
+        onClick={async () => {
+          if (visible) {
+            setVisible(false)
+            return
+          }
+          const pw = await ensurePassword()
+          if (pw) setVisible(true)
+        }}
+        className="p-1 rounded text-t3 hover:text-t1 hover:bg-pg disabled:opacity-50"
         aria-label={visible ? "Hide password" : "Show password"}
       >
         {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
       </button>
       <button
         type="button"
-        onClick={onCopy}
-        className="p-1 rounded text-t3 hover:text-t1 hover:bg-pg"
+        disabled={loading}
+        onClick={async () => {
+          const pw = await ensurePassword()
+          if (pw) await copyText(pw, "Password", toast)
+        }}
+        className="p-1 rounded text-t3 hover:text-t1 hover:bg-pg disabled:opacity-50"
         aria-label="Copy password"
       >
         <Copy className="h-3.5 w-3.5" />
@@ -343,8 +383,9 @@ function VaultPageInner() {
                     </td>
                     <td className="px-4 py-3">
                       <PasswordCell
+                        entryId={entry.id}
                         password={entry.password}
-                        onCopy={() => copyText(entry.password, "Password", toast)}
+                        toast={toast}
                       />
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell max-w-[200px]">

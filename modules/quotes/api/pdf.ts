@@ -48,6 +48,11 @@ export async function GET(req: Request, { params }: Ctx) {
     const url = new URL(req.url)
 
     if (url.searchParams.get("download") === "1") {
+      const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")
+      if (!(await checkRateLimit(`pdf:${auth.user.id}`, RATE_PRESETS.pdf))) {
+        return rateLimitedResponse()
+      }
+
       const quote = await quoteService.findUnique(id)
       if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
 
