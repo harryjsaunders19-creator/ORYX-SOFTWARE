@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test"
+import { test, expect, loginAsAdmin } from "./helpers"
 
 test.describe("Authentication", () => {
   test("redirects unauthenticated users to login", async ({ page }) => {
@@ -7,11 +7,7 @@ test.describe("Authentication", () => {
   })
 
   test("admin can log in and reach the dashboard", async ({ page }) => {
-    await page.goto("/login")
-    await page.locator("#email").fill("admin@test.com")
-    await page.locator("#password").fill("admin123")
-    await page.locator('button[type="submit"]').click()
-
+    await loginAsAdmin(page)
     await expect(page).toHaveURL("/")
     await expect(page.locator("h1").filter({ hasText: "Dashboard" })).toBeVisible()
   })

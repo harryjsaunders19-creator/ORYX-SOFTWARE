@@ -1175,12 +1175,17 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
 
   for (const acct of accounts) {
     const existing = db.prepare("SELECT id, passwordHash FROM User WHERE emailLower = ?").get(acct.email) as { id: string; passwordHash: string | null } | undefined
+    // E2E needs stable known passwords across the suite — never force a password change.
+    const mustChange = process.env.E2E === "true" ? 0 : 1
     if (!existing) {
       db.prepare(`
         INSERT INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,1,?,1,?,?)
-      `).run(acct.id, acct.name, acct.email, acct.email, acct.role, acct.passwordHash, now, now)
+        VALUES (?,?,?,?,?,1,?,?,?,?)
+      `).run(acct.id, acct.name, acct.email, acct.email, acct.role, acct.passwordHash, mustChange, now, now)
       console.log(`[bootstrapAccounts] Created ${acct.email}`)
+    } else if (process.env.E2E === "true") {
+      db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 0, active = 1 WHERE id = ?")
+        .run(acct.passwordHash, existing.id)
     } else if (!existing.passwordHash) {
       db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?")
         .run(acct.passwordHash, existing.id)

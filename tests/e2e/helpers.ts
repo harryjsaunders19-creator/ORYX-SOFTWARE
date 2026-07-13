@@ -1,17 +1,22 @@
 import { test as base, type Page, type APIRequestContext } from "@playwright/test"
 
+async function completeForcedPasswordChange(page: Page, nextPassword: string) {
+  if (!page.url().includes("/set-password")) return
+  await page.locator("#new-password").fill(nextPassword)
+  await page.locator("#confirm-password").fill(nextPassword)
+  await page.locator('button[type="submit"]').click()
+  await page.waitForURL("/")
+}
+
 export async function loginAsAdmin(page: Page) {
   await page.goto("/login")
   await page.locator("#email").fill("admin@test.com")
   await page.locator("#password").fill("admin123")
   await page.locator('button[type="submit"]').click()
-  await page.waitForURL(url => url.pathname === "/" || url.pathname === "/set-password")
-  if (page.url().includes("/set-password")) {
-    await page.locator("#new-password").fill("Admin1234")
-    await page.locator("#confirm-password").fill("Admin1234")
-    await page.locator('button[type="submit"]').click()
-    await page.waitForURL("/")
-  }
+  await page.waitForURL(url => url.pathname === "/" || url.pathname === "/set-password", {
+    timeout: 30_000,
+  })
+  await completeForcedPasswordChange(page, "Admin1234")
 }
 
 export async function loginAsEngineer(page: Page) {
@@ -21,13 +26,10 @@ export async function loginAsEngineer(page: Page) {
   await page.locator("#email").fill("engineer@test.com")
   await page.locator("#password").fill("engineer123")
   await page.locator('button[type="submit"]').click()
-  await page.waitForURL(url => url.pathname === "/" || url.pathname === "/set-password")
-  if (page.url().includes("/set-password")) {
-    await page.locator("#new-password").fill("Engineer1234")
-    await page.locator("#confirm-password").fill("Engineer1234")
-    await page.locator('button[type="submit"]').click()
-    await page.waitForURL("/")
-  }
+  await page.waitForURL(url => url.pathname === "/" || url.pathname === "/set-password", {
+    timeout: 30_000,
+  })
+  await completeForcedPasswordChange(page, "Engineer1234")
 }
 
 export async function loginApi(
