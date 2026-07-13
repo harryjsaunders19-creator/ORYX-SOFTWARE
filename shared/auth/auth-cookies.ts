@@ -24,12 +24,13 @@ export async function setSessionCookies(
   if (options?.mustChangePassword) {
     res.cookies.set(MUST_CHANGE_PASSWORD_COOKIE, "1", opts)
   } else {
-    res.cookies.set(MUST_CHANGE_PASSWORD_COOKIE, "", { path: "/", maxAge: 0 })
+    res.cookies.set(MUST_CHANGE_PASSWORD_COOKIE, "", { ...opts, maxAge: 0 })
   }
 }
 
 export function clearSessionCookies(res: NextResponse): void {
-  const opts = { path: "/", maxAge: 0 }
+  // Must match Secure/SameSite/path used when setting, or browsers keep the cookie.
+  const opts = { ...sessionCookieOptions(), maxAge: 0 }
   res.cookies.set(SESSION_COOKIE, "", opts)
   res.cookies.set(REAL_SESSION_COOKIE, "", opts)
   res.cookies.set(MUST_CHANGE_PASSWORD_COOKIE, "", opts)

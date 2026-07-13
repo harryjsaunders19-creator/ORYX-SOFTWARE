@@ -17,12 +17,13 @@ const RULES = [
 
 export default function SetPasswordPage() {
   const router = useRouter()
-  const { user, loading: sessionLoading } = useUser()
+  const { user, loading: sessionLoading, logout } = useUser()
   const [password, setPassword]       = useState("")
   const [confirm,  setConfirm]        = useState("")
   const [error,    setError]          = useState("")
   const [loading,  setLoading]        = useState(false)
   const [success,  setSuccess]        = useState(false)
+  const [signingOut, setSigningOut]   = useState(false)
 
   useEffect(() => {
     if (!sessionLoading && !user) router.replace("/login")
@@ -137,9 +138,29 @@ export default function SetPasswordPage() {
           variant="primary"
           className="w-full"
           loading={loading}
-          disabled={loading || !allRulesPass || !passwordsMatch}
+          disabled={loading || signingOut || !allRulesPass || !passwordsMatch}
         >
           Set password
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full"
+          loading={signingOut}
+          disabled={loading || signingOut}
+          onClick={async () => {
+            setSigningOut(true)
+            try {
+              await logout()
+              window.location.href = "/login"
+            } catch {
+              setSigningOut(false)
+              setError("Could not sign out — please try again")
+            }
+          }}
+        >
+          Sign out instead
         </Button>
       </form>
     </AuthLayout>
