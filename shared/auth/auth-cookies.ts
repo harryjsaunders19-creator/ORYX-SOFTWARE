@@ -4,7 +4,11 @@ import {
   REAL_SESSION_COOKIE,
   MUST_CHANGE_PASSWORD_COOKIE,
 } from "@/shared/auth/session-cookie"
-import { createSessionToken, sessionCookieOptions } from "@/shared/auth/session-cookie"
+import {
+  createSessionToken,
+  createMustChangeFlagToken,
+  sessionCookieOptions,
+} from "@/shared/auth/session-cookie"
 
 export type SessionCookieOptions = {
   mustChangePassword?: boolean
@@ -22,7 +26,7 @@ export async function setSessionCookies(
   res.cookies.set(REAL_SESSION_COOKIE, await createSessionToken(realUserId), opts)
 
   if (options?.mustChangePassword) {
-    res.cookies.set(MUST_CHANGE_PASSWORD_COOKIE, "1", opts)
+    res.cookies.set(MUST_CHANGE_PASSWORD_COOKIE, await createMustChangeFlagToken(), opts)
   } else {
     res.cookies.set(MUST_CHANGE_PASSWORD_COOKIE, "", { ...opts, maxAge: 0 })
   }

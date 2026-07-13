@@ -4,6 +4,7 @@ import {
   SESSION_COOKIE,
   MUST_CHANGE_PASSWORD_COOKIE,
   hasValidSessionToken,
+  hasValidMustChangeFlag,
 } from "@/lib/session-cookie"
 import { isExperimentalEnabled } from "@/lib/experimental-features"
 
@@ -119,7 +120,9 @@ export async function proxy(request: NextRequest) {
   }
 
   const hasSession = await hasValidSessionToken(token)
-  const mustChangePassword = request.cookies.get(MUST_CHANGE_PASSWORD_COOKIE)?.value === "1"
+  const mustChangePassword = await hasValidMustChangeFlag(
+    request.cookies.get(MUST_CHANGE_PASSWORD_COOKIE)?.value,
+  )
 
   if (pathname.startsWith("/api/")) {
     if (!hasSession) {

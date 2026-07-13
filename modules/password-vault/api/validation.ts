@@ -7,6 +7,29 @@ function optString(v: unknown): string | null {
   return typeof v === "string" ? v.trim() || null : null
 }
 
+/** Allow only http(s) URLs — blocks javascript:/data:/etc stored XSS via href. */
+export function normalizeLoginUrl(raw: string | null | undefined): ParseResult<string | null> {
+  if (raw == null || raw === "") return { data: null }
+  const trimmed = typeof raw === "string" ? raw.trim() : ""
+  if (!trimmed) return { data: null }
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    return { error: "Login URL must be a valid http(s) address" }
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { error: "Login URL must start with http:// or https://" }
+  }
+  return { data: parsed.toString() }
+}
+
+/** Safe href for rendering vault login links (null if unsafe). */
+export function safeHttpUrl(raw: string | null | undefined): string | null {
+  const result = normalizeLoginUrl(raw)
+  return "data" in result ? result.data : null
+}
+
 export function parseCreateBody(body: Record<string, unknown>): ParseResult<CreatePasswordVaultInput> {
   const serviceName = typeof body.serviceName === "string" ? body.serviceName.trim() : ""
   if (!serviceName) return { error: "Service name is required" }
@@ -14,10 +37,13 @@ export function parseCreateBody(body: Record<string, unknown>): ParseResult<Crea
   const password = typeof body.password === "string" ? body.password : ""
   if (!password) return { error: "Password is required" }
 
+  const loginUrl = normalizeLoginUrl(optString(body.loginUrl))
+  if ("error" in loginUrl) return loginUrl
+
   return {
     data: {
       serviceName,
-      loginUrl: optString(body.loginUrl),
+      loginUrl: loginUrl.data,
       username: optString(body.username),
       password,
       category: optString(body.category),
@@ -34,7 +60,11 @@ export function parseUpdateBody(body: Record<string, unknown>): ParseResult<Upda
     if (!serviceName) return { error: "Service name is required" }
     data.serviceName = serviceName
   }
-  if (body.loginUrl !== undefined) data.loginUrl = optString(body.loginUrl)
+  if (body.loginUrl !== undefined) {
+    const loginUrl = normalizeLoginUrl(optString(body.loginUrl))
+    if ("error" in loginUrl) return loginUrl
+    data.loginUrl = loginUrl.data
+  }
   if (body.username !== undefined) data.username = optString(body.username)
   if (body.password !== undefined) {
     if (typeof body.password !== "string" || !body.password) {

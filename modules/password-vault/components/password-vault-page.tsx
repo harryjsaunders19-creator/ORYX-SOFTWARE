@@ -21,6 +21,7 @@ import {
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { RequireRole } from "@/components/require-role"
 import type { PasswordVaultEntry } from "../types"
+import { safeHttpUrl } from "../api/validation"
 
 type VaultData = { entries: PasswordVaultEntry[]; total: number }
 type SortOrder = "asc" | "desc"
@@ -389,14 +390,14 @@ function VaultPageInner() {
                       />
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell max-w-[200px]">
-                      {entry.loginUrl ? (
+                      {safeHttpUrl(entry.loginUrl) ? (
                         <a
-                          href={entry.loginUrl}
+                          href={safeHttpUrl(entry.loginUrl)!}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-ac hover:text-ach truncate max-w-full"
                         >
-                          <span className="truncate">{entry.loginUrl.replace(/^https?:\/\//, "")}</span>
+                          <span className="truncate">{entry.loginUrl!.replace(/^https?:\/\//, "")}</span>
                           <ExternalLink className="h-3 w-3 shrink-0" />
                         </a>
                       ) : (

@@ -7,7 +7,7 @@ import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { createId } from "@paralleldrive/cuid2"
 import { VALID_ITEM_TYPES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE } from "@/lib/constants"
-import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
 import { MAX_JOB_LIST_EXPORT_ROWS } from "@/modules/import-export/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
@@ -75,7 +75,9 @@ export async function GET(req: NextRequest) {
     }
 
     if (exportAll) {
-      if (!(await checkRateLimit(`export:${auth.user.id}`, RATE_PRESETS.export))) {
+      const admin = await requireRole(["ADMIN"])
+      if (admin instanceof NextResponse) return admin
+      if (!(await checkRateLimit(`export:${admin.user.id}`, RATE_PRESETS.export))) {
         return rateLimitedResponse(3600)
       }
       const { jobs: rawJobs, total, allForRevisions } = await jobService.findManyWithCount({

@@ -118,3 +118,25 @@ export async function verifySessionToken(token: string | undefined): Promise<str
 export async function hasValidSessionToken(token: string | undefined): Promise<boolean> {
   return (await verifySessionToken(token)) !== null
 }
+
+/** Mint a signed flag that the active user must change password. */
+export async function createMustChangeFlagToken(): Promise<string> {
+  const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SEC
+  const payload = `mustchg.1.${exp}`
+  const sig = await signPayload(payload)
+  return `${VERSION}.${payload}.${sig}`
+}
+
+/** True when the must-change cookie is a valid signed flag (not a forgeable "1"). */
+export async function hasValidMustChangeFlag(token: string | undefined): Promise<boolean> {
+  if (!token || !token.startsWith(`${VERSION}.`)) return false
+  const rest = token.slice(VERSION.length + 1)
+  const sigSep = rest.lastIndexOf(".")
+  if (sigSep === -1) return false
+  const payload = rest.slice(0, sigSep)
+  const signature = rest.slice(sigSep + 1)
+  if (!payload.startsWith("mustchg.1.")) return false
+  const exp = parseInt(payload.slice("mustchg.1.".length), 10)
+  if (isNaN(exp) || exp < Math.floor(Date.now() / 1000)) return false
+  return verifyPayload(payload, signature)
+}

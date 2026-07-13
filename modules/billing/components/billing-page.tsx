@@ -345,14 +345,20 @@ function BatchRow({ batch }: { batch: BillingExportBatch }) {
 function BillingPageInner() {
   const { toast } = useToast()
   const [view, setView]   = useState<View>("awaiting")
-  // Perf: SWR key includes view so awaiting/cleared/history share the cache correctly.
-  const listKey = view === "history" ? null : `/api/billing-handoffs?view=${view}&limit=200`
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 200
+  // Perf: SWR key includes view+page so awaiting/cleared/history share the cache correctly.
+  const listKey = view === "history" ? null : `/api/billing-handoffs?view=${view}&limit=${PAGE_SIZE}&page=${page}`
   const historyKey = view === "history" ? "/api/billing-handoffs/batches" : null
   const { data: listData, error: listError, isLoading: listLoading, mutate: mutateList } = useApi<{
     handoffs?: BillingHandoff[]
     awaitingCount?: number
     awaitingValue?: number
     clearedCount?: number
+    total?: number
+    truncated?: boolean
+    page?: number
+    limit?: number
     error?: string
   }>(listKey)
   const { data: historyData, error: historyError, isLoading: historyLoading, mutate: mutateHistory } = useApi<{
@@ -383,12 +389,19 @@ function BillingPageInner() {
 
   const load = useCallback((v: View) => {
     setView(v)
+    setPage(1)
     setSelected(new Set())
     if (v === "history") void mutateHistory()
     else void mutateList()
   }, [mutateHistory, mutateList])
 
-  useEffect(() => { setSelected(new Set()) }, [view])
+  useEffect(() => { setSelected(new Set()) }, [view, page])
+
+  const viewTotal = listData?.total
+    ?? (view === "awaiting" ? stats?.awaitingCount : view === "cleared" ? stats?.clearedCount : undefined)
+    ?? 0
+  const totalPages = Math.max(1, Math.ceil(viewTotal / PAGE_SIZE))
+  const truncated = !!listData?.truncated
 
   const toggle = (id: string) => setSelected(prev => {
     const next = new Set(prev)
@@ -416,7 +429,7 @@ function BillingPageInner() {
 
       <TabBar
         active={view}
-        onChange={v => setView(v as View)}
+        onChange={v => load(v as View)}
         trailing={
           view === "awaiting" && selected.size > 0 ? (
             <Button size="sm" variant="primary" onClick={() => setExporting(true)}>
@@ -434,6 +447,34 @@ function BillingPageInner() {
       {loadError && (
         <div className="bg-dn-bg border border-dn-bd rounded-md px-4 py-3 text-sm text-dn-tx">
           Could not load billing data. If this is a fresh Vercel deploy, ensure Supabase env vars are set and data has been synced.
+        </div>
+      )}
+
+      {view !== "history" && truncated && (
+        <div className="bg-wn-bg border border-wn-bd rounded-md px-4 py-3 text-sm text-wn-tx">
+          Showing page {page} of {totalPages} ({items?.length ?? 0} of {viewTotal} items). Use the controls below to see the rest before exporting.
+        </div>
+      )}
+
+      {view !== "history" && totalPages > 1 && (
+        <div className="flex items-center justify-end gap-2 text-xs text-t3">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={page <= 1 || listLoading}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <span className="tabular-nums">Page {page} / {totalPages}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={page >= totalPages || listLoading}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          >
+            Next
+          </Button>
         </div>
       )}
 

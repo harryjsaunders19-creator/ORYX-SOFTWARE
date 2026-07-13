@@ -124,7 +124,7 @@ export const supabaseBillingRepo = {
     }
   },
 
-  /** Mark exported handoffs cleared in Supabase — source of truth on Vercel. */
+  /** Mark exported handoffs cleared — only rows still uncleared (optimistic concurrency). */
   async clearHandoffsForExport(params: {
     handoffIds: string[]
     batchId: string
@@ -134,26 +134,32 @@ export const supabaseBillingRepo = {
   }): Promise<void> {
     if (!params.handoffIds.length) return
 
-    const rows = await this.findManyByIds(params.handoffIds)
-    const byId = new Map(rows.map(r => [r.id, r]))
-    const missing = params.handoffIds.filter(id => !byId.has(id))
-    if (missing.length) {
-      throw new Error(`${missing.length} item(s) not found in Supabase billing queue`)
+    const unique = [...new Set(params.handoffIds)]
+    let clearedCount = 0
+    for (let i = 0; i < unique.length; i += IN_CHUNK) {
+      const chunk = unique.slice(i, i + IN_CHUNK)
+      const patch: Record<string, string | null> = {
+        cleared_by_accounts_at: params.clearedAt,
+        cleared_by: params.clearedBy,
+        export_batch_id: params.batchId,
+        updated_at: params.clearedAt,
+      }
+      if (params.notes !== undefined) patch.notes = params.notes ?? null
+
+      const { data, error } = await handoffs()
+        .update(patch)
+        .in("id", chunk)
+        .is("cleared_by_accounts_at", null)
+        .select("id")
+      throwSupabaseError(error)
+      clearedCount += data?.length ?? 0
     }
 
-    const clearedRows = params.handoffIds.map(id => {
-      const row = byId.get(id)!
-      return {
-        ...row,
-        clearedByAccountsAt: row.clearedByAccountsAt ?? params.clearedAt,
-        clearedBy: row.clearedBy ?? params.clearedBy,
-        exportBatchId: params.batchId,
-        notes: params.notes ?? row.notes,
-        updatedAt: params.clearedAt,
-      }
-    })
-
-    await this.upsertManyHandoffs(clearedRows)
+    if (clearedCount !== unique.length) {
+      throw new Error(
+        `${unique.length - clearedCount} item(s) were already cleared or missing — export aborted`,
+      )
+    }
   },
 
   async countUnclearedAmong(ids: string[]): Promise<number> {

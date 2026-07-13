@@ -29,6 +29,15 @@ describe("parseCreateBody", () => {
     assert.equal(result.data.password, "secret")
     assert.equal(result.data.category, "Design")
   })
+
+  it("rejects javascript: login URLs", () => {
+    const result = parseCreateBody({
+      serviceName: "Bad",
+      password: "secret",
+      loginUrl: "javascript:alert(1)",
+    })
+    assert.equal(result.error, "Login URL must start with http:// or https://")
+  })
 })
 
 describe("parseUpdateBody", () => {

@@ -3,7 +3,11 @@ import assert from "node:assert/strict"
 import { createRequire } from "node:module"
 
 const require = createRequire(import.meta.url)
-const { getAuthSecret } = require("../../shared/auth/session-cookie.ts")
+const {
+  getAuthSecret,
+  createMustChangeFlagToken,
+  hasValidMustChangeFlag,
+} = require("../../shared/auth/session-cookie.ts")
 
 describe("getAuthSecret", () => {
   const originalSecret = process.env.AUTH_SECRET
@@ -31,5 +35,15 @@ describe("getAuthSecret", () => {
     delete process.env.AUTH_SECRET
     process.env.NODE_ENV = "development"
     assert.equal(getAuthSecret(), "oryx-dev-auth-secret-change-me")
+  })
+})
+
+describe("must-change flag token", () => {
+  it("accepts a freshly minted flag and rejects forgeable 1", async () => {
+    process.env.AUTH_SECRET = "unit-test-secret"
+    const token = await createMustChangeFlagToken()
+    assert.equal(await hasValidMustChangeFlag(token), true)
+    assert.equal(await hasValidMustChangeFlag("1"), false)
+    assert.equal(await hasValidMustChangeFlag("v1.mustchg.1.9999999999.fakesig"), false)
   })
 })

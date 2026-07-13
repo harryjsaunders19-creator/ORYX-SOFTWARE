@@ -17,6 +17,18 @@ import { createId as nanoid } from "@paralleldrive/cuid2"
 import { nowIso } from "@/lib/db/helpers"
 import { totalJobCommercialValue } from "@/lib/utils"
 
+/** Serialize exports within one serverless instance to reduce overlapping clears. */
+let exportChain: Promise<unknown> = Promise.resolve()
+
+function withExportLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = exportChain.then(fn, fn)
+  exportChain = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
+
 export const billingHandoffService = {
   async findMany(opts: BillingHandoffListOptions = {}): Promise<BillingHandoffRow[]> {
     return supabaseBillingRepo.findMany(opts)
@@ -38,9 +50,9 @@ export const billingHandoffService = {
   /**
    * Create an export batch, persist snapshots, then clear handoffs.
    *
-   * Note: this is not a single Postgres transaction. If clearHandoffs fails or
-   * leaves rows uncleared, we best-effort delete the batch + snapshots before
-   * throwing. Full transactional export is a follow-up.
+   * Not a single Postgres transaction. Clears use a conditional UPDATE
+   * (uncleared only) plus an in-process lock; rollback deletes the batch on
+   * clear failure. A full transactional RPC remains a follow-up.
    */
   async createExportBatch(data: {
     handoffIds: string[]
@@ -48,67 +60,69 @@ export const billingHandoffService = {
     exportDate: string
     notes?: string | null
   }): Promise<{ batch: BillingExportBatchRow; snapshots: AccountsHandoverSnapshot[] }> {
-    if (!data.handoffIds.length) throw new Error("No items selected for export")
-    const handoffs = await supabaseBillingRepo.findManyByIds(data.handoffIds)
-    const byId = new Map(handoffs.map(h => [h.id, h]))
-    for (const id of data.handoffIds) {
-      const h = byId.get(id)
-      if (!h) throw new Error(`Item ${id} not found`)
-      if (h.clearedByAccountsAt) throw new Error(`${h.drawingNumber} has already been cleared`)
-    }
-    const orderedHandoffs = data.handoffIds.map(id => byId.get(id)!)
-    const batchId = nanoid()
-    const batchNumber = await nextRefNumberAsync("BATCH")
-    const now = nowIso()
-    const snapshots = await buildAccountsHandoverSnapshotsBatch(orderedHandoffs)
-    if (!snapshots.length) throw new Error("Export produced no snapshot rows")
+    return withExportLock(async () => {
+      if (!data.handoffIds.length) throw new Error("No items selected for export")
+      const handoffs = await supabaseBillingRepo.findManyByIds(data.handoffIds)
+      const byId = new Map(handoffs.map(h => [h.id, h]))
+      for (const id of data.handoffIds) {
+        const h = byId.get(id)
+        if (!h) throw new Error(`Item ${id} not found`)
+        if (h.clearedByAccountsAt) throw new Error(`${h.drawingNumber} has already been cleared`)
+      }
+      const orderedHandoffs = data.handoffIds.map(id => byId.get(id)!)
+      const batchId = nanoid()
+      const batchNumber = await nextRefNumberAsync("BATCH")
+      const now = nowIso()
+      const snapshots = await buildAccountsHandoverSnapshotsBatch(orderedHandoffs)
+      if (!snapshots.length) throw new Error("Export produced no snapshot rows")
 
-    const batch: BillingExportBatchRow = {
-      id: batchId,
-      batchNumber,
-      exportDate: data.exportDate,
-      exportedBy: data.exportedBy,
-      recordCount: orderedHandoffs.length,
-      notes: data.notes ?? null,
-      createdAt: now,
-    }
-    await supabaseBillingRepo.upsertBatch(batch)
+      const batch: BillingExportBatchRow = {
+        id: batchId,
+        batchNumber,
+        exportDate: data.exportDate,
+        exportedBy: data.exportedBy,
+        recordCount: orderedHandoffs.length,
+        notes: data.notes ?? null,
+        createdAt: now,
+      }
+      await supabaseBillingRepo.upsertBatch(batch)
 
-    const snapshotRows: BillingExportSnapshotRow[] = orderedHandoffs.map((h, i) => ({
-      id: nanoid(),
-      batchId,
-      handoffId: h.id,
-      snapshotJson: JSON.stringify(snapshots[i]),
-      createdAt: now,
-    }))
-    await supabaseBillingRepo.upsertSnapshots(snapshotRows)
-
-    try {
-      await supabaseBillingRepo.clearHandoffsForExport({
-        handoffIds: data.handoffIds,
+      const snapshotRows: BillingExportSnapshotRow[] = orderedHandoffs.map((h, i) => ({
+        id: nanoid(),
         batchId,
-        clearedAt: now,
-        clearedBy: data.exportedBy,
-        notes: data.notes,
-      })
+        handoffId: h.id,
+        snapshotJson: JSON.stringify(snapshots[i]),
+        createdAt: now,
+      }))
+      await supabaseBillingRepo.upsertSnapshots(snapshotRows)
 
-      const stillAwaiting = await supabaseBillingRepo.countUnclearedAmong(data.handoffIds)
-      if (stillAwaiting > 0) {
-        throw new Error(`${stillAwaiting} item(s) failed to move to Cleared in Supabase`)
-      }
-    } catch (err) {
       try {
-        await supabaseBillingRepo.deleteBatchAndSnapshots(batchId)
-      } catch (cleanupErr) {
-        console.warn(
-          "[billing] export rollback cleanup failed:",
-          cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
-        )
-      }
-      throw err
-    }
+        await supabaseBillingRepo.clearHandoffsForExport({
+          handoffIds: data.handoffIds,
+          batchId,
+          clearedAt: now,
+          clearedBy: data.exportedBy,
+          notes: data.notes,
+        })
 
-    return { batch, snapshots }
+        const stillAwaiting = await supabaseBillingRepo.countUnclearedAmong(data.handoffIds)
+        if (stillAwaiting > 0) {
+          throw new Error(`${stillAwaiting} item(s) failed to move to Cleared in Supabase`)
+        }
+      } catch (err) {
+        try {
+          await supabaseBillingRepo.deleteBatchAndSnapshots(batchId)
+        } catch (cleanupErr) {
+          console.warn(
+            "[billing] export rollback cleanup failed:",
+            cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+          )
+        }
+        throw err
+      }
+
+      return { batch, snapshots }
+    })
   },
 
   async findBatchUnique(id: string): Promise<BillingExportBatchRow | null> {

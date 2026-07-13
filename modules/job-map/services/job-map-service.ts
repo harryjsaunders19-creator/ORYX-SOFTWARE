@@ -330,7 +330,9 @@ async function geocodeJob(
   job: Pick<JobMapRow, "id" | "address" | "siteName" | "siteAddress" | "locationStatus">,
   options: { strict?: boolean } = {},
 ): Promise<boolean> {
-  await jobService.ensureJobInSqlite(job.id)
+  // Supabase-only path: ensureJobInSqlite is a remote existence check (no /tmp populate).
+  // Location writes go through jobService.saveGeocode / markLocationNeedsReview.
+  if (!(await jobService.ensureJobInSqlite(job.id))) return false
   const assessment = assessGeocodeInput(
     job.siteName,
     job.siteAddress,
@@ -437,17 +439,18 @@ export const jobMapService = {
 
 
   async retryGeocode(jobId: string): Promise<{ success: boolean }> {
-
-    await jobService.ensureJobInSqlite(jobId)
-
-    const job = jobDb.findUnique(jobId)
-
+    const job = await jobService.findUnique(jobId)
     if (!job) return { success: false }
 
-    const ok = await geocodeJob(job)
+    const ok = await geocodeJob({
+      id: job.id,
+      address: job.address,
+      siteName: job.siteName,
+      siteAddress: job.siteAddress,
+      locationStatus: job.locationStatus ?? null,
+    })
 
     return { success: ok }
-
   },
 
 

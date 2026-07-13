@@ -11,13 +11,19 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return   // skip on the edge runtime — better-sqlite3 and the scheduler both need real Node
 
-  // Fail the Vercel deploy loudly if the service-role admin client is missing.
+  // Fail the Vercel deploy loudly if required production secrets are missing.
   if (process.env.VERCEL === "1") {
     const { isSupabaseAdminConfigured } = await import("@/lib/supabase/config")
     if (!isSupabaseAdminConfigured()) {
       throw new Error(
         "VERCEL=1 but Supabase admin is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
       )
+    }
+    if (!process.env.AUTH_SECRET?.trim()) {
+      throw new Error("VERCEL=1 but AUTH_SECRET is not set — session cookies cannot be secured.")
+    }
+    if (!process.env.VAULT_ENCRYPTION_KEY?.trim()) {
+      throw new Error("VERCEL=1 but VAULT_ENCRYPTION_KEY is not set — password vault cannot encrypt secrets.")
     }
   }
 

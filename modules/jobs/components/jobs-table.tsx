@@ -742,10 +742,12 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           </Button>
         )}
 
-        <Button variant="outline" size="sm" onClick={() => router.push("/jobs/import")}>
-          <Upload className="h-3.5 w-3.5" />
-          Import
-        </Button>
+        {isAdmin && (
+          <Button variant="outline" size="sm" onClick={() => router.push("/jobs/import")}>
+            <Upload className="h-3.5 w-3.5" />
+            Import
+          </Button>
+        )}
 
         {isCheckingQueue ? (
           <Button variant="outline" size="sm" onClick={exitCheckingQueue}>
