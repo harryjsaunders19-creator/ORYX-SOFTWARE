@@ -20,6 +20,11 @@ export async function POST(_req: Request, { params }: Ctx) {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
 
+    const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")
+    if (!(await checkRateLimit(`pdf:${auth.user.id}`, RATE_PRESETS.pdf))) {
+      return rateLimitedResponse()
+    }
+
     const { id } = await params
     const quote = await quoteService.findUnique(id)
     if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 })

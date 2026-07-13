@@ -47,13 +47,22 @@ const EMPTY_SESSION: SessionResponse = {
   realUser: null,
 }
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
+export function UserProvider({
+  children,
+  fallbackSession,
+}: {
+  children: React.ReactNode
+  /** RSC-seeded session — paints shell without waiting on /api/auth/session. */
+  fallbackSession?: SessionResponse | null
+}) {
   // Perf: SWR-backed session so shell/pages share one in-flight fetch and
   // can update identity without remounting providers. Shell already paints
   // children while loading (see StitchAppShell).
-  const { data, isLoading, mutate } = useApi<SessionResponse>("/api/auth/session")
+  const { data, isLoading, mutate } = useApi<SessionResponse>("/api/auth/session", {
+    fallbackData: fallbackSession ?? undefined,
+  })
 
-  const session = data ?? EMPTY_SESSION
+  const session = data ?? fallbackSession ?? EMPTY_SESSION
   const user = session.user
   const mustChangePassword = session.mustChangePassword ?? false
   const isImpersonating = session.isImpersonating
@@ -107,12 +116,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     [role],
   )
 
+  // With RSC fallback, treat as loaded once we have seeded or fetched data.
+  const loading = isLoading && data === undefined && fallbackSession == null
+
   const value = useMemo<UserCtx>(() => ({
     user,
     userName: user?.name ?? "System",
     role,
     isAdmin,
-    loading: isLoading && data === undefined,
+    loading,
     mustChangePassword,
     isImpersonating,
     realUser,
@@ -120,7 +132,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     exitImpersonation,
     logout,
     canAccess,
-  }), [user, role, isAdmin, isLoading, data, mustChangePassword, isImpersonating, realUser,
+  }), [user, role, isAdmin, loading, mustChangePassword, isImpersonating, realUser,
       switchUser, exitImpersonation, logout, canAccess])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

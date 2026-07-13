@@ -7,6 +7,7 @@ import { ThemeProvider }  from "@/components/theme-provider"
 import { SWRProvider }    from "@/components/swr-provider"
 import { AppShell }       from "@/components/app-shell"
 import { THEME_INIT_SCRIPT } from "@/shared/theme/theme-utils"
+import { buildSessionPayload } from "@/shared/auth/session-payload"
 
 export const metadata: Metadata = {
   title: { default: "Oryx Design", template: "%s · Oryx" },
@@ -23,7 +24,10 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Perf: seed session in RSC so shell/nav paint without waiting on client /api/auth/session.
+  const fallbackSession = await buildSessionPayload().catch(() => null)
+
   return (
     <html lang="en" className="stitch-layout" suppressHydrationWarning>
       <head>
@@ -31,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable}`} style={{ height: "100%", margin: 0 }}>
         <ThemeProvider>
-          <UserProvider>
+          <UserProvider fallbackSession={fallbackSession}>
             <SWRProvider>
               <ToastProvider>
                 <AppShell>{children}</AppShell>

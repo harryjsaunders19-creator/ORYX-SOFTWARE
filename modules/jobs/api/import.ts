@@ -43,6 +43,11 @@ export async function POST(req: NextRequest) {
     if (auth instanceof NextResponse) return auth
     const user = auth.user
 
+    const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")
+    if (!(await checkRateLimit(`import:${user.id}`, RATE_PRESETS.import))) {
+      return rateLimitedResponse(3600)
+    }
+
     const contentType = req.headers.get("content-type") ?? ""
 
     // ── Mode 1: File upload → parse & preview ──────────────────────

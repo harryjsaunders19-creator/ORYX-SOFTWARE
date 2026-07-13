@@ -71,20 +71,26 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   )
 }
 
-export default function JobDetailPage() {
+export default function JobDetailPage({
+  fallbackJob,
+}: {
+  fallbackJob?: (Job & { parentJob?: Job | null; billingHandoff?: BillingHandoff | null }) | null
+} = {}) {
   const params = useParams()
   const id     = params.id as string
   const router = useRouter()
   const { toast }    = useToast()
   const { isAdmin } = useUser()
 
+  const detailKey = id
+    ? `/api/jobs/${id}?include=${isAdmin ? "parent,billing" : "parent"}`
+    : null
+
   const { data: job, error: jobError, isLoading, mutate: mutateJob } = useApi<
     Job & { parentJob?: Job | null; billingHandoff?: BillingHandoff | null }
-  >(
-    id
-      ? `/api/jobs/${id}?include=${isAdmin ? "parent,billing" : "parent"}`
-      : null,
-  )
+  >(detailKey, {
+    fallbackData: fallbackJob ?? undefined,
+  })
   const parentJob = job?.parentJob ?? null
   const billingHandoff = job?.billingHandoff ?? null
 

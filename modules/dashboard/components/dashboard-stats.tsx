@@ -56,11 +56,18 @@ function SectionHeader({ icon: Icon, accent, title, count, viewAllHref, viewAllL
 
 // ── Main component ──────────────────────────────────────────────────
 
-export function DashboardStats() {
+export function DashboardStats({
+  statsKey: statsKeyProp,
+  fallbackStats,
+}: {
+  statsKey?: string
+  fallbackStats?: StatsData | null
+} = {}) {
   const { isAdmin } = useUser()
 
   // Week bounds are calendar-day stable for the session; memoize so the SWR key is stable.
   const statsKey = useMemo(() => {
+    if (statsKeyProp) return statsKeyProp
     const today     = new Date()
     const weekStart = startOfWeek(today, { weekStartsOn: 1 })
     const weekEnd   = endOfWeek(today, { weekStartsOn: 1 })
@@ -69,9 +76,11 @@ export function DashboardStats() {
       calendarTo: format(weekEnd, "yyyy-MM-dd"),
     })
     return `/api/stats?${params}`
-  }, [])
+  }, [statsKeyProp])
 
-  const { data: stats, error: swrError, isLoading, mutate } = useApi<StatsData>(statsKey)
+  const { data: stats, error: swrError, isLoading, mutate } = useApi<StatsData>(statsKey, {
+    fallbackData: fallbackStats ?? undefined,
+  })
 
   const events: DashboardWeekEvent[] = stats?.weekEvents ?? []
   const overdueJobs: Job[] = stats?.overdueJobs ?? []

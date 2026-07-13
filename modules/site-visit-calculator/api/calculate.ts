@@ -13,6 +13,11 @@ export async function POST(req: NextRequest) {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
 
+    const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")
+    if (!(await checkRateLimit(`svc-calc:${auth.user.id}`, RATE_PRESETS.siteVisitCalc))) {
+      return rateLimitedResponse(3600)
+    }
+
     let body: Record<string, unknown>
     try {
       body = await req.json()

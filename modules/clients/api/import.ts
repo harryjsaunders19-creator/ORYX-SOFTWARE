@@ -26,6 +26,11 @@ export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
   if (auth instanceof NextResponse) return auth
 
+  const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")
+  if (!(await checkRateLimit(`import:${auth.user.id}`, RATE_PRESETS.import))) {
+    return rateLimitedResponse(3600)
+  }
+
   try {
     const contentType = req.headers.get("content-type") ?? ""
 

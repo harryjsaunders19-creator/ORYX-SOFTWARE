@@ -9,6 +9,11 @@ export async function POST() {
     const auth = await requireRole(["ADMIN"])
     if (auth instanceof NextResponse) return auth
 
+    const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")
+    if (!(await checkRateLimit(`geocode:${auth.user.id}`, RATE_PRESETS.geocode))) {
+      return rateLimitedResponse(3600)
+    }
+
     const result = await jobMapService.geocodeBatch(GEOCODE_BATCH_SIZE)
     return NextResponse.json(result)
   } catch (err) {

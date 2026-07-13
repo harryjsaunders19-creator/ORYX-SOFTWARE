@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
-import { canViewCommercialValues, type Role } from "@/shared/auth/permissions"
-import { statsService } from "../services/stats-service"
+import type { Role } from "@/shared/auth/permissions"
 import { apiInternalError } from "@/shared/api-errors"
+import { buildDashboardStats } from "../services/build-dashboard-stats"
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,53 +11,12 @@ export async function GET(req: NextRequest) {
     if (auth instanceof NextResponse) return auth
 
     const sp = req.nextUrl.searchParams
-    const calendarFrom = sp.get("calendarFrom") ?? undefined
-    const calendarTo = sp.get("calendarTo") ?? undefined
-
-    const role    = auth.user.role as Role
-    const canView = canViewCommercialValues(role)
-
-    const {
-      byStatus, byItemType, recentJobs, unassigned, totalActiveJobs, totalRevisions,
-      totalQuotedValue, totalIssuedValue, avgJobValue, handoffStats,
-      holds, clientsOnHold, overdueJobs, weekEvents,
-      deadlines, qStats,
-    } = await statsService.dashboard({ calendarFrom, calendarTo })
-
-    const count = (status: string) => byStatus.find(s => s.status === status)?.count ?? 0
-    const total = byStatus.reduce((a, b) => a + b.count, 0)
-
-    return listResponse({
-      total, totalActiveJobs, totalRevisions,
-      newRequest: count("NEW_REQUEST"),
-      inDesign:   count("IN_DESIGN"),
-      checking:   count("CHECKING"),
-      readyToSend: count("READY_TO_SEND"),
-      issued:     count("ISSUED"),
-      unassigned,
-      totalQuotedValue: canView ? totalQuotedValue : null,
-      totalIssuedValue: canView ? totalIssuedValue : null,
-      avgJobValue:      canView ? avgJobValue      : null,
-      clientsOnHold,
-      holds,
-      overdueCount:       deadlines.overdueCount,
-      dueTodayCount:      deadlines.dueTodayCount,
-      dueThisWeekCount:   deadlines.dueThisWeekCount,
-      readyForInvoicingCount:   canView ? handoffStats.awaitingCount : null,
-      readyForInvoicingValue:   canView ? handoffStats.awaitingValue : null,
-      clearedForInvoicingCount: canView ? handoffStats.clearedCount  : null,
-      quotesSent:           qStats.sent,
-      quotesAccepted:       qStats.accepted,
-      quotesRejected:       qStats.rejected,
-      quotesTotalValue:     canView ? qStats.totalValue : null,
-      quotesWonValue:       canView ? qStats.acceptedValue : null,
-      quotesConversionRate: qStats.conversionRate,
-      byItemType,
-      byStatus,
-      recentJobs,
-      overdueJobs: calendarFrom && calendarTo ? overdueJobs : undefined,
-      weekEvents:  calendarFrom && calendarTo ? weekEvents : undefined,
+    const payload = await buildDashboardStats({
+      role: auth.user.role as Role,
+      calendarFrom: sp.get("calendarFrom") ?? undefined,
+      calendarTo: sp.get("calendarTo") ?? undefined,
     })
+    return listResponse(payload)
   } catch (err) {
     return apiInternalError("dashboard.stats.get", err)
   }

@@ -8,6 +8,11 @@ export async function GET(req: NextRequest) {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
 
+    const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")
+    if (!(await checkRateLimit(`map-search:${auth.user.id}`, RATE_PRESETS.mapSearch))) {
+      return rateLimitedResponse(60)
+    }
+
     const q = req.nextUrl.searchParams.get("q") ?? ""
     const results = await jobMapService.searchLocations(q)
     return NextResponse.json({ results })

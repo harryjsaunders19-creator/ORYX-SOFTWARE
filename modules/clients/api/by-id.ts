@@ -18,14 +18,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 })
     const contacts = await clientService.contactsForClient(id)
     const role = auth.user.role as import("@/shared/auth/permissions").Role
-    const jobs = clientService.jobsForClient(id, 50)
+    const jobs = await clientService.jobsForClient(id, 50)
 
     // Engineers see the client and their jobs but no aggregate stats
     if (!canViewClientAnalytics(role)) {
       return resourceResponse({ client, contacts, stats: null, jobs })
     }
 
-    const rawStats = clientService.stats(id)
+    const rawStats = await clientService.stats(id)
     const stats = { ...rawStats, totalInvoicedValue: canViewCommercialValues(role) ? rawStats.totalInvoicedValue : null }
     return resourceResponse({ client, contacts, stats, jobs })
   } catch (err) {
