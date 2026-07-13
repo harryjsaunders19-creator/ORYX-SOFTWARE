@@ -72,6 +72,9 @@ export async function POST(req: NextRequest) {
       targetUserId: user.id,
       targetUserName: user.name,
       detail: "Login via email/password",
+    }).catch((err) => {
+      // Never block sign-in on audit failures (e.g. missing SQLite table on Vercel).
+      logError("auth.login.audit", err, { userId: user.id })
     })
 
     const res = NextResponse.json({
