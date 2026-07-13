@@ -39,6 +39,15 @@ function throwSupabaseError(error: { message?: string; details?: string; hint?: 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type QuoteQuery = any
 
+/** Perf: list payloads don't need every column — same QuoteRow via toQuoteRow. */
+const QUOTE_LIST_SELECT = [
+  "id", "quote_number", "client_id", "client_company", "contact_name", "address",
+  "description", "type_of_works", "custom_type_description", "quote_value",
+  "quote_date", "expiry_date", "status", "notes", "job_id", "created_by",
+  "pdf_path", "prepared_by", "vat_rate", "archived_at", "archived_by",
+  "created_at", "updated_at",
+].join(",")
+
 export interface QuoteListOptionsExt extends QuoteListOptions {
   includeArchived?: boolean
   onlyArchived?: boolean
@@ -70,7 +79,7 @@ function applyQuoteFilters(q: QuoteQuery, opts: QuoteListOptionsExt): QuoteQuery
 export const supabaseQuoteRepo = {
   async findMany(opts: QuoteListOptions = {}): Promise<QuoteRow[]> {
     const run = () => {
-      let q = applyQuoteFilters(quotesTable().select("*"), opts).order("created_at", { ascending: false })
+      let q = applyQuoteFilters(quotesTable().select(QUOTE_LIST_SELECT), opts).order("created_at", { ascending: false })
       if (opts.skip != null && opts.take != null) {
         q = q.range(opts.skip, opts.skip + opts.take - 1)
       } else if (opts.take != null) {
@@ -83,7 +92,7 @@ export const supabaseQuoteRepo = {
       ;({ data, error } = await run())
     }
     if (error) throw error
-    return (data ?? []).map(toQuoteRow)
+    return ((data ?? []) as unknown as SupabaseQuoteRow[]).map(toQuoteRow)
   },
 
   async count(opts: QuoteListOptions = {}): Promise<number> {

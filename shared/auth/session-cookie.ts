@@ -37,14 +37,25 @@ export function sessionCookieOptions() {
   }
 }
 
+/** Perf: Web Crypto importKey is expensive; cache per secret+usage for the
+ *  process lifetime. proxy.ts verifies on every matched request. */
+const hmacKeyCache = new Map<string, Promise<CryptoKey>>()
+
 async function importHmacKey(sign: boolean) {
-  return crypto.subtle.importKey(
-    "raw",
-    enc.encode(getAuthSecret()),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    sign ? ["sign"] : ["verify"],
-  )
+  const secret = getAuthSecret()
+  const cacheKey = `${sign ? "s" : "v"}:${secret}`
+  let pending = hmacKeyCache.get(cacheKey)
+  if (!pending) {
+    pending = crypto.subtle.importKey(
+      "raw",
+      enc.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      sign ? ["sign"] : ["verify"],
+    )
+    hmacKeyCache.set(cacheKey, pending)
+  }
+  return pending
 }
 
 function toBase64Url(bytes: ArrayBuffer): string {

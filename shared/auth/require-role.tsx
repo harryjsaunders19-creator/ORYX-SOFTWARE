@@ -15,7 +15,16 @@ import type { Role } from "@/shared/types/role"
 export function RequireRole({ roles, children }: { roles: Role[]; children: React.ReactNode }) {
   const { role, loading } = useUser()
 
-  if (loading) return null
+  // Perf: keep layout painted while session loads (route loading.tsx covers body).
+  if (loading) {
+    return (
+      <div className="px-6 py-10 space-y-3" aria-busy="true" aria-label="Loading">
+        <div className="skeleton h-8 w-48 rounded" />
+        <div className="skeleton h-4 w-72 rounded" />
+        <div className="skeleton h-32 w-full rounded" />
+      </div>
+    )
+  }
   if (!roles.includes(role)) {
     return (
       <div className="px-6 py-16 flex flex-col items-center text-center">

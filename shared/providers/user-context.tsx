@@ -1,27 +1,29 @@
 "use client"
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
+
+import { createContext, useCallback, useContext, useMemo } from "react"
 import type { User } from "@/lib/types"
 import type { Role } from "@/shared/types/role"
 import { canAccessModule as canAccessModuleFn } from "@/shared/auth/permissions"
+import { useApi } from "@/shared/hooks/use-api"
 
 interface UserCtx {
-  user:        User | null
-  userName:    string
-  role:        Role
-  isAdmin:     boolean
-  loading:     boolean
+  user: User | null
+  userName: string
+  role: Role
+  isAdmin: boolean
+  loading: boolean
   mustChangePassword: boolean
   isImpersonating: boolean
-  realUser:    { id: string; name: string } | null
+  realUser: { id: string; name: string } | null
   /** Switches the active identity via /api/auth/switch. Throws with the
    *  server's error message if the switch is rejected (e.g. a non-admin
    *  trying to switch away from themselves) — callers should catch this
    *  and show it, not assume every call succeeds. */
-  switchUser:  (userId: string) => Promise<void>
+  switchUser: (userId: string) => Promise<void>
   /** Returns to the real identity without needing to know its id. */
   exitImpersonation: () => Promise<void>
-  logout:      () => Promise<void>
-  canAccess:   (moduleKey: string) => boolean
+  logout: () => Promise<void>
+  canAccess: (moduleKey: string) => boolean
 }
 
 const Ctx = createContext<UserCtx>({
@@ -31,33 +33,51 @@ const Ctx = createContext<UserCtx>({
 })
 export const useUser = () => useContext(Ctx)
 
-interface SessionResponse { user: User | null; mustChangePassword?: boolean; isImpersonating: boolean; realUser: { id: string; name: string } | null }
+interface SessionResponse {
+  user: User | null
+  mustChangePassword?: boolean
+  isImpersonating: boolean
+  realUser: { id: string; name: string } | null
+}
+
+const EMPTY_SESSION: SessionResponse = {
+  user: null,
+  mustChangePassword: false,
+  isImpersonating: false,
+  realUser: null,
+}
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user,    setUser]    = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [mustChangePassword, setMustChangePassword] = useState(false)
-  const [isImpersonating, setIsImpersonating] = useState(false)
-  const [realUser, setRealUser] = useState<{ id: string; name: string } | null>(null)
+  // Perf: SWR-backed session so shell/pages share one in-flight fetch and
+  // can update identity without remounting providers. Shell already paints
+  // children while loading (see StitchAppShell).
+  const { data, isLoading, mutate } = useApi<SessionResponse>("/api/auth/session")
 
-  const applySession = useCallback((d: SessionResponse) => {
-    setUser(d.user)
-    setMustChangePassword(d.mustChangePassword ?? false)
-    setIsImpersonating(d.isImpersonating)
-    setRealUser(d.realUser)
-  }, [])
+  const session = data ?? EMPTY_SESSION
+  const user = session.user
+  const mustChangePassword = session.mustChangePassword ?? false
+  const isImpersonating = session.isImpersonating
+  const realUser = session.realUser
 
-  useEffect(() => {
-    fetch("/api/auth/session")
-      .then(r => r.json() as Promise<SessionResponse>)
-      .then(applySession)
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [applySession])
+  const applySession = useCallback(
+    (d: SessionResponse) => {
+      void mutate(
+        {
+          user: d.user,
+          mustChangePassword: d.mustChangePassword ?? false,
+          isImpersonating: d.isImpersonating,
+          realUser: d.realUser,
+        },
+        { revalidate: false },
+      )
+    },
+    [mutate],
+  )
 
   const switchUser = useCallback(async (userId: string) => {
     const res = await fetch("/api/auth/switch", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId }),
     })
     const d = await res.json() as SessionResponse & { error?: string }
@@ -74,28 +94,25 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" })
-    setUser(null); setIsImpersonating(false); setRealUser(null)
+    applySession(EMPTY_SESSION)
     // Callers that need a redirect (e.g. sidebar logout button) do
     // window.location.href = "/login" themselves after awaiting this.
-  }, [])
+  }, [applySession])
 
-  const role    = user?.role ?? "ENGINEER"   // fail closed — see lib/auth.ts getCurrentRole()
+  const role = user?.role ?? "ENGINEER" // fail closed — see lib/auth.ts getCurrentRole()
   const isAdmin = role === "ADMIN"
 
-  // Stable callback — only changes when `role` changes, not on every render.
   const canAccess = useCallback(
     (moduleKey: string) => canAccessModuleFn(role, moduleKey),
     [role],
   )
 
-  // Memoized context value — consumers only re-render when the fields they
-  // care about actually change, not on every parent re-render.
   const value = useMemo<UserCtx>(() => ({
     user,
     userName: user?.name ?? "System",
     role,
     isAdmin,
-    loading,
+    loading: isLoading && data === undefined,
     mustChangePassword,
     isImpersonating,
     realUser,
@@ -103,7 +120,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     exitImpersonation,
     logout,
     canAccess,
-  }), [user, role, isAdmin, loading, mustChangePassword, isImpersonating, realUser,
+  }), [user, role, isAdmin, isLoading, data, mustChangePassword, isImpersonating, realUser,
       switchUser, exitImpersonation, logout, canAccess])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

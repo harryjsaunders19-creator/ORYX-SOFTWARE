@@ -55,12 +55,21 @@ export async function proxy(request: NextRequest) {
     return NextResponse.json({ error: "This feature is not available yet" }, { status: 404 })
   }
 
+  // Perf: skip HMAC verify for public API routes (login/session/logout/ping).
+  if (pathname.startsWith("/api/") && isPublicApi(pathname)) {
+    return NextResponse.next()
+  }
+
+  // Perf: public pages with no cookie need no HMAC work.
   const token = request.cookies.get(SESSION_COOKIE)?.value
+  if (!token && PUBLIC_PAGES.has(pathname)) {
+    return NextResponse.next()
+  }
+
   const hasSession = await hasValidSessionToken(token)
   const mustChangePassword = request.cookies.get(MUST_CHANGE_PASSWORD_COOKIE)?.value === "1"
 
   if (pathname.startsWith("/api/")) {
-    if (isPublicApi(pathname)) return NextResponse.next()
     if (!hasSession) {
       return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
     }

@@ -6,16 +6,23 @@
  */
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isMissingColumnError } from "@/lib/supabase/archived-filter"
-import { toClientRow, toSupabaseInsert, toSupabaseRow, toSupabaseUpdate } from "./mapper"
+import { toClientRow, toSupabaseInsert, toSupabaseRow, toSupabaseUpdate, type SupabaseClientRow } from "./mapper"
 import type { ClientRow, CreateClientData, UpdateClientData } from "../types/client-types"
 
 function table() {
   return createAdminClient().from("clients")
 }
 
+/** Perf: list payloads don't need every column — same ClientRow via toClientRow. */
+const CLIENT_LIST_SELECT = [
+  "id", "name", "name_lower", "contact_name", "email", "phone",
+  "billing_address", "notes", "account_code", "active",
+  "archived_at", "archived_by", "created_at", "updated_at",
+].join(",")
+
 export const supabaseClientRepo = {
   async findMany(opts: { search?: string; activeOnly?: boolean; skip?: number; take?: number } = {}): Promise<ClientRow[]> {
-    let q = table().select("*").order("name", { ascending: true })
+    let q = table().select(CLIENT_LIST_SELECT).order("name", { ascending: true })
     if (opts.activeOnly) q = q.eq("active", true)
     if (opts.search) {
       const term = opts.search.trim()
@@ -28,7 +35,7 @@ export const supabaseClientRepo = {
     }
     const { data, error } = await q
     if (error) throw error
-    return (data ?? []).map(toClientRow)
+    return ((data ?? []) as unknown as SupabaseClientRow[]).map(toClientRow)
   },
 
   async count(opts: { search?: string; activeOnly?: boolean } = {}): Promise<number> {

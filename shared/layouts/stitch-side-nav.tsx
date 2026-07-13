@@ -45,7 +45,7 @@ type SideNavContentProps = {
 
 function SideNavContent({ onNavigate }: SideNavContentProps) {
   const path = usePathname()
-  const { role } = useUser()
+  const { role, loading } = useUser()
   const nav = modulesForRole(role)
   const mainNav = nav.filter(m => !ADMIN_KEYS.has(m.key))
   const adminNav = nav.filter(m => ADMIN_KEYS.has(m.key))
@@ -57,27 +57,21 @@ function SideNavContent({ onNavigate }: SideNavContentProps) {
         <Link href="/" className="block transition-opacity hover:opacity-90" onClick={() => onNavigate?.()} aria-label="Oryx Scaffold Design — home">
           <OryxLogo variant="menu" className="mb-2" />
           <p className="stitch-sidebar-brand-sub">
-            {role === "ADMIN" ? "Internal Admin" : "Engineer Terminal"}
+            {/* Perf: avoid flashing "Engineer Terminal" for admins while session loads. */}
+            {loading ? "\u00a0" : role === "ADMIN" ? "Internal Admin" : "Engineer Terminal"}
           </p>
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto thin-scroll">
-        {mainNav.map(item => (
-          <NavLink
-            key={item.href}
-            item={item}
-            active={isActive(item.key, item.href)}
-            onNavigate={onNavigate}
-          />
-        ))}
-
-        {adminNav.length > 0 && (
-          <div
-            className="mt-2 space-y-0.5 border-t pt-2"
-            style={{ borderColor: "rgba(255, 255, 255, 0.1)" }}
-          >
-            {adminNav.map(item => (
+      <nav className="flex-1 space-y-0.5 overflow-y-auto thin-scroll" aria-busy={loading}>
+        {loading ? (
+          // Perf: skeletal nav while session resolves — no wrong-role link flash.
+          [...Array(6)].map((_, i) => (
+            <div key={i} className="mx-4 my-2 h-9 rounded bg-white/10 animate-pulse" />
+          ))
+        ) : (
+          <>
+            {mainNav.map(item => (
               <NavLink
                 key={item.href}
                 item={item}
@@ -85,7 +79,23 @@ function SideNavContent({ onNavigate }: SideNavContentProps) {
                 onNavigate={onNavigate}
               />
             ))}
-          </div>
+
+            {adminNav.length > 0 && (
+              <div
+                className="mt-2 space-y-0.5 border-t pt-2"
+                style={{ borderColor: "rgba(255, 255, 255, 0.1)" }}
+              >
+                {adminNav.map(item => (
+                  <NavLink
+                    key={item.href}
+                    item={item}
+                    active={isActive(item.key, item.href)}
+                    onNavigate={onNavigate}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </nav>
     </>
