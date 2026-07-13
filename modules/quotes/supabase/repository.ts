@@ -2,7 +2,6 @@
  * lib/supabase/repositories/quotes.ts
  */
 import { createAdminClient } from "@/lib/supabase/admin"
-import { aggSum } from "@/lib/supabase/aggregates"
 import { QUOTE_STATUSES } from "@/lib/types"
 import type {
   QuoteLineItemRow,
@@ -269,43 +268,46 @@ export const supabaseQuoteRepo = {
     acceptedValue: number
     conversionRate: number
   }> {
-    const statuses = QUOTE_STATUSES.map(s => s.value)
-    const rows = await Promise.all(
-      statuses.map(async status => {
-        const runCount = () =>
-          applyQuoteFilters(
-            quotesTable().select("*", { count: "exact", head: true }),
-            { status },
-          )
-        const runSum = () =>
-          applyQuoteFilters(
-            quotesTable().select("quote_value.sum()"),
-            { status },
-          ).maybeSingle()
+    // Perf: one slim status+value scan replaces 2×N PostgREST round-trips
+    // (head count + sum per quote status).
+    const run = () =>
+      applyQuoteFilters(quotesTable().select("status,quote_value"), {})
+    let { data, error } = await run()
+    if (error && noteQuotesArchivedFromError(error)) {
+      ;({ data, error } = await run())
+    }
+    if (error) throw error
 
-        let [countRes, sumRes] = await Promise.all([runCount(), runSum()])
-        const err = countRes.error ?? sumRes.error
-        if (err && noteQuotesArchivedFromError(err)) {
-          ;[countRes, sumRes] = await Promise.all([runCount(), runSum()])
-        }
-        if (countRes.error) throw countRes.error
-        if (sumRes.error) throw sumRes.error
-        return { status, n: countRes.count ?? 0, v: aggSum(sumRes.data) }
-      }),
-    )
-    const cnt = (s: string) => rows.find(r => r.status === s)?.n ?? 0
-    const val = (s: string) => rows.find(r => r.status === s)?.v ?? 0
+    const counts = new Map<string, number>()
+    const values = new Map<string, number>()
+    for (const row of data ?? []) {
+      const status = row.status as string
+      counts.set(status, (counts.get(status) ?? 0) + 1)
+      const qv = row.quote_value != null ? Number(row.quote_value) : 0
+      // Match PostgREST sum(): nulls ignored; zeros don't change the total.
+      values.set(status, (values.get(status) ?? 0) + qv)
+    }
+
+    const cnt = (s: string) => counts.get(s) ?? 0
+    const val = (s: string) => values.get(s) ?? 0
     const accepted = cnt("ACCEPTED")
     const rejected = cnt("REJECTED")
     const decided  = accepted + rejected
+    let total = 0
+    let totalValue = 0
+    for (const s of QUOTE_STATUSES.map(x => x.value)) {
+      total += cnt(s)
+      totalValue += val(s)
+    }
+
     return {
-      total:          rows.reduce((a, b) => a + b.n, 0),
+      total,
       draft:          cnt("DRAFT"),
       sent:           cnt("SENT"),
       accepted,
       rejected,
       expired:        cnt("EXPIRED"),
-      totalValue:     rows.reduce((a, b) => a + b.v, 0),
+      totalValue,
       acceptedValue:  val("ACCEPTED"),
       conversionRate: decided > 0 ? accepted / decided : 0,
     }

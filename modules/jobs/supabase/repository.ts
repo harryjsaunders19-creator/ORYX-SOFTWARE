@@ -366,19 +366,19 @@ export const supabaseJobRepo = {
   async activeJobCountsForClients(clientIds: string[]): Promise<Map<string, number>> {
     const map = new Map<string, number>()
     if (!clientIds.length) return map
-    // Perf: head-only COUNT per client avoids transferring every matching job row
-    // (previous implementation selected all client_id rows and tallied in Node).
-    // Intentionally mirrors the prior filter set (status only — no archived_at clause).
-    await Promise.all(
-      clientIds.map(async (id) => {
-        const { count, error } = await table()
-          .select("id", { count: "exact", head: true })
-          .eq("client_id", id)
-          .neq("status", "ISSUED")
-        if (error) throw error
-        map.set(id, count ?? 0)
-      }),
-    )
+    // Perf: one select of client_id + in-memory GROUP BY replaces N parallel
+    // head-count round-trips (one per client on the directory page).
+    // Filter set matches prior behaviour (status only — no archived_at clause).
+    const { data, error } = await table()
+      .select("client_id")
+      .in("client_id", clientIds)
+      .neq("status", "ISSUED")
+    if (error) throw error
+    for (const row of data ?? []) {
+      const id = row.client_id as string
+      if (!id) continue
+      map.set(id, (map.get(id) ?? 0) + 1)
+    }
     return map
   },
 
@@ -501,37 +501,28 @@ export const supabaseJobRepo = {
   },
 
   async groupByStatus(): Promise<{ status: string; count: number }[]> {
-    const rows = await Promise.all(
-      VALID_STATUSES.map(async status => ({
-        status,
-        count: await this.count({ status }),
-      })),
-    )
-    return rows.filter(r => r.count > 0)
+    // Perf: one status-column scan replaces N head-count round-trips (one per status).
+    const { byStatus } = await this.dashboardCounts()
+    return byStatus
   },
 
   async groupByItemType(): Promise<{ itemType: string; count: number }[]> {
-    const rows = await Promise.all(
-      VALID_ITEM_TYPES.map(async itemType => ({
-        itemType,
-        count: await this.count({ itemType }),
-      })),
-    )
-    return rows.filter(r => r.count > 0)
+    // Perf: reuse dashboardCounts slim scan (same archived filter + semantics).
+    const { byItemType } = await this.dashboardCounts()
+    return byItemType
   },
 
   async deadlineStats(): Promise<{ overdueCount: number; dueTodayCount: number; dueThisWeekCount: number }> {
-    const [overdueCount, dueTodayCount, dueThisWeekCount] = await Promise.all([
-      this.count({ overdue: true }),
-      this.count({ dueToday: true }),
-      this.count({ dueThisWeek: true }),
-    ])
+    const { overdueCount, dueTodayCount, dueThisWeekCount } = await this.dashboardCounts()
     return { overdueCount, dueTodayCount, dueThisWeekCount }
   },
 
   /**
-   * Dashboard aggregates via parallel head-only count queries — O(1) row
-   * transfer per metric instead of scanning the full jobs table in Node.
+   * Dashboard aggregates from a single slim jobs projection.
+   * Perf: replaces ~16 parallel PostgREST head-count round-trips
+   * (per-status + per-item-type + unassigned/originals/revisions/deadlines)
+   * with one select of five columns, tallied in-process. Same filters/semantics
+   * as applyWhere({ archived }) + the previous count helpers.
    */
   async dashboardCounts(): Promise<{
     byStatus:         { status: string; count: number }[]
@@ -543,25 +534,56 @@ export const supabaseJobRepo = {
     dueTodayCount:    number
     dueThisWeekCount: number
   }> {
-    const [
-      byStatus,
-      byItemType,
-      unassigned,
-      totalActiveJobs,
-      totalRevisions,
-      overdueCount,
-      dueTodayCount,
-      dueThisWeekCount,
-    ] = await Promise.all([
-      this.groupByStatus(),
-      this.groupByItemType(),
-      this.count({ unassigned: true }),
-      this.count({ onlyOriginals: true }),
-      this.count({ onlyRevisions: true }),
-      this.count({ overdue: true }),
-      this.count({ dueToday: true }),
-      this.count({ dueThisWeek: true }),
-    ])
+    const cols = "status,item_type,designer,parent_job_id,required_by_date"
+    const run = () => {
+      let q = table().select(cols)
+      if (jobsArchivedFilterEnabled()) q = q.is("archived_at", null)
+      return q
+    }
+    let { data, error } = await run()
+    if (error && noteJobsArchivedFromError(error)) {
+      ;({ data, error } = await table().select(cols))
+    }
+    if (error) throw error
+
+    const today = todayIsoDate()
+    const weekEnd = weekEndIsoDate()
+    const statusCounts = new Map<string, number>()
+    const typeCounts = new Map<string, number>()
+    let unassigned = 0
+    let totalActiveJobs = 0
+    let totalRevisions = 0
+    let overdueCount = 0
+    let dueTodayCount = 0
+    let dueThisWeekCount = 0
+
+    for (const row of data ?? []) {
+      const status = row.status as string
+      const itemType = row.item_type as string
+      statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1)
+      typeCounts.set(itemType, (typeCounts.get(itemType) ?? 0) + 1)
+
+      const designer = (row.designer as string | null) ?? ""
+      if (!designer) unassigned += 1
+
+      if (row.parent_job_id == null) totalActiveJobs += 1
+      else totalRevisions += 1
+
+      const rbdRaw = row.required_by_date as string | null
+      if (rbdRaw && status !== "ISSUED") {
+        const day = rbdRaw.length >= 10 ? rbdRaw.slice(0, 10) : rbdRaw
+        if (day < today) overdueCount += 1
+        if (day === today) dueTodayCount += 1
+        if (day >= today && day <= weekEnd) dueThisWeekCount += 1
+      }
+    }
+
+    const byStatus = VALID_STATUSES
+      .map(status => ({ status, count: statusCounts.get(status) ?? 0 }))
+      .filter(r => r.count > 0)
+    const byItemType = VALID_ITEM_TYPES
+      .map(itemType => ({ itemType, count: typeCounts.get(itemType) ?? 0 }))
+      .filter(r => r.count > 0)
 
     return {
       byStatus,

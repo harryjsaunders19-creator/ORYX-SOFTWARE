@@ -7,6 +7,7 @@
  * stored in httpOnly cookies. Admin impersonation uses a separate real-user
  * cookie so switching identity mid-session is restricted and audited.
  */
+import { cache } from "react"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import type { UserRow } from "@/lib/db/user-types"
@@ -28,21 +29,27 @@ async function userIdFromCookie(name: string): Promise<string | null> {
   return verifySessionToken(store.get(name)?.value)
 }
 
-export async function getCurrentUser(): Promise<UserRow | null> {
+/**
+ * Perf: React.cache() memoizes per incoming request so parallel API handlers
+ * (e.g. /api/jobs + /api/hold-list + /api/jobs/designers) share one cookie
+ * verify + user row load instead of repeating the work N times.
+ */
+export const getCurrentUser = cache(async (): Promise<UserRow | null> => {
   const uid = await userIdFromCookie(SESSION_COOKIE)
   if (!uid) return null
   const user = await userService.findUnique(uid)
   if (!user || !user.active) return null
   return user
-}
+})
 
-export async function getRealUser(): Promise<UserRow | null> {
+/** Perf: same request-scoped memo as getCurrentUser for impersonation checks. */
+export const getRealUser = cache(async (): Promise<UserRow | null> => {
   const uid = await userIdFromCookie(REAL_SESSION_COOKIE)
   if (!uid) return null
   const user = await userService.findUnique(uid)
   if (!user || !user.active) return null
   return user
-}
+})
 
 export async function isImpersonating(): Promise<boolean> {
   const [active, real] = await Promise.all([getCurrentUser(), getRealUser()])

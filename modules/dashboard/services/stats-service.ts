@@ -42,8 +42,8 @@ export const statsService = {
   async dashboard(opts: DashboardOptions = {}) {
     const includeCalendar = !!(opts.calendarFrom && opts.calendarTo)
 
-    // dashboardCounts() replaces 8 separate job-count queries with one Supabase
-    // call (groupByStatus, groupByItemType, 3×countWhere, 3×deadlineStats counts).
+    // dashboardCounts() — one slim Supabase scan (status/type/designer/parent/deadline)
+    // instead of ~16 parallel head-count round-trips. Quote stats similarly collapsed.
     const [counts, recentJobs, jobValues, handoffStats, allHolds, qStats, overdueJobs, weekEvents] = await Promise.all([
       jobService.dashboardCounts(),
       tryStat("recentJobs", () => jobService.findRecent(6), []),
