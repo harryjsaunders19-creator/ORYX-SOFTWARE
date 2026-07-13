@@ -7,15 +7,21 @@ This document explains how the system works from a business-rules perspective. I
 ## 1. Tech stack
 
 - **Framework:** Next.js 16 (App Router), TypeScript, React 19
-- **Database:** SQLite via `better-sqlite3`, file at `prisma/oryx.db`, accessed through `lib/db.ts` (no ORM — hand-written SQL with prepared statements)
+- **Local database:** SQLite via `better-sqlite3` at `.data/oryx.db` (legacy path `prisma/oryx.db` is migrated on first start). Schema/migrations live under `lib/db/`; stores under `lib/db/stores.ts` (no ORM — prepared SQL).
+- **Production database:** Supabase Postgres (`supabase/migrations/` 001–026, applied via `01-bootstrap.sql`). Feature code prefers Supabase when `SUPABASE_SERVICE_ROLE_KEY` is set.
+- **Architecture:** Modular monolith — domain logic in `modules/*`, shared platform in `shared/*`, thin route shells in `app/`. Legacy `@/lib/*` and `@/components/*` paths often re-export from modules/shared.
 - **Styling:** Tailwind CSS v4, Radix UI primitives, Lucide icons
-- **PDF generation:** `pdf-lib` (quotes)
+- **PDF generation:** `pdf-lib` (quotes, site visit fee sheets)
 - **Excel export:** `xlsx` (SheetJS) (billing queue export)
 - **IDs:** `@paralleldrive/cuid2` for jobs/clients, `nanoid` for internal records (history rows, batch items, etc.)
 
-There is no Prisma despite the `prisma/` folder name — that folder only holds the SQLite file and the seed script. All schema and queries live in `lib/db.ts`.
+The `prisma/` folder is **not** Prisma ORM — it holds seed/UAT scripts only. Prefer `README.md` for deploy/env setup.
 
 Run `npm run dev` for local development, `npm run db:seed` to populate sample data, `npm run db:reset` to wipe and reseed.
+
+**Experimental (disabled by default):** Employees and Leave — see `shared/experimental/experimental-features.ts`. Not part of the production nav until flags are enabled.
+
+**Geocoding:** Job map and site-visit address lookup use postcodes.io → Photon → Nominatim with an in-process Nominatim throttle (~1 req/s). Suitable for interactive use by a small team, not bulk geocoding.
 
 ---
 
@@ -167,6 +173,8 @@ Site Visit is one of the five `WORK_ITEM_TYPES` (alongside Design, Revision, Sur
 - Common fields apply identically to a site visit as to a design job: client, address, requested by, assigned designer/engineer, status, quote value, invoice status.
 - A site visit can be quoted, issued, billed, and invoiced exactly like a design job — the billing queue, invoice queue, and commercial reports all operate on `itemType` being irrelevant to eligibility; only `status`/`invoiceId`/`billingStatus` matter.
 - Survey and Inspection follow the identical pattern with their own prefixes (`SRV-`, `INS-`) — they are not separately documented because the rules are identical to Site Visit, only the prefix differs.
+
+**Fee calculator (separate from Job rows):** `/site-visit-calculator` (`modules/site-visit-calculator/`) prices a trip from the ORYX office. Billing rules: each one-way drive leg rounds up to the nearest half hour; on-site time has a 1-hour minimum charge; if one-way drive exceeds 3.5 hours, labour is a flat £950 day rate; mileage + labour are rounded up to the nearest £95 (whole pounds), then VAT applied. Production needs migration `025` and `ORS_API_KEY`. Saved calculations delete only for the creator or an admin.
 
 ---
 

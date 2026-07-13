@@ -32,7 +32,7 @@ CI runs typecheck, unit tests, lint, build, and e2e on every push to `main`.
 Run **in order** on a fresh project (or after a deliberate wipe):
 
 1. `supabase/00-drop-all.sql` — drops all ORYX tables
-2. `supabase/01-bootstrap.sql` — full schema (migrations 001–025)
+2. `supabase/01-bootstrap.sql` — full schema (migrations 001–026)
 
 Regenerate `01-bootstrap.sql` after editing migrations:
 
@@ -117,6 +117,14 @@ npm run supabase:verify-all
 ### Backups on Vercel
 
 Local SQLite backups **do not run** when Supabase is the data store. Use Supabase project backups for disaster recovery, or export via Admin → Backups (Excel/JSON).
+
+### Experimental modules (off in production)
+
+Employees and Leave are gated by `shared/experimental/experimental-features.ts` (`employees` / `leave` = `false`). Nav, pages, and APIs stay in the repo but return 404 / stay hidden until those flags are flipped. Do not enable on production without HR review and Supabase migrations 014–016 verified.
+
+### Geocoding (job map + site visit)
+
+Address geocoding uses free public APIs with soft rate limiting in-process (~1 req/s for Nominatim). Fine for a small team; not a bulk-import geocoder. Prefer UK postcodes (postcodes.io) when possible. Site visit **routing** uses OpenRouteService when `ORS_API_KEY` is set.
 
 ## Database (local)
 

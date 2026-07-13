@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 
 /**
- * Experimental modules — disabled until ready for general use.
- * Set a flag to `true` to re-enable that area.
+ * Experimental modules — off for production until HR/ops sign-off.
+ * Keep `employees` / `leave` false on Vercel; code and migrations remain in-repo.
+ * Set a flag to `true` only after verifying Supabase migrations 014–016.
  */
 export const EXPERIMENTAL = {
   employees: false,
