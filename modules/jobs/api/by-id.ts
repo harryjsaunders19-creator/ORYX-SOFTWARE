@@ -37,8 +37,30 @@ export async function GET(req: NextRequest, { params }: Ctx) {
         ? await jobService.findUnique(job.parentJobId)
         : null
     }
+    // Parent project view: expose the active (latest) revision for status/designer UX.
+    if (!job.parentJobId) {
+      const revs = await jobService.revisionsForJob(job.id)
+      const latest = [...revs].sort((a, b) =>
+        (a.revisionLetter ?? "").localeCompare(b.revisionLetter ?? ""),
+      ).at(-1) ?? null
+      result.currentRevision = latest
+      result.currentRevisionId = latest?.id ?? job.id
+      result.currentRevisionLetter = latest?.revisionLetter ?? null
+      result.hasRevisions = revs.length > 0
+      result.revisionCount = revs.length
+      if (latest) {
+        result.status = latest.status
+        result.designer = latest.designer
+        result.requiredByDate = latest.requiredByDate
+        result.dateCompleted = latest.dateCompleted
+        result.updatedAt = latest.updatedAt
+        result.notes = latest.notes
+        result.billable = latest.billable
+      }
+    }
     if (include.has("billing") && auth.user.role === "ADMIN") {
-      result.billingHandoff = await billingHandoffService.findBySourceJobId(id)
+      const sourceId = (result.currentRevisionId as string | undefined) ?? id
+      result.billingHandoff = await billingHandoffService.findBySourceJobId(sourceId)
     }
     return resourceResponse(result)
   } catch (err) {
@@ -71,7 +93,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const allowed = [
       "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "requestedBy", "status", "designer", "notes",
-      "requestedDate","requiredByDate","quoteReference","quoteDate","commercialNotes",
+      "requestedDate","requiredByDate","quoteReference","quoteDate","commercialNotes", "billable",
     ]
 
     const data: Record<string, unknown> = {}
@@ -104,6 +126,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
     if (body.dateCompleted !== undefined) {
       data.dateCompleted = body.dateCompleted ? String(body.dateCompleted) : null
+    }
+    if (body.billable !== undefined) {
+      data.billable = Boolean(body.billable)
     }
 
     // Resolve clientId and sync clientCompany

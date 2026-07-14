@@ -36,7 +36,7 @@ const revB = {
 }
 
 describe("buildRevisionHistoryChain", () => {
-  it("orders original then revisions chronologically", () => {
+  it("orders original then revisions with current first when building chain", () => {
     const issuedBy = new Map([
       ["orig-1", { changedBy: "Harry", changedAt: "2026-07-14T12:00:00.000Z" }],
       ["rev-a", { changedBy: "Harry", changedAt: "2026-07-16T15:00:00.000Z" }],
@@ -49,14 +49,15 @@ describe("buildRevisionHistoryChain", () => {
     })
 
     assert.equal(chain.length, 3)
-    assert.equal(chain[0].isOriginal, true)
-    assert.equal(chain[0].title, "Original Issue")
-    assert.equal(chain[0].issuedBy, "Harry")
+    assert.equal(chain[0].isCurrent, true)
+    assert.match(chain[0].title, /Current Revision/)
+    assert.match(chain[0].title, /Rev B/)
+    assert.equal(chain[0].billable, false)
+    // Remaining entries reverse chronological
     assert.equal(chain[1].revisionLetter, "A")
     assert.equal(chain[1].notes, "Client requested loading changes")
-    assert.equal(chain[2].isCurrent, true)
-    assert.match(chain[2].title, /Current Revision/)
-    assert.match(chain[2].title, /Rev B/)
+    assert.equal(chain[2].isOriginal, true)
+    assert.equal(chain[2].issuedBy, "Harry")
   })
 
   it("marks the original as current when viewing it", () => {

@@ -19,15 +19,74 @@ import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 
 /**
- * Revision family flags (canAddRevision, counts, latest letter) without an extra DB round trip.
- * `revisionRows` is all revision jobs matching the list filters when available.
+ * Revision family flags + overlay current-revision status/designer onto parent rows.
  */
-function flagRevisions<T extends { id: string; parentJobId: string | null; revisionLetter?: string | null }>(
+function flagRevisions<T extends {
+  id: string
+  parentJobId: string | null
+  revisionLetter?: string | null
+  status?: string
+  designer?: string
+  requiredByDate?: string | null
+  updatedAt?: string
+  dateCompleted?: string | null
+}>(
   pageJobs: T[],
-  revisionRows?: { id: string; parentJobId: string | null; revisionLetter?: string | null }[],
+  revisionRows?: {
+    id: string
+    parentJobId: string | null
+    revisionLetter?: string | null
+    status?: string
+    designer?: string | null
+    requiredByDate?: string | null
+    updatedAt?: string
+    dateCompleted?: string | null
+  }[],
 ): ReturnType<typeof enrichRevisionFamily<T>> {
   const source = revisionRows ?? pageJobs.filter(j => j.parentJobId !== null)
   return enrichRevisionFamily(pageJobs, source)
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function weekEndIso(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + 7)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Filter parent rows by their *current revision* display fields. */
+function filterByCurrentDisplay<T extends {
+  status: string
+  designer?: string
+  requiredByDate?: string | null
+  parentJobId: string | null
+}>(
+  jobs: T[],
+  opts: {
+    status?: string
+    unassigned?: boolean
+    overdue?: boolean
+    dueToday?: boolean
+    dueThisWeek?: boolean
+  },
+): T[] {
+  const today = todayIso()
+  const weekEnd = weekEndIso()
+  return jobs.filter(j => {
+    if (opts.status && j.status !== opts.status) return false
+    if (opts.unassigned && (j.designer ?? "").trim() !== "") return false
+    if (j.status === "ISSUED") {
+      if (opts.overdue || opts.dueToday || opts.dueThisWeek) return false
+    }
+    const due = j.requiredByDate
+    if (opts.overdue && !(due != null && due < today)) return false
+    if (opts.dueToday && due !== today) return false
+    if (opts.dueThisWeek && !(due != null && due >= today && due <= weekEnd)) return false
+    return true
+  })
 }
 
 // Reference-number prefixes for non-drawing item types — sourced from WORK_ITEM_TYPES
@@ -44,8 +103,14 @@ export async function GET(req: NextRequest) {
     const itemType       = sp.get("itemType")      ?? ""
     const typeOfWorks    = sp.get("typeOfWorks")   ?? ""
     const unassigned     = sp.get("unassigned")    === "true"
-    const onlyOriginals  = sp.get("onlyOriginals") === "true"
     const onlyRevisions  = sp.get("onlyRevisions") === "true"
+    const includeRevisions = sp.get("includeRevisions") === "true"
+    // One parent card per drawing by default — revisions stay in DB, not the list.
+    const onlyOriginals = onlyRevisions
+      ? false
+      : includeRevisions
+        ? sp.get("onlyOriginals") === "true"
+        : sp.get("onlyOriginals") !== "false"
     const overdue        = sp.get("overdue")        === "true"
     const dueToday       = sp.get("dueToday")       === "true"
     const dueThisWeek    = sp.get("dueThisWeek")    === "true"
@@ -56,18 +121,26 @@ export async function GET(req: NextRequest) {
     const sortDir        = (sp.get("sortDir")      === "desc" ? "desc" : "asc") as "asc" | "desc"
 
     const clientId = sp.get("clientId") ?? ""
-    const where = {
+
+    // Status / deadline / unassigned apply to the *current* revision when listing parents.
+    const needsCurrentFilter = onlyOriginals && !!(status || unassigned || overdue || dueToday || dueThisWeek)
+
+    const baseWhere = {
       ...(search        && { search }),
-      ...(status        && { status }),
       ...(itemType      && { itemType }),
       ...(typeOfWorks   && { typeOfWorks }),
       ...(clientId      && { clientId }),
-      ...(unassigned    && { unassigned: true }),
       ...(onlyOriginals && { onlyOriginals: true }),
       ...(onlyRevisions && { onlyRevisions: true }),
-      ...(overdue        && { overdue: true }),
-      ...(dueToday       && { dueToday: true }),
-      ...(dueThisWeek    && { dueThisWeek: true }),
+    }
+
+    const where = {
+      ...baseWhere,
+      ...(!needsCurrentFilter && status && { status }),
+      ...(!needsCurrentFilter && unassigned && { unassigned: true }),
+      ...(!needsCurrentFilter && overdue && { overdue: true }),
+      ...(!needsCurrentFilter && dueToday && { dueToday: true }),
+      ...(!needsCurrentFilter && dueThisWeek && { dueThisWeek: true }),
     }
 
     if (exportAll) {
@@ -77,17 +150,33 @@ export async function GET(req: NextRequest) {
         return rateLimitedResponse(3600)
       }
       const { jobs: rawJobs, total, allForRevisions } = await jobService.findManyWithCount({
-        where,
+        where: needsCurrentFilter ? baseWhere : where,
         orderBy: { field: sortBy, dir: sortDir },
         take: MAX_JOB_LIST_EXPORT_ROWS,
       })
-      const jobs = flagRevisions(rawJobs, allForRevisions)
+      let jobs = flagRevisions(rawJobs, allForRevisions)
+      if (needsCurrentFilter) {
+        jobs = filterByCurrentDisplay(jobs, { status, unassigned, overdue, dueToday, dueThisWeek })
+      }
       return listResponse({
         jobs,
-        total,
+        total: needsCurrentFilter ? jobs.length : total,
         exported: jobs.length,
-        truncated: total > jobs.length,
+        truncated: !needsCurrentFilter && total > jobs.length,
       })
+    }
+
+    if (needsCurrentFilter) {
+      const { jobs: rawJobs, allForRevisions } = await jobService.findManyWithCount({
+        where: baseWhere,
+        orderBy: { field: sortBy, dir: sortDir },
+        take: MAX_JOB_LIST_EXPORT_ROWS,
+      })
+      let enriched = flagRevisions(rawJobs, allForRevisions)
+      enriched = filterByCurrentDisplay(enriched, { status, unassigned, overdue, dueToday, dueThisWeek })
+      const total = enriched.length
+      const jobs = enriched.slice((page - 1) * limit, page * limit)
+      return listResponse({ jobs, total, page, limit })
     }
 
     const { jobs: rawJobs, total, allForRevisions } = await jobService.findManyWithCount({

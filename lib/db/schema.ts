@@ -749,6 +749,8 @@ try {
   add("siteAddress",      "TEXT")
   add("locationStatus",   "TEXT")
   add("locationSource",   "TEXT")
+  // Chargeable flag — revisions default false; originals true. Governs Ready for Invoicing.
+  add("billable",         "INTEGER NOT NULL DEFAULT 1")
   db.exec(`UPDATE Job SET siteAddress = address WHERE (siteAddress IS NULL OR TRIM(siteAddress) = '') AND address IS NOT NULL AND TRIM(address) != ''`)
   db.exec(`UPDATE Job SET locationStatus = 'mapped', locationSource = 'geocoded' WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND locationStatus IS NULL`)
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_location_status ON Job(locationStatus) WHERE status = 'ISSUED' AND archivedAt IS NULL")

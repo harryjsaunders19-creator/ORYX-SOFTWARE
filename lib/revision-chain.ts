@@ -12,6 +12,13 @@ export interface RevisionAnchorJob {
 
 export interface RevisionChainRow extends RevisionAnchorJob {
   revisionLetter?: string | null
+  status?: string
+  designer?: string | null
+  requiredByDate?: string | null
+  updatedAt?: string
+  dateCompleted?: string | null
+  notes?: string | null
+  billable?: boolean
 }
 
 export interface RevisionFamilyFields {
@@ -21,6 +28,8 @@ export interface RevisionFamilyFields {
   latestRevisionId: string | null
   latestRevisionLetter: string | null
   isLatestInChain: boolean
+  currentRevisionId: string | null
+  currentRevisionLetter: string | null
 }
 
 const LETTER_RANK = new Map(REVISION_LETTERS.map((l, i) => [l, i]))
@@ -94,7 +103,14 @@ export function buildRevisionFamilyIndex(rows: RevisionChainRow[]): {
   return { countByParent, latestByParent }
 }
 
-export function enrichRevisionFamily<T extends RevisionAnchorJob & { revisionLetter?: string | null }>(
+export function enrichRevisionFamily<T extends RevisionAnchorJob & {
+  revisionLetter?: string | null
+  status?: string
+  designer?: string
+  requiredByDate?: string | null
+  updatedAt?: string
+  dateCompleted?: string | null
+}>(
   pageJobs: T[],
   revisionRows: RevisionChainRow[],
 ): (T & RevisionFamilyFields)[] {
@@ -110,14 +126,34 @@ export function enrichRevisionFamily<T extends RevisionAnchorJob & { revisionLet
       ? job.id === latest.id
       : isOriginal && revisionCount === 0
 
+    // Parent cards present the current (latest) revision's live fields.
+    const current = latest && isOriginal ? latest : null
+    const overlay = current
+      ? {
+          status: current.status ?? job.status,
+          designer: current.designer ?? job.designer,
+          requiredByDate: current.requiredByDate !== undefined
+            ? current.requiredByDate
+            : job.requiredByDate,
+          updatedAt: current.updatedAt ?? job.updatedAt,
+          dateCompleted: current.dateCompleted !== undefined
+            ? current.dateCompleted
+            : job.dateCompleted,
+        }
+      : {}
+
     return {
       ...job,
-      canAddRevision: canAddRevisionFrom(job, latestMap),
+      ...overlay,
+      // Parent cards own "Add revision" — server still requires creating from the latest letter.
+      canAddRevision: isOriginal ? true : canAddRevisionFrom(job, latestMap),
       hasRevisions: revisionCount > 0,
       revisionCount,
       latestRevisionId: latest?.id ?? null,
       latestRevisionLetter: latest?.revisionLetter ?? null,
       isLatestInChain,
+      currentRevisionId: current?.id ?? (isOriginal && !latest ? job.id : latest?.id ?? job.id),
+      currentRevisionLetter: current?.revisionLetter ?? latest?.revisionLetter ?? null,
     }
   })
 }

@@ -108,10 +108,20 @@ export const jobService = {
     allForRevisions?: { id: string; parentJobId: string | null; revisionLetter?: string | null }[]
   }> {
     if (!useSupabaseJobs()) {
+      const w = opts.where ?? {}
+      const {
+        onlyOriginals: _o,
+        status: _s,
+        overdue: _ov,
+        dueToday: _dt,
+        dueThisWeek: _dw,
+        unassigned: _u,
+        ...rest
+      } = w
       const [jobs, total, revRows] = await Promise.all([
         jobDb.findMany(opts),
-        jobDb.count(opts.where ?? {}),
-        jobDb.findMany({ where: { ...(opts.where ?? {}), onlyRevisions: true } }),
+        jobDb.count(w),
+        jobDb.findMany({ where: { ...rest, onlyRevisions: true } }),
       ])
       return {
         jobs,
@@ -120,6 +130,13 @@ export const jobService = {
           id: r.id,
           parentJobId: r.parentJobId,
           revisionLetter: r.revisionLetter,
+          status: r.status,
+          designer: r.designer,
+          requiredByDate: r.requiredByDate,
+          updatedAt: r.updatedAt,
+          dateCompleted: r.dateCompleted,
+          notes: r.notes,
+          billable: r.billable ?? true,
         })),
       }
     }

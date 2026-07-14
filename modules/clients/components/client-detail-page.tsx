@@ -113,9 +113,11 @@ export default function ClientDetailPage() {
   )
 
   const { client, contacts = [], stats, jobs } = detail
-  const designJobs     = jobs.filter(j => j.itemType === "DESIGN" || !j.itemType)
-  const revisions      = jobs.filter(j => j.itemType === "REVISION")
-  const nonDesignJobs  = jobs.filter(j => j.itemType && !["DESIGN","REVISION"].includes(j.itemType))
+  // One card per drawing — hide revision rows from client job tables.
+  const parentJobs = jobs.filter(j => !j.parentJobId)
+  const designJobs     = parentJobs.filter(j => j.itemType === "DESIGN" || !j.itemType || j.itemType === "REVISION")
+  const nonDesignJobs  = parentJobs.filter(j => j.itemType && !["DESIGN","REVISION"].includes(j.itemType))
+  const revisionCount  = jobs.filter(j => j.parentJobId || j.itemType === "REVISION").length
 
   return (
     <PageShell>
@@ -349,19 +351,16 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {/* Design jobs */}
+      {/* Design jobs (one card per drawing — revisions live under parent) */}
       {designJobs.length > 0 && (
         <section className="mb-5">
-          <h2 className="text-xs font-semibold text-t3 uppercase tracking-wider mb-2">Designs ({designJobs.length})</h2>
+          <h2 className="text-xs font-semibold text-t3 uppercase tracking-wider mb-2">
+            Designs ({designJobs.length})
+            {revisionCount > 0 && (
+              <span className="ml-2 font-normal normal-case text-t4">· {revisionCount} revision{revisionCount === 1 ? "" : "s"} in history</span>
+            )}
+          </h2>
           <JobsTable jobs={designJobs} />
-        </section>
-      )}
-
-      {/* Revisions */}
-      {revisions.length > 0 && (
-        <section className="mb-5">
-          <h2 className="text-xs font-semibold text-t3 uppercase tracking-wider mb-2">Revisions ({revisions.length})</h2>
-          <JobsTable jobs={revisions} />
         </section>
       )}
 

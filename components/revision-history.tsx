@@ -1,14 +1,13 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
-import Link from "next/link"
-import { useRouter, usePathname } from "next/navigation"
 import { format } from "date-fns"
-import { GitBranch, ChevronDown, ChevronUp, Loader2, Plus, UserCircle2, PenTool } from "lucide-react"
+import { GitBranch, ChevronDown, ChevronUp, Loader2, Plus, UserCircle2, PenTool, Receipt } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Textarea } from "@/shared/ui/textarea"
 import { Label } from "@/shared/ui/label"
 import { StatusBadge } from "@/components/status-badge"
 import { useToast } from "@/shared/ui/toast"
+import { useUser } from "@/shared/providers/user-context"
 import { revisionParentId } from "@/lib/revision-chain"
 import { REVISIONS_CHANGED, notifyRevisionsChanged } from "@/lib/revision-events"
 import { cn } from "@/shared/utils/utils"
@@ -17,9 +16,9 @@ import type { RevisionFamilyResponse, RevisionHistoryEntry } from "@/modules/job
 
 interface Props {
   job: Job
-  /** Bump to refetch after status changes (issued-by lines). */
   refreshKey?: number
   defaultOpen?: boolean
+  onFamilyChanged?: () => void
 }
 
 function formatHistoryDate(iso: string): string {
@@ -29,18 +28,24 @@ function formatHistoryDate(iso: string): string {
 function TimelineEntry({
   entry,
   isLast,
+  isAdmin,
+  onToggleBillable,
+  togglingId,
 }: {
   entry: RevisionHistoryEntry
   isLast: boolean
+  isAdmin: boolean
+  onToggleBillable?: (entry: RevisionHistoryEntry, billable: boolean) => void
+  togglingId?: string | null
 }) {
-  const content = (
+  return (
     <div
       className={cn(
         "relative flex gap-3 sm:gap-4",
         !isLast && "pb-4 sm:pb-5",
       )}
+      aria-current={entry.isCurrent ? "true" : undefined}
     >
-      {/* Timeline rail */}
       <div className="flex flex-col items-center shrink-0 w-5 sm:w-6">
         <div
           className={cn(
@@ -57,10 +62,10 @@ function TimelineEntry({
 
       <div
         className={cn(
-          "flex-1 min-w-0 rounded-xl border p-3 sm:p-3.5 transition-colors",
+          "flex-1 min-w-0 rounded-xl border p-3 sm:p-3.5",
           entry.isCurrent
             ? "border-ac bg-ac-bg/60 shadow-sm"
-            : "border-bd bg-sr hover:border-ac/30 hover:bg-pg/50",
+            : "border-bd bg-sr",
         )}
       >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5">
@@ -72,14 +77,23 @@ function TimelineEntry({
           </h4>
           {entry.isCurrent && (
             <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-ac text-on-ac">
-              Viewing
+              Current
             </span>
           )}
           <StatusBadge status={entry.status} />
+          {entry.billable ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-ok-bg text-ok-tx border border-ok-bd">
+              <Receipt className="h-2.5 w-2.5" /> Billable
+            </span>
+          ) : !entry.isOriginal ? (
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-pg text-t3 border border-bd">
+              Included
+            </span>
+          ) : null}
         </div>
 
         <p className="text-xs text-t3 tabular-nums mb-2">
-          {formatHistoryDate(entry.dateCreated)}
+          Created {formatHistoryDate(entry.dateCreated)}
         </p>
 
         <div className="space-y-1 text-xs text-t2">
@@ -112,28 +126,31 @@ function TimelineEntry({
           )}
         </div>
 
-        {!entry.isCurrent && (
-          <p className="mt-2 text-[10px] font-medium text-ac">Open revision →</p>
+        {isAdmin && !entry.isOriginal && onToggleBillable && (
+          <div className="mt-2.5 pt-2 border-t border-bd/60">
+            <label className="inline-flex items-center gap-2 text-xs text-t2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded border-bd"
+                checked={entry.billable}
+                disabled={togglingId === entry.id}
+                onChange={e => onToggleBillable(entry, e.target.checked)}
+              />
+              Chargeable / billable variation
+            </label>
+            <p className="text-[10px] text-t4 mt-1">
+              Only billable revisions appear in Ready for Invoicing when Complete.
+            </p>
+          </div>
         )}
       </div>
     </div>
   )
-
-  if (entry.isCurrent) {
-    return <div aria-current="page">{content}</div>
-  }
-
-  return (
-    <Link href={`/jobs/${entry.id}`} className="block group">
-      {content}
-    </Link>
-  )
 }
 
-export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true }: Props) {
-  const router = useRouter()
-  const pathname = usePathname()
+export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFamilyChanged }: Props) {
   const { toast } = useToast()
+  const { isAdmin } = useUser()
 
   const [family, setFamily] = useState<RevisionFamilyResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -141,6 +158,7 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true }: Pro
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [notes, setNotes] = useState("")
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const parentId = revisionParentId(job)
 
@@ -158,7 +176,7 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true }: Pro
   useEffect(() => {
     setLoading(true)
     load()
-  }, [load, pathname, refreshKey])
+  }, [load, refreshKey])
 
   useEffect(() => {
     const onVisible = () => {
@@ -177,11 +195,16 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true }: Pro
     }
   }, [load, parentId])
 
+  const createFromId =
+    family?.chain.find(c => c.isCurrent)?.id
+    ?? family?.revisions.at(-1)?.id
+    ?? job.id
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      const res = await fetch(`/api/jobs/${job.id}/revisions`, {
+      const res = await fetch(`/api/jobs/${createFromId}/revisions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes: notes.trim() || null }),
@@ -195,13 +218,35 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true }: Pro
       await load()
       setNotes("")
       setAdding(false)
-      toast(`Revision ${revision.revisionLetter} created — ${revision.drawingNumber}`, "success")
+      toast(`Revision ${revision.revisionLetter} created`, "success")
       notifyRevisionsChanged(parentId)
-      router.push(`/jobs/${revision.id}`)
+      onFamilyChanged?.()
     } catch {
       toast("Network error", "error")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleToggleBillable = async (entry: RevisionHistoryEntry, billable: boolean) => {
+    setTogglingId(entry.id)
+    try {
+      const res = await fetch(`/api/jobs/${entry.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ billable }),
+      })
+      if (!res.ok) {
+        toast("Failed to update billable flag", "error")
+        return
+      }
+      await load()
+      toast(billable ? "Marked as billable" : "Marked as included (not billed)", "success")
+      onFamilyChanged?.()
+    } catch {
+      toast("Network error", "error")
+    } finally {
+      setTogglingId(null)
     }
   }
 
@@ -241,7 +286,7 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true }: Pro
         </div>
         {hasRevisions && (
           <span className="text-[10px] font-semibold text-t3 tabular-nums shrink-0">
-            {family!.revisions.length} revision{family!.revisions.length === 1 ? "" : "s"}
+            {family.revisions.length} revision{family.revisions.length === 1 ? "" : "s"}
           </span>
         )}
         {open
@@ -260,12 +305,15 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true }: Pro
                   key={entry.id}
                   entry={entry}
                   isLast={index === chain.length - 1}
+                  isAdmin={isAdmin}
+                  onToggleBillable={handleToggleBillable}
+                  togglingId={togglingId}
                 />
               ))}
             </div>
           )}
 
-          {family?.canAddRevision && (
+          {family.canAddRevision && (
             adding ? (
               <form onSubmit={handleCreate} className="border border-bd rounded-xl p-4 bg-pg space-y-3">
                 <p className="text-xs font-semibold text-t1">
@@ -273,6 +321,9 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true }: Pro
                   <span className="text-t4 font-normal ml-2">
                     → {baseDrawing} Rev {family.nextRevisionLetter}
                   </span>
+                </p>
+                <p className="text-[11px] text-t3">
+                  The parent job card stays the same. This becomes the current revision (status starts as New Request). Not billable by default — mark Chargeable if it should invoice separately.
                 </p>
                 <div className="flex flex-col gap-1.5">
                   <Label>Description (optional)</Label>
@@ -305,12 +356,6 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true }: Pro
                 Add revision{family.nextRevisionLetter ? ` ${family.nextRevisionLetter}` : ""}
               </Button>
             )
-          )}
-
-          {!family?.canAddRevision && hasRevisions && family?.nextRevisionLetter && (
-            <p className="text-xs text-t3 mt-3">
-              To add Rev {family.nextRevisionLetter}, open the latest revision in this chain and click Add revision.
-            </p>
           )}
         </div>
       )}

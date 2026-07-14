@@ -31,6 +31,8 @@ export interface JobRow {
   requiredByDate: string | null
   parentJobId: string | null
   revisionLetter: string | null
+  /** When true and ISSUED, creates a Ready for Invoicing handoff. New revisions default false. */
+  billable: boolean
   archivedAt: string | null
   archivedBy: string | null
   latitude: number | null
@@ -66,6 +68,7 @@ export interface CreateJobData {
   additionalCharges?: number | null
   parentJobId?: string | null
   revisionLetter?: string | null
+  billable?: boolean
   clientId?: string | null
   requestedDate?: string | null
   requiredByDate?: string | null
@@ -93,5 +96,6 @@ export interface UpdateJobData {
   clientId?: string | null
   requestedDate?: string | null
   requiredByDate?: string | null
+  billable?: boolean
   changedBy?: string
 }

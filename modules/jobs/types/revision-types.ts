@@ -16,6 +16,7 @@ export interface RevisionHistoryEntry {
   /** Person who moved the job to ISSUED (from status history). */
   issuedBy: string | null
   issuedAt: string | null
+  billable: boolean
 }
 
 export interface RevisionFamilyResponse {

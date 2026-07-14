@@ -1,13 +1,18 @@
 import { GitBranch } from "lucide-react"
-import { revisionFamilyLabel } from "@/lib/revision-chain"
 import { cn } from "@/shared/utils/utils"
 import type { Job } from "@/lib/types"
 
 type RevisionFamilyJob = Pick<
   Job,
-  "parentJobId" | "revisionLetter" | "hasRevisions" | "revisionCount" | "latestRevisionLetter" | "isLatestInChain"
+  | "parentJobId"
+  | "revisionLetter"
+  | "hasRevisions"
+  | "revisionCount"
+  | "latestRevisionLetter"
+  | "currentRevisionLetter"
 >
 
+/** Large current-revision badge for parent cards — one drawing, one badge. */
 export function RevisionFamilyBadge({
   job,
   size = "sm",
@@ -17,43 +22,30 @@ export function RevisionFamilyBadge({
   size?: "sm" | "xs"
   className?: string
 }) {
-  const label = revisionFamilyLabel(job)
-  if (!label) return null
+  const letter = job.currentRevisionLetter ?? job.latestRevisionLetter ?? job.revisionLetter
+  if (!letter && !job.hasRevisions) return null
 
-  const isRevision = job.parentJobId !== null
+  const title = letter
+    ? `Current revision ${letter}${job.revisionCount ? ` (${job.revisionCount} in history)` : ""}`
+    : `${job.revisionCount} revision${job.revisionCount === 1 ? "" : "s"}`
 
   return (
     <span
-      title={label}
+      title={title}
       className={cn(
-        "inline-flex items-center gap-1 shrink-0 font-semibold rounded-full border",
-        size === "sm"
-          ? "text-[10px] px-1.5 py-0.5"
-          : "text-[9px] px-1 py-px",
-        isRevision
-          ? "bg-ac-bg text-ac border-ac/25"
-          : "bg-pg text-t2 border-bd",
+        "inline-flex items-center gap-1 shrink-0 font-semibold rounded-full border bg-ac-bg text-ac border-ac/25",
+        size === "sm" ? "text-[10px] px-1.5 py-0.5" : "text-[9px] px-1 py-px",
         className,
       )}
     >
       <GitBranch className={size === "sm" ? "h-3 w-3" : "h-2.5 w-2.5"} />
-      {isRevision ? (
+      {letter ? (
         <>
-          Rev {job.revisionLetter}
-          {job.revisionCount != null && job.revisionCount > 0 && (
-            <span className="font-normal text-t3">· {job.revisionCount}</span>
-          )}
-          {job.isLatestInChain && (
-            <span className="font-normal text-ac">latest</span>
-          )}
+          <span className="uppercase tracking-wide text-[9px] font-bold text-t3">Rev</span>
+          <span className={size === "sm" ? "text-xs" : "text-[10px]"}>{letter}</span>
         </>
       ) : (
-        <>
-          {job.revisionCount} rev{job.revisionCount === 1 ? "" : "s"}
-          {job.latestRevisionLetter && (
-            <span className="font-normal text-t3">→ {job.latestRevisionLetter}</span>
-          )}
-        </>
+        <span>{job.revisionCount} rev{(job.revisionCount ?? 0) === 1 ? "" : "s"}</span>
       )}
     </span>
   )

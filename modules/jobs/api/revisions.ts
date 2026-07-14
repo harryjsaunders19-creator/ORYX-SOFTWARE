@@ -132,6 +132,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       notes:          body.notes ? String(body.notes).trim() : null,
       parentJobId:    parent.id,
       revisionLetter: letter,
+      billable:       false,
       requiredByDate: defaultRequiredByDate(),
       changedBy,
     })

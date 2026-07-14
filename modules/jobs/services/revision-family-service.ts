@@ -5,7 +5,6 @@ import type { JobRow } from "@/lib/db/job-types"
 import {
   baseDrawingNumber,
   buildRevisionFamilyIndex,
-  canAddRevisionFrom,
   revisionParentId,
 } from "@/lib/revision-chain"
 import { nextRevisionLetter } from "@/lib/constants"
@@ -36,7 +35,7 @@ export function buildRevisionHistoryChain(opts: {
   const { original, revisions, currentJobId, issuedBy } = opts
   const members: JobRow[] = [original, ...revisions]
 
-  return members.map(member => {
+  const entries = members.map(member => {
     const isOriginal = member.id === original.id
     const isCurrent = member.id === currentJobId
     const issued = issuedBy.get(member.id) ?? null
@@ -54,7 +53,14 @@ export function buildRevisionHistoryChain(opts: {
       designer: member.designer || null,
       issuedBy: issued?.changedBy ?? null,
       issuedAt: issued?.changedAt ?? null,
+      billable: member.billable ?? !member.parentJobId,
     }
+  })
+
+  // Current first, then reverse chronological (newest → oldest).
+  return [...entries].sort((a, b) => {
+    if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1
+    return b.dateCreated.localeCompare(a.dateCreated)
   })
 }
 
@@ -85,15 +91,19 @@ export const revisionFamilyService = {
     const { latestByParent } = buildRevisionFamilyIndex(
       revisions.map(r => ({ id: r.id, parentJobId: r.parentJobId, revisionLetter: r.revisionLetter })),
     )
-    const latestMap = latestByParent as Map<string, { id: string; parentJobId: string | null }>
-    const canAddRevision = canAddRevisionFrom(anchor, latestMap)
+    const latest = latestByParent.get(parentId) ?? null
+    // Project page can always create the next letter; POST targets the latest revision id.
+    const canAddRevision = true
     const usedLetters = revisions.map(r => r.revisionLetter).filter(Boolean) as string[]
-    const nextRevLetter = canAddRevision ? nextRevisionLetter(usedLetters) : null
+    const nextRevLetter = nextRevisionLetter(usedLetters)
+
+    // "Current" = latest revision letter, or the original when none exist.
+    const currentJobId = latest?.id ?? parent.id
 
     const chain = buildRevisionHistoryChain({
       original: parent,
       revisions,
-      currentJobId: anchorJobId,
+      currentJobId,
       issuedBy,
     })
 

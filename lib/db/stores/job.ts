@@ -21,6 +21,8 @@ export const jobDb = {
    */
   _recordBillingHandoffIfIssued(job: JobRow) {
     if (job.status !== "ISSUED") return
+    // Revisions only enter Ready for Invoicing when explicitly marked billable.
+    if (job.parentJobId && !(job.billable ?? false)) return
     const billingEventType = job.parentJobId ? "REVISION_COMPLETED" : "JOB_COMPLETED"
     const completionDate   = job.dateCompleted ?? nowIso().slice(0, 10)
     db.prepare(`
@@ -89,8 +91,8 @@ export const jobDb = {
         INSERT INTO Job (id,drawingNumber,itemType,address,siteName,siteAddress,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
           status,designer,dateCompleted,notes,quoteValue,quoteReference,quoteDate,commercialNotes,
           variationFees,additionalCharges,
-          parentJobId,revisionLetter,requestedDate,requiredByDate,dateCreated,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          parentJobId,revisionLetter,billable,requestedDate,requiredByDate,dateCreated,createdAt,updatedAt)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `).run(data.id, data.drawingNumber, data.itemType ?? "DESIGN", data.address,
              data.siteName ?? null, data.siteAddress ?? null,
              data.typeOfWorks,
@@ -101,6 +103,7 @@ export const jobDb = {
              data.quoteDate ?? null, data.commercialNotes ?? null,
              data.variationFees ?? null, data.additionalCharges ?? null,
              data.parentJobId ?? null, data.revisionLetter ?? null,
+             (data.billable ?? (data.parentJobId ? false : true)) ? 1 : 0,
              data.requestedDate ?? null, data.requiredByDate ?? null,
              now, now, now)
       db.prepare("INSERT INTO StatusHistory (id,jobId,fromStatus,toStatus,changedBy,changedAt) VALUES (?,?,NULL,?,?,?)")
@@ -125,13 +128,14 @@ export const jobDb = {
       "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
       "requestedBy", "status", "designer", "dateCompleted", "notes", "quoteValue",
       "quoteReference", "quoteDate", "commercialNotes", "variationFees", "additionalCharges",
-      "requestedDate", "requiredByDate",
+      "requestedDate", "requiredByDate", "billable",
     ])
     const fields: string[] = []; const params: unknown[] = []
     for (const [key, val] of Object.entries(data)) {
       if (key === "changedBy" || val === undefined) continue
       if (!allowedColumns.has(key)) continue
-      fields.push(`"${key}" = ?`); params.push(val)
+      fields.push(`"${key}" = ?`)
+      params.push(key === "billable" ? (val ? 1 : 0) : val)
     }
     const siteName = data.siteName !== undefined ? (data.siteName?.trim() ?? null) : existing.siteName
     const siteAddress = data.siteAddress !== undefined ? (data.siteAddress?.trim() ?? null) : existing.siteAddress

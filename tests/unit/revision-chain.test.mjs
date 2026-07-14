@@ -31,19 +31,22 @@ describe("buildRevisionFamilyIndex", () => {
 
 describe("enrichRevisionFamily", () => {
   const revisionRows = [
-    { id: "rev-a", parentJobId: "orig-1", revisionLetter: "A" },
-    { id: "rev-b", parentJobId: "orig-1", revisionLetter: "B" },
+    { id: "rev-a", parentJobId: "orig-1", revisionLetter: "A", status: "ISSUED", designer: "Bob" },
+    { id: "rev-b", parentJobId: "orig-1", revisionLetter: "B", status: "IN_DESIGN", designer: "Carol" },
   ]
 
   it("flags originals with revision counts", () => {
     const [original] = enrichRevisionFamily(
-      [{ id: "orig-1", parentJobId: null, revisionLetter: null }],
+      [{ id: "orig-1", parentJobId: null, revisionLetter: null, status: "ISSUED", designer: "Alice" }],
       revisionRows,
     )
     assert.equal(original.hasRevisions, true)
     assert.equal(original.revisionCount, 2)
     assert.equal(original.latestRevisionLetter, "B")
-    assert.equal(original.canAddRevision, false)
+    // Parent cards always offer Add revision; create API still anchors on the latest letter.
+    assert.equal(original.canAddRevision, true)
+    assert.equal(original.status, "IN_DESIGN") // overlaid from Rev B
+    assert.equal(original.currentRevisionLetter, "B")
   })
 
   it("flags the latest revision in the chain", () => {

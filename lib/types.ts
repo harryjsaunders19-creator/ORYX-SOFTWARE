@@ -29,6 +29,8 @@ export interface Job {
   requiredByDate:  string | null   // ISO date — deadline
   parentJobId:     string | null
   revisionLetter:  string | null
+  /** Chargeable variation — Ready for Invoicing only when billable and Complete. */
+  billable?:       boolean
   archivedAt:      string | null
   archivedBy:      string | null
   /** List API only — true when this row is the revision anchor (original or latest rev). */
@@ -39,6 +41,9 @@ export interface Job {
   latestRevisionId?: string | null
   latestRevisionLetter?: string | null
   isLatestInChain?: boolean
+  /** List/detail presentation — id of the active (latest) revision, or self if none. */
+  currentRevisionId?: string | null
+  currentRevisionLetter?: string | null
   /** Set when archived — latest cancellation record from ArchiveLog. */
   cancelRecord?:    CancelRecord | null
   createdAt:       string

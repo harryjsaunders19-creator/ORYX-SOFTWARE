@@ -41,7 +41,7 @@ const JOB_LIST_SELECT = [
   "legacy_type_of_works", "client_company", "client_id", "requested_by", "status", "designer",
   "date_created", "date_completed", "quote_value", "quote_reference", "quote_date",
   "variation_fees", "additional_charges", "invoice_id", "billing_status", "billing_batch_id",
-  "requested_date", "required_by_date", "parent_job_id", "revision_letter",
+  "requested_date", "required_by_date", "parent_job_id", "revision_letter", "billable",
   "archived_at", "archived_by", "created_at", "updated_at",
 ].join(",")
 
@@ -194,16 +194,61 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
 
 async function fetchRevisionRowsForWhere(
   where: WhereClause = {},
-): Promise<{ id: string; parentJobId: string | null; revisionLetter: string | null }[]> {
+): Promise<{
+  id: string
+  parentJobId: string | null
+  revisionLetter: string | null
+  status: string
+  designer: string
+  requiredByDate: string | null
+  updatedAt: string
+  dateCompleted: string | null
+  notes: string | null
+  billable: boolean
+}[]> {
+  // Ignore onlyOriginals on this sidecar query — we need children even when listing parents.
+  const { onlyOriginals: _o, onlyRevisions: _r, status: _s, overdue: _ov, dueToday: _dt, dueThisWeek: _dw, unassigned: _u, ...rest } = where
   const { data, error } = await applyWhere(
-    table().select("id, parent_job_id, revision_letter"),
-    where,
+    table().select(
+      "id, parent_job_id, revision_letter, status, designer, required_by_date, updated_at, date_completed, notes, billable",
+    ),
+    rest,
   ).not("parent_job_id", "is", null)
-  if (error) throw error
-  return ((data ?? []) as { id: string; parent_job_id: string | null; revision_letter: string | null }[]).map(r => ({
-    id: r.id,
-    parentJobId: r.parent_job_id,
-    revisionLetter: r.revision_letter,
+  if (error) {
+    if (isMissingColumnError(error, "billable")) {
+      const { data: d2, error: e2 } = await applyWhere(
+        table().select(
+          "id, parent_job_id, revision_letter, status, designer, required_by_date, updated_at, date_completed, notes",
+        ),
+        rest,
+      ).not("parent_job_id", "is", null)
+      if (e2) throw e2
+      return ((d2 ?? []) as Record<string, unknown>[]).map(r => ({
+        id: r.id as string,
+        parentJobId: r.parent_job_id as string | null,
+        revisionLetter: r.revision_letter as string | null,
+        status: r.status as string,
+        designer: (r.designer as string) ?? "",
+        requiredByDate: (r.required_by_date as string | null) ?? null,
+        updatedAt: r.updated_at as string,
+        dateCompleted: (r.date_completed as string | null) ?? null,
+        notes: (r.notes as string | null) ?? null,
+        billable: true,
+      }))
+    }
+    throw error
+  }
+  return ((data ?? []) as Record<string, unknown>[]).map(r => ({
+    id: r.id as string,
+    parentJobId: r.parent_job_id as string | null,
+    revisionLetter: r.revision_letter as string | null,
+    status: r.status as string,
+    designer: (r.designer as string) ?? "",
+    requiredByDate: (r.required_by_date as string | null) ?? null,
+    updatedAt: r.updated_at as string,
+    dateCompleted: (r.date_completed as string | null) ?? null,
+    notes: (r.notes as string | null) ?? null,
+    billable: r.billable == null ? true : Boolean(r.billable),
   }))
 }
 
@@ -708,9 +753,9 @@ export const supabaseJobRepo = {
     return ((data ?? []) as SupabaseJobRow[]).map(toJobRow)
   },
 
-  /** Dashboard overdue strip — slim columns, capped. */
+  /** Dashboard overdue strip — slim columns, capped. Originals only (one card per drawing). */
   async findOverduePreview(take = 5): Promise<JobRow[]> {
-    const q = applyWhere(table().select(JOB_OVERDUE_PREVIEW_SELECT), { overdue: true })
+    const q = applyWhere(table().select(JOB_OVERDUE_PREVIEW_SELECT), { overdue: true, onlyOriginals: true })
       .order("required_by_date", { ascending: true })
       .limit(take)
     const { data, error } = await q

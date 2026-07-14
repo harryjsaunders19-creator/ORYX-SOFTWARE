@@ -53,6 +53,7 @@ function buildJobRow(data: CreateJobData, now: string): JobRow {
     requiredByDate: data.requiredByDate ?? null,
     parentJobId: data.parentJobId ?? null,
     revisionLetter: data.revisionLetter ?? null,
+    billable: data.billable ?? (data.parentJobId ? false : true),
     archivedAt: null,
     archivedBy: null,
     latitude: null,
@@ -96,6 +97,8 @@ function buildHandoffFromJob(job: JobRow): BillingHandoffRow {
 
 async function recordBillingHandoffIfIssued(job: JobRow): Promise<void> {
   if (!useSupabaseBilling() || job.status !== "ISSUED") return
+  // Revisions only enter Ready for Invoicing when explicitly marked billable.
+  if (job.parentJobId && !job.billable) return
   const existing = await supabaseBillingRepo.findBySourceJobId(job.id)
   if (existing) return
   await supabaseBillingRepo.upsertHandoff(buildHandoffFromJob(job))
@@ -201,6 +204,7 @@ export const jobSupabaseWrites = {
       additionalCharges: data.additionalCharges !== undefined ? data.additionalCharges : existing.additionalCharges,
       requestedDate: data.requestedDate !== undefined ? data.requestedDate : existing.requestedDate,
       requiredByDate: data.requiredByDate !== undefined ? data.requiredByDate : existing.requiredByDate,
+      billable: data.billable !== undefined ? data.billable : existing.billable,
       updatedAt: now,
       ...(locationChanged && {
         latitude: null,

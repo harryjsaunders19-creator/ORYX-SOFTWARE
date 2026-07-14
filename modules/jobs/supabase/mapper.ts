@@ -33,6 +33,7 @@ export interface SupabaseJobRow {
   required_by_date: string | null
   parent_job_id: string | null
   revision_letter: string | null
+  billable: boolean | null
   archived_at: string | null
   archived_by: string | null
   latitude: number | null
@@ -83,6 +84,8 @@ export function toJobRow(row: SupabaseJobRow): JobRow {
     requiredByDate: row.required_by_date,
     parentJobId: row.parent_job_id,
     revisionLetter: row.revision_letter,
+    // Missing column / null → treat as billable (legacy originals).
+    billable: row.billable == null ? true : Boolean(row.billable),
     archivedAt: row.archived_at ?? null,
     archivedBy: row.archived_by ?? null,
     latitude: row.latitude != null ? Number(row.latitude) : null,
@@ -128,6 +131,7 @@ export function toSupabaseRow(job: JobRow): SupabaseJobRow & { list_sort_key: st
     required_by_date: dateOnly(job.requiredByDate),
     parent_job_id: job.parentJobId,
     revision_letter: job.revisionLetter,
+    billable: job.billable ?? true,
     archived_at: job.archivedAt ?? null,
     archived_by: job.archivedBy ?? null,
     latitude: job.latitude,

@@ -107,6 +107,7 @@ export function buildJobRowFromImport(data: {
     requiredByDate: data.requiredByDate?.slice(0, 10) ?? null,
     parentJobId: null,
     revisionLetter: null,
+    billable: true,
     archivedAt: null,
     archivedBy: null,
     latitude: null,

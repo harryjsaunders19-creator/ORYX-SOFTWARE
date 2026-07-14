@@ -418,7 +418,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const debouncedSearch = useDebouncedValue(search, 280)
   const [statusFilter,  setStatusFilter]  = useState(() =>
     isCheckingQueue ? "CHECKING" : (searchParams.get("status")  ?? "ALL"))
-  const [onlyOriginals, setOnlyOriginals] = useState(() => searchParams.get("onlyOriginals") === "true")
+  const [onlyOriginals, setOnlyOriginals] = useState(() => searchParams.get("onlyOriginals") !== "false")
   const [onlyRevisions, setOnlyRevisions] = useState(() => searchParams.get("onlyRevisions") === "true")
   const [itemTypeFilter, setItemTypeFilter] = useState(() => searchParams.get("itemType") ?? "ALL")
   const [typeOfWorksFilter, setTypeOfWorksFilter] = useState(() => searchParams.get("typeOfWorks") ?? "ALL")
@@ -587,12 +587,13 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   }
 
   const patchJobField = useCallback(async (job: Job, field: "status" | "designer", value: string) => {
+    const targetId = job.currentRevisionId ?? job.id
     await mutate(
       current => current ? { ...current, jobs: current.jobs.map(j => j.id === job.id ? { ...j, [field]: value } : j) } : current,
       { revalidate: false },
     )
     try {
-      const res = await fetch(`/api/jobs/${job.id}`, {
+      const res = await fetch(`/api/jobs/${targetId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: value }),
       })
@@ -602,8 +603,21 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         return
       }
       const updated = await res.json() as Job
+      // Keep parent row id in the list; overlay the patched fields from the current revision.
       await mutate(
-        current => current ? { ...current, jobs: current.jobs.map(j => j.id === job.id ? updated : j) } : current,
+        current => current ? {
+          ...current,
+          jobs: current.jobs.map(j => j.id === job.id
+            ? {
+                ...j,
+                [field]: value,
+                status: field === "status" ? value : (j.status),
+                designer: field === "designer" ? value : (j.designer),
+                currentRevisionId: j.currentRevisionId ?? updated.id,
+                updatedAt: updated.updatedAt,
+              }
+            : j),
+        } : current,
         { revalidate: false },
       )
       if (field === "designer") {
@@ -621,11 +635,12 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     void patchJobField(job, "status", status)
   }, [patchJobField])
 
-  // One-click revision — no modal, no fields. Letter is auto-assigned server-side.
+  // One-click revision — stays on the parent card (no new list row).
   const handleQuickRevision = useCallback(async (job: Job) => {
+    const anchorId = job.currentRevisionId ?? job.id
     setCreatingRevisionFor(job.id)
     try {
-      const res = await fetch(`/api/jobs/${job.id}/revisions`, {
+      const res = await fetch(`/api/jobs/${anchorId}/revisions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       })
@@ -637,10 +652,12 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       toast(`${revision.drawingNumber} created`, "success")
       notifyRevisionsChanged(revision.parentJobId ?? revisionParentId(job))
       mutate()
+      // Stay on the parent project page, not a new card.
+      router.push(`/jobs/${revision.parentJobId ?? job.id}`)
     } catch { toast("Network error", "error") }
     finally { setCreatingRevisionFor(null) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [mutate, router, toast])
 
   const handleExport = async () => {
     const qs = new URLSearchParams({

@@ -83,19 +83,32 @@ export default function JobDetailPage({
   const { isAdmin } = useUser()
 
   const detailKey = id
-    ? `/api/jobs/${id}?include=${isAdmin ? "parent,billing" : "parent"}`
+    ? `/api/jobs/${id}?include=${isAdmin ? "parent,billing,current" : "parent,current"}`
     : null
 
   const { data: job, error: jobError, isLoading, mutate: mutateJob } = useApi<
-    Job & { parentJob?: Job | null; billingHandoff?: BillingHandoff | null }
+    Job & {
+      parentJob?: Job | null
+      billingHandoff?: BillingHandoff | null
+      currentRevision?: Job | null
+      currentRevisionId?: string | null
+    }
   >(detailKey, {
     fallbackData: fallbackJob ?? undefined,
   })
   const parentJob = job?.parentJob ?? null
   const billingHandoff = job?.billingHandoff ?? null
+  const workflowJobId = job?.currentRevisionId ?? job?.id ?? id
+
+  // Revisions are not separate pages — one project card / one detail URL.
+  useEffect(() => {
+    if (job?.parentJobId) {
+      router.replace(`/jobs/${job.parentJobId}`)
+    }
+  }, [job?.parentJobId, router])
 
   const notFound = !!jobError && /404|Not found/i.test(jobError.message)
-  const loading = isLoading && !job
+  const loading = (isLoading && !job) || !!job?.parentJobId
 
   const [editOpen,   setEditOpen]   = useState(false)
   const [editSaving, setEditSaving] = useState(false)
@@ -122,7 +135,7 @@ export default function JobDetailPage({
   const handleEdit = async (form: JobFormData) => {
     setEditSaving(true)
     try {
-      const res = await fetch(`/api/jobs/${id}`, {
+      const res = await fetch(`/api/jobs/${workflowJobId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form }),
       })
@@ -192,15 +205,15 @@ export default function JobDetailPage({
 
   return (
     <PageShell wide>
-      {/* Back nav — goes to parent if revision, otherwise to jobs list */}
-      {isRevision && parentJob ? (
-        <BackLink href={`/jobs/${parentJob.id}`}>{parentJob.drawingNumber}</BackLink>
-      ) : (
-        <BackLink href="/jobs">All jobs</BackLink>
-      )}
+      {/* Back nav */}
+      <BackLink href="/jobs">All jobs</BackLink>
 
       {/* Revision history — full family timeline, always at top */}
-      <RevisionHistory job={job} refreshKey={historyKey} />
+      <RevisionHistory
+        job={job}
+        refreshKey={historyKey}
+        onFamilyChanged={() => { void mutateJob(); setHistoryKey(k => k + 1) }}
+      />
 
       {isCancelled && (
         <div className="mb-4 rounded-lg border border-dn-bd bg-dn-bg px-4 py-3">
@@ -251,9 +264,9 @@ export default function JobDetailPage({
             )}
             <WorkItemTypeBadge itemType={job.itemType ?? "DESIGN"} />
             <StatusBadge status={job.status} />
-            {isRevision && (
+            {(job.currentRevisionLetter || job.revisionLetter) && (
               <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-ac-bg text-ac">
-                Rev {job.revisionLetter}
+                Current Rev {job.currentRevisionLetter ?? job.revisionLetter}
               </span>
             )}
             {(() => {
@@ -300,7 +313,7 @@ export default function JobDetailPage({
               <StatusBadge status={job.status} />
             ) : (
               <StatusWorkflow
-                jobId={job.id} currentStatus={job.status}
+                jobId={workflowJobId} currentStatus={job.status}
                 onStatusChange={s => { void mutateJob({ ...job, status: s }, { revalidate: false }); setHistoryKey(k => k + 1) }}
               />
             )}
@@ -407,7 +420,7 @@ export default function JobDetailPage({
 
           <DetailPanel title="Activity">
             <StatusHistory
-              key={historyKey} jobId={job.id}
+              key={historyKey} jobId={workflowJobId}
               onUpdate={() => setHistoryKey(k => k + 1)}
             />
           </DetailPanel>
@@ -486,10 +499,10 @@ export default function JobDetailPage({
 
       {/* Assign designer */}
       <AssignDesignerModal
-        job={assignOpen ? job : null}
+        job={assignOpen ? { ...job, id: workflowJobId } : null}
         onClose={() => setAssignOpen(false)}
         onSaved={updated => {
-          void mutateJob(updated, { revalidate: false })
+          void mutateJob({ ...job, designer: updated.designer }, { revalidate: true })
           setAssignOpen(false)
           setHistoryKey(k => k + 1)
         }}
@@ -501,7 +514,7 @@ export default function JobDetailPage({
           <DialogHeader>
             <DialogTitle>Edit job</DialogTitle>
             <DialogDescription>
-              {isRevision ? `Revision ${job.revisionLetter} of ${parentJob?.drawingNumber}` : "Update job details and status."}
+              Update the current revision&apos;s details and status.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
