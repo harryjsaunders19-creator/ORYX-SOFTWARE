@@ -281,16 +281,16 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFam
   const baseDrawing = family.baseDrawingNumber
 
   return (
-    <section className="mb-4 rounded-xl border border-bd bg-sr shadow-card overflow-hidden">
+    <section className="mb-0 rounded-xl border border-bd bg-sr overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex w-full items-center gap-2 px-4 py-3 border-b border-bd bg-pg/60 text-left hover:bg-pg transition-colors"
+        className="flex w-full items-center gap-2 px-5 py-4 border-b border-bd bg-sr text-left hover:bg-pg/50 transition-colors"
         aria-expanded={open}
       >
         <GitBranch className="h-4 w-4 text-ac shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-t1">Revision History</p>
+          <p className="text-base font-semibold text-t1">Revision Timeline</p>
           <p className="text-[11px] text-t3 font-mono truncate mt-0.5">{baseDrawing}</p>
         </div>
         {hasRevisions && (
@@ -304,7 +304,7 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFam
       </button>
 
       {open && (
-        <div className="px-4 py-4 sm:px-5 sm:py-5">
+        <div className="px-5 py-5">
           {!hasRevisions ? (
             <p className="text-sm text-t4 italic mb-4">No previous revisions.</p>
           ) : (

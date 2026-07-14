@@ -4,7 +4,10 @@ import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { format } from "date-fns"
 import dynamic from "next/dynamic"
-import { Pencil, Trash2, FileText, UserPlus, Clock, AlertOctagon, RotateCcw } from "lucide-react"
+import {
+  Pencil, Trash2, FileText, UserPlus, Clock, AlertOctagon, RotateCcw,
+  MapPin, ChevronRight,
+} from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
 import { Textarea } from "@/shared/ui/textarea"
@@ -16,9 +19,9 @@ import { StatusBadge }        from "@/components/status-badge"
 import { WorkItemTypeBadge }  from "@/components/work-item-type-badge"
 import { StatusWorkflow }     from "@/components/status-workflow"
 import { useToast }            from "@/shared/ui/toast"
-import { formatGBP, getJobDeadlineInfo, deadlineBadgeClass, parseLocalDate, totalJobCommercialValue, cn } from "@/shared/utils/utils"
+import { formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue, cn } from "@/shared/utils/utils"
 import { useUser }             from "@/shared/providers/user-context"
-import { PageShell, DetailPanel, BackLink, PageHeader } from "@/shared/layouts/page-layout"
+import { PageShell } from "@/shared/layouts/page-layout"
 import { OTHER_WORKS_TYPE }    from "@/lib/constants"
 // Perf: SWR caches job detail across navigations; parent/billing keys follow when known.
 import { useApi } from "@/shared/hooks/use-api"
@@ -43,31 +46,73 @@ const JobForm = dynamic(
 
 function Skeleton() {
   return (
-    <div className="space-y-4">
-      <div className="h-4 w-24 skeleton rounded" />
-      <div className="h-7 w-80 skeleton rounded" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
-        <div className="lg:col-span-2 space-y-4">
-          <div className="h-32 skeleton rounded" />
-          <div className="h-48 skeleton rounded" />
-        </div>
-        <div className="space-y-3">
-          <div className="h-20 skeleton rounded" />
-          <div className="h-24 skeleton rounded" />
-        </div>
+    <div className="space-y-6">
+      <div className="h-4 w-40 skeleton rounded" />
+      <div className="h-9 w-72 skeleton rounded" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-20 skeleton rounded-xl" />
+        ))}
+      </div>
+      <div className="h-64 skeleton rounded-xl" />
+    </div>
+  )
+}
+
+function InfoField({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="flex flex-col gap-1 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
+      <span className="text-xs font-medium text-t3 tracking-wide">{label}</span>
+      <span className="text-sm font-semibold text-t1">
+        {value?.trim() ? value : <span className="font-normal text-t4 italic">Not set</span>}
+      </span>
+    </div>
+  )
+}
+
+function KpiCard({ label, value, badge }: { label: string; value: string; badge?: string | null }) {
+  return (
+    <div className="rounded-xl border border-bd bg-sr p-4">
+      <p className="text-xs font-medium text-t3 mb-1">{label}</p>
+      <div className="flex items-center gap-2 min-w-0">
+        <p className="text-lg font-semibold text-t1 truncate">{value}</p>
+        {badge ? (
+          <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
+            {badge}
+          </span>
+        ) : null}
       </div>
     </div>
   )
 }
 
-function InfoRow({ label, value }: { label: string; value?: string | null }) {
+function Pill({
+  children,
+  tone = "neutral",
+}: {
+  children: React.ReactNode
+  tone?: "ok" | "ac" | "dn" | "neutral"
+}) {
+  const tones = {
+    ok: "bg-ok-bg text-ok-tx",
+    ac: "bg-ac-bg text-ac",
+    dn: "bg-dn-bg text-dn-tx",
+    neutral: "bg-pg text-t2 border border-bd",
+  }
+  const dots = {
+    ok: "bg-ok-ic",
+    ac: "bg-ac",
+    dn: "bg-dn",
+    neutral: "bg-t3",
+  }
   return (
-    <div className="grid grid-cols-3 gap-2 py-2 border-b border-bd last:border-0">
-      <p className="text-xs font-medium text-t3">{label}</p>
-      <p className="col-span-2 text-sm text-t1">
-        {value ?? <span className="text-t4 italic">Not set</span>}
-      </p>
-    </div>
+    <span className={cn(
+      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold",
+      tones[tone],
+    )}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", dots[tone])} />
+      {children}
+    </span>
   )
 }
 
@@ -195,6 +240,9 @@ export default function JobDetailPage({
 
   const isRevision = job.parentJobId !== null
   const isCancelled = !!job.archivedAt
+  const revLetter = job.currentRevisionLetter ?? job.revisionLetter
+  const commercialTotal = totalJobCommercialValue(job)
+  const dl = getJobDeadlineInfo(job)
 
   const cancelSubtitle = job.cancelRecord
     ? [
@@ -205,18 +253,22 @@ export default function JobDetailPage({
 
   return (
     <PageShell wide>
-      {/* Back nav */}
-      <BackLink href="/jobs">All jobs</BackLink>
-
-      {/* Revision history — full family timeline, always at top */}
-      <RevisionHistory
-        job={job}
-        refreshKey={historyKey}
-        onFamilyChanged={() => { void mutateJob(); setHistoryKey(k => k + 1) }}
-      />
+      <nav className="flex items-center gap-1.5 text-xs text-t3 mb-5">
+        <button
+          type="button"
+          className="hover:text-t1 transition-colors"
+          onClick={() => router.push("/jobs")}
+        >
+          Jobs
+        </button>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        <span className={cn("font-semibold text-t1 font-mono", isCancelled && "line-through opacity-70")}>
+          {job.drawingNumber}
+        </span>
+      </nav>
 
       {isCancelled && (
-        <div className="mb-4 rounded-lg border border-dn-bd bg-dn-bg px-4 py-3">
+        <div className="mb-5 rounded-xl border border-dn-bd bg-dn-bg px-4 py-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-dn-tx flex items-center gap-2 flex-wrap">
@@ -245,194 +297,339 @@ export default function JobDetailPage({
         </div>
       )}
 
-      {/* Header */}
-      <PageHeader
-        title={job.address}
-        description={
-          <span className="flex items-center gap-2 flex-wrap">
-            <span className={cn("font-mono font-semibold text-ac", isCancelled && "line-through opacity-70")}>
+      {/* Header — Stitch Job Details */}
+      <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-7">
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className={cn(
+              "text-2xl sm:text-3xl font-semibold tracking-tight text-t1 font-mono",
+              isCancelled && "line-through opacity-70",
+            )}>
               {job.drawingNumber}
-            </span>
+            </h1>
             {isAdmin && !isCancelled && (
               <button
                 onClick={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
                 className="text-t4 hover:text-ac"
                 title="Edit drawing number"
               >
-                <Pencil className="h-3 w-3" />
+                <Pencil className="h-3.5 w-3.5" />
               </button>
             )}
-            <WorkItemTypeBadge itemType={job.itemType ?? "DESIGN"} />
+          </div>
+          {job.address && (
+            <p className="text-sm sm:text-base text-t3 flex items-start gap-1.5">
+              <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{job.address}</span>
+            </p>
+          )}
+          <div className="flex items-center gap-2 pt-1 flex-wrap">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-t3">Client</span>
+            <span className="text-sm font-semibold text-t1">{job.clientCompany}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 lg:self-center">
+          <div className="flex flex-wrap gap-2 lg:mr-1 lg:pr-4 lg:border-r lg:border-bd">
             <StatusBadge status={job.status} />
-            {(job.currentRevisionLetter || job.revisionLetter) && (
-              <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-ac-bg text-ac">
-                Current Rev {job.currentRevisionLetter ?? job.revisionLetter}
-              </span>
+            <WorkItemTypeBadge itemType={job.itemType ?? "DESIGN"} />
+            {revLetter && <Pill tone="ac">Revision {revLetter}</Pill>}
+            {!revLetter && (job.itemType === "DESIGN" || !job.itemType) && (
+              <Pill tone="neutral">Original Issue</Pill>
             )}
-            {(() => {
-              const dl = getJobDeadlineInfo(job)
-              if (dl.severity === "none") return null
-              const cls = deadlineBadgeClass(dl.severity)
-              return (
-                <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded border ${cls}`}>
-                  {dl.severity === "overdue" && <AlertOctagon className="h-3 w-3" />}
-                  {dl.severity !== "overdue" && <Clock className="h-3 w-3" />}
-                  {dl.label}
-                </span>
-              )
-            })()}
-            <span className="text-t3">·</span>
-            <span>{job.typeOfWorks === OTHER_WORKS_TYPE && job.customTypeDescription ? job.customTypeDescription : job.typeOfWorks} · {job.clientCompany}</span>
-          </span>
-        }
-        actions={
-          !isCancelled ? (
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </Button>
-            {isAdmin && (
-              <Button variant="outline" size="icon-sm" onClick={() => setDelOpen(true)} title="Cancel job">
-                <Trash2 className="h-3.5 w-3.5" />
+            {dl.severity !== "none" && (
+              <Pill tone={dl.severity === "overdue" ? "dn" : "neutral"}>
+                {dl.label}
+              </Pill>
+            )}
+          </div>
+          {!isCancelled ? (
+            <div className="flex flex-wrap gap-2">
+              {!job.designer && (
+                <Button variant="primary" size="sm" onClick={() => setAssignOpen(true)}>
+                  <UserPlus className="h-3.5 w-3.5" /> Assign designer
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                <Pencil className="h-3.5 w-3.5" /> Edit
               </Button>
-            )}
-          </>
+              {isAdmin && (
+                <Button variant="ghost" size="icon-sm" onClick={() => setDelOpen(true)} title="Cancel job">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
           ) : isAdmin ? (
             <Button variant="outline" size="sm" loading={restoring} onClick={handleRestore}>
               <RotateCcw className="h-3.5 w-3.5" /> Restore
             </Button>
-          ) : undefined
-        }
-      />
+          ) : null}
+        </div>
+      </header>
 
-      {/* Body */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
-          <DetailPanel title="Status">
+      {/* KPI row */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-7">
+        <KpiCard
+          label="Current Revision"
+          value={revLetter ? `Rev ${revLetter}` : "Original"}
+        />
+        <KpiCard
+          label="Active Designer"
+          value={job.designer?.trim() || "Unassigned"}
+        />
+        <KpiCard
+          label="Total Revisions"
+          value={job.revisionCount != null ? String(job.revisionCount) : "—"}
+        />
+        <KpiCard
+          label="Quote / Agreed"
+          value={formatGBP(commercialTotal) ?? "—"}
+        />
+        <KpiCard
+          label="Deadline"
+          value={job.requiredByDate ? format(parseLocalDate(job.requiredByDate), "d MMM yyyy") : "—"}
+          badge={dl.severity === "overdue" ? "Due" : dl.severity === "today" ? "Today" : null}
+        />
+      </div>
+
+      {/* Revision timeline (family) */}
+      <div className="mb-7">
+        <RevisionHistory
+          job={job}
+          refreshKey={historyKey}
+          defaultOpen
+          onFamilyChanged={() => { void mutateJob(); setHistoryKey(k => k + 1) }}
+        />
+      </div>
+
+      {/* Main content */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-5">
+        <div className="lg:col-span-7 space-y-5">
+          <section className="rounded-xl border border-bd bg-sr p-5">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-semibold text-t1">Job Information</h2>
+              <span className="text-xs text-t4">
+                Updated {format(new Date(job.updatedAt), "d MMM yyyy HH:mm")}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+              <InfoField
+                label="Job Type"
+                value={(() => {
+                  const t = job.itemType ?? "DESIGN"
+                  return t.charAt(0) + t.slice(1).toLowerCase().replace("_", " ")
+                })()}
+              />
+              <InfoField label="Site Address" value={job.address} />
+              <InfoField
+                label="Type of works"
+                value={
+                  job.typeOfWorks === OTHER_WORKS_TYPE
+                    ? `Other — ${job.customTypeDescription || "no description"}`
+                    : job.typeOfWorks
+                }
+              />
+              <InfoField
+                label="Initial Quote"
+                value={formatGBP(job.quoteValue) ?? (parentJob?.quoteValue != null ? formatGBP(parentJob.quoteValue) : null)}
+              />
+              <InfoField label="Requested by" value={job.requestedBy} />
+              <InfoField label="Engineer Assigned" value={job.designer || "Unassigned"} />
+              <InfoField label="Client" value={job.clientCompany} />
+              <InfoField label="Created" value={format(new Date(job.dateCreated), "d MMMM yyyy")} />
+              {job.legacyTypeOfWorks && (
+                <InfoField label="Originally entered as" value={job.legacyTypeOfWorks} />
+              )}
+              {job.dateCompleted && (
+                <InfoField label="Completed" value={format(parseLocalDate(job.dateCompleted), "d MMMM yyyy")} />
+              )}
+              {job.requiredByDate && (
+                <InfoField label="Required by" value={format(parseLocalDate(job.requiredByDate), "d MMMM yyyy")} />
+              )}
+              {job.notes && <InfoField label="Notes" value={job.notes} />}
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-bd bg-sr p-5">
+            <h2 className="text-base font-semibold text-t1 mb-4">Status</h2>
             {isCancelled ? (
               <StatusBadge status={job.status} />
             ) : (
               <StatusWorkflow
-                jobId={workflowJobId} currentStatus={job.status}
-                onStatusChange={s => { void mutateJob({ ...job, status: s }, { revalidate: false }); setHistoryKey(k => k + 1) }}
+                jobId={workflowJobId}
+                currentStatus={job.status}
+                onStatusChange={s => {
+                  void mutateJob({ ...job, status: s }, { revalidate: false })
+                  setHistoryKey(k => k + 1)
+                }}
               />
             )}
-          </DetailPanel>
+          </section>
 
-          <DetailPanel title="Details">
-            <InfoRow label="Type"          value={(() => { const t = job.itemType ?? "DESIGN"; return t.charAt(0) + t.slice(1).toLowerCase().replace("_", " ") })()} />
-            <InfoRow label="Address"       value={job.address} />
-            <InfoRow label="Type of works" value={
-              job.typeOfWorks === OTHER_WORKS_TYPE
-                ? `Other — ${job.customTypeDescription || "no description"}`
-                : job.typeOfWorks
-            } />
-            {job.legacyTypeOfWorks && (
-              <InfoRow label="Originally entered as" value={job.legacyTypeOfWorks} />
-            )}
-            <InfoRow label="Client"        value={job.clientCompany} />
-            <InfoRow label="Requested by"  value={job.requestedBy} />
-            <InfoRow label="Designer"      value={job.designer || undefined} />
-            <InfoRow label="Created"       value={format(new Date(job.dateCreated), "d MMMM yyyy")} />
-            {job.dateCompleted && (
-              <InfoRow label="Completed" value={format(parseLocalDate(job.dateCompleted), "d MMMM yyyy")} />
-            )}
-            {job.requestedDate  && <InfoRow label="Requested date" value={format(parseLocalDate(job.requestedDate),  "d MMMM yyyy")} />}
-            {job.requiredByDate && <InfoRow label="Required by"    value={format(parseLocalDate(job.requiredByDate), "d MMMM yyyy")} />}
-            {job.notes && <InfoRow label="Notes" value={job.notes} />}
-          </DetailPanel>
+          <section className="rounded-xl border border-bd bg-sr p-5">
+            <h2 className="text-base font-semibold text-t1 mb-4">Activity</h2>
+            <StatusHistory
+              key={historyKey}
+              jobId={workflowJobId}
+              onUpdate={() => setHistoryKey(k => k + 1)}
+            />
+          </section>
+        </div>
 
-          {/* Commercial section — always shown, edit to populate */}
-          <DetailPanel title="Commercial">
+        <div className="lg:col-span-3 space-y-5">
+          <section className="rounded-xl border border-bd bg-sr p-5">
+            <h2 className="text-base font-semibold text-t1 mb-4">Financial Summary</h2>
             {job.quoteValue != null || job.quoteReference || job.quoteDate || job.commercialNotes
               || job.variationFees != null || job.additionalCharges != null ? (
-              <>
+              <div className="space-y-3 text-sm">
                 {job.quoteValue != null && (
-                  <InfoRow label="Quote value" value={formatGBP(job.quoteValue)} />
+                  <div className="flex justify-between gap-2">
+                    <span className="text-t3">Quote value</span>
+                    <span className="font-semibold tabular-nums text-t1">{formatGBP(job.quoteValue)}</span>
+                  </div>
                 )}
                 {job.variationFees != null && (
-                  <InfoRow label="Variation fees" value={formatGBP(job.variationFees)} />
+                  <div className="flex justify-between gap-2">
+                    <span className="text-t3">Variation fees</span>
+                    <span className="font-semibold tabular-nums text-t1">{formatGBP(job.variationFees)}</span>
+                  </div>
                 )}
                 {job.additionalCharges != null && (
-                  <InfoRow label="Additional charges" value={formatGBP(job.additionalCharges)} />
+                  <div className="flex justify-between gap-2">
+                    <span className="text-t3">Additional charges</span>
+                    <span className="font-semibold tabular-nums text-t1">{formatGBP(job.additionalCharges)}</span>
+                  </div>
                 )}
-                {totalJobCommercialValue(job) != null && (
-                  <InfoRow label="Total agreed" value={formatGBP(totalJobCommercialValue(job))} />
+                {commercialTotal != null && (
+                  <div className="flex justify-between gap-2 pt-2 border-t border-bd">
+                    <span className="text-t3">Total agreed</span>
+                    <span className="font-semibold tabular-nums text-t1">{formatGBP(commercialTotal)}</span>
+                  </div>
                 )}
                 {job.quoteReference && (
-                  <InfoRow label="Quote reference" value={job.quoteReference} />
+                  <p className="text-xs text-t4 pt-1">Ref {job.quoteReference}</p>
                 )}
                 {job.quoteDate && (
-                  <InfoRow
-                    label="Quote date"
-                    value={format(parseLocalDate(job.quoteDate), "d MMMM yyyy")}
-                  />
+                  <p className="text-xs text-t4">
+                    Quote date {format(parseLocalDate(job.quoteDate), "d MMM yyyy")}
+                  </p>
                 )}
                 {job.commercialNotes && (
-                  <InfoRow label="Notes" value={job.commercialNotes} />
+                  <p className="text-xs text-t3 pt-1 whitespace-pre-wrap">{job.commercialNotes}</p>
                 )}
-                {/* Revision inherit notice */}
                 {isRevision && parentJob && job.quoteValue == null && parentJob.quoteValue != null && (
+                  <p className="text-xs text-t3 pt-2 border-t border-bd">
+                    Inherited from parent:{" "}
+                    <span className="font-semibold text-t1">{formatGBP(parentJob.quoteValue)}</span>
+                  </p>
+                )}
+                {billingHandoff && (
                   <div className="pt-2 mt-1 border-t border-bd">
                     <p className="text-xs text-t3">
-                      Inherited from parent:{" "}
-                      <span className="font-semibold text-t1">{formatGBP(parentJob.quoteValue)}</span>
+                      Invoicing:{" "}
+                      {billingHandoff.clearedByAccountsAt ? (
+                        <span className="font-medium text-ok-tx">
+                          Cleared{billingHandoff.clearedBy ? ` (${billingHandoff.clearedBy})` : ""}
+                        </span>
+                      ) : (
+                        <span className="font-medium text-wn-tx">Awaiting accounts</span>
+                      )}
                     </p>
                   </div>
                 )}
-              </>
+                {!isCancelled && (
+                  <button
+                    type="button"
+                    onClick={() => setEditOpen(true)}
+                    className="text-xs text-ac hover:text-ach font-medium pt-1"
+                  >
+                    Edit quote
+                  </button>
+                )}
+              </div>
             ) : (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-t4 italic">No quote added yet.</p>
                 {!isCancelled && (
-                <button
-                  onClick={() => setEditOpen(true)}
-                  className="text-xs text-ac hover:text-ach font-medium"
-                >
-                  Add quote
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditOpen(true)}
+                    className="text-xs text-ac hover:text-ach font-medium"
+                  >
+                    Add quote
+                  </button>
                 )}
               </div>
             )}
-            {/* Show inherited parent quote if this is a revision with no own quote */}
-            {isRevision && parentJob && job.quoteValue == null && parentJob.quoteValue != null && (job.quoteReference || job.quoteDate || job.commercialNotes) === undefined && (
-              <div className="mt-1">
-                <p className="text-xs text-t3">
-                  Inherited from parent:{" "}
-                  <span className="font-semibold text-t1">{formatGBP(parentJob.quoteValue)}</span>
-                </p>
+          </section>
+
+          {job.requiredByDate && job.status !== "ISSUED" && (
+            <div className={cn(
+              "rounded-xl border p-4",
+              dl.severity === "overdue" ? "bg-dn-bg border-dn-bd"
+                : dl.severity === "today" ? "bg-wn-bg border-wn-bd"
+                : dl.severity === "soon" ? "bg-wn-bg/60 border-wn-bd/60"
+                : "bg-sr border-bd",
+            )}>
+              <div className="flex items-center gap-1.5 mb-2">
+                {dl.severity === "overdue"
+                  ? <AlertOctagon className="h-4 w-4 text-dn shrink-0" />
+                  : <Clock className="h-4 w-4 text-t4 shrink-0" />}
+                <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Deadline</p>
+              </div>
+              <p className={cn(
+                "text-sm font-semibold tabular-nums",
+                dl.severity === "overdue" || dl.severity === "today" || dl.severity === "soon"
+                  ? (dl.severity === "overdue" ? "text-dn-tx" : "text-wn-tx")
+                  : "text-t1",
+              )}>
+                {dl.label}
+              </p>
+              <p className="text-xs text-t3 mt-0.5">
+                {format(parseLocalDate(job.requiredByDate), "d MMM yyyy")}
+              </p>
+            </div>
+          )}
+
+          <section className="rounded-xl border border-bd bg-sr p-5">
+            <h2 className="text-base font-semibold text-t1 mb-4">Actions</h2>
+            {isCancelled ? (
+              <p className="text-xs text-t3">
+                This job is cancelled. Restore it to make changes or return it to active views.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {!job.designer && (
+                  <Button variant="primary" size="sm" className="w-full justify-start" onClick={() => setAssignOpen(true)}>
+                    <UserPlus className="h-3.5 w-3.5" /> Assign designer
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setEditOpen(true)}>
+                  <Pencil className="h-3.5 w-3.5" /> Edit details
+                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-dn hover:bg-dn-bg"
+                    onClick={() => setDelOpen(true)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Cancel job
+                  </Button>
+                )}
               </div>
             )}
-            {/* Ready For Invoicing status */}
-            {billingHandoff && (
-              <div className="pt-2 mt-2 border-t border-bd">
-                <p className="text-xs text-t3 flex items-center gap-2">
-                  <span className="text-t4">Invoicing</span>
-                  {billingHandoff.clearedByAccountsAt ? (
-                    <span className="font-medium text-ok-tx">Cleared by accounts{billingHandoff.clearedBy ? ` (${billingHandoff.clearedBy})` : ""}</span>
-                  ) : (
-                    <span className="font-medium text-wn-tx">Awaiting accounts action</span>
-                  )}
-                </p>
-              </div>
-            )}
-          </DetailPanel>
+          </section>
 
-          <DetailPanel title="Activity">
-            <StatusHistory
-              key={historyKey} jobId={workflowJobId}
-              onUpdate={() => setHistoryKey(k => k + 1)}
-            />
-          </DetailPanel>
-        </div>
-
-        <div className="space-y-3">
-          <DetailPanel title="Timeline">
+          <section className="rounded-xl border border-bd bg-sr p-5">
+            <h2 className="text-base font-semibold text-t1 mb-3">Timeline</h2>
             <dl className="space-y-2">
               {([
-                ["Created",  format(new Date(job.dateCreated), "d MMM yyyy")],
-                        ...(job.dateCompleted ? [["Completed", format(parseLocalDate(job.dateCompleted), "d MMM yyyy")]] : []),
-                ["Updated",  format(new Date(job.updatedAt), "d MMM yyyy")],
+                ["Created", format(new Date(job.dateCreated), "d MMM yyyy")],
+                ...(job.dateCompleted
+                  ? [["Completed", format(parseLocalDate(job.dateCompleted), "d MMM yyyy")] as [string, string]]
+                  : []),
+                ["Updated", format(new Date(job.updatedAt), "d MMM yyyy")],
               ] as [string, string][]).map(([l, v]) => (
                 <div key={l} className="flex justify-between text-xs">
                   <dt className="text-t3">{l}</dt>
@@ -440,60 +637,7 @@ export default function JobDetailPage({
                 </div>
               ))}
             </dl>
-          </DetailPanel>
-
-          {/* Deadline card */}
-          {job.requiredByDate && job.status !== "ISSUED" && (() => {
-            const dl = getJobDeadlineInfo(job)
-            return (
-              <div className={`rounded-md border p-4 ${
-                dl.severity === "overdue" ? "bg-dn-bg border-dn-bd" :
-                dl.severity === "today"   ? "bg-wn-bg border-wn-bd" :
-                dl.severity === "soon"    ? "bg-wn-bg/60 border-wn-bd/60" :
-                "bg-sr border-bd"
-              }`}>
-                <div className="flex items-center gap-1.5 mb-2">
-                  {dl.severity === "overdue" ? <AlertOctagon className="h-4 w-4 text-dn shrink-0" /> :
-                   dl.severity === "today"   ? <Clock className="h-4 w-4 text-wn shrink-0" /> :
-                   <Clock className="h-4 w-4 text-t4 shrink-0" />}
-                  <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Deadline</p>
-                </div>
-                <p className={`text-sm font-semibold tabular-nums ${
-                  dl.severity === "overdue" ? "text-dn-tx" :
-                  dl.severity === "today"   ? "text-wn-tx" :
-                  dl.severity === "soon"    ? "text-wn-tx" :
-                  "text-t1"
-                }`}>{dl.label}</p>
-                <p className="text-xs text-t3 mt-0.5">
-                  {format(parseLocalDate(job.requiredByDate), "d MMM yyyy")}
-                </p>
-              </div>
-            )
-          })()}
-
-          <DetailPanel title="Actions">
-            {isCancelled ? (
-              <p className="text-xs text-t3">This job is cancelled. Restore it to make changes or return it to active views.</p>
-            ) : (
-            <div className="space-y-1.5">
-              {!job.designer && (
-                <Button variant="primary" size="sm" className="w-full justify-start" onClick={() => setAssignOpen(true)}>
-                  <UserPlus className="h-3.5 w-3.5" /> Assign designer
-                </Button>
-              )}
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setEditOpen(true)}>
-                <Pencil className="h-3.5 w-3.5" /> Edit details
-              </Button>
-              {isAdmin && (
-                <Button variant="ghost" size="sm"
-                  className="w-full justify-start text-dn hover:bg-dn-bg"
-                  onClick={() => setDelOpen(true)}>
-                  <Trash2 className="h-3.5 w-3.5" /> Cancel job
-                </Button>
-              )}
-            </div>
-            )}
-          </DetailPanel>
+          </section>
         </div>
       </div>
 
