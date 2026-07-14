@@ -334,6 +334,11 @@ export const parentJobService = {
       throw new Error("Cannot add another revision — maximum reached or parent archived")
     }
 
+    const reason = (input.description ?? input.notes ?? "").trim()
+    if (reason.length < 3) {
+      throw new Error("Reason for revision is required")
+    }
+
     const now = nowIso()
     const letter = dashboard.nextRevisionLetter
     const changedBy = input.changedBy ?? "System"
@@ -343,14 +348,14 @@ export const parentJobService = {
       workType: "REVISION",
       revisionLetter: letter,
       title: workItemTitle("REVISION", letter),
-      description: input.description ?? null,
+      description: reason,
       status: "NEW_REQUEST",
       designer: input.designer ?? "",
       priority: input.priority ?? null,
       billable: input.billable ?? false,
       requestedDate: now.slice(0, 10),
       requiredByDate: input.requiredByDate ?? null,
-      notes: input.notes ?? input.description ?? null,
+      notes: reason,
       commercialNotes: null,
       quoteValue: input.quoteValue ?? null,
       quoteReference: null,
@@ -375,7 +380,7 @@ export const parentJobService = {
       fromStatus: null,
       toStatus: "NEW_REQUEST",
       changedBy,
-      note: `Created ${item.title}`,
+      note: `Created ${item.title}: ${reason}`,
     })
     await supabaseParentJobRepo.update(parentId, { updatedAt: now })
     return item

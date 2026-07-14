@@ -78,6 +78,7 @@ export default function ParentJobDashboardPage({
   const [revOpen, setRevOpen] = useState(false)
   const [revSaving, setRevSaving] = useState(false)
   const [description, setDescription] = useState("")
+  const [descError, setDescError] = useState<string | null>(null)
   const [billable, setBillable] = useState(false)
   const [designer, setDesigner] = useState("")
   const [priority, setPriority] = useState("")
@@ -93,13 +94,20 @@ export default function ParentJobDashboardPage({
   )
 
   const createRevision = async () => {
+    const reason = description.trim()
+    if (reason.length < 3) {
+      setDescError("Please explain why this revision is needed (at least 3 characters).")
+      return
+    }
+    setDescError(null)
     setRevSaving(true)
     try {
       const res = await fetch(`/api/parent-jobs/${parentId}/work-items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          description: description.trim() || null,
+          description: reason,
+          notes: reason,
           billable,
           designer,
           priority: priority || null,
@@ -312,7 +320,21 @@ export default function ParentJobDashboardPage({
                         </p>
                       )}
                     </div>
-                    {item.description && (
+                    {item.workType === "REVISION" && (
+                      <div className="mt-2 rounded-lg border border-bd bg-sr px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-t3 mb-0.5">
+                          Reason for revision
+                        </p>
+                        {item.description || item.notes ? (
+                          <p className="text-sm text-t1 whitespace-pre-wrap">
+                            {item.description || item.notes}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-t4 italic">No reason recorded</p>
+                        )}
+                      </div>
+                    )}
+                    {item.workType === "ORIGINAL" && item.description && (
                       <p className="text-sm text-t2 mt-2 whitespace-pre-wrap">{item.description}</p>
                     )}
                     {isAdmin && item.workType === "REVISION" && (
@@ -334,26 +356,50 @@ export default function ParentJobDashboardPage({
         )}
       </div>
 
-      <Dialog open={revOpen} onOpenChange={o => { if (!revSaving) setRevOpen(o) }}>
+      <Dialog open={revOpen} onOpenChange={o => {
+        if (!revSaving) {
+          setRevOpen(o)
+          if (!o) {
+            setDescription("")
+            setDescError(null)
+          }
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
               Create Revision{data.nextRevisionLetter ? ` ${data.nextRevisionLetter}` : ""}
             </DialogTitle>
             <DialogDescription>
-              Adds a new active work item on {parent.drawingNumber}. The parent job is never duplicated.
+              Adds active work on {parent.drawingNumber}. The Parent Job stays the same — explain what the client asked for.
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-4">
+            <div className="rounded-lg border border-bd bg-pg px-3 py-2.5 text-xs text-t3 space-y-1">
+              <p>
+                New work item: <span className="font-semibold text-t1">Revision {data.nextRevisionLetter}</span>
+              </p>
+              <p>Starts as New Request. Mark Chargeable only if this revision should be invoiced separately.</p>
+            </div>
             <div>
-              <Label>Revision description</Label>
+              <Label>
+                Reason for revision<span className="text-dn ml-0.5">*</span>
+              </Label>
+              <p className="text-[11px] text-t4 mt-0.5 mb-1.5">
+                What did the client request? This appears on the project timeline for the whole team.
+              </p>
               <Textarea
-                className="mt-1.5"
-                rows={3}
+                className={cn("mt-0", descError && "border-dn")}
+                rows={4}
                 value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="What changed?"
+                onChange={e => {
+                  setDescription(e.target.value)
+                  if (descError) setDescError(null)
+                }}
+                placeholder="e.g. Client phoned — change bay spacing and add loading calcs on first floor"
+                autoFocus
               />
+              {descError && <p className="text-xs text-dn mt-1">{descError}</p>}
             </div>
             <div>
               <Label>Designer</Label>
@@ -378,13 +424,18 @@ export default function ParentJobDashboardPage({
             </div>
             <label className="inline-flex items-center gap-2 text-sm text-t2">
               <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)} />
-              Chargeable
+              Chargeable — bill this revision separately
             </label>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRevOpen(false)} disabled={revSaving}>Cancel</Button>
-            <Button variant="primary" loading={revSaving} onClick={() => void createRevision()}>
-              Create Revision
+            <Button
+              variant="primary"
+              loading={revSaving}
+              disabled={!description.trim()}
+              onClick={() => void createRevision()}
+            >
+              Create Revision{data.nextRevisionLetter ? ` ${data.nextRevisionLetter}` : ""}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -89,18 +89,33 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       const parentId = await resolveParentIdForWorkItems(id)
       if (!parentId) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
+      const reason = (
+        typeof body.description === "string" ? body.description
+        : typeof body.notes === "string" ? body.notes
+        : ""
+      ).trim()
+      if (reason.length < 3) {
+        return NextResponse.json(
+          { error: "Reason for revision is required", field: "description" },
+          { status: 422 },
+        )
+      }
+
       try {
         const item = await parentJobService.createRevision(parentId, {
-          description: body.notes ? String(body.notes).trim() : (body.description ? String(body.description).trim() : null),
+          description: reason,
           billable: body.billable === true || body.billable === "true",
           designer: typeof body.designer === "string" ? body.designer : "",
           priority: typeof body.priority === "string" ? body.priority : null,
-          notes: body.notes ? String(body.notes).trim() : null,
+          notes: reason,
           changedBy: actorName(auth.user),
         })
         return NextResponse.json(item, { status: 201 })
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to create revision"
+        if (/Reason for revision/i.test(msg)) {
+          return NextResponse.json({ error: msg, field: "description" }, { status: 422 })
+        }
         if (/not found|Cannot add/i.test(msg)) {
           return NextResponse.json({ error: msg }, { status: 400 })
         }

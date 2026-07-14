@@ -82,12 +82,17 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+    const reason = notes.trim()
+    if (reason.length < 3) {
+      toast("Please explain why this revision is needed", "error")
+      return
+    }
     setSaving(true)
     try {
       const res = await fetch(`/api/jobs/${job.id}/revisions`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ notes: notes.trim() || null }),
+        body:    JSON.stringify({ notes: reason, description: reason }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
@@ -228,15 +233,26 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
             </ul>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Notes (optional)</Label>
+            <Label>
+              Reason for revision<span className="text-dn ml-0.5">*</span>
+            </Label>
+            <p className="text-[11px] text-t4">
+              What did the client request? Shown on the revision history.
+            </p>
             <Textarea
               value={notes} onChange={e => setNotes(e.target.value)}
               placeholder="e.g. Client requested changes to bay spacing and loading calculations"
-              rows={2} autoFocus
+              rows={3} autoFocus required
             />
           </div>
           <div className="flex gap-2">
-            <Button type="submit" variant="primary" size="sm" loading={saving} disabled={saving}>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              loading={saving}
+              disabled={saving || notes.trim().length < 3}
+            >
               {saving ? "Creating…" : `Create Rev ${nextLetter}`}
             </Button>
             <Button

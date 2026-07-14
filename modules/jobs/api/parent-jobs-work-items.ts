@@ -30,20 +30,35 @@ export async function POST(
     const moneyErr = applyOptionalMoneyField(body, "quoteValue", money)
     if (moneyErr) return moneyErr
 
+    const descriptionRaw =
+      typeof body.description === "string" ? body.description
+      : typeof body.notes === "string" ? body.notes
+      : ""
+    const description = descriptionRaw.trim()
+    if (description.length < 3) {
+      return NextResponse.json(
+        { error: "Reason for revision is required", field: "description" },
+        { status: 422 },
+      )
+    }
+
     const item = await parentJobService.createRevision(id, {
-      description: typeof body.description === "string" ? body.description : (typeof body.notes === "string" ? body.notes : null),
+      description,
       billable: body.billable === true || body.billable === "true",
       designer: typeof body.designer === "string" ? body.designer : "",
       priority: typeof body.priority === "string" ? body.priority : null,
       quoteValue: money.quoteValue ?? null,
       requiredByDate: resolveRequiredByDate(body.requiredByDate) ?? null,
-      notes: typeof body.notes === "string" ? body.notes : null,
+      notes: description,
       changedBy: actorName(auth.user),
     })
 
     return NextResponse.json(item, { status: 201 })
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to create revision"
+    if (/Reason for revision/i.test(msg)) {
+      return NextResponse.json({ error: msg, field: "description" }, { status: 422 })
+    }
     if (/not found|Cannot add/i.test(msg)) {
       return NextResponse.json({ error: msg }, { status: 400 })
     }

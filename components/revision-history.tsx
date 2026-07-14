@@ -117,12 +117,16 @@ function TimelineEntry({
             </p>
           )}
           {entry.notes ? (
-            <p className="pt-1 text-t2 leading-relaxed">
-              <span className="text-t3 font-medium">Description: </span>
-              {entry.notes}
-            </p>
+            <div className="pt-1.5 mt-1 rounded-md border border-bd bg-pg px-2.5 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-t3 mb-0.5">
+                Reason for revision
+              </p>
+              <p className="text-sm text-t1 leading-relaxed whitespace-pre-wrap">
+                {entry.notes}
+              </p>
+            </div>
           ) : entry.isOriginal ? null : (
-            <p className="text-t4 italic">No description recorded</p>
+            <p className="text-t4 italic text-xs">No reason recorded</p>
           )}
         </div>
 
@@ -202,12 +206,17 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFam
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+    const reason = notes.trim()
+    if (reason.length < 3) {
+      toast("Please explain why this revision is needed", "error")
+      return
+    }
     setSaving(true)
     try {
       const res = await fetch(`/api/jobs/${createFromId}/revisions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: notes.trim() || null }),
+        body: JSON.stringify({ notes: reason, description: reason }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
@@ -323,20 +332,32 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFam
                   </span>
                 </p>
                 <p className="text-[11px] text-t3">
-                  The parent job card stays the same. This becomes the current revision (status starts as New Request). Not billable by default — mark Chargeable if it should invoice separately.
+                  The parent job stays the same. This becomes the current revision (status starts as New Request). Not billable by default — mark Chargeable if it should invoice separately.
                 </p>
                 <div className="flex flex-col gap-1.5">
-                  <Label>Description (optional)</Label>
+                  <Label>
+                    Reason for revision<span className="text-dn ml-0.5">*</span>
+                  </Label>
+                  <p className="text-[11px] text-t4">
+                    What did the client request? Shown on the project timeline.
+                  </p>
                   <Textarea
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
-                    placeholder="e.g. Client requested loading changes"
-                    rows={2}
+                    placeholder="e.g. Client phoned — change bay spacing and add loading calcs"
+                    rows={3}
                     autoFocus
+                    required
                   />
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <Button type="submit" variant="primary" size="sm" loading={saving} disabled={saving}>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    loading={saving}
+                    disabled={saving || notes.trim().length < 3}
+                  >
                     {saving ? "Creating…" : `Create Rev ${family.nextRevisionLetter}`}
                   </Button>
                   <Button
