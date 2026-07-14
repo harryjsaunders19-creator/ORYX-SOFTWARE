@@ -14,12 +14,14 @@
  *   - the latest revision in the chain (e.g. Rev A to create Rev B).
  *
  * GET /api/jobs/[id]/revisions
- * Returns all child Job rows for this parent (ordered by revisionLetter).
+ * Returns the full revision family: original, child revisions, timeline chain,
+ * and canAddRevision flag. Back-compat `revisions` field preserved.
  */
 import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "../services/job-service"
 import { nextRevisionLetter, REVISION_LETTERS } from "@/lib/constants"
-import { canAddRevisionFrom, buildLatestRevisionMap, revisionParentId } from "@/lib/revision-chain"
+import { canAddRevisionFrom, buildRevisionFamilyIndex } from "@/lib/revision-chain"
+import { revisionFamilyService } from "../services/revision-family-service"
 import { createId } from "@paralleldrive/cuid2"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { defaultRequiredByDate } from "@/shared/utils/utils"
@@ -33,12 +35,19 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
-    const job = await jobService.findUnique(id)
-    if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const family = await revisionFamilyService.getForJob(id)
+    if (!family) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const parentId = revisionParentId(job)
-    const revisions = await jobService.revisionsForJob(parentId)
-    return NextResponse.json({ revisions })
+    // Back-compat: `revisions` kept for existing callers; `chain` is the full timeline.
+    return NextResponse.json({
+      parentId: family.parentId,
+      baseDrawingNumber: family.baseDrawingNumber,
+      original: family.original,
+      revisions: family.revisions,
+      chain: family.chain,
+      canAddRevision: family.canAddRevision,
+      nextRevisionLetter: family.nextRevisionLetter,
+    })
   } catch (err) {
     return apiInternalError("jobs.revisions.get", err)
   }
@@ -53,7 +62,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const source = await jobService.findUnique(id)
     if (!source) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const _parentId = revisionParentId(source)
     const parent = source.parentJobId
       ? await jobService.findUnique(source.parentJobId)
       : source
@@ -66,7 +74,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     }
 
     const existing = await jobService.revisionsForJob(parent.id)
-    const latestMap = buildLatestRevisionMap(existing)
+    const { latestByParent } = buildRevisionFamilyIndex(
+      existing.map(r => ({ id: r.id, parentJobId: r.parentJobId, revisionLetter: r.revisionLetter })),
+    )
+    const latestMap = latestByParent as Map<string, { id: string; parentJobId: string | null }>
 
     if (!canAddRevisionFrom(source, latestMap)) {
       const latest = existing.at(-1)

@@ -32,12 +32,8 @@ const StatusHistory = dynamic(
   () => import("@/components/status-history").then(m => m.StatusHistory),
   { ssr: false },
 )
-const RevisionsPanel = dynamic(
-  () => import("@/components/revisions-panel").then(m => m.RevisionsPanel),
-  { ssr: false },
-)
-const RevisionFamilyTrail = dynamic(
-  () => import("@/components/revision-family-trail").then(m => m.RevisionFamilyTrail),
+const RevisionHistory = dynamic(
+  () => import("@/components/revision-history").then(m => m.RevisionHistory),
   { ssr: false },
 )
 const JobForm = dynamic(
@@ -203,8 +199,8 @@ export default function JobDetailPage({
         <BackLink href="/jobs">All jobs</BackLink>
       )}
 
-      {/* Revision family — quick navigation across original + revisions */}
-      <RevisionFamilyTrail job={job} parentJob={parentJob} />
+      {/* Revision history — full family timeline, always at top */}
+      <RevisionHistory job={job} refreshKey={historyKey} />
 
       {isCancelled && (
         <div className="mb-4 rounded-lg border border-dn-bd bg-dn-bg px-4 py-3">
@@ -413,16 +409,6 @@ export default function JobDetailPage({
             <StatusHistory
               key={historyKey} jobId={job.id}
               onUpdate={() => setHistoryKey(k => k + 1)}
-            />
-          </DetailPanel>
-
-          {/* Revision chain — original and revision detail pages */}
-          <DetailPanel title={isRevision ? "Revision history" : "Revisions"}>
-            <RevisionsPanel
-              job={job}
-              onRevisionCreated={() => {
-                /* panel handles its own state; no page reload needed */
-              }}
             />
           </DetailPanel>
         </div>

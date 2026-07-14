@@ -56,4 +56,30 @@ export const historyService = {
     if (!useSupabaseStatusHistory()) return historyDb.recentForExport(limit)
     return supabaseStatusHistoryRepo.recentForExport(limit)
   },
+
+  /**
+   * First ISSUED transition per job — used for revision history "Issued by" lines.
+   * One bulk query when Supabase is enabled; SQLite loops locally.
+   */
+  async issuedByForJobs(
+    jobIds: string[],
+  ): Promise<Map<string, { changedBy: string; changedAt: string }>> {
+    const map = new Map<string, { changedBy: string; changedAt: string }>()
+    if (!jobIds.length) return map
+
+    if (useSupabaseStatusHistory()) {
+      const byJob = await supabaseStatusHistoryRepo.forJobs(jobIds)
+      for (const [jobId, rows] of byJob) {
+        const issued = rows.find(r => r.toStatus === "ISSUED")
+        if (issued) map.set(jobId, { changedBy: issued.changedBy, changedAt: issued.changedAt })
+      }
+      return map
+    }
+
+    for (const jobId of jobIds) {
+      const issued = historyDb.forJob(jobId).find(r => r.toStatus === "ISSUED")
+      if (issued) map.set(jobId, { changedBy: issued.changedBy, changedAt: issued.changedAt })
+    }
+    return map
+  },
 }
