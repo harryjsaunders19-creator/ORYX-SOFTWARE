@@ -194,15 +194,16 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
 
 async function fetchRevisionRowsForWhere(
   where: WhereClause = {},
-): Promise<{ id: string; parentJobId: string | null }[]> {
+): Promise<{ id: string; parentJobId: string | null; revisionLetter: string | null }[]> {
   const { data, error } = await applyWhere(
-    table().select("id, parent_job_id"),
+    table().select("id, parent_job_id, revision_letter"),
     where,
   ).not("parent_job_id", "is", null)
   if (error) throw error
-  return ((data ?? []) as { id: string; parent_job_id: string | null }[]).map(r => ({
+  return ((data ?? []) as { id: string; parent_job_id: string | null; revision_letter: string | null }[]).map(r => ({
     id: r.id,
     parentJobId: r.parent_job_id,
+    revisionLetter: r.revision_letter,
   }))
 }
 
@@ -210,7 +211,7 @@ async function fetchRevisionRowsForWhere(
 async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
   jobs: JobRow[]
   total: number
-  allForRevisions: { id: string; parentJobId: string | null }[]
+  allForRevisions: { id: string; parentJobId: string | null; revisionLetter: string | null }[]
 }> {
   const dir = opts.orderBy?.dir ?? "asc"
   const { data: sortData, count, error: sortErr } = await applyWhere(
@@ -264,7 +265,7 @@ async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
 async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
   jobs: JobRow[]
   total: number
-  allForRevisions: { id: string; parentJobId: string | null }[]
+  allForRevisions: { id: string; parentJobId: string | null; revisionLetter: string | null }[]
 }> {
   const dir = opts.orderBy?.dir ?? "asc"
   const asc = dir === "asc"
@@ -323,7 +324,8 @@ export const supabaseJobRepo = {
     }
     const { data, count, error } = await q
     if (error) throw error
-    return { jobs: ((data ?? []) as SupabaseJobRow[]).map(toJobRow), total: count ?? 0 }
+    const allForRevisions = await fetchRevisionRowsForWhere(opts.where)
+    return { jobs: ((data ?? []) as SupabaseJobRow[]).map(toJobRow), total: count ?? 0, allForRevisions }
   },
 
   async findMany(opts: FindManyOptions = {}): Promise<JobRow[]> {

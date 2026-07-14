@@ -11,10 +11,7 @@ import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
 import { MAX_JOB_LIST_EXPORT_ROWS } from "@/modules/import-export/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
-import {
-  buildLatestRevisionMap,
-  canAddRevisionFrom,
-} from "@/lib/revision-chain"
+import { enrichRevisionFamily } from "@/lib/revision-chain"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { apiInternalError } from "@/shared/api-errors"
@@ -22,17 +19,15 @@ import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 
 /**
- * Compute canAddRevision without an extra DB round trip.
- * `allJobs` is the full unsliced list (available when fetching all for sort);
- * falls back to the page slice which is safe when revisions are rare.
+ * Revision family flags (canAddRevision, counts, latest letter) without an extra DB round trip.
+ * `revisionRows` is all revision jobs matching the list filters when available.
  */
-function flagRevisions<T extends { id: string; parentJobId: string | null }>(
+function flagRevisions<T extends { id: string; parentJobId: string | null; revisionLetter?: string | null }>(
   pageJobs: T[],
-  allJobs?: T[],
-): (T & { canAddRevision: boolean })[] {
-  const source = allJobs ?? pageJobs
-  const latestMap = buildLatestRevisionMap(source.filter(j => j.parentJobId !== null))
-  return pageJobs.map(job => ({ ...job, canAddRevision: canAddRevisionFrom(job, latestMap) }))
+  revisionRows?: { id: string; parentJobId: string | null; revisionLetter?: string | null }[],
+): ReturnType<typeof enrichRevisionFamily<T>> {
+  const source = revisionRows ?? pageJobs.filter(j => j.parentJobId !== null)
+  return enrichRevisionFamily(pageJobs, source)
 }
 
 // Reference-number prefixes for non-drawing item types — sourced from WORK_ITEM_TYPES

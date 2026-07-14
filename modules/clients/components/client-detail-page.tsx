@@ -11,6 +11,7 @@ import { Label }             from "@/shared/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogBody } from "@/shared/ui/dialog"
 import { StatusBadge }       from "@/components/status-badge"
 import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
+import { RevisionFamilyBadge } from "@/components/revision-family-badge"
 import { useToast }          from "@/shared/ui/toast"
 import { useUser }           from "@/shared/providers/user-context"
 import { cn, formatGBP } from "@/shared/utils/utils"
@@ -442,7 +443,8 @@ function JobsTable({ jobs }: { jobs: Job[] }) {
           {jobs.map(j => (
             <tr key={j.id} className="border-b border-bd last:border-0 hover:bg-pg">
               <td className="px-3 py-2.5 whitespace-nowrap">
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                  <RevisionFamilyBadge job={j} size="xs" />
                   <Link href={`/jobs/${j.id}`} className="font-mono text-[11px] font-semibold text-ac hover:underline">
                     {j.drawingNumber}
                   </Link>

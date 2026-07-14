@@ -52,7 +52,7 @@ export const jobService = {
   async findManyWithCount(opts: FindManyOptions = {}): Promise<{
     jobs: JobRow[]
     total: number
-    allForRevisions?: { id: string; parentJobId: string | null }[]
+    allForRevisions?: { id: string; parentJobId: string | null; revisionLetter?: string | null }[]
   }> {
     return supabaseJobRepo.findManyWithCount(opts)
   },

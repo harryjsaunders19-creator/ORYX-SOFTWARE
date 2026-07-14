@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { format } from "date-fns"
 import dynamic from "next/dynamic"
-import { Pencil, Trash2, FileText, UserPlus, GitBranch, Clock, AlertOctagon, RotateCcw } from "lucide-react"
+import { Pencil, Trash2, FileText, UserPlus, Clock, AlertOctagon, RotateCcw } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
 import { Textarea } from "@/shared/ui/textarea"
@@ -34,6 +34,10 @@ const StatusHistory = dynamic(
 )
 const RevisionsPanel = dynamic(
   () => import("@/components/revisions-panel").then(m => m.RevisionsPanel),
+  { ssr: false },
+)
+const RevisionFamilyTrail = dynamic(
+  () => import("@/components/revision-family-trail").then(m => m.RevisionFamilyTrail),
   { ssr: false },
 )
 const JobForm = dynamic(
@@ -199,19 +203,8 @@ export default function JobDetailPage({
         <BackLink href="/jobs">All jobs</BackLink>
       )}
 
-      {/* Revision breadcrumb — only on revisions */}
-      {isRevision && parentJob && (
-        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-ac-bg rounded-md text-xs">
-          <GitBranch className="h-3.5 w-3.5 text-ac shrink-0" />
-          <span className="text-ach">
-            Revision of{" "}
-            <Link href={`/jobs/${parentJob.id}`} className="font-semibold font-mono hover:underline">
-              {parentJob.drawingNumber}
-            </Link>
-            {" "}· {parentJob.address}
-          </span>
-        </div>
-      )}
+      {/* Revision family — quick navigation across original + revisions */}
+      <RevisionFamilyTrail job={job} parentJob={parentJob} />
 
       {isCancelled && (
         <div className="mb-4 rounded-lg border border-dn-bd bg-dn-bg px-4 py-3">

@@ -105,14 +105,23 @@ export const jobService = {
   async findManyWithCount(opts: FindManyOptions = {}): Promise<{
     jobs: JobRow[]
     total: number
-    allForRevisions?: { id: string; parentJobId: string | null }[]
+    allForRevisions?: { id: string; parentJobId: string | null; revisionLetter?: string | null }[]
   }> {
     if (!useSupabaseJobs()) {
-      const [jobs, total] = await Promise.all([
+      const [jobs, total, revRows] = await Promise.all([
         jobDb.findMany(opts),
         jobDb.count(opts.where ?? {}),
+        jobDb.findMany({ where: { ...(opts.where ?? {}), onlyRevisions: true } }),
       ])
-      return { jobs, total }
+      return {
+        jobs,
+        total,
+        allForRevisions: revRows.map(r => ({
+          id: r.id,
+          parentJobId: r.parentJobId,
+          revisionLetter: r.revisionLetter,
+        })),
+      }
     }
     return supabaseJobRepo.findManyWithCount(opts)
   },

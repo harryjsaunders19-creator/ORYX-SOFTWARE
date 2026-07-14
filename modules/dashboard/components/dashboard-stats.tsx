@@ -2,6 +2,7 @@
 import { useMemo } from "react"
 import Link from "next/link"
 import { format, startOfWeek, endOfWeek } from "date-fns"
+import { RevisionFamilyBadge } from "@/components/revision-family-badge"
 import {
   MapPin, Video, Receipt, Briefcase,
   AlertOctagon, ClipboardCheck, AlertTriangle, Clock, RefreshCw,
@@ -144,7 +145,10 @@ export function DashboardStats({
                 return (
                   <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-low">
                     <div className="flex-1 min-w-0">
-                      <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <RevisionFamilyBadge job={job} size="xs" />
+                        <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
+                      </div>
                       <p className="text-[11px] text-t3 truncate mt-0.5">{job.address}</p>
                     </div>
                     <span className="text-[10px] font-semibold text-dn-tx shrink-0">{dl.label}</span>

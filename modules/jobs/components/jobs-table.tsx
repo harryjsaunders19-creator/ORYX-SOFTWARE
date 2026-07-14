@@ -43,6 +43,7 @@ import { cn, formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialVa
 import { ToolbarCard } from "@/shared/layouts/page-layout"
 import { notifyRevisionsChanged } from "@/lib/revision-events"
 import { revisionParentId } from "@/lib/revision-chain"
+import { RevisionFamilyBadge } from "@/components/revision-family-badge"
 import type { Job, JobFormData, JobsResponse, SortField, SortDir } from "@/lib/types"
 
 const LIMIT = 25
@@ -155,11 +156,7 @@ const JobMobileCard = memo(function JobMobileCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {job.revisionLetter && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-ac-bg text-ac shrink-0">
-                Rev {job.revisionLetter}
-              </span>
-            )}
+            <RevisionFamilyBadge job={job} />
             <span className="font-mono text-xs font-bold text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
@@ -240,12 +237,8 @@ const JobTableRow = memo(
         )}
       >
         <td className="px-4 py-3.5 whitespace-nowrap">
-          <span className="flex items-center gap-1.5">
-            {job.revisionLetter && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-ac-bg text-ac shrink-0">
-                Rev {job.revisionLetter}
-              </span>
-            )}
+          <span className="flex items-center gap-1.5 flex-wrap">
+            <RevisionFamilyBadge job={job} />
             <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />

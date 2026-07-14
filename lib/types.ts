@@ -33,6 +33,12 @@ export interface Job {
   archivedBy:      string | null
   /** List API only — true when this row is the revision anchor (original or latest rev). */
   canAddRevision?: boolean
+  /** List API only — revision family summary for cards and trails. */
+  hasRevisions?: boolean
+  revisionCount?: number
+  latestRevisionId?: string | null
+  latestRevisionLetter?: string | null
+  isLatestInChain?: boolean
   /** Set when archived — latest cancellation record from ArchiveLog. */
   cancelRecord?:    CancelRecord | null
   createdAt:       string
