@@ -1,6 +1,4 @@
-import fs from "fs"
 import { apiInternalError } from "@/shared/api-errors"
-
 import path from "path"
 import { NextRequest, NextResponse } from "next/server"
 import { createId } from "@paralleldrive/cuid2"
@@ -8,18 +6,55 @@ import { requireSignIn } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
 import { employeeDocumentDb } from "@/lib/db/stores"
 import {
-  employeeUserDir,
   safeEmployeeFilename,
+  writeEmployeeFile,
   DOC_MIME,
   MAX_DOC_BYTES,
+  canManageDocuments,
+  canUploadRestrictedDocuments,
+  canViewDocuments,
+  DOCUMENT_CATEGORIES,
+  type DocumentCategory,
+  type EmployeeDocumentRow,
 } from "@/modules/employees"
-import { canManageDocuments, canUploadRestrictedDocuments, canViewDocuments } from "@/modules/employees"
-import { DOCUMENT_CATEGORIES, type DocumentCategory } from "@/modules/employees"
+import { useSupabaseEmployees as employeesUseSupabase } from "@/lib/supabase/feature-flags"
+import { supabaseEmployeeRepo } from "@/modules/employees/supabase/repository"
+import { nowIso } from "@/lib/db/helpers"
+import { experimentalDisabledResponse } from "@/shared/experimental/experimental-features"
 
 type Ctx = { params: Promise<{ id: string }> }
 
+async function listDocuments(userId: string, includeRestricted: boolean): Promise<EmployeeDocumentRow[]> {
+  if (employeesUseSupabase()) {
+    return supabaseEmployeeRepo.findDocumentsByUser(userId, includeRestricted)
+  }
+  return employeeDocumentDb.findByUser(userId, includeRestricted)
+}
+
+async function createDocument(row: EmployeeDocumentRow): Promise<EmployeeDocumentRow> {
+  if (employeesUseSupabase()) {
+    await supabaseEmployeeRepo.upsertDocument(row)
+    return row
+  }
+  return employeeDocumentDb.create({
+    id: row.id,
+    userId: row.userId,
+    name: row.name,
+    category: row.category,
+    filePath: row.filePath,
+    mimeType: row.mimeType,
+    fileSize: row.fileSize,
+    restricted: row.restricted,
+    uploadedBy: row.uploadedBy,
+    uploadedByName: row.uploadedByName,
+  })
+}
+
 export async function GET(_req: NextRequest, ctx: Ctx) {
   try {
+    const disabled = experimentalDisabledResponse("employees")
+    if (disabled) return disabled
+
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
@@ -28,7 +63,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     const includeRestricted = canUploadRestrictedDocuments(access)
-    const documents = employeeDocumentDb.findByUser(id, includeRestricted)
+    const documents = await listDocuments(id, includeRestricted)
     return NextResponse.json({ documents })
   } catch (err) {
     return apiInternalError("employees.api.documents", err)
@@ -37,6 +72,9 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   try {
+    const disabled = experimentalDisabledResponse("employees")
+    if (disabled) return disabled
+
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
@@ -67,23 +105,31 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     }
 
     const ext = path.extname(file.name) || ".bin"
-    const filename = `${createId()}${ext}`
-    const dir = employeeUserDir(id)
-    const fullPath = path.join(dir, safeEmployeeFilename(filename))
-    fs.writeFileSync(fullPath, Buffer.from(await file.arrayBuffer()))
-    const relPath = path.join(".data", "employee-files", id, safeEmployeeFilename(filename)).replace(/\\/g, "/")
+    const filename = safeEmployeeFilename(`${createId()}${ext}`)
+    const storedPath = await writeEmployeeFile({
+      userId: id,
+      filename,
+      data: Buffer.from(await file.arrayBuffer()),
+      contentType: file.type,
+    })
 
-    const doc = employeeDocumentDb.create({
+    const docRow = {
       id: createId(),
       userId: id,
       name,
       category,
-      filePath: relPath,
+      filePath: storedPath,
       mimeType: file.type,
       fileSize: file.size,
       restricted: restricted ? 1 : 0,
       uploadedBy: auth.user.id,
       uploadedByName: auth.user.name,
+    }
+    const now = nowIso()
+    const doc = await createDocument({
+      ...docRow,
+      createdAt: now,
+      updatedAt: now,
     })
 
     await employeeService.logActivity(id, "DOCUMENT_UPLOADED", name, auth.user)

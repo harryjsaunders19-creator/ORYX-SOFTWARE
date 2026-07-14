@@ -2,8 +2,10 @@ import { NextResponse } from "next/server"
 
 /**
  * Experimental modules — off for production until HR/ops sign-off.
- * Keep `employees` / `leave` false on Vercel; code and migrations remain in-repo.
- * Set a flag to `true` only after verifying Supabase migrations 014–016.
+ * Employee file bytes now persist to Supabase Storage (`employee-files` bucket)
+ * when admin credentials are configured; turn `employees` on only after
+ * verifying migrations 014–016 + 028 and HR workflows.
+ * Keep `leave` false until leave is migrated off SQLite-first writes.
  */
 export const EXPERIMENTAL = {
   employees: false,

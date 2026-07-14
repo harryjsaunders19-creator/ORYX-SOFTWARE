@@ -1,5 +1,4 @@
-import fs from "fs"import { apiInternalError } from "@/shared/api-errors"
-
+import { apiInternalError } from "@/shared/api-errors"
 import path from "path"
 import { NextRequest, NextResponse } from "next/server"
 import { createId } from "@paralleldrive/cuid2"
@@ -7,24 +6,99 @@ import { requireSignIn } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
 import { employeeProfileDb } from "@/lib/db/stores"
 import {
-  employeeUserDir,
   safeEmployeeFilename,
-  resolveEmployeeFilePath,
+  writeEmployeeFile,
+  readEmployeeFile,
+  deleteEmployeeFile,
   PHOTO_MIME,
   MAX_PHOTO_BYTES,
   canViewEmployeePhoto,
+  canEditEmployeeField,
 } from "@/modules/employees"
-import { canEditEmployeeField } from "@/modules/employees"
 import { userService } from "@/lib/services/user-service"
+import { useSupabaseEmployees as employeesUseSupabase } from "@/lib/supabase/feature-flags"
+import { supabaseEmployeeRepo } from "@/modules/employees/supabase/repository"
+import type { EmployeeProfileRow } from "@/modules/employees/types/employee-types"
+import { nowIso } from "@/lib/db/helpers"
+import { experimentalDisabledResponse } from "@/shared/experimental/experimental-features"
 
 type Ctx = { params: Promise<{ id: string }> }
 
+async function loadProfile(userId: string): Promise<EmployeeProfileRow | null> {
+  if (employeesUseSupabase()) return supabaseEmployeeRepo.findProfile(userId)
+  return employeeProfileDb.findUnique(userId)
+}
+
+async function ensureProfile(userId: string): Promise<EmployeeProfileRow> {
+  if (employeesUseSupabase()) {
+    const existing = await supabaseEmployeeRepo.findProfile(userId)
+    if (existing) return existing
+    const now = nowIso()
+    const created: EmployeeProfileRow = {
+      userId,
+      employeeId: null,
+      profilePhotoPath: null,
+      firstName: null,
+      lastName: null,
+      preferredName: null,
+      phone: null,
+      mobile: null,
+      dateOfBirth: null,
+      gender: null,
+      nationality: null,
+      address: null,
+      city: null,
+      county: null,
+      postcode: null,
+      country: null,
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+      emergencyContactRelationship: null,
+      jobTitle: null,
+      department: null,
+      managerId: null,
+      officeLocation: null,
+      employmentType: "FULL_TIME",
+      employmentStatus: "ACTIVE",
+      startDate: null,
+      endDate: null,
+      probationEndDate: null,
+      workingHours: null,
+      salary: null,
+      annualLeaveAllowance: 25,
+      leaveTaken: 0,
+      createdAt: now,
+      updatedAt: now,
+    }
+    await supabaseEmployeeRepo.upsertProfile(created)
+    return created
+  }
+  return employeeProfileDb.ensure(userId)
+}
+
+async function setPhotoPath(userId: string, profilePhotoPath: string | null): Promise<void> {
+  if (employeesUseSupabase()) {
+    const profile = await ensureProfile(userId)
+    await supabaseEmployeeRepo.upsertProfile({
+      ...profile,
+      profilePhotoPath,
+      updatedAt: nowIso(),
+    })
+    return
+  }
+  employeeProfileDb.ensure(userId)
+  employeeProfileDb.update(userId, { profilePhotoPath })
+}
+
 export async function GET(_req: NextRequest, ctx: Ctx) {
   try {
+    const disabled = experimentalDisabledResponse("employees")
+    if (disabled) return disabled
+
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
-    const profile = employeeProfileDb.findUnique(id)
+    const profile = await loadProfile(id)
     if (!profile?.profilePhotoPath) {
       return NextResponse.json({ error: "No photo" }, { status: 404 })
     }
@@ -36,14 +110,13 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     })) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
-    const fullPath = resolveEmployeeFilePath(profile.profilePhotoPath)
-    if (!fullPath || !fs.existsSync(fullPath)) {
+    const buf = await readEmployeeFile(profile.profilePhotoPath)
+    if (!buf) {
       return NextResponse.json({ error: "File missing" }, { status: 404 })
     }
-    const ext = path.extname(fullPath).toLowerCase()
+    const ext = path.extname(profile.profilePhotoPath).toLowerCase()
     const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg"
-    const buf = fs.readFileSync(fullPath)
-    return new NextResponse(buf, {
+    return new NextResponse(new Uint8Array(buf), {
       headers: { "Content-Type": mime, "Cache-Control": "private, max-age=3600" },
     })
   } catch (err) {
@@ -53,6 +126,9 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   try {
+    const disabled = experimentalDisabledResponse("employees")
+    if (disabled) return disabled
+
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
@@ -74,26 +150,22 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     }
 
     const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg"
-    const filename = `photo-${createId()}.${ext}`
-    const dir = employeeUserDir(id)
-    const fullPath = path.join(dir, safeEmployeeFilename(filename))
+    const filename = safeEmployeeFilename(`photo-${createId()}.${ext}`)
     const buf = Buffer.from(await file.arrayBuffer())
-    fs.writeFileSync(fullPath, buf)
+    const storedPath = await writeEmployeeFile({
+      userId: id,
+      filename,
+      data: buf,
+      contentType: file.type,
+    })
 
-    const relPath = path.join(".data", "employee-files", id, safeEmployeeFilename(filename)).replace(/\\/g, "/")
-    employeeProfileDb.ensure(id)
-    const old = employeeProfileDb.findUnique(id)?.profilePhotoPath
-    employeeProfileDb.update(id, { profilePhotoPath: relPath })
-
-    if (old) {
-      const oldPath = resolveEmployeeFilePath(old)
-      if (oldPath && fs.existsSync(oldPath)) {
-        try { fs.unlinkSync(oldPath) } catch { /* ignore */ }
-      }
-    }
+    const profile = await ensureProfile(id)
+    const old = profile.profilePhotoPath
+    await setPhotoPath(id, storedPath)
+    if (old && old !== storedPath) await deleteEmployeeFile(old)
 
     await employeeService.logActivity(id, "PHOTO_UPLOADED", filename, auth.user)
-    return NextResponse.json({ profilePhotoPath: relPath })
+    return NextResponse.json({ profilePhotoPath: storedPath })
   } catch (err) {
     return apiInternalError("employees.api.photo", err)
   }
@@ -101,6 +173,9 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
   try {
+    const disabled = experimentalDisabledResponse("employees")
+    if (disabled) return disabled
+
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
@@ -108,12 +183,9 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     if (!canEditEmployeeField(access, "profilePhotoPath")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
-    const profile = employeeProfileDb.findUnique(id)
-    const photoPath = profile?.profilePhotoPath ? resolveEmployeeFilePath(profile.profilePhotoPath) : null
-    if (photoPath && fs.existsSync(photoPath)) {
-      fs.unlinkSync(photoPath)
-    }
-    employeeProfileDb.update(id, { profilePhotoPath: null })
+    const profile = await loadProfile(id)
+    await deleteEmployeeFile(profile?.profilePhotoPath)
+    await setPhotoPath(id, null)
     await employeeService.logActivity(id, "PHOTO_REMOVED", null, auth.user)
     return NextResponse.json({ ok: true })
   } catch (err) {

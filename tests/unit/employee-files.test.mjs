@@ -4,7 +4,12 @@ import { createRequire } from "node:module"
 import path from "node:path"
 
 const require = createRequire(import.meta.url)
-const { resolveEmployeeFilePath } = require("../../modules/employees/services/employee-files.ts")
+const {
+  resolveEmployeeFilePath,
+  isEmployeeObjectKey,
+  employeeObjectKey,
+  safeEmployeeFilename,
+} = require("../../modules/employees/services/employee-files.ts")
 
 describe("resolveEmployeeFilePath", () => {
   const root = path.join(process.cwd(), ".data", "employee-files")
@@ -27,5 +32,22 @@ describe("resolveEmployeeFilePath", () => {
 
   it("rejects empty paths", () => {
     assert.equal(resolveEmployeeFilePath(""), null)
+  })
+
+  it("does not treat storage object keys as local paths", () => {
+    assert.equal(resolveEmployeeFilePath("employees/user-1/photo.jpg"), null)
+  })
+})
+
+describe("employee object keys", () => {
+  it("builds and detects storage keys", () => {
+    const key = employeeObjectKey("user-1", "photo.jpg")
+    assert.equal(key, "employees/user-1/photo.jpg")
+    assert.equal(isEmployeeObjectKey(key), true)
+    assert.equal(isEmployeeObjectKey(".data/employee-files/user-1/photo.jpg"), false)
+  })
+
+  it("sanitizes filenames", () => {
+    assert.equal(safeEmployeeFilename("../a b.png"), ".._a_b.png")
   })
 })

@@ -120,7 +120,7 @@ Local SQLite backups **do not run** when Supabase is the data store. Use Supabas
 
 ### Experimental modules (off in production)
 
-Employees and Leave are gated by `shared/experimental/experimental-features.ts` (`employees` / `leave` = `false`). Nav, pages, and APIs stay in the repo but return 404 / stay hidden until those flags are flipped. Do not enable on production without HR review and Supabase migrations 014–016 verified.
+Employees and Leave are gated by `shared/experimental/experimental-features.ts` (`employees` / `leave` = `false`). Nav, pages, and APIs stay in the repo but return 404 / stay hidden until those flags are flipped. Employee photos/documents now write to the private Supabase Storage bucket `employee-files` (migration `028`) when Supabase admin is configured — still keep `employees` false until HR review and migrations 014–016 + 028 are verified.
 
 ### Production checklist (Vercel)
 

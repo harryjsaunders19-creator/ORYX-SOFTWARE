@@ -200,10 +200,9 @@ async function fetchRevisionRowsForWhere(
     where,
   ).not("parent_job_id", "is", null)
   if (error) throw error
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((r: any) => ({
-    id: r.id as string,
-    parentJobId: r.parent_job_id as string | null,
+  return ((data ?? []) as { id: string; parent_job_id: string | null }[]).map(r => ({
+    id: r.id,
+    parentJobId: r.parent_job_id,
   }))
 }
 
@@ -226,13 +225,19 @@ async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
   }
 
   type SortRow = { id: string; drawingNumber: string; parentJobId: string | null; revisionLetter: string | null; createdAt: string }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const allSortRows: SortRow[] = (sortData ?? []).map((r: any) => ({
-    id:             r.id              as string,
-    drawingNumber:  r.drawing_number  as string,
-    parentJobId:    r.parent_job_id   as string | null,
-    revisionLetter: r.revision_letter as string | null,
-    createdAt:      r.created_at      as string,
+  type SortDbRow = {
+    id: string
+    drawing_number: string
+    parent_job_id: string | null
+    revision_letter: string | null
+    created_at: string
+  }
+  const allSortRows: SortRow[] = ((sortData ?? []) as SortDbRow[]).map(r => ({
+    id:             r.id,
+    drawingNumber:  r.drawing_number,
+    parentJobId:    r.parent_job_id,
+    revisionLetter: r.revision_letter,
+    createdAt:      r.created_at,
   }))
 
   const sorted  = sortJobsForList<SortRow>(allSortRows, dir)
@@ -247,8 +252,9 @@ async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
   const { data: pageData, error: pageErr } = await table().select(JOB_LIST_SELECT).in("id", pageIds)
   if (pageErr) throw pageErr
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const byId = new Map((pageData ?? []).map((r: any) => [r.id as string, toJobRow(r as SupabaseJobRow)]))
+  const byId = new Map(
+    ((pageData ?? []) as unknown as SupabaseJobRow[]).map(r => [r.id, toJobRow(r)]),
+  )
   const jobs = pageIds.map(id => byId.get(id)).filter((r): r is JobRow => r != null)
 
   return { jobs, total: count ?? allSortRows.length, allForRevisions: allSortRows }
@@ -278,8 +284,11 @@ async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
     throw error
   }
   const allForRevisions = await fetchRevisionRowsForWhere(opts.where)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return { jobs: (data ?? []).map((r: any) => toJobRow(r as SupabaseJobRow)), total: count ?? 0, allForRevisions }
+  return {
+    jobs: ((data ?? []) as SupabaseJobRow[]).map(toJobRow),
+    total: count ?? 0,
+    allForRevisions,
+  }
 }
 
 export const supabaseJobRepo = {
@@ -314,8 +323,7 @@ export const supabaseJobRepo = {
     }
     const { data, count, error } = await q
     if (error) throw error
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return { jobs: (data ?? []).map((r: any) => toJobRow(r as SupabaseJobRow)), total: count ?? 0 }
+    return { jobs: ((data ?? []) as SupabaseJobRow[]).map(toJobRow), total: count ?? 0 }
   },
 
   async findMany(opts: FindManyOptions = {}): Promise<JobRow[]> {
@@ -346,13 +354,18 @@ export const supabaseJobRepo = {
       }
       throw error
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data ?? []).map((r: any) => ({
-      status: r.status as string,
-      itemType: r.item_type as string,
+    return ((data ?? []) as {
+      status: string
+      item_type: string
+      quote_value: number | string | null
+      date_created: string
+      date_completed: string | null
+    }[]).map(r => ({
+      status: r.status,
+      itemType: r.item_type,
       quoteValue: r.quote_value != null ? Number(r.quote_value) : null,
-      dateCreated: r.date_created as string,
-      dateCompleted: (r.date_completed as string | null) ?? null,
+      dateCreated: r.date_created,
+      dateCompleted: r.date_completed ?? null,
     }))
   },
 
@@ -690,8 +703,7 @@ export const supabaseJobRepo = {
         .limit(take))
     }
     if (error) throw error
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data ?? []).map((r: any) => toJobRow(r as SupabaseJobRow))
+    return ((data ?? []) as SupabaseJobRow[]).map(toJobRow)
   },
 
   /** Dashboard overdue strip — slim columns, capped. */
@@ -701,8 +713,7 @@ export const supabaseJobRepo = {
       .limit(take)
     const { data, error } = await q
     if (error) throw error
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data ?? []).map((r: any) => toJobRow(r as SupabaseJobRow))
+    return ((data ?? []) as SupabaseJobRow[]).map(toJobRow)
   },
 
   async sumQuoteValue(where: WhereClause = {}): Promise<number> {

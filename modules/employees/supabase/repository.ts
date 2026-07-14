@@ -87,6 +87,12 @@ export const supabaseEmployeeRepo = {
     return (data ?? []).map(toEmployeeSkillRow)
   },
 
+  async findDocument(id: string): Promise<EmployeeDocumentRow | null> {
+    const { data, error } = await documents().select("*").eq("id", id).maybeSingle()
+    if (error) throw error
+    return data ? toEmployeeDocumentRow(data) : null
+  },
+
   async upsertDocument(row: EmployeeDocumentRow): Promise<void> {
     const { error } = await documents().upsert(toSupabaseEmployeeDocumentRow(row), { onConflict: "id" })
     if (error) throw error
