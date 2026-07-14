@@ -6,8 +6,12 @@ import { JOB_STATUSES } from "@/lib/constants"
 import { StatusBadge } from "@/components/status-badge"
 import { useToast }    from "@/components/ui/toast"
 
-export function StatusWorkflow({ jobId, currentStatus, onStatusChange }: {
-  jobId: string; currentStatus: string; onStatusChange: (s: string) => void
+export function StatusWorkflow({ jobId, currentStatus, onStatusChange, patchUrl }: {
+  jobId: string
+  currentStatus: string
+  onStatusChange: (s: string) => void
+  /** Override default PATCH /api/jobs/:id — used by work-items model. */
+  patchUrl?: string
 }) {
   const { toast }    = useToast()
   const [busy, setBusy] = useState<string | null>(null)
@@ -18,7 +22,7 @@ export function StatusWorkflow({ jobId, currentStatus, onStatusChange }: {
     if (next === currentStatus || busy) return
     setBusy(next)
     try {
-      const res = await fetch(`/api/jobs/${jobId}`, {
+      const res = await fetch(patchUrl ?? `/api/jobs/${jobId}`, {
         method:  "PATCH",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ status: next }),

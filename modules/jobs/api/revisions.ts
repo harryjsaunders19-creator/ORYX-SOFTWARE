@@ -1,22 +1,3 @@
-/**
- * POST /api/jobs/[id]/revisions
- *
- * Creates a new revision of the given job.
- * The revision is a first-class Job row with:
- *   parentJobId    = parent job's id
- *   revisionLetter = next available letter (A, B, C …)
- *   drawingNumber  = "<parent drawingNumber> Rev <letter>"
- *   status         = NEW_REQUEST
- *   designer       = "" (unassigned)
- *
- * POST target must be the revision anchor:
- *   - the original job when no revisions exist yet, OR
- *   - the latest revision in the chain (e.g. Rev A to create Rev B).
- *
- * GET /api/jobs/[id]/revisions
- * Returns the full revision family: original, child revisions, timeline chain,
- * and canAddRevision flag. Back-compat `revisions` field preserved.
- */
 import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "../services/job-service"
 import { nextRevisionLetter, REVISION_LETTERS } from "@/lib/constants"
@@ -26,8 +7,17 @@ import { createId } from "@paralleldrive/cuid2"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { defaultRequiredByDate } from "@/shared/utils/utils"
 import { apiInternalError } from "@/shared/api-errors"
+import { useWorkItemsModel } from "@/lib/supabase/feature-flags"
+import { parentJobService, workItemService } from "../services/parent-work-item-service"
 
 type Ctx = { params: Promise<{ id: string }> }
+
+async function resolveParentIdForWorkItems(id: string): Promise<string | null> {
+  const dash = await parentJobService.getDashboard(id)
+  if (dash) return dash.parent.id
+  const wi = await workItemService.findUnique(id)
+  return wi?.parentJobId ?? null
+}
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
@@ -35,10 +25,43 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
+
+    if (useWorkItemsModel()) {
+      const parentId = await resolveParentIdForWorkItems(id)
+      if (!parentId) return NextResponse.json({ error: "Not found" }, { status: 404 })
+      const dash = await parentJobService.getDashboard(parentId)
+      if (!dash) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+      const chain = dash.workItems.map(w => ({
+        id: w.id,
+        drawingNumber: dash.parent.drawingNumber,
+        revisionLetter: w.revisionLetter,
+        isOriginal: w.workType === "ORIGINAL",
+        isCurrent: dash.currentActive?.id === w.id,
+        title: w.title,
+        dateCreated: w.dateCreated,
+        notes: w.notes ?? w.description,
+        status: w.status,
+        designer: w.designer,
+        issuedBy: null,
+        issuedAt: w.completedAt,
+        billable: w.billable,
+      }))
+
+      return NextResponse.json({
+        parentId: dash.parent.id,
+        baseDrawingNumber: dash.parent.drawingNumber,
+        original: dash.workItems.find(w => w.workType === "ORIGINAL") ?? null,
+        revisions: dash.workItems.filter(w => w.workType === "REVISION"),
+        chain,
+        canAddRevision: dash.canAddRevision,
+        nextRevisionLetter: dash.nextRevisionLetter,
+      })
+    }
+
     const family = await revisionFamilyService.getForJob(id)
     if (!family) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    // Back-compat: `revisions` kept for existing callers; `chain` is the full timeline.
     return NextResponse.json({
       parentId: family.parentId,
       baseDrawingNumber: family.baseDrawingNumber,
@@ -59,6 +82,32 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
+    let body: Record<string, unknown> = {}
+    try { body = await req.json() } catch { /* body is optional */ }
+
+    if (useWorkItemsModel()) {
+      const parentId = await resolveParentIdForWorkItems(id)
+      if (!parentId) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+      try {
+        const item = await parentJobService.createRevision(parentId, {
+          description: body.notes ? String(body.notes).trim() : (body.description ? String(body.description).trim() : null),
+          billable: body.billable === true || body.billable === "true",
+          designer: typeof body.designer === "string" ? body.designer : "",
+          priority: typeof body.priority === "string" ? body.priority : null,
+          notes: body.notes ? String(body.notes).trim() : null,
+          changedBy: actorName(auth.user),
+        })
+        return NextResponse.json(item, { status: 201 })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed to create revision"
+        if (/not found|Cannot add/i.test(msg)) {
+          return NextResponse.json({ error: msg }, { status: 400 })
+        }
+        throw err
+      }
+    }
+
     const source = await jobService.findUnique(id)
     if (!source) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
@@ -90,9 +139,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         { status: 422 },
       )
     }
-
-    let body: Record<string, unknown> = {}
-    try { body = await req.json() } catch { /* body is optional */ }
 
     const usedLetters = existing.map(r => r.revisionLetter).filter(Boolean) as string[]
 

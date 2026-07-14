@@ -44,6 +44,7 @@ export function supabaseModuleFlags() {
     leave:          useSupabaseLeave(),
     passwordVault:  useSupabasePasswordVault(),
     siteVisitCalculations: useSupabaseSiteVisitCalculations(),
+    workItems:          useWorkItemsModel(),
   }
 }
 
@@ -109,4 +110,15 @@ export function useSupabaseSiteVisitCalculations(): boolean {
  */
 export function isSupabaseOnly(): boolean {
   return isSupabaseAdminConfigured()
+}
+
+/**
+ * Phase 2+ — read/write design projects via parent_jobs + work_items.
+ * Phase 1 only creates schema and backfills; app keeps using jobs table until enabled.
+ */
+export function useWorkItemsModel(): boolean {
+  if (!isSupabaseAdminConfigured()) {
+    return process.env.WORK_ITEMS_MODEL?.trim().toLowerCase() === "true"
+  }
+  return process.env.WORK_ITEMS_MODEL?.trim().toLowerCase() === "true"
 }

@@ -52,6 +52,17 @@ export const SUPABASE_MIGRATION_MODULES: SupabaseModuleSpec[] = [
     dependsOn: ["clients"],
   },
   {
+    id: "workItems",
+    label: "Parent jobs + work items",
+    flagKey: "workItems",
+    envVar: "WORK_ITEMS_MODEL",
+    migration: "030_parent_jobs_work_items.sql",
+    syncScript: "npm run supabase:sync-work-items",
+    verifyScript: "npm run verify:work-items",
+    tables: ["parent_jobs", "work_items", "work_item_id_map"],
+    dependsOn: ["jobs", "statusHistory", "billing"],
+  },
+  {
     id: "statusHistory",
     label: "Status history",
     flagKey: "statusHistory",

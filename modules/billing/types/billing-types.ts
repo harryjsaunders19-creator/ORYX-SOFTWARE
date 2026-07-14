@@ -3,6 +3,8 @@
 export interface BillingHandoffRow {
   id: string
   sourceJobId: string
+  /** Present when WORK_ITEMS_MODEL created the handoff from a work item. */
+  sourceWorkItemId?: string | null
   billingEventType: string
   drawingNumber: string
   itemType: string

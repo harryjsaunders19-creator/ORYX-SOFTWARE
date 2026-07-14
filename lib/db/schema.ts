@@ -773,6 +773,117 @@ try {
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_status_archived ON Job(status, archivedAt)")
 })()
 
+// 2c. Parent jobs + work items (design project redesign — Phase 1 schema)
+;(function ensureWorkItemsSchema() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ParentJob (
+      id                      TEXT PRIMARY KEY,
+      drawingNumber           TEXT UNIQUE NOT NULL,
+      clientId                TEXT REFERENCES Client(id) ON DELETE SET NULL,
+      clientCompany           TEXT NOT NULL,
+      siteName                TEXT,
+      siteAddress             TEXT,
+      address                 TEXT NOT NULL,
+      typeOfWorks             TEXT NOT NULL,
+      customTypeDescription   TEXT,
+      legacyTypeOfWorks       TEXT,
+      description             TEXT,
+      requestedBy             TEXT NOT NULL,
+      itemType                TEXT NOT NULL DEFAULT 'DESIGN',
+      archivedAt              TEXT,
+      archivedBy              TEXT,
+      latitude                REAL,
+      longitude               REAL,
+      geocodedAt              TEXT,
+      geocodedAddress         TEXT,
+      locationStatus          TEXT,
+      locationSource          TEXT,
+      legacyJobId             TEXT UNIQUE NOT NULL,
+      migratedAt              TEXT NOT NULL,
+      createdAt               TEXT NOT NULL,
+      updatedAt               TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_parentjob_clientid ON ParentJob(clientId);
+    CREATE INDEX IF NOT EXISTS idx_parentjob_client ON ParentJob(clientCompany);
+    CREATE INDEX IF NOT EXISTS idx_parentjob_archived ON ParentJob(archivedAt);
+    CREATE INDEX IF NOT EXISTS idx_parentjob_created ON ParentJob(createdAt);
+
+    CREATE TABLE IF NOT EXISTS WorkItem (
+      id                      TEXT PRIMARY KEY,
+      parentJobId             TEXT NOT NULL REFERENCES ParentJob(id) ON DELETE RESTRICT,
+      workType                TEXT NOT NULL,
+      revisionLetter          TEXT,
+      title                   TEXT NOT NULL,
+      description             TEXT,
+      status                  TEXT NOT NULL DEFAULT 'NEW_REQUEST',
+      designer                TEXT NOT NULL DEFAULT '',
+      priority                TEXT,
+      billable                INTEGER NOT NULL DEFAULT 1,
+      requestedDate           TEXT,
+      requiredByDate          TEXT,
+      notes                   TEXT,
+      commercialNotes         TEXT,
+      quoteValue              REAL,
+      quoteReference          TEXT,
+      quoteDate               TEXT,
+      variationFees           REAL,
+      additionalCharges       REAL,
+      invoiceStatus           TEXT NOT NULL DEFAULT 'NONE',
+      invoiceNumber           TEXT,
+      invoiceDate             TEXT,
+      billedValue             REAL,
+      dateCreated             TEXT NOT NULL,
+      completedAt             TEXT,
+      legacyJobId             TEXT,
+      migratedAt              TEXT NOT NULL,
+      createdAt               TEXT NOT NULL,
+      updatedAt               TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_workitem_one_original
+      ON WorkItem(parentJobId) WHERE workType = 'ORIGINAL';
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_workitem_revision_letter
+      ON WorkItem(parentJobId, revisionLetter) WHERE workType = 'REVISION' AND revisionLetter IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_workitem_parent ON WorkItem(parentJobId);
+    CREATE INDEX IF NOT EXISTS idx_workitem_status ON WorkItem(status);
+    CREATE INDEX IF NOT EXISTS idx_workitem_designer_status ON WorkItem(designer, status);
+    CREATE INDEX IF NOT EXISTS idx_workitem_legacy ON WorkItem(legacyJobId);
+    CREATE INDEX IF NOT EXISTS idx_workitem_invoice ON WorkItem(invoiceStatus);
+
+    CREATE TABLE IF NOT EXISTS WorkItemIdMap (
+      legacyJobId   TEXT PRIMARY KEY,
+      workItemId    TEXT NOT NULL REFERENCES WorkItem(id) ON DELETE CASCADE,
+      parentJobId   TEXT NOT NULL REFERENCES ParentJob(id) ON DELETE CASCADE,
+      migratedAt    TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_workitemmap_workitem ON WorkItemIdMap(workItemId);
+    CREATE INDEX IF NOT EXISTS idx_workitemmap_parent ON WorkItemIdMap(parentJobId);
+  `)
+
+  const addCol = (table: string, col: string, def: string) => {
+    const exists = (db.prepare(
+      "SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND name=?",
+    ).get(table) as { n: number }).n > 0
+    if (!exists) return
+    const cols = new Set(
+      (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map(c => c.name),
+    )
+    if (!cols.has(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`)
+  }
+
+  addCol("StatusHistory", "workItemId", "TEXT REFERENCES WorkItem(id) ON DELETE CASCADE")
+  addCol("BillingHandoff", "sourceWorkItemId", "TEXT REFERENCES WorkItem(id)")
+  addCol("Quote", "parentJobId", "TEXT REFERENCES ParentJob(id) ON DELETE SET NULL")
+  addCol("CalendarEvent", "workItemId", "TEXT REFERENCES WorkItem(id) ON DELETE SET NULL")
+
+  db.exec("CREATE INDEX IF NOT EXISTS idx_history_workitem ON StatusHistory(workItemId)")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_handoff_workitem ON BillingHandoff(sourceWorkItemId)")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_quote_parentjob ON Quote(parentJobId)")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_calendar_workitem ON CalendarEvent(workItemId)")
+})()
+
 // 2b. Add columns to Quote that may be missing on existing databases
 ;(function addMissingQuoteColumns() {
   const tableExists = (db.prepare(

@@ -7,6 +7,15 @@ function table() {
 }
 
 export const supabaseStatusHistoryRepo = {
+  async forWorkItem(workItemId: string): Promise<StatusHistoryRow[]> {
+    const { data, error } = await table()
+      .select("*")
+      .eq("work_item_id", workItemId)
+      .order("changed_at", { ascending: true })
+    if (error) throw error
+    return (data ?? []).map(toStatusHistoryRow)
+  },
+
   async forJob(jobId: string): Promise<StatusHistoryRow[]> {
     const { data, error } = await table()
       .select("*")
@@ -28,6 +37,7 @@ export const supabaseStatusHistoryRepo = {
     if (error) throw error
     for (const row of data ?? []) {
       const history = toStatusHistoryRow(row)
+      if (!history.jobId) continue
       const list = map.get(history.jobId) ?? []
       list.push(history)
       map.set(history.jobId, list)

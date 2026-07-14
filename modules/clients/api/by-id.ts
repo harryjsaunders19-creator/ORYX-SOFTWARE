@@ -5,6 +5,7 @@ import { canViewCommercialValues, canViewClientAnalytics } from "@/shared/auth/p
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { apiInternalError } from "@/shared/api-errors"
 import { parseContactsFromBody } from "./parse-contacts"
+import { useWorkItemsModel } from "@/lib/supabase/feature-flags"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -18,7 +19,81 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 })
     const contacts = await clientService.contactsForClient(id)
     const role = auth.user.role as import("@/shared/auth/permissions").Role
-    const jobs = await clientService.jobsForClient(id, 50)
+    let jobs = await clientService.jobsForClient(id, 50)
+
+    if (useWorkItemsModel()) {
+      try {
+        const { supabaseParentJobRepo } = await import("@/modules/jobs/supabase/parent-job-repository")
+        const { supabaseWorkItemRepo } = await import("@/modules/jobs/supabase/work-item-repository")
+        const { rows: parents } = await supabaseParentJobRepo.findMany({
+          clientId: id,
+          take: 50,
+        })
+        const enriched = await Promise.all(parents.map(async p => {
+          const items = await supabaseWorkItemRepo.findByParent(p.id)
+          const current = [...items]
+            .filter(w => w.status !== "ISSUED")
+            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+            ?? items[items.length - 1]
+          const revisionCount = items.filter(w => w.workType === "REVISION").length
+          return {
+            id: p.id,
+            drawingNumber: p.drawingNumber,
+            itemType: "DESIGN",
+            address: p.address,
+            siteName: p.siteName,
+            siteAddress: p.siteAddress,
+            typeOfWorks: p.typeOfWorks,
+            customTypeDescription: p.customTypeDescription,
+            legacyTypeOfWorks: p.legacyTypeOfWorks,
+            clientCompany: p.clientCompany,
+            clientId: p.clientId,
+            requestedBy: p.requestedBy,
+            status: current?.status ?? "NEW_REQUEST",
+            designer: current?.designer ?? "",
+            dateCreated: p.createdAt,
+            dateCompleted: current?.completedAt ?? null,
+            notes: p.description,
+            quoteValue: current?.quoteValue ?? null,
+            quoteReference: current?.quoteReference ?? null,
+            quoteDate: current?.quoteDate ?? null,
+            commercialNotes: current?.commercialNotes ?? null,
+            variationFees: current?.variationFees ?? null,
+            additionalCharges: current?.additionalCharges ?? null,
+            invoiceId: current?.invoiceNumber ?? null,
+            billingStatus: current?.invoiceStatus ?? null,
+            billingBatchId: null,
+            requestedDate: current?.requestedDate ?? null,
+            requiredByDate: current?.requiredByDate ?? null,
+            parentJobId: null,
+            revisionLetter: current?.revisionLetter ?? null,
+            billable: current?.billable ?? true,
+            archivedAt: p.archivedAt,
+            archivedBy: p.archivedBy,
+            latitude: p.latitude,
+            longitude: p.longitude,
+            geocodedAt: p.geocodedAt,
+            geocodedAddress: p.geocodedAddress,
+            locationStatus: p.locationStatus,
+            locationSource: p.locationSource,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+            hasRevisions: revisionCount > 0,
+            revisionCount,
+            currentRevisionId: current?.id ?? null,
+            currentRevisionLetter: current?.revisionLetter ?? null,
+          }
+        }))
+
+        // Keep non-design / non-migrated jobs from legacy table
+        const legacyNonDesign = jobs.filter(j =>
+          j.parentJobId == null && j.itemType !== "DESIGN" && j.itemType !== "REVISION",
+        )
+        jobs = [...enriched, ...legacyNonDesign] as typeof jobs
+      } catch (err) {
+        console.warn("[clients.by_id] work-items enrichment failed:", err)
+      }
+    }
 
     // Engineers see the client and their jobs but no aggregate stats
     if (!canViewClientAnalytics(role)) {

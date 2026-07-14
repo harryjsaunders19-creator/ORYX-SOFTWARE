@@ -11,7 +11,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
-import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { isSupabaseOnly, useWorkItemsModel } from "@/lib/supabase/feature-flags"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
@@ -19,6 +19,8 @@ import { resolveWorksFromQuote } from "../convert-works"
 import { validateQuoteForConvert, quoteConvertHoldResponse } from "../convert-validate"
 import { logError, logEvent } from "@/shared/logger"
 import { apiInternalError } from "@/shared/api-errors"
+import { parentJobService } from "@/modules/jobs/services/parent-work-item-service"
+import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -57,11 +59,68 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     }
 
     const jobId = createId()
+    const drawingNumber = await allocateDrawingNumberAsync()
+    const address = quote!.address?.trim() || "Address TBC"
+
+    if (useWorkItemsModel()) {
+      const dashboard = await parentJobService.createWithOriginal({
+        id: jobId,
+        drawingNumber,
+        address,
+        siteName: null,
+        siteAddress: address,
+        typeOfWorks: works.typeOfWorks,
+        customTypeDescription: works.customTypeDescription,
+        clientCompany: quote!.clientCompany,
+        clientId: quote!.clientId ?? null,
+        requestedBy: quote!.contactName ?? quote!.clientCompany,
+        designer,
+        notes: quote!.notes ?? null,
+        quoteValue: quote!.quoteValue,
+        quoteReference: quote!.quoteNumber,
+        quoteDate: quote!.quoteDate,
+        requiredByDate,
+        changedBy,
+      })
+
+      const updatedQuote = await quoteService.linkToJob(id, dashboard.parent.id)
+      if (!updatedQuote) {
+        logError("quote.convert.link_failed", new Error("quote link failed"), { quoteId: id, jobId })
+        return NextResponse.json({ error: "Failed to link quote to job" }, { status: 500 })
+      }
+
+      // Best-effort: also set parent_job_id on the quote when column exists
+      try {
+        const { createAdminClient } = await import("@/lib/supabase/admin")
+        await createAdminClient()
+          .from("quotes")
+          .update({ parent_job_id: dashboard.parent.id })
+          .eq("id", id)
+      } catch { /* optional column */ }
+
+      logEvent("quote.convert.success", {
+        quoteId: id,
+        jobId: dashboard.parent.id,
+        drawingNumber: dashboard.parent.drawingNumber,
+        model: "work_items",
+      })
+      return NextResponse.json({
+        job: {
+          id: dashboard.parent.id,
+          drawingNumber: dashboard.parent.drawingNumber,
+          status: dashboard.currentActive?.status ?? "NEW_REQUEST",
+        },
+        parent: dashboard.parent,
+        workItem: dashboard.workItems.find(w => w.workType === "ORIGINAL") ?? null,
+        quote: updatedQuote,
+      }, { status: 201 })
+    }
+
     const job = await jobService.create({
       id:             jobId,
-      drawingNumber:  await allocateDrawingNumberAsync(),
+      drawingNumber,
       itemType:       "DESIGN",
-      address:        quote!.address?.trim() || "Address TBC",
+      address:        composeJobAddress(null, address) || address,
       typeOfWorks:           works.typeOfWorks,
       customTypeDescription: works.customTypeDescription,
       clientCompany:  quote!.clientCompany,

@@ -7,7 +7,8 @@ import type { AccountsHandoverSnapshot } from "@/lib/db/stores"
 
 export interface SupabaseBillingHandoffRow {
   id: string
-  source_job_id: string
+  source_job_id: string | null
+  source_work_item_id?: string | null
   billing_event_type: string
   drawing_number: string
   item_type: string
@@ -54,7 +55,8 @@ function dateOnly(val: string | null | undefined): string | null {
 export function toBillingHandoffRow(row: SupabaseBillingHandoffRow): BillingHandoffRow {
   return {
     id: row.id,
-    sourceJobId: row.source_job_id,
+    sourceJobId: row.source_job_id ?? row.source_work_item_id ?? "",
+    sourceWorkItemId: row.source_work_item_id ?? null,
     billingEventType: row.billing_event_type,
     drawingNumber: row.drawing_number,
     itemType: row.item_type,
@@ -79,7 +81,8 @@ export function toBillingHandoffRow(row: SupabaseBillingHandoffRow): BillingHand
 export function toSupabaseBillingHandoffRow(row: BillingHandoffRow): SupabaseBillingHandoffRow {
   return {
     id: row.id,
-    source_job_id: row.sourceJobId,
+    source_job_id: row.sourceJobId || null,
+    source_work_item_id: row.sourceWorkItemId ?? null,
     billing_event_type: row.billingEventType,
     drawing_number: row.drawingNumber,
     item_type: row.itemType,

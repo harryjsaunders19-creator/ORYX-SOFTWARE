@@ -146,6 +146,7 @@ export async function buildAccountsHandoverSnapshotAsync(
 /**
  * Batch-build accounts handover snapshots for many handoffs.
  * Loads jobs, clients, status history, quotes, and revisions in bulk — no per-handoff N+1.
+ * When handoffs reference work items, also loads parent work-item revision history.
  */
 export async function buildAccountsHandoverSnapshotsBatch(
   handoffs: BillingHandoffRow[],
@@ -153,27 +154,84 @@ export async function buildAccountsHandoverSnapshotsBatch(
   if (!handoffs.length) return []
 
   const jobIds = [...new Set(handoffs.map(h => h.sourceJobId).filter(Boolean))]
+  const workItemIds = [...new Set(
+    handoffs.map(h => h.sourceWorkItemId).filter((id): id is string => !!id),
+  )]
+
   const jobs = await supabaseJobRepo.findManyByIds(jobIds)
   const jobById = new Map(jobs.map(j => [j.id, j]))
 
+  let workItems: Awaited<ReturnType<typeof import("@/modules/jobs/supabase/work-item-repository").supabaseWorkItemRepo.findManyByIds>> = []
+  let workItemsByParent = new Map<string, typeof workItems>()
+  if (workItemIds.length) {
+    const { supabaseWorkItemRepo } = await import("@/modules/jobs/supabase/work-item-repository")
+    workItems = await supabaseWorkItemRepo.findManyByIds(workItemIds)
+    const parentIds = [...new Set(workItems.map(w => w.parentJobId))]
+    const allForParents = await Promise.all(parentIds.map(id => supabaseWorkItemRepo.findByParent(id)))
+    workItemsByParent = new Map(parentIds.map((id, i) => [id, allForParents[i] ?? []]))
+  }
+  const workItemById = new Map(workItems.map(w => [w.id, w]))
+
   const clientIds = [...new Set(jobs.map(j => j.clientId).filter((id): id is string => !!id))]
   const quoteNumbers = [
-    ...new Set(jobs.map(j => j.quoteReference).filter((n): n is string => !!n)),
+    ...new Set([
+      ...jobs.map(j => j.quoteReference).filter((n): n is string => !!n),
+      ...workItems.map(w => w.quoteReference).filter((n): n is string => !!n),
+    ]),
+  ]
+
+  const historyIds = [
+    ...jobIds,
+    ...workItems.map(w => w.legacyJobId).filter((id): id is string => !!id),
   ]
 
   const [clients, historyByJob, quotes, revisionsByParent] = await Promise.all([
     supabaseClientRepo.findManyByIds(clientIds),
-    supabaseStatusHistoryRepo.forJobs(jobIds),
+    supabaseStatusHistoryRepo.forJobs([...new Set(historyIds)]),
     supabaseQuoteRepo.findManyByNumbers(quoteNumbers),
     supabaseJobRepo.revisionsForJobs(jobIds),
   ])
+
+  // Also pull status history keyed by work_item_id where available
+  const historyByWorkItem = new Map<string, StatusHistoryRow[]>()
+  if (workItemIds.length) {
+    for (const wiId of workItemIds) {
+      try {
+        const rows = await supabaseStatusHistoryRepo.forWorkItem(wiId)
+        historyByWorkItem.set(wiId, rows)
+      } catch { /* optional */ }
+    }
+  }
 
   const clientById = new Map(clients.map(c => [c.id, c]))
   const quoteByNumber = new Map(quotes.map(q => [q.quoteNumber, q]))
 
   return handoffs.map(handoff => {
+    const workItem = handoff.sourceWorkItemId
+      ? workItemById.get(handoff.sourceWorkItemId) ?? null
+      : null
     const job = jobById.get(handoff.sourceJobId) ?? null
     const client = job?.clientId ? clientById.get(job.clientId) ?? null : null
+
+    if (workItem) {
+      const siblings = workItemsByParent.get(workItem.parentJobId) ?? []
+      const asJobs = siblings.map(w => ({
+        drawingNumber: handoff.drawingNumber,
+        revisionLetter: w.revisionLetter,
+        status: w.status,
+        dateCreated: w.dateCreated,
+        dateCompleted: w.completedAt,
+        notes: w.notes,
+        quoteValue: w.quoteValue,
+      })) as JobRow[]
+      const history = historyByWorkItem.get(workItem.id)
+        ?? (workItem.legacyJobId ? historyByJob.get(workItem.legacyJobId) ?? [] : [])
+      const sourceQuote = workItem.quoteReference
+        ? quoteByNumber.get(workItem.quoteReference) ?? null
+        : null
+      return assembleSnapshot(handoff, job, client, history, sourceQuote, asJobs)
+    }
+
     const history = job ? (historyByJob.get(job.id) ?? []) : []
     const sourceQuote = job?.quoteReference
       ? quoteByNumber.get(job.quoteReference) ?? null

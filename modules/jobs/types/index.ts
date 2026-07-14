@@ -1,2 +1,6 @@
 export * from "./job-types"
 export * from "./history-types"
+export * from "./parent-job-types"
+export * from "./design-work-item-types"
+export * from "./parent-dashboard-types"
+export * from "./revision-types"
