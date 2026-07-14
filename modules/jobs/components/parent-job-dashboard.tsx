@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import {
-  GitBranch, Plus, Receipt, ChevronDown, ChevronUp, UserCircle2,
+  GitBranch, Plus, Receipt, ChevronRight, MapPin, UserCircle2,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Textarea } from "@/shared/ui/textarea"
@@ -22,30 +22,88 @@ import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
 import { useApi } from "@/shared/hooks/use-api"
 import { formatGBP, cn } from "@/shared/utils/utils"
-import { PageShell, DetailPanel, BackLink, PageHeader } from "@/shared/layouts/page-layout"
+import { PageShell } from "@/shared/layouts/page-layout"
 import { DesignerCombobox } from "@/components/designer-combobox"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { DesignWorkItemRow } from "@/modules/jobs/types/design-work-item-types"
 
 function Skeleton() {
   return (
-    <div className="space-y-4">
-      <div className="h-4 w-24 skeleton rounded" />
-      <div className="h-7 w-80 skeleton rounded" />
-      <div className="h-40 skeleton rounded mt-4" />
-      <div className="h-64 skeleton rounded" />
+    <div className="space-y-6">
+      <div className="h-4 w-40 skeleton rounded" />
+      <div className="h-9 w-72 skeleton rounded" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-20 skeleton rounded-xl" />
+        ))}
+      </div>
+      <div className="h-64 skeleton rounded-xl" />
     </div>
   )
 }
 
-function InfoRow({ label, value }: { label: string; value?: string | null }) {
+function InfoField({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="grid grid-cols-3 gap-2 py-2 border-b border-bd last:border-0">
-      <p className="text-xs font-medium text-t3">{label}</p>
-      <p className="col-span-2 text-sm text-t1">
-        {value ?? <span className="text-t4 italic">Not set</span>}
-      </p>
+    <div className="flex flex-col gap-1 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
+      <span className="text-xs font-medium text-t3 tracking-wide">{label}</span>
+      <span className="text-sm font-semibold text-t1">
+        {value?.trim() ? value : <span className="font-normal text-t4 italic">Not set</span>}
+      </span>
     </div>
+  )
+}
+
+function KpiCard({
+  label,
+  value,
+  badge,
+}: {
+  label: string
+  value: string
+  badge?: string | null
+}) {
+  return (
+    <div className="rounded-xl border border-bd bg-sr p-4">
+      <p className="text-xs font-medium text-t3 mb-1">{label}</p>
+      <div className="flex items-center gap-2 min-w-0">
+        <p className="text-lg font-semibold text-t1 truncate">{value}</p>
+        {badge ? (
+          <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
+            {badge}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function Pill({
+  children,
+  tone = "neutral",
+}: {
+  children: React.ReactNode
+  tone?: "ok" | "ac" | "dn" | "neutral"
+}) {
+  const tones = {
+    ok: "bg-ok-bg text-ok-tx",
+    ac: "bg-ac-bg text-ac",
+    dn: "bg-dn-bg text-dn-tx",
+    neutral: "bg-pg text-t2 border border-bd",
+  }
+  const dots = {
+    ok: "bg-ok-ic",
+    ac: "bg-ac",
+    dn: "bg-dn",
+    neutral: "bg-t3",
+  }
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold",
+      tones[tone],
+    )}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", dots[tone])} />
+      {children}
+    </span>
   )
 }
 
@@ -56,6 +114,17 @@ function invoiceLabel(status: string): string {
     case "WRITTEN_OFF": return "Written off"
     default: return "—"
   }
+}
+
+function priorityTone(priority: string | null | undefined): "dn" | "neutral" | null {
+  if (!priority) return null
+  if (priority === "HIGH" || priority === "URGENT") return "dn"
+  return "neutral"
+}
+
+function priorityLabel(priority: string | null | undefined): string | null {
+  if (!priority) return null
+  return priority.charAt(0) + priority.slice(1).toLowerCase() + " Priority"
 }
 
 export default function ParentJobDashboardPage({
@@ -74,7 +143,6 @@ export default function ParentJobDashboardPage({
     { fallbackData: fallback ?? undefined },
   )
 
-  const [timelineOpen, setTimelineOpen] = useState(true)
   const [revOpen, setRevOpen] = useState(false)
   const [revSaving, setRevSaving] = useState(false)
   const [description, setDescription] = useState("")
@@ -89,7 +157,7 @@ export default function ParentJobDashboardPage({
   const current = data?.currentActive
 
   const sortedItems = useMemo(
-    () => [...workItems].sort((a, b) => a.dateCreated.localeCompare(b.dateCreated)),
+    () => [...workItems].sort((a, b) => b.dateCreated.localeCompare(a.dateCreated)),
     [workItems],
   )
 
@@ -168,70 +236,266 @@ export default function ParentJobDashboardPage({
   }
 
   const summary = data.invoiceSummary
+  const siteLine = parent.siteAddress || parent.address || parent.siteName
+  const currentRevLabel = current
+    ? (current.revisionLetter ? `Rev ${current.revisionLetter}` : current.title)
+    : "—"
+  const outstanding = summary.readyTotal
+  const pTone = priorityTone(current?.priority)
 
   return (
     <PageShell wide>
-      <BackLink href="/jobs">Active work</BackLink>
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-xs text-t3 mb-5">
+        <button
+          type="button"
+          className="hover:text-t1 transition-colors"
+          onClick={() => router.push("/jobs")}
+        >
+          Jobs
+        </button>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        <span className="font-semibold text-t1 font-mono">{parent.drawingNumber}</span>
+      </nav>
 
-      <PageHeader
-        title={parent.drawingNumber}
-        description={parent.clientCompany}
-        actions={
-          data.canAddRevision ? (
+      {/* Header — Stitch Job Details */}
+      <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-7">
+        <div className="min-w-0 space-y-1.5">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-t1 font-mono">
+            {parent.drawingNumber}
+          </h1>
+          {siteLine && (
+            <p className="text-sm sm:text-base text-t3 flex items-start gap-1.5">
+              <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{siteLine}</span>
+            </p>
+          )}
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-t3">Client</span>
+            <span className="text-sm font-semibold text-t1">{parent.clientCompany}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 lg:self-center">
+          <div className="flex flex-wrap gap-2 lg:mr-1 lg:pr-4 lg:border-r lg:border-bd">
+            {current && <StatusBadge status={current.status} />}
+            {current?.revisionLetter && (
+              <Pill tone="ac">Revision {current.revisionLetter}</Pill>
+            )}
+            {current?.workType === "ORIGINAL" && !current.revisionLetter && (
+              <Pill tone="neutral">Original Issue</Pill>
+            )}
+            {pTone && current?.priority && (
+              <Pill tone={pTone}>{priorityLabel(current.priority)}</Pill>
+            )}
+          </div>
+          {data.canAddRevision && (
             <Button variant="primary" size="sm" onClick={() => setRevOpen(true)}>
-              <Plus className="h-3.5 w-3.5" /> Create Revision
+              <Plus className="h-3.5 w-3.5" />
+              Create Revision
               {data.nextRevisionLetter ? ` ${data.nextRevisionLetter}` : ""}
             </Button>
-          ) : null
-        }
-      />
+          )}
+        </div>
+      </header>
 
-      {/* Project summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-        <DetailPanel title="Project" className="lg:col-span-2">
-          <InfoRow label="Drawing" value={parent.drawingNumber} />
-          <InfoRow label="Client" value={parent.clientCompany} />
-          <InfoRow label="Site" value={parent.siteName || parent.address} />
-          <InfoRow label="Address" value={parent.siteAddress || parent.address} />
-          <InfoRow label="Type of works" value={parent.typeOfWorks} />
-          <InfoRow label="Requested by" value={parent.requestedBy} />
-          <InfoRow
-            label="Current active"
-            value={current ? current.title : "None — waiting for next revision"}
-          />
-          <InfoRow
-            label="Revisions"
-            value={`${data.revisionCount} revision${data.revisionCount === 1 ? "" : "s"} · ${workItems.length} work item${workItems.length === 1 ? "" : "s"}`}
-          />
-          <InfoRow
-            label="Last updated"
-            value={format(new Date(parent.updatedAt), "d MMM yyyy HH:mm")}
-          />
-        </DetailPanel>
+      {/* KPI row */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-7">
+        <KpiCard label="Current Revision" value={currentRevLabel} />
+        <KpiCard
+          label="Active Designer"
+          value={current?.designer?.trim() || "Unassigned"}
+        />
+        <KpiCard
+          label="Total Revisions"
+          value={String(data.revisionCount)}
+        />
+        <KpiCard
+          label="Total Billed"
+          value={formatGBP(summary.billedTotal) ?? "—"}
+        />
+        <KpiCard
+          label="Outstanding"
+          value={formatGBP(outstanding) ?? "—"}
+          badge={outstanding > 0 ? "Due" : null}
+        />
+      </div>
 
-        <div className="space-y-4">
-          <DetailPanel title="Invoice summary">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-2">
-                <span className="text-t3">Quoted total</span>
-                <span className="font-medium tabular-nums">{formatGBP(summary.quotedTotal) ?? "—"}</span>
-              </div>
-              <div className="flex justify-between gap-2">
-                <span className="text-t3">Billed</span>
-                <span className="font-medium tabular-nums text-ok">{formatGBP(summary.billedTotal) ?? "—"}</span>
-              </div>
-              <div className="flex justify-between gap-2">
-                <span className="text-t3">Ready to invoice</span>
-                <span className="font-medium tabular-nums">{formatGBP(summary.readyTotal) ?? "—"}</span>
-              </div>
-              <p className="text-xs text-t4 pt-2 border-t border-bd">
-                {summary.invoicedCount} of {summary.itemCount} work items invoiced
-              </p>
+      {/* Main content */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-5">
+        <div className="lg:col-span-7 space-y-5">
+          {/* Job Information */}
+          <section className="rounded-xl border border-bd bg-sr p-5">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-semibold text-t1">Job Information</h2>
+              <span className="text-xs text-t4">
+                Updated {format(new Date(parent.updatedAt), "d MMM yyyy HH:mm")}
+              </span>
             </div>
-          </DetailPanel>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+              <InfoField label="Job Type" value="Design" />
+              <InfoField label="Site Address" value={siteLine} />
+              <InfoField
+                label="Type of works"
+                value={
+                  parent.typeOfWorks === "Other" && parent.customTypeDescription
+                    ? `Other — ${parent.customTypeDescription}`
+                    : parent.typeOfWorks
+                }
+              />
+              <InfoField
+                label="Initial Quote"
+                value={
+                  workItems.find(w => w.workType === "ORIGINAL")?.quoteValue != null
+                    ? formatGBP(workItems.find(w => w.workType === "ORIGINAL")!.quoteValue)
+                    : formatGBP(summary.quotedTotal)
+                }
+              />
+              <InfoField label="Requested by" value={parent.requestedBy} />
+              <InfoField
+                label="Engineer Assigned"
+                value={current?.designer || "Unassigned"}
+              />
+              <InfoField label="Site name" value={parent.siteName} />
+              <InfoField
+                label="Active work"
+                value={current ? current.title : "None — waiting for next revision"}
+              />
+            </div>
+          </section>
 
+          {/* Revision Timeline */}
+          <section className="rounded-xl border border-bd bg-sr p-5">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-base font-semibold text-t1 inline-flex items-center gap-2">
+                <GitBranch className="h-4 w-4 text-ac" />
+                Revision Timeline
+              </h2>
+              <span className="text-xs text-t3 tabular-nums">
+                {workItems.length} work item{workItems.length === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            <div className="relative pl-8">
+              <div className="absolute left-[11px] top-2 bottom-2 w-px bg-bd" aria-hidden />
+              <div className="space-y-6">
+                {sortedItems.map(item => {
+                  const isCurrent = current?.id === item.id
+                  const isComplete = item.status === "ISSUED"
+                  const reason = item.description || item.notes
+
+                  return (
+                    <div key={item.id} className="relative">
+                      <div
+                        className={cn(
+                          "absolute -left-8 top-1.5 h-4 w-4 rounded-full border-[3px] border-sr z-10",
+                          isCurrent
+                            ? "bg-ac shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-ac)_25%,transparent)]"
+                            : isComplete
+                              ? "bg-ok-ic"
+                              : "bg-t4",
+                        )}
+                        aria-hidden
+                      />
+                      <div
+                        className={cn(
+                          "rounded-xl border p-4",
+                          isCurrent
+                            ? "border-ac/40 bg-ac-bg/30"
+                            : "border-bd bg-sr",
+                          !isCurrent && isComplete && "opacity-80",
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-t1">
+                              {item.title}
+                              {isCurrent ? " — In Progress" : isComplete ? " — Complete" : ""}
+                            </h3>
+                            <p className="text-xs text-t3 mt-0.5">
+                              Created {format(new Date(item.dateCreated), "d MMM yyyy")}
+                              {item.designer ? ` · ${item.designer}` : ""}
+                            </p>
+                          </div>
+                          <div className="shrink-0 flex flex-wrap gap-1.5 justify-end">
+                            {isCurrent && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-ac text-on-ac">
+                                Active
+                              </span>
+                            )}
+                            <StatusBadge status={item.status} />
+                          </div>
+                        </div>
+
+                        {item.workType === "REVISION" && (
+                          <blockquote className="text-sm text-t2 leading-relaxed mb-3 border-l-2 border-bd pl-3">
+                            {reason
+                              ? `“${reason}”`
+                              : <span className="italic text-t4">No reason recorded</span>}
+                          </blockquote>
+                        )}
+                        {item.workType === "ORIGINAL" && reason && (
+                          <p className="text-sm text-t2 mb-3 whitespace-pre-wrap">{reason}</p>
+                        )}
+
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-t3 mb-2">
+                          <p className="inline-flex items-center gap-1">
+                            <UserCircle2 className="h-3 w-3" />
+                            {item.designer || "Unassigned"}
+                          </p>
+                          <p className="inline-flex items-center gap-1">
+                            <Receipt className="h-3 w-3" />
+                            {invoiceLabel(item.invoiceStatus)}
+                            {item.invoiceNumber ? ` · ${item.invoiceNumber}` : ""}
+                          </p>
+                          {(item.quoteValue != null || item.billedValue != null) && (
+                            <p className="tabular-nums">
+                              {item.billedValue != null
+                                ? `Billed ${formatGBP(item.billedValue)}`
+                                : `Quoted ${formatGBP(item.quoteValue)}`}
+                            </p>
+                          )}
+                          {item.completedAt && (
+                            <p>Completed {format(new Date(item.completedAt), "d MMM yyyy")}</p>
+                          )}
+                        </div>
+
+                        {isAdmin && item.workType === "REVISION" && (
+                          <label className="mt-1 inline-flex items-center gap-2 text-xs text-t2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={item.billable}
+                              disabled={togglingId === item.id}
+                              onChange={e => void toggleBillable(item, e.target.checked)}
+                            />
+                            Chargeable (Ready for Invoicing when Complete)
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {data.canAddRevision && (
+              <div className="mt-6 pt-4 border-t border-bd">
+                <Button variant="outline" size="sm" onClick={() => setRevOpen(true)}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Add revision{data.nextRevisionLetter ? ` ${data.nextRevisionLetter}` : ""}
+                </Button>
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* Sidebar */}
+        <div className="lg:col-span-3 space-y-5">
           {current && (
-            <DetailPanel title={`Active — ${current.title}`}>
+            <section className="rounded-xl border border-bd bg-sr p-5">
+              <h2 className="text-base font-semibold text-t1 mb-3">
+                Active — {current.title}
+              </h2>
               <div className="mb-3">
                 <StatusBadge status={current.status} />
               </div>
@@ -241,119 +505,45 @@ export default function ParentJobDashboardPage({
                 onStatusChange={() => void mutate()}
                 patchUrl={`/api/work-items/${current.id}`}
               />
-              <div className="mt-3">
+              <div className="mt-4">
                 <Label className="text-xs text-t3">Designer</Label>
-                <div className="mt-1">
+                <div className="mt-1.5">
                   <DesignerCombobox
                     value={current.designer}
                     onChange={v => void patchWorkItem(current.id, { designer: v })}
                   />
                 </div>
               </div>
-            </DetailPanel>
+            </section>
           )}
+
+          <section className="rounded-xl border border-bd bg-sr p-5">
+            <h2 className="text-base font-semibold text-t1 mb-4">Financial Summary</h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between gap-2">
+                <span className="text-t3">Quoted total</span>
+                <span className="font-semibold tabular-nums text-t1">
+                  {formatGBP(summary.quotedTotal) ?? "—"}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-t3">Billed</span>
+                <span className="font-semibold tabular-nums text-ok">
+                  {formatGBP(summary.billedTotal) ?? "—"}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-t3">Ready to invoice</span>
+                <span className="font-semibold tabular-nums text-t1">
+                  {formatGBP(summary.readyTotal) ?? "—"}
+                </span>
+              </div>
+              <p className="text-xs text-t4 pt-3 border-t border-bd">
+                {summary.invoicedCount} of {summary.itemCount} work items invoiced
+              </p>
+            </div>
+          </section>
         </div>
-      </div>
-
-      {/* Timeline */}
-      <div className="mt-6 rounded-xl border border-bd bg-sr shadow-card overflow-hidden">
-        <button
-          type="button"
-          className="w-full flex items-center justify-between px-4 py-3 border-b border-bd hover:bg-pg/60 transition-colors"
-          onClick={() => setTimelineOpen(o => !o)}
-        >
-          <span className="inline-flex items-center gap-2 text-sm font-semibold text-t1">
-            <GitBranch className="h-4 w-4 text-ac" />
-            Work history
-          </span>
-          {timelineOpen ? <ChevronUp className="h-4 w-4 text-t3" /> : <ChevronDown className="h-4 w-4 text-t3" />}
-        </button>
-
-        {timelineOpen && (
-          <div className="p-4 sm:p-5 space-y-0">
-            {sortedItems.map((item, idx) => {
-              const isCurrent = current?.id === item.id
-              const isLast = idx === sortedItems.length - 1
-              return (
-                <div key={item.id} className={cn("relative flex gap-3 sm:gap-4", !isLast && "pb-4")}>
-                  <div className="flex flex-col items-center shrink-0 w-5">
-                    <div className={cn(
-                      "h-3 w-3 rounded-full border-2 mt-1.5",
-                      isCurrent ? "border-ac bg-ac" : "border-t3 bg-sr",
-                    )} />
-                    {!isLast && <div className="w-px flex-1 bg-bd mt-1.5 min-h-[20px]" />}
-                  </div>
-                  <div className={cn(
-                    "flex-1 min-w-0 rounded-xl border p-3",
-                    isCurrent ? "border-ac bg-ac-bg/50" : "border-bd bg-pg/40",
-                  )}>
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <h4 className="text-sm font-semibold text-t1">{item.title}</h4>
-                      {isCurrent && (
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-ac text-on-ac">
-                          Active
-                        </span>
-                      )}
-                      <StatusBadge status={item.status} />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-t3">
-                      <p className="inline-flex items-center gap-1">
-                        <UserCircle2 className="h-3 w-3" />
-                        {item.designer || "Unassigned"}
-                      </p>
-                      <p>
-                        Created {format(new Date(item.dateCreated), "d MMM yyyy")}
-                      </p>
-                      {item.completedAt && (
-                        <p>Completed {format(new Date(item.completedAt), "d MMM yyyy")}</p>
-                      )}
-                      <p className="inline-flex items-center gap-1">
-                        <Receipt className="h-3 w-3" />
-                        {invoiceLabel(item.invoiceStatus)}
-                        {item.invoiceNumber ? ` · ${item.invoiceNumber}` : ""}
-                      </p>
-                      {(item.quoteValue != null || item.billedValue != null) && (
-                        <p className="tabular-nums">
-                          {item.billedValue != null
-                            ? `Billed ${formatGBP(item.billedValue)}`
-                            : `Quoted ${formatGBP(item.quoteValue)}`}
-                        </p>
-                      )}
-                    </div>
-                    {item.workType === "REVISION" && (
-                      <div className="mt-2 rounded-lg border border-bd bg-sr px-3 py-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-t3 mb-0.5">
-                          Reason for revision
-                        </p>
-                        {item.description || item.notes ? (
-                          <p className="text-sm text-t1 whitespace-pre-wrap">
-                            {item.description || item.notes}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-t4 italic">No reason recorded</p>
-                        )}
-                      </div>
-                    )}
-                    {item.workType === "ORIGINAL" && item.description && (
-                      <p className="text-sm text-t2 mt-2 whitespace-pre-wrap">{item.description}</p>
-                    )}
-                    {isAdmin && item.workType === "REVISION" && (
-                      <label className="mt-2 inline-flex items-center gap-2 text-xs text-t2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={item.billable}
-                          disabled={togglingId === item.id}
-                          onChange={e => void toggleBillable(item, e.target.checked)}
-                        />
-                        Chargeable (Ready for Invoicing when Complete)
-                      </label>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
       </div>
 
       <Dialog open={revOpen} onOpenChange={o => {
@@ -377,7 +567,8 @@ export default function ParentJobDashboardPage({
           <DialogBody className="space-y-4">
             <div className="rounded-lg border border-bd bg-pg px-3 py-2.5 text-xs text-t3 space-y-1">
               <p>
-                New work item: <span className="font-semibold text-t1">Revision {data.nextRevisionLetter}</span>
+                New work item:{" "}
+                <span className="font-semibold text-t1">Revision {data.nextRevisionLetter}</span>
               </p>
               <p>Starts as New Request. Mark Chargeable only if this revision should be invoiced separately.</p>
             </div>
