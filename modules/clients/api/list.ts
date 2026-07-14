@@ -6,6 +6,7 @@ import { requireSignIn } from "@/shared/auth/auth"
 import { parseContactsFromBody } from "./parse-contacts"
 import { canViewClientAnalytics } from "@/shared/auth/permissions"
 import { apiInternalError } from "@/shared/api-errors"
+import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,8 +16,8 @@ export async function GET(req: NextRequest) {
     const sp         = req.nextUrl.searchParams
     const search     = sp.get("search")     ?? ""
     const activeOnly = sp.get("active")     !== "false"   // default: only active
-    const page       = Math.max(1, parseInt(sp.get("page")  ?? "1"))
-    const limit      = Math.max(1, Math.min(200, parseInt(sp.get("limit") ?? "50")))
+    const page       = parsePageParam(sp.get("page"))
+    const limit      = parseLimitParam(sp.get("limit"), 50, 200)
 
     const role = auth.user.role as import("@/shared/auth/permissions").Role
     const [clients, total] = await Promise.all([

@@ -31,6 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className="stitch-layout" suppressHydrationWarning>
       <head>
+        {/* Static theme-init only — not user-supplied HTML (safe). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable}`} style={{ height: "100%", margin: 0 }}>

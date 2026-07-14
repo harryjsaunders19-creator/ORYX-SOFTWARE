@@ -4,7 +4,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import { requireRole } from "@/shared/auth/auth"
 import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { backupRecordService } from "../services/backup-record-service"
-import { startBackup, BACKUPS_DIR } from "../backup-service"
+import { startBackup, BACKUPS_DIR, LOCAL_BACKUPS_EPHEMERAL_ON_VERCEL } from "../backup-service"
 
 export async function GET() {
   const auth = await requireRole(["ADMIN"])
@@ -20,6 +20,7 @@ export async function GET() {
       auditLog,
       backupsDir: BACKUPS_DIR,
       localBackupSupported: !isSupabaseOnly(),
+      localBackupDurable: !isSupabaseOnly() && !LOCAL_BACKUPS_EPHEMERAL_ON_VERCEL,
     })
   } catch (err) {
     return apiInternalError("backups.api.list", err)
@@ -36,6 +37,17 @@ export async function POST(_req: NextRequest) {
         {
           error:
             "Local SQLite backups are not available when Supabase is the data store. Use Supabase project backups or Export Excel from this page.",
+          reason: "supabase_primary",
+        },
+        { status: 503 },
+      )
+    }
+    if (LOCAL_BACKUPS_EPHEMERAL_ON_VERCEL) {
+      return NextResponse.json(
+        {
+          error:
+            "Local backups on Vercel without BACKUPS_DIR use ephemeral /tmp storage and would be lost. Set BACKUPS_DIR to persistent storage, or use Supabase backups / Excel export.",
+          reason: "ephemeral_tmp",
         },
         { status: 503 },
       )

@@ -19,6 +19,7 @@ import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { apiInternalError } from "@/shared/api-errors"
 import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
+import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 
 /**
  * Compute canAddRevision without an extra DB round trip.
@@ -53,8 +54,8 @@ export async function GET(req: NextRequest) {
     const overdue        = sp.get("overdue")        === "true"
     const dueToday       = sp.get("dueToday")       === "true"
     const dueThisWeek    = sp.get("dueThisWeek")    === "true"
-    const page           = Math.max(1, parseInt(sp.get("page")    ?? "1"))
-    const limit          = Math.max(1, Math.min(100, parseInt(sp.get("limit") ?? "25")))
+    const page           = parsePageParam(sp.get("page"))
+    const limit          = parseLimitParam(sp.get("limit"), 25, 100)
     const exportAll      = sp.get("export")        === "true"
     const sortBy         = sp.get("sortBy")        ?? "drawingNumber"
     const sortDir        = (sp.get("sortDir")      === "desc" ? "desc" : "asc") as "asc" | "desc"

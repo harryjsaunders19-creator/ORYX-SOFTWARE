@@ -3,6 +3,7 @@
  */
 import { backupRecordService } from "./services/backup-record-service"
 import { startBackup } from "./backup-service"
+import { logEvent, logError } from "@/shared/logger"
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000
 const SCHEDULED_HOUR = 2
@@ -22,17 +23,17 @@ async function checkAndRunIfDue() {
     const recent = await backupRecordService.findMany({ take: 5 })
     if (recent.some(b => b.status === "PENDING" || b.status === "RUNNING")) return
 
-    console.log("[backup-scheduler] No backup has completed today — starting a scheduled backup")
+    logEvent("backup.scheduler.start_due")
     await startBackup({ triggeredBy: "system", triggeredByName: "Scheduled Backup", trigger: "SCHEDULED" })
   } catch (err) {
-    console.error("[backup-scheduler] Error during scheduled check:", err)
+    logError("backup.scheduler.check_failed", err)
   }
 }
 
 export function startBackupScheduler() {
   if (started) return
   started = true
-  console.log("[backup-scheduler] Daily backup scheduler started (hourly check, target ~02:00 server time)")
+  logEvent("backup.scheduler.started", { checkIntervalMs: CHECK_INTERVAL_MS, targetHour: SCHEDULED_HOUR })
   void checkAndRunIfDue()
   setInterval(() => { void checkAndRunIfDue() }, CHECK_INTERVAL_MS)
 }

@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
+import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,8 +12,8 @@ export async function GET(req: NextRequest) {
     if (auth instanceof NextResponse) return auth
 
     const sp = req.nextUrl.searchParams
-    const page = Math.max(1, parseInt(sp.get("page") ?? "1", 10))
-    const limit = Math.max(1, Math.min(100, parseInt(sp.get("limit") ?? "50", 10)))
+    const page = parsePageParam(sp.get("page"))
+    const limit = parseLimitParam(sp.get("limit"), 50, 100)
 
     const result = await employeeService.findMany(auth.user, {
       search: sp.get("search") ?? undefined,

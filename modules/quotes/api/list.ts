@@ -6,6 +6,7 @@ import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "../quote-works"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { apiInternalError } from "@/shared/api-errors"
+import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
 
@@ -28,8 +29,8 @@ export async function GET(req: NextRequest) {
     const sp     = req.nextUrl.searchParams
     const search = sp.get("search") ?? ""
     const status = sp.get("status") ?? ""
-    const page   = Math.max(1, parseInt(sp.get("page") ?? "1"))
-    const limit  = Math.max(1, Math.min(100, parseInt(sp.get("limit") ?? "25")))
+    const page   = parsePageParam(sp.get("page"))
+    const limit  = parseLimitParam(sp.get("limit"), 25, 100)
     const opts   = { ...(search && { search }), ...(status && { status }) }
     const [quotes, total, expiringSoonCount, expiredClearableCount] = await Promise.all([
       quoteService.findMany({ ...opts, skip: (page - 1) * limit, take: limit }),

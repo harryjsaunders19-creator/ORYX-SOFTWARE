@@ -35,6 +35,16 @@ import { backupRecordService } from "./services/backup-record-service"
 export const BACKUPS_DIR =
   process.env.BACKUPS_DIR ??
   (process.env.VERCEL ? "/tmp/backups" : path.join(/*turbopackIgnore: true*/ process.cwd(), "backups"))
+
+/**
+ * On Vercel, the default BACKUPS_DIR is /tmp — ephemeral across cold starts.
+ * Supabase-only production must not rely on local SQLite dump files; POST
+ * /api/backups returns 503 when isSupabaseOnly(). Prefer BACKUPS_DIR only for
+ * durable local/hybrid deploys, or mount persistent storage.
+ */
+export const LOCAL_BACKUPS_EPHEMERAL_ON_VERCEL =
+  process.env.VERCEL === "1" && !process.env.BACKUPS_DIR
+
 export const SCHEMA_VERSION = "2026.07"   // bump manually whenever a structural change would matter to a future restore
 export const DEFAULT_RETENTION_COUNT = 30
 

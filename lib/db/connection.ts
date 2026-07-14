@@ -4,6 +4,7 @@
 import Database from "better-sqlite3"
 import path from "path"
 import fs from "fs"
+import { logEvent } from "@/shared/logger"
 
 // On Vercel the project root (/var/task) is read-only; /tmp is the only
 // writable location. Default there automatically so DB_PATH env var is
@@ -17,7 +18,11 @@ const DB_DIR  = process.env.DB_PATH
 const DB_PATH = process.env.DB_PATH ?? path.join(DB_DIR, "oryx.db")
 const DB_EXISTED = fs.existsSync(DB_PATH)
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
-console.log(`[db] DB_PATH=${DB_PATH} | existed=${DB_EXISTED} | DB_PATH env=${process.env.DB_PATH ?? "(not set)"}`)
+logEvent("db.connection.open", {
+  dbPath: DB_PATH,
+  existed: DB_EXISTED,
+  dbPathEnv: process.env.DB_PATH ?? null,
+})
 
 if (!process.env.DB_PATH) {
   const oldPath = path.join(/* turbopackIgnore: true */ process.cwd(), "prisma", "oryx.db")
@@ -28,7 +33,7 @@ if (!process.env.DB_PATH) {
         fs.copyFileSync(src, DB_PATH + suffix)
       }
     }
-    console.log(`[db] Migrated database from prisma/oryx.db to .data/oryx.db`)
+    logEvent("db.connection.migrated_legacy_path", { from: oldPath, to: DB_PATH })
   }
 }
 
@@ -44,7 +49,7 @@ function openDb(): InstanceType<typeof Database> {
     } catch (err: unknown) {
       if (attempt < 4 && err instanceof Error && err.message.includes("locked")) {
         const ms = 1000 * (attempt + 1)
-        console.log(`[db] Database locked, retrying in ${ms}ms (attempt ${attempt + 1}/5)`)
+        logEvent("db.connection.locked_retry", { ms, attempt: attempt + 1 }, "warn")
         const start = Date.now(); while (Date.now() - start < ms) { /* busy wait */ }
         continue
       }

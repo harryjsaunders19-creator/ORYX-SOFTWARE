@@ -59,7 +59,7 @@ npm run supabase:sync-users
 | `VAULT_ENCRYPTION_KEY` | Password vault AES-256-GCM |
 | `BACKUP_DOWNLOAD_SECRET` | Signed backup download links |
 | `COOKIE_SECURE` | Set `true` on HTTPS |
-| `ORS_API_KEY` | Site visit routing ([OpenRouteService](https://openrouteservice.org/)) — **required in production** |
+| `ORS_API_KEY` | Site visit routing ([OpenRouteService](https://openrouteservice.org/)) — **required in production**. Missing key: boot logs a warning on Vercel; the calculate route returns a clear `UNAVAILABLE` error (not a silent empty route). |
 
 Optional but recommended:
 

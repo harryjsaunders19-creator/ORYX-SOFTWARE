@@ -25,6 +25,14 @@ export async function register() {
     if (!process.env.VAULT_ENCRYPTION_KEY?.trim()) {
       throw new Error("VERCEL=1 but VAULT_ENCRYPTION_KEY is not set — password vault cannot encrypt secrets.")
     }
+    if (!process.env.ORS_API_KEY?.trim()) {
+      const { logEvent } = await import("@/shared/logger")
+      logEvent(
+        "boot.ors_api_key_missing",
+        { message: "ORS_API_KEY is unset — site visit routing will return UNAVAILABLE until configured." },
+        "warn",
+      )
+    }
   }
 
   const { isSupabaseOnly } = await import("@/lib/supabase/feature-flags")
