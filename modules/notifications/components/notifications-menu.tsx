@@ -1,5 +1,5 @@
 "use client"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -17,6 +17,7 @@ import type { AppNotification, NotificationKind } from "../types/notifications-t
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 
 const POLL_MS = 5 * 60_000 // refresh when tab visible; no background polling when hidden
+const CLEAR_KEY = "oryx.notifications.clearedAt"
 
 const KIND_ICON: Record<NotificationKind, React.ElementType> = {
   job_overdue:    AlertOctagon,
@@ -46,13 +47,39 @@ type NotificationsPayload = { notifications: AppNotification[]; unreadCount: num
 export function NotificationsMenu() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [clearedAtMs, setClearedAtMs] = useState(0)
   const { data, isLoading, mutate } = useApi<NotificationsPayload>("/api/notifications", {
     refreshInterval: POLL_MS,
   })
-  const notifications = data?.notifications ?? []
-  const unreadCount = data?.unreadCount ?? 0
+  const allNotifications = useMemo(() => data?.notifications ?? [], [data?.notifications])
+  const visibleNotifications = useMemo(() => {
+    if (!clearedAtMs) return allNotifications
+    return allNotifications.filter(n => {
+      const t = Date.parse(n.at)
+      return Number.isFinite(t) && t > clearedAtMs
+    })
+  }, [allNotifications, clearedAtMs])
+  const unreadCount = visibleNotifications.length
   const loading = isLoading && !data
   const load = useCallback(() => { void mutate() }, [mutate])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CLEAR_KEY)
+      if (!raw) return
+      const ms = Number(raw)
+      if (Number.isFinite(ms) && ms > 0) setClearedAtMs(ms)
+    } catch {
+      // localStorage can be blocked in some environments; "clear" won't persist.
+    }
+  }, [])
+
+  const clearNotifications = useCallback(() => {
+    const now = Date.now()
+    setClearedAtMs(now)
+    try { localStorage.setItem(CLEAR_KEY, String(now)) } catch { /* ignore */ }
+    void mutate()
+  }, [mutate])
 
   useEffect(() => {
     const onVisibility = () => {
@@ -97,18 +124,29 @@ export function NotificationsMenu() {
         sideOffset={8}
       >
         <div className="px-4 py-3 border-b border-bd flex items-center justify-between shrink-0">
-          <p className="text-sm font-semibold text-t1">Notifications</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-semibold text-t1">Notifications</p>
+            {unreadCount > 0 && (
+              <span className="text-[11px] font-medium text-t3 tabular-nums">{unreadCount} active</span>
+            )}
+          </div>
           {unreadCount > 0 && (
-            <span className="text-[11px] font-medium text-t3 tabular-nums">{unreadCount} active</span>
+            <button
+              type="button"
+              onClick={clearNotifications}
+              className="text-xs text-ac hover:text-ach font-medium"
+            >
+              Clear
+            </button>
           )}
         </div>
 
         <div className="overflow-y-auto thin-scroll flex-1">
-          {loading && notifications.length === 0 ? (
+          {loading && allNotifications.length === 0 ? (
             <div className="flex items-center justify-center py-10 text-t4">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
-          ) : notifications.length === 0 ? (
+          ) : visibleNotifications.length === 0 ? (
             <div className="py-10 px-4 text-center">
               <Bell className="h-6 w-6 text-t4 mx-auto mb-2 opacity-60" />
               <p className="text-sm text-t2 font-medium">All clear</p>
@@ -120,7 +158,7 @@ export function NotificationsMenu() {
             </div>
           ) : (
             <ul className="py-1">
-              {notifications.map(n => {
+              {visibleNotifications.map(n => {
                 const Icon = KIND_ICON[n.kind]
                 return (
                   <li key={n.id}>
