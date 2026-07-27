@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { format } from "date-fns"
 import {
   Plus, Pencil, Trash2, Copy, Eye, EyeOff, ExternalLink,
@@ -19,6 +19,7 @@ import {
   TableShell, TableHead, Th,
 } from "@/shared/layouts/page-layout"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
+import { useApi, buildApiKey } from "@/shared/hooks/use-api"
 import { RequireRole } from "@/components/require-role"
 import type { PasswordVaultEntry } from "../types"
 import { safeHttpUrl } from "../api/validation"
@@ -187,8 +188,6 @@ function VaultPageInner() {
   const { toast } = useToast()
   const [search, setSearch] = useState("")
   const [sort, setSort] = useState<SortOrder>("asc")
-  const [data, setData] = useState<VaultData | null>(null)
-  const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [editEntry, setEditEntry] = useState<PasswordVaultEntry | null>(null)
   const [deleteEntry, setDeleteEntry] = useState<PasswordVaultEntry | null>(null)
@@ -196,22 +195,16 @@ function VaultPageInner() {
   const [deleting, setDeleting] = useState(false)
 
   const debouncedSearch = useDebouncedValue(search, 280)
+  const vaultKey = buildApiKey("/api/password-vault", {
+    search: debouncedSearch || undefined,
+    sort,
+  })
+  const { data, error, isLoading, mutate } = useApi<VaultData>(vaultKey)
+  useEffect(() => {
+    if (error) toast("Failed to load password vault", "error")
+  }, [error, toast])
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const qs = new URLSearchParams({ search: debouncedSearch, sort })
-      const res = await fetch(`/api/password-vault?${qs}`)
-      if (!res.ok) throw new Error()
-      setData(await res.json() as VaultData)
-    } catch {
-      toast("Failed to load password vault", "error")
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, sort, toast])
-
-  useEffect(() => { load() }, [load])
+  const loading = isLoading && !data
 
   const categories = useMemo(() => {
     const set = new Set<string>()
@@ -240,7 +233,7 @@ function VaultPageInner() {
       if (!res.ok) { toast(body.error ?? "Failed to add account", "error"); return }
       setCreateOpen(false)
       toast("Account added", "success")
-      load()
+      void mutate()
     } catch {
       toast("Network error", "error")
     } finally {
@@ -270,7 +263,7 @@ function VaultPageInner() {
       if (!res.ok) { toast(body.error ?? "Failed to update account", "error"); return }
       setEditEntry(null)
       toast("Account updated", "success")
-      load()
+      void mutate()
     } catch {
       toast("Network error", "error")
     } finally {
@@ -287,7 +280,7 @@ function VaultPageInner() {
       if (!res.ok) { toast(body.error ?? "Failed to delete account", "error"); return }
       setDeleteEntry(null)
       toast("Account deleted", "success")
-      load()
+      void mutate()
     } catch {
       toast("Network error", "error")
     } finally {

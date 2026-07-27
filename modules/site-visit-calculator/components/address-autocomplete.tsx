@@ -35,17 +35,21 @@ export function AddressAutocomplete({
       setResults([])
       return
     }
-    let cancelled = false
+    const ac = new AbortController()
     setLoading(true)
-    fetch(`/api/job-map/search?q=${encodeURIComponent(debounced.trim())}`)
+    fetch(`/api/job-map/search?q=${encodeURIComponent(debounced.trim())}`, { signal: ac.signal })
       .then(r => r.json())
       .then(data => {
-        if (cancelled) return
         setResults((data.results ?? []).map((r: AddressSelection) => r))
       })
-      .catch(() => { if (!cancelled) setResults([]) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+      .catch(err => {
+        if (err instanceof DOMException && err.name === "AbortError") return
+        setResults([])
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setLoading(false)
+      })
+    return () => ac.abort()
   }, [debounced])
 
   useEffect(() => {

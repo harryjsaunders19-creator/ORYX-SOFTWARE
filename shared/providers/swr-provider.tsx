@@ -1,5 +1,5 @@
 "use client"
-import { SWRConfig } from "swr"
+import { SWRConfig, type SWRConfiguration } from "swr"
 import { apiFetch } from "@/shared/hooks/use-api"
 
 async function fetcher<T>(url: string): Promise<T> {
@@ -11,16 +11,15 @@ async function fetcher<T>(url: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+/** Stable config — avoid a new object identity every SWRProvider render. */
+const swrConfig: SWRConfiguration = {
+  fetcher,
+  keepPreviousData: true,
+  revalidateOnFocus: false,
+  dedupingInterval: 2_000,
+  errorRetryCount: 2,
+}
+
 export function SWRProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <SWRConfig value={{
-      fetcher,
-      keepPreviousData: true,
-      revalidateOnFocus: false,
-      dedupingInterval: 2_000,
-      errorRetryCount: 2,
-    }}>
-      {children}
-    </SWRConfig>
-  )
+  return <SWRConfig value={swrConfig}>{children}</SWRConfig>
 }

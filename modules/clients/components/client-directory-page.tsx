@@ -16,7 +16,7 @@ import {
 import { useToast } from "@/shared/ui/toast"
 import { cn }       from "@/shared/utils/utils"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
-import { useMediaQuery } from "@/shared/hooks/use-media-query"
+import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
 import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
 import type { Client } from "@/lib/types"
@@ -236,7 +236,7 @@ function ClientsInner() {
   const loading = isLoading && !data
   const refreshing = isValidating && !!data
   const totalPages = data ? Math.max(1, Math.ceil(data.total / CLIENT_LIMIT)) : 1
-  const isMobile = useMediaQuery("(max-width: 767px)")
+  const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
 
   const handleEditOpen = useCallback((c: ClientWithMeta) => {
     setEditClient(c)
@@ -290,11 +290,11 @@ function ClientsInner() {
     finally { setSaving(false) }
   }
 
-  const doRestore = async (c: Client) => {
+  const doRestore = useCallback(async (c: Client) => {
     const res = await fetch(`/api/clients/${c.id}/restore`, { method: "POST" })
     if (!res.ok) { toast("Restore failed", "error"); return }
     toast(`${c.name} restored`, "success"); mutate()
-  }
+  }, [mutate, toast])
 
   return (
     <PageShell>
@@ -325,7 +325,7 @@ function ClientsInner() {
         </label>
       </div>
 
-      {loading ? (
+      {loading || !mediaReady ? (
         <DataPanel>
           {[...Array(5)].map((_, i) => <div key={i} className="h-14 border-b border-bd last:border-0 px-4 flex items-center"><div className="skeleton h-4 w-48 rounded" /></div>)}
         </DataPanel>
@@ -501,5 +501,23 @@ function ClientsInner() {
 }
 
 export default function ClientsPage() {
-  return <Suspense><ClientsInner /></Suspense>
+  return (
+    <Suspense
+      fallback={
+        <PageShell>
+          <div className="skeleton h-9 w-36 rounded mb-2" />
+          <div className="skeleton h-4 w-48 rounded mb-8" />
+          <DataPanel>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-14 border-b border-bd last:border-0 px-4 flex items-center">
+                <div className="skeleton h-4 w-48 rounded" />
+              </div>
+            ))}
+          </DataPanel>
+        </PageShell>
+      }
+    >
+      <ClientsInner />
+    </Suspense>
+  )
 }

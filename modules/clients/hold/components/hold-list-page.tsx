@@ -46,14 +46,22 @@ export default function HoldListPage() {
   // Live client search for the add-hold form
   useEffect(() => {
     if (!clientSearch.trim()) { setClientResults([]); return }
+    const ac = new AbortController()
     const t = setTimeout(async () => {
-      const r = await fetch(`/api/clients/search?q=${encodeURIComponent(clientSearch)}&limit=6`)
-      if (r.ok) {
-        const d = await r.json() as { clients: { id: string; name: string }[] }
-        setClientResults(d.clients)
+      try {
+        const r = await fetch(
+          `/api/clients/search?q=${encodeURIComponent(clientSearch)}&limit=6`,
+          { signal: ac.signal },
+        )
+        if (r.ok) {
+          const d = await r.json() as { clients: { id: string; name: string }[] }
+          setClientResults(d.clients)
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return
       }
     }, 150)
-    return () => clearTimeout(t)
+    return () => { clearTimeout(t); ac.abort() }
   }, [clientSearch])
 
   const doAdd = async () => {

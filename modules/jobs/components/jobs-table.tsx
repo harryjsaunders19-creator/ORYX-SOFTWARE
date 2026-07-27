@@ -27,7 +27,7 @@ import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/components/status-badge"
 import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
 import dynamic from "next/dynamic"
-import { useMediaQuery } from "@/shared/hooks/use-media-query"
+import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
 import { InlineStatusSelect, InlineDesignerSelect } from "@/components/inline-edit-selects"
@@ -410,9 +410,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const { toast }    = useToast()
   const { isAdmin } = useUser()
 
-  const [holdClientIds, setHoldClientIds] = useState<Set<string>>(new Set())
-  const [designers,    setDesigners]    = useState<string[]>([])
-  const isMobile       = useMediaQuery("(max-width: 767px)")
+  const [extraDesigners, setExtraDesigners] = useState<string[]>([])
+  const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
   const searchParams = useSearchParams()
   const [search,       setSearch]       = useState(() => searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
@@ -462,12 +461,23 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const { data: designersData } = useApi<{ designers: string[] }>("/api/jobs/designers")
 
   useEffect(() => { if (error) toast("Failed to load jobs", "error") }, [error, toast])
-  useEffect(() => {
-    if (holdData) setHoldClientIds(new Set(holdData.holds.map(h => h.clientId)))
-  }, [holdData])
-  useEffect(() => {
-    if (designersData) setDesigners(designersData.designers)
-  }, [designersData])
+
+  const holdClientIds = useMemo(
+    () => new Set(holdData?.holds.map(h => h.clientId) ?? []),
+    [holdData],
+  )
+  const designers = useMemo(() => {
+    const base = designersData?.designers ?? []
+    if (!extraDesigners.length) return base
+    const merged = new Set(base)
+    for (const name of extraDesigners) merged.add(name)
+    return [...merged].sort((a, b) => a.localeCompare(b))
+  }, [designersData, extraDesigners])
+
+  const rememberDesigner = useCallback((value: string | null | undefined) => {
+    if (!value) return
+    setExtraDesigners(prev => (prev.includes(value) ? prev : [...prev, value]))
+  }, [])
 
   const loading = isLoading && !data
   const refreshing = isValidating && !!data
@@ -621,13 +631,13 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         { revalidate: false },
       )
       if (field === "designer") {
-        setDesigners(prev => value && !prev.includes(value) ? [...prev, value].sort() : prev)
+        rememberDesigner(value)
       }
     } catch {
       toast("Network error", "error")
       await mutate()
     }
-  }, [mutate, toast])
+  }, [mutate, toast, rememberDesigner])
 
   // Perf: stable handlers so JobMobileCard memo is not busted by inline lambdas per row.
   const openJob = useCallback((jobId: string) => { router.push(`/jobs/${jobId}`) }, [router])
@@ -924,7 +934,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       )}
 
       {/* Mobile field view — compact cards for site / phone use */}
-      {isMobile && (
+      {mediaReady && isMobile && (
       <div className="space-y-2.5 mb-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
@@ -950,8 +960,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       </div>
       )}
 
-      {/* Desktop table */}
-      {!isMobile && (
+      {/* Desktop table — show until media is ready to avoid a mobile flash on SSR */}
+      {(!mediaReady || !isMobile) && (
       <div className={cn("bg-sr border border-bd rounded-xl shadow-card overflow-hidden transition-opacity", refreshing && "opacity-60")}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -1109,8 +1119,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
             current => current ? { ...current, jobs: current.jobs.map(j => j.id === updated.id ? updated : j) } : current,
             { revalidate: false },
           )
-          setDesigners(prev => updated.designer && !prev.includes(updated.designer)
-            ? [...prev, updated.designer].sort() : prev)
+          rememberDesigner(updated.designer)
         }}
       />
     </>

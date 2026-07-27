@@ -9,11 +9,38 @@ import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import type { Job } from "@/lib/types"
 import type { BillingHandoff } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
+import type { UserRow } from "@/lib/db/user-types"
 
 type JobDetailFallback = Job & {
   parentJob?: Job | null
   billingHandoff?: BillingHandoff | null
   cancelRecord?: unknown
+}
+
+async function loadClassicJobFallback(
+  id: string,
+  user: UserRow,
+  opts: { includeParent: boolean },
+): Promise<JobDetailFallback | null> {
+  const job = await jobService.findUnique(id)
+  if (!job) return null
+
+  const [cancelRecord, parentJob, billingHandoff] = await Promise.all([
+    job.archivedAt ? cancelRecordForJob(id) : Promise.resolve(undefined),
+    opts.includeParent && job.parentJobId
+      ? jobService.findUnique(job.parentJobId)
+      : Promise.resolve(null),
+    user.role === "ADMIN"
+      ? billingHandoffService.findBySourceJobId(id)
+      : Promise.resolve(null),
+  ])
+
+  return {
+    ...job,
+    ...(job.archivedAt ? { cancelRecord } : {}),
+    parentJob: opts.includeParent ? parentJob : null,
+    billingHandoff: billingHandoff as BillingHandoff | null,
+  }
 }
 
 export default async function JobDetailRoute({
@@ -22,10 +49,10 @@ export default async function JobDetailRoute({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const user = await getCurrentUser().catch(() => null)
 
   if (isWorkItemsModelEnabled()) {
     let fallback: ParentJobDashboard | null = null
-    const user = await getCurrentUser().catch(() => null)
     if (user) {
       try {
         fallback = await parentJobService.getDashboard(id)
@@ -46,20 +73,7 @@ export default async function JobDetailRoute({
     let fallbackJob: JobDetailFallback | null = null
     if (user) {
       try {
-        const job = await jobService.findUnique(id)
-        if (job) {
-          const base = job.archivedAt
-            ? { ...job, cancelRecord: await cancelRecordForJob(id) }
-            : job
-          const billingHandoff = user.role === "ADMIN"
-            ? await billingHandoffService.findBySourceJobId(id)
-            : null
-          fallbackJob = {
-            ...base,
-            parentJob: null,
-            billingHandoff: billingHandoff as BillingHandoff | null,
-          }
-        }
+        fallbackJob = await loadClassicJobFallback(id, user, { includeParent: false })
       } catch {
         fallbackJob = null
       }
@@ -68,27 +82,9 @@ export default async function JobDetailRoute({
   }
 
   let fallbackJob: JobDetailFallback | null = null
-
-  const user = await getCurrentUser().catch(() => null)
   if (user) {
     try {
-      const job = await jobService.findUnique(id)
-      if (job) {
-        const base = job.archivedAt
-          ? { ...job, cancelRecord: await cancelRecordForJob(id) }
-          : job
-        const [parentJob, billingHandoff] = await Promise.all([
-          job.parentJobId ? jobService.findUnique(job.parentJobId) : Promise.resolve(null),
-          user.role === "ADMIN"
-            ? billingHandoffService.findBySourceJobId(id)
-            : Promise.resolve(null),
-        ])
-        fallbackJob = {
-          ...base,
-          parentJob,
-          billingHandoff: billingHandoff as BillingHandoff | null,
-        }
-      }
+      fallbackJob = await loadClassicJobFallback(id, user, { includeParent: true })
     } catch {
       fallbackJob = null
     }

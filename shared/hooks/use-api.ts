@@ -21,9 +21,32 @@ const DEFAULT_OPTS: SWRConfiguration = {
   errorRetryCount: 2,
 }
 
-/** Cached GET with stale-while-revalidate — aligns with API Cache-Control headers. */
+/**
+ * Build a stable SWR/API key from a path + query params.
+ * Omits null/undefined/empty-string values; booleans become "true"/"false".
+ */
+export function buildApiKey(
+  path: string,
+  params?: Record<string, string | number | boolean | null | undefined>,
+): string {
+  if (!params) return path
+  const qs = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value == null || value === "") continue
+    qs.set(key, typeof value === "boolean" ? (value ? "true" : "false") : String(value))
+  }
+  const s = qs.toString()
+  return s ? `${path}?${s}` : path
+}
+
+/**
+ * Cached GET with stale-while-revalidate — aligns with API Cache-Control headers.
+ * Pass a module-level / memoized `config` object when overriding defaults so SWR
+ * does not see a new options identity every render.
+ */
 export function useApi<T>(key: string | null, config?: SWRConfiguration) {
-  return useSWR<T>(key, fetcher, { ...DEFAULT_OPTS, ...config })
+  // Prefer the stable DEFAULT_OPTS reference when callers pass no overrides.
+  return useSWR<T>(key, fetcher, config ? { ...DEFAULT_OPTS, ...config } : DEFAULT_OPTS)
 }
 
 /** Revalidate every SWR key whose string starts with `prefix`. */

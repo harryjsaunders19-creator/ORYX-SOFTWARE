@@ -16,6 +16,7 @@ import {
 } from "@/lib/supabase/archived-filter"
 import { postgrestOrIlike } from "@/shared/supabase/postgrest-filter"
 import { logEvent } from "@/shared/logger"
+import { collectRevisionParentIds } from "@/lib/revision-chain"
 import {
   sortColumn,
   todayIsoDate,
@@ -27,6 +28,8 @@ import {
 
 /** Above this count, drawing-number list sort loads all matching IDs into memory. */
 const DRAWING_SORT_WARN_ROWS = 8_000
+/** PostgREST `.in()` chunk size for revision sidecar parent lookups. */
+const REVISION_PARENT_IN_CHUNK = 100
 import { parseOryxDrawingSequence } from "@/lib/drawing-number"
 
 /** Perf: dashboard overdue list only needs id / drawing / address / deadline. */
@@ -192,9 +195,7 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
   return q
 }
 
-async function fetchRevisionRowsForWhere(
-  where: WhereClause = {},
-): Promise<{
+type RevisionSidecarRow = {
   id: string
   parentJobId: string | null
   revisionLetter: string | null
@@ -205,40 +206,18 @@ async function fetchRevisionRowsForWhere(
   dateCompleted: string | null
   notes: string | null
   billable: boolean
-}[]> {
-  // Ignore onlyOriginals on this sidecar query — we need children even when listing parents.
-  const { onlyOriginals: _o, onlyRevisions: _r, status: _s, overdue: _ov, dueToday: _dt, dueThisWeek: _dw, unassigned: _u, ...rest } = where
-  const { data, error } = await applyWhere(
-    table().select(
-      "id, parent_job_id, revision_letter, status, designer, required_by_date, updated_at, date_completed, notes, billable",
-    ),
-    rest,
-  ).not("parent_job_id", "is", null)
-  if (error) {
-    if (isMissingColumnError(error, "billable")) {
-      const { data: d2, error: e2 } = await applyWhere(
-        table().select(
-          "id, parent_job_id, revision_letter, status, designer, required_by_date, updated_at, date_completed, notes",
-        ),
-        rest,
-      ).not("parent_job_id", "is", null)
-      if (e2) throw e2
-      return ((d2 ?? []) as Record<string, unknown>[]).map(r => ({
-        id: r.id as string,
-        parentJobId: r.parent_job_id as string | null,
-        revisionLetter: r.revision_letter as string | null,
-        status: r.status as string,
-        designer: (r.designer as string) ?? "",
-        requiredByDate: (r.required_by_date as string | null) ?? null,
-        updatedAt: r.updated_at as string,
-        dateCompleted: (r.date_completed as string | null) ?? null,
-        notes: (r.notes as string | null) ?? null,
-        billable: true,
-      }))
-    }
-    throw error
-  }
-  return ((data ?? []) as Record<string, unknown>[]).map(r => ({
+}
+
+const REVISION_SIDECAR_SELECT =
+  "id, parent_job_id, revision_letter, status, designer, required_by_date, updated_at, date_completed, notes, billable"
+const REVISION_SIDECAR_SELECT_NO_BILLABLE =
+  "id, parent_job_id, revision_letter, status, designer, required_by_date, updated_at, date_completed, notes"
+
+function mapRevisionSidecarRows(
+  rows: Record<string, unknown>[],
+  billableFallback = false,
+): RevisionSidecarRow[] {
+  return rows.map(r => ({
     id: r.id as string,
     parentJobId: r.parent_job_id as string | null,
     revisionLetter: r.revision_letter as string | null,
@@ -248,15 +227,49 @@ async function fetchRevisionRowsForWhere(
     updatedAt: r.updated_at as string,
     dateCompleted: (r.date_completed as string | null) ?? null,
     notes: (r.notes as string | null) ?? null,
-    billable: r.billable == null ? true : Boolean(r.billable),
+    billable: billableFallback
+      ? true
+      : r.billable == null ? true : Boolean(r.billable),
   }))
+}
+
+/**
+ * Perf: load revision rows only for parents on the current page (or export set),
+ * instead of every revision matching the list WHERE clause.
+ */
+async function fetchRevisionRowsForParents(
+  parentIds: string[],
+): Promise<RevisionSidecarRow[]> {
+  const unique = [...new Set(parentIds.filter(Boolean))]
+  if (!unique.length) return []
+
+  const out: RevisionSidecarRow[] = []
+  for (let i = 0; i < unique.length; i += REVISION_PARENT_IN_CHUNK) {
+    const chunk = unique.slice(i, i + REVISION_PARENT_IN_CHUNK)
+    const { data, error } = await table()
+      .select(REVISION_SIDECAR_SELECT)
+      .in("parent_job_id", chunk)
+    if (error) {
+      if (isMissingColumnError(error, "billable")) {
+        const { data: d2, error: e2 } = await table()
+          .select(REVISION_SIDECAR_SELECT_NO_BILLABLE)
+          .in("parent_job_id", chunk)
+        if (e2) throw e2
+        out.push(...mapRevisionSidecarRows((d2 ?? []) as Record<string, unknown>[], true))
+        continue
+      }
+      throw error
+    }
+    out.push(...mapRevisionSidecarRows((data ?? []) as Record<string, unknown>[]))
+  }
+  return out
 }
 
 /** Legacy in-memory sort when migration 023 (list_sort_key) is not applied yet. */
 async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
   jobs: JobRow[]
   total: number
-  allForRevisions: { id: string; parentJobId: string | null; revisionLetter: string | null }[]
+  allForRevisions: RevisionSidecarRow[]
 }> {
   const dir = opts.orderBy?.dir ?? "asc"
   const { data: sortData, count, error: sortErr } = await applyWhere(
@@ -292,7 +305,7 @@ async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
   const pageIds = page.map(r => r.id)
 
   if (!pageIds.length) {
-    return { jobs: [], total: count ?? 0, allForRevisions: allSortRows }
+    return { jobs: [], total: count ?? 0, allForRevisions: [] }
   }
 
   const { data: pageData, error: pageErr } = await table().select(JOB_LIST_SELECT).in("id", pageIds)
@@ -302,15 +315,16 @@ async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
     ((pageData ?? []) as unknown as SupabaseJobRow[]).map(r => [r.id, toJobRow(r)]),
   )
   const jobs = pageIds.map(id => byId.get(id)).filter((r): r is JobRow => r != null)
+  const allForRevisions = await fetchRevisionRowsForParents(collectRevisionParentIds(jobs))
 
-  return { jobs, total: count ?? allSortRows.length, allForRevisions: allSortRows }
+  return { jobs, total: count ?? allSortRows.length, allForRevisions }
 }
 
 /** Paginated drawing-number sort via list_sort_key (migration 023). */
 async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
   jobs: JobRow[]
   total: number
-  allForRevisions: { id: string; parentJobId: string | null; revisionLetter: string | null }[]
+  allForRevisions: RevisionSidecarRow[]
 }> {
   const dir = opts.orderBy?.dir ?? "asc"
   const asc = dir === "asc"
@@ -329,9 +343,10 @@ async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
     }
     throw error
   }
-  const allForRevisions = await fetchRevisionRowsForWhere(opts.where)
+  const jobs = ((data ?? []) as SupabaseJobRow[]).map(toJobRow)
+  const allForRevisions = await fetchRevisionRowsForParents(collectRevisionParentIds(jobs))
   return {
-    jobs: ((data ?? []) as SupabaseJobRow[]).map(toJobRow),
+    jobs,
     total: count ?? 0,
     allForRevisions,
   }
@@ -343,7 +358,7 @@ export const supabaseJobRepo = {
    *
    * Drawing-number sort (the default): paginated ORDER BY list_sort_key when
    * migration 023 is applied; falls back to in-memory sort otherwise.
-   * Revision flags use a lightweight query for rows with parent_job_id set.
+   * Revision flags load children only for parents on the returned page.
    *
    * For all other sort fields Supabase handles ordering natively.
    */
@@ -369,8 +384,9 @@ export const supabaseJobRepo = {
     }
     const { data, count, error } = await q
     if (error) throw error
-    const allForRevisions = await fetchRevisionRowsForWhere(opts.where)
-    return { jobs: ((data ?? []) as SupabaseJobRow[]).map(toJobRow), total: count ?? 0, allForRevisions }
+    const jobs = ((data ?? []) as SupabaseJobRow[]).map(toJobRow)
+    const allForRevisions = await fetchRevisionRowsForParents(collectRevisionParentIds(jobs))
+    return { jobs, total: count ?? 0, allForRevisions }
   },
 
   async findMany(opts: FindManyOptions = {}): Promise<JobRow[]> {

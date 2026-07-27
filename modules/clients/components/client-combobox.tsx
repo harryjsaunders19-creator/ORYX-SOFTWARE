@@ -31,22 +31,26 @@ export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, c
     setSelected(!!value)
   }, [value, name])
 
-  const search = useCallback(async (q: string) => {
+  const search = useCallback(async (q: string, signal?: AbortSignal) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/clients/search?q=${encodeURIComponent(q)}&limit=8`)
+      const res = await fetch(`/api/clients/search?q=${encodeURIComponent(q)}&limit=8`, { signal })
       if (res.ok) {
         const d = await res.json() as { clients: ClientWithHold[] }
         setResults(d.clients)
       }
-    } catch { /* ignore */ }
-    finally { setLoading(false) }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return
+    } finally {
+      if (!signal?.aborted) setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
     if (!open) return
-    const t = setTimeout(() => search(query), 150)
-    return () => clearTimeout(t)
+    const ac = new AbortController()
+    const t = setTimeout(() => { void search(query, ac.signal) }, 150)
+    return () => { clearTimeout(t); ac.abort() }
   }, [query, open, search])
 
   // Close on outside click

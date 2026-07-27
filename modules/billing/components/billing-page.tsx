@@ -12,7 +12,7 @@ import { useToast } from "@/shared/ui/toast"
 import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, DataPanel, KpiTile, TabBar } from "@/shared/layouts/page-layout"
 import { formatGBP, formatDisplayDate } from "@/shared/utils/utils"
-import { useMediaQuery } from "@/shared/hooks/use-media-query"
+import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi } from "@/shared/hooks/use-api"
 import type { BillingHandoff, BillingExportBatch } from "@/lib/types"
 
@@ -413,7 +413,8 @@ function BillingPageInner() {
   )
 
   const colCount = view === "awaiting" ? 10 : view === "cleared" ? 10 : 6
-  const isMobile = useMediaQuery("(max-width: 767px)")
+  const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
+  const showMobile = mediaReady && isMobile
 
   return (
     <PageShell wide className="space-y-5">
@@ -479,7 +480,7 @@ function BillingPageInner() {
       )}
 
       {view === "history" ? (
-        isMobile ? (
+        showMobile ? (
           <div className="space-y-2.5">
             {batches === null ? (
               <DataPanel className="px-4 py-10 text-center text-t4">
@@ -516,7 +517,7 @@ function BillingPageInner() {
           </table>
         </DataPanel>
         )
-      ) : isMobile ? (
+      ) : showMobile ? (
         <div className="space-y-2.5">
           {view === "awaiting" && items && items.length > 0 && (
             <label className="flex items-center gap-2 text-xs text-t3 px-1 min-h-11">

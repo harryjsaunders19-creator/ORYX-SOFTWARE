@@ -19,7 +19,7 @@ import { formatGBP, cn, parseLocalDate, getQuoteExpiryInfo, quoteExpiryBadgeClas
 import { quoteWorksDisplayLabel, inferQuoteWorksFromDescription } from "../quote-works"
 import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
-import { useMediaQuery } from "@/shared/hooks/use-media-query"
+import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
 import { QUOTE_STATUSES } from "@/lib/types"
 import type { Quote } from "@/lib/types"
@@ -84,15 +84,29 @@ function QuoteExpiryCell({ quote }: { quote: Quote }) {
 
 export default function QuotesPage() {
   return (
-    <Suspense>
+    <Suspense
+      fallback={
+        <PageShell>
+          <div className="skeleton h-9 w-36 rounded mb-2" />
+          <div className="skeleton h-4 w-48 rounded mb-8" />
+          <DataPanel>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-16 border-b border-bd last:border-0 px-4 flex items-center">
+                <div className="skeleton h-4 w-64 rounded" />
+              </div>
+            ))}
+          </DataPanel>
+        </PageShell>
+      }
+    >
       <QuotesInner />
     </Suspense>
   )
 }
 
-function QuoteRowActions({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
+function QuoteRowActions({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
   quote: Quote
-  pdfGenerating: string | null
+  isPdfBusy: boolean
   onGeneratePdf: (q: Quote) => void
   onEdit: (q: Quote) => void
   onSetStatus: (q: Quote, status: string) => void
@@ -107,10 +121,10 @@ function QuoteRowActions({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSet
           <FileDown className="h-3.5 w-3.5" />
         </a>
       ) : (
-        <button onClick={() => onGeneratePdf(q)} disabled={pdfGenerating === q.id}
+        <button onClick={() => onGeneratePdf(q)} disabled={isPdfBusy}
           className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg disabled:opacity-50"
           title="Generate PDF">
-          {pdfGenerating === q.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          {isPdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
         </button>
       )}
       <Button variant="ghost" size="sm" onClick={() => onEdit(q)}>Edit</Button>
@@ -144,7 +158,7 @@ function QuoteRowActions({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSet
 
 const QuoteMobileCard = memo(function QuoteMobileCard({
   quote: q,
-  pdfGenerating,
+  isPdfBusy,
   onGeneratePdf,
   onEdit,
   onSetStatus,
@@ -152,7 +166,7 @@ const QuoteMobileCard = memo(function QuoteMobileCard({
   onArchive,
 }: {
   quote: Quote
-  pdfGenerating: string | null
+  isPdfBusy: boolean
   onGeneratePdf: (q: Quote) => void
   onEdit: (q: Quote) => void
   onSetStatus: (q: Quote, status: string) => void
@@ -193,7 +207,7 @@ const QuoteMobileCard = memo(function QuoteMobileCard({
       <div className="pt-2 border-t border-bd/60">
         <QuoteRowActions
           quote={q}
-          pdfGenerating={pdfGenerating}
+          isPdfBusy={isPdfBusy}
           onGeneratePdf={onGeneratePdf}
           onEdit={onEdit}
           onSetStatus={onSetStatus}
@@ -205,9 +219,9 @@ const QuoteMobileCard = memo(function QuoteMobileCard({
   )
 })
 
-function QuoteTableRow({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
+function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
   quote: Quote
-  pdfGenerating: string | null
+  isPdfBusy: boolean
   onGeneratePdf: (q: Quote) => void
   onEdit: (q: Quote) => void
   onSetStatus: (q: Quote, status: string) => void
@@ -249,7 +263,7 @@ function QuoteTableRow({ quote: q, pdfGenerating, onGeneratePdf, onEdit, onSetSt
       <td className="px-4 py-3">
         <QuoteRowActions
           quote={q}
-          pdfGenerating={pdfGenerating}
+          isPdfBusy={isPdfBusy}
           onGeneratePdf={onGeneratePdf}
           onEdit={onEdit}
           onSetStatus={onSetStatus}
@@ -295,7 +309,7 @@ function QuotesInner() {
   const loading = isLoading && !data
   const refreshing = isValidating && !!data
   const totalPages = data ? Math.max(1, Math.ceil(data.total / QUOTE_PAGE_LIMIT)) : 1
-  const isMobile = useMediaQuery("(max-width: 767px)")
+  const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
 
   const handleEdit = useCallback((q: Quote) => setEditQuote(q), [])
   const handleConvert = useCallback((q: Quote) => setConvertQuote(q), [])
@@ -334,7 +348,7 @@ function QuotesInner() {
     finally { setSaving(false) }
   }
 
-  const setStatus = async (quote: Quote, status: string) => {
+  const setStatus = useCallback(async (quote: Quote, status: string) => {
     try {
       const res = await fetch(`/api/quotes/${quote.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -345,9 +359,9 @@ function QuotesInner() {
       toast(`${quote.quoteNumber} marked ${statusMeta(status).label}`, status === "ACCEPTED" ? "success" : "info")
       mutate()
     } catch { toast("Network error", "error") }
-  }
+  }, [mutate, toast])
 
-  const generatePdf = async (quote: Quote) => {
+  const generatePdf = useCallback(async (quote: Quote) => {
     setPdfGenerating(quote.id)
     try {
       const res = await fetch(`/api/quotes/${quote.id}/pdf`, { method: "POST" })
@@ -379,7 +393,7 @@ function QuotesInner() {
       mutate()
     } catch { toast("Network error", "error") }
     finally { setPdfGenerating(null) }
-  }
+  }, [mutate, toast])
 
   const clearExpired = async () => {
     setClearing(true)
@@ -483,7 +497,7 @@ function QuotesInner() {
       )}
 
       {/* Table */}
-      {loading ? (
+      {loading || !mediaReady ? (
         <DataPanel>
           {[...Array(5)].map((_, i) => (
             <div key={i} className="h-16 border-b border-bd last:border-0 px-4 flex items-center">
@@ -510,7 +524,7 @@ function QuotesInner() {
             <QuoteMobileCard
               key={q.id}
               quote={q}
-              pdfGenerating={pdfGenerating}
+              isPdfBusy={pdfGenerating === q.id}
               onGeneratePdf={generatePdf}
               onEdit={handleEdit}
               onSetStatus={setStatus}
@@ -539,7 +553,7 @@ function QuotesInner() {
                 <MemoQuoteTableRow
                   key={q.id}
                   quote={q}
-                  pdfGenerating={pdfGenerating}
+                  isPdfBusy={pdfGenerating === q.id}
                   onGeneratePdf={generatePdf}
                   onEdit={handleEdit}
                   onSetStatus={setStatus}

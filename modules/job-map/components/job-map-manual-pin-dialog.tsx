@@ -65,14 +65,17 @@ export function JobMapManualPinDialog({ job, open, onOpenChange, onSaved }: Prop
       setResults([])
       return
     }
-    let cancelled = false
-    fetch(`/api/job-map/search?q=${encodeURIComponent(debouncedSearch)}`)
+    const ac = new AbortController()
+    fetch(`/api/job-map/search?q=${encodeURIComponent(debouncedSearch)}`, { signal: ac.signal })
       .then(r => r.json())
       .then((data: { results: SearchResult[] }) => {
-        if (!cancelled) setResults(data.results ?? [])
+        setResults(data.results ?? [])
       })
-      .catch(() => { if (!cancelled) setResults([]) })
-    return () => { cancelled = true }
+      .catch(err => {
+        if (err instanceof DOMException && err.name === "AbortError") return
+        setResults([])
+      })
+    return () => ac.abort()
   }, [debouncedSearch, open])
 
   const place = useCallback((lat: number, lng: number) => {

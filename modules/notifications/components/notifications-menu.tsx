@@ -17,6 +17,8 @@ import type { AppNotification, NotificationKind } from "../types/notifications-t
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 
 const POLL_MS = 5 * 60_000 // refresh when tab visible; no background polling when hidden
+/** Stable SWR options — avoid a new config object every NotificationsMenu render. */
+const NOTIFICATIONS_SWR = { refreshInterval: POLL_MS } as const
 const CLEAR_KEY = "oryx.notifications.clearedAt"
 
 const KIND_ICON: Record<NotificationKind, React.ElementType> = {
@@ -48,9 +50,10 @@ export function NotificationsMenu() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [clearedAtMs, setClearedAtMs] = useState(0)
-  const { data, isLoading, mutate } = useApi<NotificationsPayload>("/api/notifications", {
-    refreshInterval: POLL_MS,
-  })
+  const { data, isLoading, mutate } = useApi<NotificationsPayload>(
+    "/api/notifications",
+    NOTIFICATIONS_SWR,
+  )
   const allNotifications = useMemo(() => data?.notifications ?? [], [data?.notifications])
   const visibleNotifications = useMemo(() => {
     if (!clearedAtMs) return allNotifications
