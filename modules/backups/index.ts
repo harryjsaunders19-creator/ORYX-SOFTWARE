@@ -40,4 +40,17 @@ export {
   type DownloadToken,
 } from "./backup-token"
 
+export {
+  buildLogicalBackupPack,
+  logicalBackupFilename,
+  LOGICAL_BACKUP_VERSION,
+  type LogicalBackupPack,
+} from "./services/logical-export"
+
+export {
+  importLogicalBackupPack,
+  type LogicalImportResult,
+  type LogicalSheetResult,
+} from "./services/logical-import"
+
 export { default as BackupsPage } from "./components/backups-page"

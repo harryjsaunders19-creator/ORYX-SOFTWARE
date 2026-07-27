@@ -36,7 +36,7 @@ export async function POST(_req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Local SQLite backups are not available when Supabase is the data store. Use Supabase project backups or Export Excel from this page.",
+            "Local SQLite backups are not available when Supabase is the data store. Use Supabase project backups, or Export full data / Export Excel from this page.",
           reason: "supabase_primary",
         },
         { status: 503 },

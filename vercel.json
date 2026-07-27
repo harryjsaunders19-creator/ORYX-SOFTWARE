@@ -4,6 +4,12 @@
     "app/api/import/excel/route.ts": {
       "maxDuration": 60
     },
+    "app/api/backups/export-data/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/backups/import-data/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/billing-handoffs/export/route.ts": {
       "maxDuration": 60
     },

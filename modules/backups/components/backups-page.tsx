@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
 import {
   DatabaseBackup, CheckCircle2, XCircle, Clock, Loader2, Play, RefreshCw,
-  FileJson2, FileSpreadsheet, Upload,
+  FileJson2, FileSpreadsheet, Upload, ShieldCheck,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { RequireRole } from "@/components/require-role"
@@ -26,7 +26,12 @@ interface AuditEntry {
 }
 
 interface SheetResult { created: number; updated: number; skipped: number; errors: string[] }
-interface ImportResult { clients: SheetResult; jobs: SheetResult; quotes: SheetResult }
+interface ImportResult {
+  clients: SheetResult
+  jobs: SheetResult
+  quotes: SheetResult
+  users?: SheetResult
+}
 
 function formatBytes(bytes: number | null): string {
   if (bytes == null) return "—"
@@ -71,6 +76,10 @@ function triggerLabel(t: string): string {
   }
 }
 
+function sheetTotal(r: SheetResult): number {
+  return r.created + r.updated
+}
+
 export default function BackupsPage() {
   return <RequireRole roles={["ADMIN"]}><BackupsInner /></RequireRole>
 }
@@ -85,8 +94,11 @@ function BackupsInner() {
   const [starting, setStarting]     = useState(false)
   const [exportingJson, setExportingJson]     = useState(false)
   const [exportingExcel, setExportingExcel]   = useState(false)
-  const [importing, setImporting]             = useState(false)
+  const [importingExcel, setImportingExcel]   = useState(false)
+  const [importingJson, setImportingJson]     = useState(false)
   const [importResult, setImportResult]       = useState<ImportResult | null>(null)
+
+  const busy = exportingJson || exportingExcel || importingExcel || importingJson
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -109,7 +121,6 @@ function BackupsInner() {
 
   useEffect(() => { load() }, [load])
 
-  // Auto-refresh while a backup is running
   useEffect(() => {
     const hasRunning = backups.some(b => b.status === "PENDING" || b.status === "RUNNING")
     if (!hasRunning) return
@@ -129,24 +140,24 @@ function BackupsInner() {
     finally { setStarting(false) }
   }
 
-  const downloadJson = async () => {
+  const downloadLogicalJson = async () => {
     setExportingJson(true)
     try {
-      const res = await fetch("/api/backups/download")
+      const res = await fetch("/api/backups/export-data")
       if (!res.ok) {
-        const data = await res.json() as { error?: string }
-        toast(data.error ?? "No backup available to download", "error")
+        const data = await res.json().catch(() => ({})) as { error?: string }
+        toast(data.error ?? "Full data export failed", "error")
         return
       }
       const blob = await res.blob()
-      const cd   = res.headers.get("Content-Disposition") ?? ""
+      const cd = res.headers.get("Content-Disposition") ?? ""
       const match = cd.match(/filename="([^"]+)"/)
-      const name  = match?.[1] ?? `oryx-backup-${new Date().toISOString().slice(0, 10)}.json`
-      const url   = URL.createObjectURL(blob)
-      const a     = document.createElement("a")
+      const name = match?.[1] ?? `oryx-data-backup-${new Date().toISOString().slice(0, 10)}.json`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
       a.href = url; a.download = name; a.click()
       URL.revokeObjectURL(url)
-      toast("JSON backup downloaded", "success")
+      toast("Full data backup downloaded", "success")
     } catch { toast("Download failed", "error") }
     finally { setExportingJson(false) }
   }
@@ -157,9 +168,9 @@ function BackupsInner() {
       const res = await fetch("/api/export/all")
       if (!res.ok) { toast("Excel export failed", "error"); return }
       const blob = await res.blob()
-      const name  = `oryx-export-${new Date().toISOString().slice(0, 10)}.xlsx`
-      const url   = URL.createObjectURL(blob)
-      const a     = document.createElement("a")
+      const name = `oryx-export-${new Date().toISOString().slice(0, 10)}.xlsx`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
       a.href = url; a.download = name; a.click()
       URL.revokeObjectURL(url)
       toast("Excel report downloaded", "success")
@@ -167,8 +178,19 @@ function BackupsInner() {
     finally { setExportingExcel(false) }
   }
 
+  const summariseImport = (data: ImportResult) => {
+    setImportResult(data)
+    const sheets = [data.clients, data.jobs, data.quotes, data.users].filter(Boolean) as SheetResult[]
+    const total = sheets.reduce((n, s) => n + sheetTotal(s), 0)
+    if (total === 0) {
+      toast("Import finished but no records were created or updated — check errors below", "error")
+    } else {
+      toast(`Import complete — ${total.toLocaleString()} records`, "success")
+    }
+  }
+
   const importExcel = async (file: File) => {
-    setImporting(true)
+    setImportingExcel(true)
     setImportResult(null)
     try {
       const form = new FormData()
@@ -190,22 +212,37 @@ function BackupsInner() {
       }
       if (!res.ok) {
         toast(data.error ?? `Import failed (${res.status})`, "error")
-        if (data.clients || data.jobs || data.quotes) setImportResult(data)
+        if (data.clients || data.jobs || data.quotes || data.users) setImportResult(data)
         return
       }
-      setImportResult(data)
-      const total = data.clients.created + data.clients.updated
-        + data.jobs.created + data.jobs.updated
-        + data.quotes.created + data.quotes.updated
-      if (total === 0) {
-        toast("Import finished but no records were created or updated — check errors below", "error")
-      } else {
-        toast(`Import complete — ${total.toLocaleString()} records`, "success")
-      }
+      summariseImport(data)
     } catch {
       toast("Import failed — network error", "error")
+    } finally {
+      setImportingExcel(false)
     }
-    finally { setImporting(false) }
+  }
+
+  const importJson = async (file: File) => {
+    setImportingJson(true)
+    setImportResult(null)
+    try {
+      const form = new FormData()
+      form.append("file", file)
+      const res = await fetch("/api/backups/import-data", { method: "POST", body: form })
+      const data = await res.json() as ImportResult & { error?: string }
+      if (!res.ok) {
+        toast(data.error ?? `Import failed (${res.status})`, "error")
+        if (data.clients || data.jobs || data.quotes || data.users) setImportResult(data)
+        return
+      }
+      summariseImport(data)
+      load()
+    } catch {
+      toast("Import failed — network error", "error")
+    } finally {
+      setImportingJson(false)
+    }
   }
 
   const completed = backups.filter(b => b.status === "COMPLETED")
@@ -214,48 +251,75 @@ function BackupsInner() {
     ? Object.values(JSON.parse(latestCompleted.rowCountsJson) as Record<string, number>).reduce((a, b) => a + b, 0)
     : null
 
+  const importSheets = (["users", "clients", "jobs", "quotes"] as const).filter(
+    key => importResult && importResult[key],
+  )
+
   return (
     <PageShell>
-      {!localBackupSupported && (
-        <DataPanel className="mb-4 p-4 border border-bd bg-surface-low text-sm text-t1">
-          <p className="font-medium">Supabase is your production database</p>
-          <p className="mt-1 text-t2">
-            Scheduled SQLite backups do not run on Vercel. Use Supabase&apos;s built-in backups
-            for disaster recovery, or export data with Excel/JSON below.
-          </p>
-        </DataPanel>
-      )}
+      <DataPanel className="mb-4 p-4 border border-bd bg-surface-low text-sm text-t1">
+        <div className="flex items-start gap-3">
+          <ShieldCheck className="h-5 w-5 text-ac shrink-0 mt-0.5" />
+          <div className="min-w-0 space-y-2">
+            <p className="font-medium">
+              {localBackupSupported ? "Recovery options" : "Production recovery (Supabase)"}
+            </p>
+            <ul className="text-t2 text-sm space-y-1 list-disc pl-4">
+              <li>
+                <strong className="text-t1">Primary:</strong> Supabase project backups / PITR in the
+                Supabase dashboard — restores the full live database.
+              </li>
+              <li>
+                <strong className="text-t1">Full data (JSON):</strong> downloads Users (with password
+                hashes), Clients, Jobs, and Quotes from live data — use this for portable recovery
+                on Vercel.
+              </li>
+              <li>
+                <strong className="text-t1">Excel:</strong> human-readable export/import including
+                Users directory, Jobs (designer + dates), Clients, and Quotes. Excel does not store
+                login password hashes — restored users without a hash must set a new password.
+              </li>
+              {!localBackupSupported && (
+                <li>
+                  Local SQLite scheduled dumps are disabled here because Supabase is the source of truth.
+                </li>
+              )}
+            </ul>
+          </div>
+        </div>
+      </DataPanel>
+
       <PageHeader
         title="System Backup"
         description={
           localBackupSupported
             ? `Automated daily at ~02:00 · ${backups.length} backup${backups.length !== 1 ? "s" : ""} recorded`
-            : `Export tools only · ${backups.length} historical backup record${backups.length !== 1 ? "s" : ""}`
+            : `Live export & import · ${backups.length} historical backup record${backups.length !== 1 ? "s" : ""}`
         }
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <Button variant="outline" size="sm" onClick={load} disabled={loading || busy}>
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={downloadJson}
+              onClick={downloadLogicalJson}
               loading={exportingJson}
-              disabled={exportingJson || exportingExcel}
-              title="Download the latest completed backup as a JSON file"
+              disabled={busy}
+              title="Download Users, Clients, Jobs, and Quotes as a recoverable JSON pack"
             >
               <FileJson2 className="h-3.5 w-3.5" />
-              Export JSON
+              Export full data
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={downloadExcel}
               loading={exportingExcel}
-              disabled={exportingJson || exportingExcel}
-              title="Download all business data as an Excel workbook"
+              disabled={busy}
+              title="Download business data as an Excel workbook"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               Export Excel
@@ -263,56 +327,92 @@ function BackupsInner() {
             <label className={cn(
               "inline-flex items-center gap-1.5 text-sm font-medium rounded-md px-3 py-1.5 border border-bd cursor-pointer",
               "bg-sr text-t1 hover:bg-pg transition-colors",
-              importing && "opacity-50 pointer-events-none",
+              (busy) && "opacity-50 pointer-events-none",
             )}>
-              {importing
+              {importingJson
                 ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 : <Upload className="h-3.5 w-3.5" />}
-              {importing ? "Importing…" : "Import Excel"}
+              {importingJson ? "Importing…" : "Import JSON"}
+              <input
+                type="file"
+                accept=".json,application/json"
+                className="sr-only"
+                disabled={busy}
+                onChange={e => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = "" }}
+              />
+            </label>
+            <label className={cn(
+              "inline-flex items-center gap-1.5 text-sm font-medium rounded-md px-3 py-1.5 border border-bd cursor-pointer",
+              "bg-sr text-t1 hover:bg-pg transition-colors",
+              busy && "opacity-50 pointer-events-none",
+            )}>
+              {importingExcel
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <Upload className="h-3.5 w-3.5" />}
+              {importingExcel ? "Importing…" : "Import Excel"}
               <input
                 type="file"
                 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="sr-only"
-                disabled={importing}
+                disabled={busy}
                 onChange={e => { const f = e.target.files?.[0]; if (f) importExcel(f); e.target.value = "" }}
               />
             </label>
             {localBackupSupported && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={startManualBackup}
-              disabled={starting || backups.some(b => b.status === "RUNNING" || b.status === "PENDING")}
-            >
-              <Play className="h-3.5 w-3.5" />
-              {starting ? "Starting…" : "Run backup now"}
-            </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={startManualBackup}
+                disabled={starting || busy || backups.some(b => b.status === "RUNNING" || b.status === "PENDING")}
+              >
+                <Play className="h-3.5 w-3.5" />
+                {starting ? "Starting…" : "Run backup now"}
+              </Button>
             )}
           </>
         }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-        <KpiTile label="Last backup" value={latestCompleted ? format(new Date(latestCompleted.completedAt!), "d MMM yyyy, HH:mm") : "Never"} accent="#4640DE" />
+        <KpiTile
+          label={localBackupSupported ? "Last local backup" : "Local SQLite dumps"}
+          value={
+            localBackupSupported
+              ? (latestCompleted
+                ? format(new Date(latestCompleted.completedAt!), "d MMM yyyy, HH:mm")
+                : "Never")
+              : "Use JSON / Supabase"
+          }
+          accent="#4640DE"
+        />
         <KpiTile label="Size" value={formatBytes(latestCompleted?.sizeBytes ?? null)} accent="#0E7A6E" />
         <KpiTile label="Rows backed up" value={totalRows?.toLocaleString() ?? "—"} accent="#B45309" />
-        <KpiTile label="Storage location" value={<span className="text-sm font-mono font-normal truncate block">{backupsDir || "—"}</span>} accent="#71717A" />
+        <KpiTile
+          label="Storage location"
+          value={
+            <span className="text-sm font-mono font-normal truncate block">
+              {localBackupSupported ? (backupsDir || "—") : "Supabase + downloads"}
+            </span>
+          }
+          accent="#71717A"
+        />
       </div>
 
-      {/* Import result */}
       {importResult && (
         <DataPanel className="overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-bd flex items-center justify-between">
             <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Import result</p>
-            <button onClick={() => setImportResult(null)} className="text-xs text-t4 hover:text-t2">Dismiss</button>
+            <button type="button" onClick={() => setImportResult(null)} className="text-xs text-t4 hover:text-t2">
+              Dismiss
+            </button>
           </div>
           <div className="divide-y divide-bd">
-            {(["clients", "jobs", "quotes"] as const).map(sheet => {
-              const r = importResult[sheet]
+            {importSheets.map(sheet => {
+              const r = importResult[sheet]!
               const hasErrors = r.errors.length > 0
               return (
                 <div key={sheet} className="px-4 py-3">
-                  <div className="flex items-center gap-4 mb-1">
+                  <div className="flex items-center gap-4 mb-1 flex-wrap">
                     <span className="text-xs font-semibold text-t1 capitalize w-16">{sheet}</span>
                     <span className="text-xs text-ok-tx">{r.created} created</span>
                     <span className="text-xs text-ac">{r.updated} updated</span>
@@ -335,7 +435,6 @@ function BackupsInner() {
         </DataPanel>
       )}
 
-      {/* Backup history */}
       {loading && backups.length === 0 ? (
         <div className={surfaceCard}>
           {[...Array(3)].map((_, i) => (
@@ -347,8 +446,14 @@ function BackupsInner() {
       ) : backups.length === 0 ? (
         <div className={cn(surfaceCard, "p-10 text-center")}>
           <DatabaseBackup className="h-8 w-8 text-t4 mx-auto mb-3" />
-          <p className="text-sm font-medium text-t1 mb-1">No backups yet</p>
-          <p className="text-xs text-t3">The first automated backup will run at ~02:00, or click &ldquo;Run backup now&rdquo; to create one immediately.</p>
+          <p className="text-sm font-medium text-t1 mb-1">
+            {localBackupSupported ? "No local backups yet" : "No local backup history"}
+          </p>
+          <p className="text-xs text-t3 max-w-md mx-auto">
+            {localBackupSupported
+              ? "The first automated backup will run at ~02:00, or click “Run backup now”. You can also Export full data anytime."
+              : "Use Export full data or Export Excel above. Keep a copy somewhere safe, and confirm Supabase project backups are enabled."}
+          </p>
         </div>
       ) : (
         <DataPanel className="overflow-hidden mb-5">
@@ -401,7 +506,6 @@ function BackupsInner() {
         </DataPanel>
       )}
 
-      {/* Error details for failed backups */}
       {backups.filter(b => b.status === "FAILED").length > 0 && (
         <DataPanel className="overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-bd">
@@ -418,7 +522,6 @@ function BackupsInner() {
         </DataPanel>
       )}
 
-      {/* Audit log */}
       {auditLog.length > 0 && (
         <DataPanel className="overflow-hidden">
           <div className="px-4 py-3 border-b border-bd">

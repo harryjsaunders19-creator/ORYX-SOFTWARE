@@ -116,7 +116,11 @@ npm run supabase:verify-all
 
 ### Backups on Vercel
 
-Local SQLite backups **do not run** when Supabase is the data store. Use Supabase project backups for disaster recovery, or export via Admin → Backups (Excel/JSON).
+Local SQLite filesystem dumps **do not run** when Supabase is the data store. For production recovery:
+
+1. **Supabase project backups / PITR** — full database restore (primary).
+2. **Admin → Backups → Export full data** — portable JSON of Users (with password hashes), Clients, Jobs, and Quotes; re-import with **Import JSON**.
+3. **Export / Import Excel** — same entities for spreadsheet workflows (Users without password hashes; restored accounts must set a new password).
 
 ### Experimental modules (off in production)
 
