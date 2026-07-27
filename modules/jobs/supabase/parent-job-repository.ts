@@ -65,6 +65,15 @@ export const supabaseParentJobRepo = {
     return toParentJobRow(data as unknown as SupabaseParentJobRow)
   },
 
+  /** Compensating delete after a failed quote convert (work items first — FK restrict). */
+  async deleteCascade(id: string): Promise<void> {
+    const admin = createAdminClient()
+    const { error: wiErr } = await admin.from("work_items").delete().eq("parent_job_id", id)
+    if (wiErr) throw new Error(wiErr.message)
+    const { error } = await table().delete().eq("id", id)
+    if (error) throw new Error(error.message)
+  },
+
   async update(id: string, patch: Partial<ParentJobRow>): Promise<ParentJobRow | null> {
     const existing = await this.findUnique(id)
     if (!existing) return null

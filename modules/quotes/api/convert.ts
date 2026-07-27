@@ -6,7 +6,6 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { quoteService } from "../services/quote-service"
-import { jobService } from "@/lib/services/job-service"
 import { createId } from "@paralleldrive/cuid2"
 import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
@@ -17,6 +16,7 @@ import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { resolveWorksFromQuote } from "../convert-works"
 import { validateQuoteForConvert, quoteConvertHoldResponse } from "../convert-validate"
+import { convertQuoteToLegacyJob } from "../convert-atomic"
 import { logError, logEvent } from "@/shared/logger"
 import { apiInternalError } from "@/shared/api-errors"
 import { parentJobService } from "@/modules/jobs/services/parent-work-item-service"
@@ -85,6 +85,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
       const updatedQuote = await quoteService.linkToJob(id, dashboard.parent.id)
       if (!updatedQuote) {
+        try {
+          await parentJobService.deleteCreated(dashboard.parent.id)
+        } catch (cleanupErr) {
+          logError("quote.convert.work_items_rollback_failed", cleanupErr, {
+            quoteId: id,
+            jobId: dashboard.parent.id,
+          })
+        }
         logError("quote.convert.link_failed", new Error("quote link failed"), { quoteId: id, jobId })
         return NextResponse.json({ error: "Failed to link quote to job" }, { status: 500 })
       }
@@ -116,7 +124,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       }, { status: 201 })
     }
 
-    const job = await jobService.create({
+    const { job, quote: updatedQuote } = await convertQuoteToLegacyJob(id, {
       id:             jobId,
       drawingNumber,
       itemType:       "DESIGN",
@@ -138,13 +146,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       revisionLetter: null,
       changedBy,
     })
-
-    const updatedQuote = await quoteService.linkToJob(id, job.id)
-    if (!updatedQuote) {
-      await jobService.delete(job.id)
-      logError("quote.convert.link_failed", new Error("quote link failed"), { quoteId: id, jobId: job.id })
-      return NextResponse.json({ error: "Failed to link quote to job" }, { status: 500 })
-    }
 
     logEvent("quote.convert.success", { quoteId: id, jobId: job.id, drawingNumber: job.drawingNumber })
     return NextResponse.json({ job, quote: updatedQuote }, { status: 201 })

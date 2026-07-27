@@ -20,6 +20,8 @@ import {
   UK_IRELAND_DEFAULT_ZOOM,
   UK_IRELAND_MIN_ZOOM,
   UK_IRELAND_MAX_ZOOM,
+  VIEWPORT_FETCH_MIN_ZOOM,
+  VIEWPORT_BBOX_PAD,
   isWithinUkIreland,
 } from "../constants"
 
@@ -126,6 +128,51 @@ function MapSessionView() {
     map.on("moveend", save)
     return () => { map.off("moveend", save) }
   }, [map])
+
+  return null
+}
+
+function ViewportBoundsWatcher({
+  onBoundsChange,
+}: {
+  onBoundsChange?: (bounds: { south: number; west: number; north: number; east: number } | null, zoom: number) => void
+}) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!onBoundsChange) return
+
+    let timer: number | null = null
+    const emit = () => {
+      const zoom = map.getZoom()
+      if (zoom < VIEWPORT_FETCH_MIN_ZOOM) {
+        onBoundsChange(null, zoom)
+        return
+      }
+      const b = map.getBounds()
+      const latPad = (b.getNorth() - b.getSouth()) * VIEWPORT_BBOX_PAD
+      const lngPad = (b.getEast() - b.getWest()) * VIEWPORT_BBOX_PAD
+      onBoundsChange({
+        south: b.getSouth() - latPad,
+        west: b.getWest() - lngPad,
+        north: b.getNorth() + latPad,
+        east: b.getEast() + lngPad,
+      }, zoom)
+    }
+
+    const onMoveEnd = () => {
+      if (timer != null) window.clearTimeout(timer)
+      timer = window.setTimeout(emit, 350)
+    }
+
+    map.on("moveend", onMoveEnd)
+    map.on("zoomend", onMoveEnd)
+    return () => {
+      if (timer != null) window.clearTimeout(timer)
+      map.off("moveend", onMoveEnd)
+      map.off("zoomend", onMoveEnd)
+    }
+  }, [map, onBoundsChange])
 
   return null
 }
@@ -305,6 +352,7 @@ interface Props {
   highlightClient?: string
   dataLoading?: boolean
   autoFit: boolean
+  onBoundsChange?: (bounds: { south: number; west: number; north: number; east: number } | null, zoom: number) => void
 }
 
 export const JobMapCanvas = memo(function JobMapCanvas({
@@ -315,6 +363,7 @@ export const JobMapCanvas = memo(function JobMapCanvas({
   highlightClient,
   dataLoading,
   autoFit,
+  onBoundsChange,
 }: Props) {
   const [markerProgress, setMarkerProgress] = useState({ loaded: 0, total: 0 })
   const markersReady = markerProgress.total > 0 && markerProgress.loaded >= markerProgress.total
@@ -354,6 +403,7 @@ export const JobMapCanvas = memo(function JobMapCanvas({
         <TileLayer attribution={tiles.attribution} url={tiles.url} />
         <MapInvalidateSize />
         <MapSessionView />
+        <ViewportBoundsWatcher onBoundsChange={onBoundsChange} />
         <FlyToTarget target={flyTarget} />
         <FitAllMarkers markers={inRegionMarkers} enabled={autoFit} ready={markersReady || inRegionMarkers.length === 0} />
 

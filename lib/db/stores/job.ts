@@ -462,7 +462,30 @@ export const jobDb = {
   },
 
   /** Slim query — completed jobs that already have coordinates (map display only). */
-  findMappedForMap(): import("@/modules/job-map/types/map-row").JobMapRow[] {
+  findMappedForMap(bbox?: {
+    south: number
+    west: number
+    north: number
+    east: number
+  }): import("@/modules/job-map/types/map-row").JobMapRow[] {
+    if (!bbox) {
+      return db.prepare(`
+        SELECT
+          id, drawingNumber, address, siteName, siteAddress, latitude, longitude, status,
+          clientCompany, typeOfWorks, customTypeDescription, designer, dateCreated,
+          locationStatus, locationSource
+        FROM Job
+        WHERE status = 'ISSUED'
+          AND archivedAt IS NULL
+          AND parentJobId IS NULL
+          AND latitude IS NOT NULL
+          AND longitude IS NOT NULL
+          AND (locationStatus IS NULL OR locationStatus IN ('mapped', 'manual'))
+        ORDER BY dateCreated DESC
+        LIMIT 3000
+      `).all() as import("@/modules/job-map/types/map-row").JobMapRow[]
+    }
+
     return db.prepare(`
       SELECT
         id, drawingNumber, address, siteName, siteAddress, latitude, longitude, status,
@@ -475,8 +498,11 @@ export const jobDb = {
         AND latitude IS NOT NULL
         AND longitude IS NOT NULL
         AND (locationStatus IS NULL OR locationStatus IN ('mapped', 'manual'))
+        AND latitude BETWEEN ? AND ?
+        AND longitude BETWEEN ? AND ?
       ORDER BY dateCreated DESC
-    `).all() as import("@/modules/job-map/types/map-row").JobMapRow[]
+      LIMIT 3000
+    `).all(bbox.south, bbox.north, bbox.west, bbox.east) as import("@/modules/job-map/types/map-row").JobMapRow[]
   },
 
   countCompletedMissingCoordinates(): number {

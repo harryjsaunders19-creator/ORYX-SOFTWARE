@@ -11,6 +11,7 @@ import {
 } from "@/shared/ui/select"
 import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
+import { useApi } from "@/shared/hooks/use-api"
 import { MonthView } from "./month-view"
 import { EventDialog } from "./event-dialog"
 import {
@@ -37,15 +38,18 @@ interface CalendarEvent extends LeaveCalendarEvent {
 interface Category { id: string; name: string; color: string }
 interface UserOption { id: string; name: string }
 
+function getRange(date: Date) {
+  const monthStart = startOfMonth(date)
+  const monthEnd   = endOfMonth(date)
+  const from = format(startOfWeek(monthStart, { weekStartsOn: 1 }), "yyyy-MM-dd")
+  const to   = format(endOfWeek(monthEnd, { weekStartsOn: 1 }), "yyyy-MM-dd")
+  return { from, to }
+}
+
 export default function CalendarPage() {
   const { toast } = useToast()
   const { isAdmin, user } = useUser()
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [events, setEvents]           = useState<CalendarEvent[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [categories, setCategories]   = useState<Category[]>([])
-  const [users, setUsers]             = useState<UserOption[]>([])
-  const [departments, setDepartments] = useState<string[]>([])
 
   const [filterCategory, setFilterCategory] = useState("ALL")
   const [filterUser, setFilterUser]         = useState("ALL")
@@ -62,16 +66,7 @@ export default function CalendarPage() {
 
   const canFilterStaff = isAdmin
 
-  const getRange = useCallback((date: Date) => {
-    const monthStart = startOfMonth(date)
-    const monthEnd   = endOfMonth(date)
-    const from = format(startOfWeek(monthStart, { weekStartsOn: 1 }), "yyyy-MM-dd")
-    const to   = format(endOfWeek(monthEnd, { weekStartsOn: 1 }), "yyyy-MM-dd")
-    return { from, to }
-  }, [])
-
-  const loadEvents = useCallback(async () => {
-    setLoading(true)
+  const eventsKey = useMemo(() => {
     const { from, to } = getRange(currentDate)
     const params = new URLSearchParams({ from, to })
     if (filterCategory !== "ALL") params.set("categoryId", filterCategory)
@@ -82,34 +77,27 @@ export default function CalendarPage() {
       if (leaveStatus !== "ALL") params.set("leaveStatus", leaveStatus)
       if (filterDepartment !== "ALL") params.set("department", filterDepartment)
     }
+    return `/api/calendar/events?${params}`
+  }, [currentDate, filterCategory, filterUser, showLeave, leaveStatus, filterDepartment, hideRejected])
 
-    try {
-      const res = await fetch(`/api/calendar/events?${params}`)
-      if (!res.ok) throw new Error()
-      const data = await res.json() as { events: CalendarEvent[] }
-      setEvents(data.events)
-    } catch { toast("Failed to load events", "error") }
-    finally { setLoading(false) }
-  }, [currentDate, filterCategory, filterUser, showLeave, leaveStatus, filterDepartment, hideRejected, getRange, toast])
+  const { data: eventsData, error: eventsError, isLoading, mutate } = useApi<{ events: CalendarEvent[] }>(eventsKey)
+  const { data: categoriesData } = useApi<{ categories: Category[] }>("/api/calendar/categories")
+  const { data: usersData } = useApi<{ users: UserOption[] }>("/api/users")
+  const { data: employeesData } = useApi<{ departments: string[] }>(
+    LEAVE_ENABLED ? "/api/employees?limit=1" : null,
+  )
 
-  useEffect(() => { loadEvents() }, [loadEvents])
+  const events = useMemo(() => eventsData?.events ?? [], [eventsData?.events])
+  const categories = categoriesData?.categories ?? []
+  const users = usersData?.users ?? []
+  const departments = employeesData?.departments ?? []
+  const loading = isLoading && !eventsData
+
+  const refreshEvents = useCallback(() => { void mutate() }, [mutate])
 
   useEffect(() => {
-    fetch("/api/calendar/categories")
-      .then(r => r.json() as Promise<{ categories: Category[] }>)
-      .then(d => setCategories(d.categories))
-      .catch(() => {})
-    fetch("/api/users")
-      .then(r => r.ok ? r.json() as Promise<{ users: UserOption[] }> : null)
-      .then(d => { if (d) setUsers(d.users) })
-      .catch(() => {})
-    if (LEAVE_ENABLED) {
-      fetch("/api/employees?limit=1")
-        .then(r => r.ok ? r.json() as Promise<{ departments: string[] }> : null)
-        .then(d => { if (d?.departments) setDepartments(d.departments) })
-        .catch(() => {})
-    }
-  }, [])
+    if (eventsError) toast("Failed to load events", "error")
+  }, [eventsError, toast])
 
   const displayEvents = useMemo(() =>
     events.map(e => ({
@@ -182,7 +170,7 @@ export default function CalendarPage() {
             {LEAVE_ENABLED && departments.length > 0 && (isAdmin || user) && (
               <div className="w-full sm:w-36">
                 <Select value={filterDepartment} onValueChange={setFilterDepartment}>
-                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Department" /></SelectTrigger>
+                  <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Department" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All departments</SelectItem>
                     {departments.map(d => (
@@ -261,7 +249,7 @@ export default function CalendarPage() {
       </div>
 
       {LEAVE_ENABLED && isAdmin && (
-        <LeaveAcceptancePanel onAccepted={loadEvents} />
+        <LeaveAcceptancePanel onAccepted={refreshEvents} />
       )}
 
       <DataPanel>
@@ -283,7 +271,7 @@ export default function CalendarPage() {
       <EventDialog
         open={dialogOpen}
         onClose={() => { setDialogOpen(false); setEditEvent(null) }}
-        onSaved={loadEvents}
+        onSaved={refreshEvents}
         event={editEvent}
         defaultDate={defaultDate}
       />

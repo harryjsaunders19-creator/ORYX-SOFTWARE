@@ -324,6 +324,11 @@ export const parentJobService = {
     return dash
   },
 
+  /** Roll back a just-created parent + original work item (quote convert failure). */
+  async deleteCreated(parentId: string): Promise<void> {
+    await supabaseParentJobRepo.deleteCascade(parentId)
+  },
+
   async createRevision(
     parentId: string,
     input: CreateRevisionWorkItemInput,

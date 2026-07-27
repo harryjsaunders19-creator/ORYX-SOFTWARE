@@ -4,7 +4,7 @@
 
  */
 
-import type { JobMapFilters, JobMapMarker, JobMapResponse } from "../types/job-map-types"
+import type { JobMapBbox, JobMapFilters, JobMapMarker, JobMapResponse } from "../types/job-map-types"
 
 import type { MissingLocationJob, BulkGeocodeResult } from "../types/location-types"
 
@@ -193,12 +193,12 @@ function enrichMissingJob(
   }
 }
 
-async function loadMappedRows(): Promise<JobMapRow[]> {
+async function loadMappedRows(bbox?: JobMapBbox): Promise<JobMapRow[]> {
   if (!useSupabaseJobs()) {
-    return jobDb.findMappedForMap()
+    return jobDb.findMappedForMap(bbox)
   }
 
-  let { data, error } = await createAdminClient()
+  let query = createAdminClient()
     .from("jobs")
     .select(MAP_COLUMNS)
     .eq("status", MAP_JOB_STATUS)
@@ -209,12 +209,22 @@ async function loadMappedRows(): Promise<JobMapRow[]> {
     .order("date_created", { ascending: false })
     .limit(MAP_MARKER_LIMIT)
 
+  if (bbox) {
+    query = query
+      .gte("latitude", bbox.south)
+      .lte("latitude", bbox.north)
+      .gte("longitude", bbox.west)
+      .lte("longitude", bbox.east)
+  }
+
+  let { data, error } = await query
+
   if (error && (
     isMissingColumnError(error, "site_name")
     || isMissingColumnError(error, "location_status")
     || isMissingColumnError(error, "location_source")
   )) {
-    const fallback = await createAdminClient()
+    let fallbackQuery = createAdminClient()
       .from("jobs")
       .select(MAP_COLUMNS_MINIMAL)
       .eq("status", MAP_JOB_STATUS)
@@ -224,6 +234,16 @@ async function loadMappedRows(): Promise<JobMapRow[]> {
       .not("longitude", "is", null)
       .order("date_created", { ascending: false })
       .limit(MAP_MARKER_LIMIT)
+
+    if (bbox) {
+      fallbackQuery = fallbackQuery
+        .gte("latitude", bbox.south)
+        .lte("latitude", bbox.north)
+        .gte("longitude", bbox.west)
+        .lte("longitude", bbox.east)
+    }
+
+    const fallback = await fallbackQuery
     data = fallback.data as typeof data
     error = fallback.error
   }
@@ -483,44 +503,29 @@ export const jobMapService = {
 
 
 
-  /** Read-only — returns only jobs that already have coordinates. */
-
-  async getMapData(_filters: JobMapFilters = {}): Promise<JobMapResponse> {
-
+  /** Read-only — returns only jobs that already have coordinates. Optional bbox for viewport loads. */
+  async getMapData(filters: JobMapFilters & { bbox?: JobMapBbox } = {}): Promise<JobMapResponse> {
+    const bbox = filters.bbox
     const [rows, missingLocations] = await Promise.all([
-
-      loadMappedRows(),
-
+      loadMappedRows(bbox),
       countMissingLocations(),
-
     ])
-
-
 
     const markers = rows
       .map(toMarker)
       .filter(m => isWithinUkIreland(m.lat, m.lng))
       .slice(0, MAP_MARKER_LIMIT)
 
-
     const { clients, designers } = buildFilterOptions(rows)
 
-
-
     return {
-
       markers,
-
       stats: computeStats(markers, missingLocations),
-
       clients,
-
       designers,
-
       missingCoordinates: missingLocations,
-
+      truncated: rows.length >= MAP_MARKER_LIMIT || markers.length >= MAP_MARKER_LIMIT,
     }
-
   },
 
 

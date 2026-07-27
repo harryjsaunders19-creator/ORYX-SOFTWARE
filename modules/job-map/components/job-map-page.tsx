@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { PageHeader, PageShell } from "@/shared/layouts/page-layout"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
@@ -39,8 +39,16 @@ const JobMapMissingLocations = dynamic(
   { ssr: false },
 )
 
-async function fetchMapData(): Promise<JobMapResponse> {
-  const res = await fetch("/api/job-map")
+async function fetchMapData(bbox?: {
+  south: number
+  west: number
+  north: number
+  east: number
+}): Promise<JobMapResponse> {
+  const params = bbox
+    ? `?south=${bbox.south}&west=${bbox.west}&north=${bbox.north}&east=${bbox.east}`
+    : ""
+  const res = await fetch(`/api/job-map${params}`)
   if (!res.ok) throw new Error("Failed to load")
   return res.json() as Promise<JobMapResponse>
 }
@@ -54,12 +62,15 @@ export default function JobMapPage() {
     locationFilter: "completed",
   })
   const [rawData, setRawData] = useState<JobMapResponse | null>(null)
+  const [baseMarkers, setBaseMarkers] = useState<JobMapMarker[]>([])
   const [dataLoading, setDataLoading] = useState(true)
+  const [viewportLoading, setViewportLoading] = useState(false)
   const [geocoding, setGeocoding] = useState(false)
   const [mobileFilters, setMobileFilters] = useState(false)
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null)
   const [autoFit, setAutoFit] = useState(true)
   const [missingListKey, setMissingListKey] = useState(0)
+  const viewportModeRef = useRef(false)
 
   useEffect(() => {
     if (sessionStorage.getItem("oryx-job-map-view")) {
@@ -75,6 +86,8 @@ export default function JobMapPage() {
     const data = await fetchMapData()
     setJobMapCache(data)
     setRawData(data)
+    setBaseMarkers(data.markers)
+    viewportModeRef.current = false
     return data
   }, [])
 
@@ -82,6 +95,7 @@ export default function JobMapPage() {
     const cached = getJobMapCache()
     if (cached) {
       setRawData(cached)
+      setBaseMarkers(cached.markers)
       setDataLoading(false)
     }
 
@@ -92,6 +106,7 @@ export default function JobMapPage() {
         if (cancelled) return
         setJobMapCache(data)
         setRawData(data)
+        setBaseMarkers(data.markers)
         if (data.markers.length > 0 && !sessionStorage.getItem("oryx-job-map-view")) {
           setAutoFit(true)
         }
@@ -100,6 +115,39 @@ export default function JobMapPage() {
       .finally(() => { if (!cancelled) setDataLoading(false) })
     return () => { cancelled = true }
   }, [toast])
+
+  const onBoundsChange = useCallback(async (
+    bounds: { south: number; west: number; north: number; east: number } | null,
+    _zoom: number,
+  ) => {
+    if (!bounds) {
+      if (viewportModeRef.current) {
+        viewportModeRef.current = false
+        setRawData(prev => prev
+          ? { ...prev, markers: baseMarkers, truncated: false }
+          : prev)
+      }
+      return
+    }
+
+    setViewportLoading(true)
+    try {
+      const data = await fetchMapData(bounds)
+      viewportModeRef.current = true
+      setRawData(prev => ({
+        markers: data.markers,
+        stats: prev?.stats ?? data.stats,
+        clients: prev?.clients?.length ? prev.clients : data.clients,
+        designers: prev?.designers?.length ? prev.designers : data.designers,
+        missingCoordinates: prev?.missingCoordinates ?? data.missingCoordinates,
+        truncated: data.truncated,
+      }))
+    } catch {
+      // Keep current markers on transient viewport fetch failure.
+    } finally {
+      setViewportLoading(false)
+    }
+  }, [baseMarkers])
 
   const filterInput = useMemo(() => ({
     search: debouncedSearch,
@@ -262,8 +310,9 @@ export default function JobMapPage() {
             tileMode={filters.tileMode}
             flyTarget={flyTarget}
             highlightClient={filters.highlightClient}
-            dataLoading={dataLoading && !rawData}
+            dataLoading={(dataLoading && !rawData) || viewportLoading}
             autoFit={autoFit}
+            onBoundsChange={onBoundsChange}
           />
 
           {!dataLoading && markers.length === 0 && (
@@ -271,6 +320,11 @@ export default function JobMapPage() {
               {rawData?.markers.length
                 ? "No projects match your filters."
                 : "No completed projects with map coordinates yet."}
+            </p>
+          )}
+          {rawData?.truncated && (
+            <p className="text-xs text-t4 text-center mt-2">
+              Showing the newest matches in this view — zoom or pan to load other areas.
             </p>
           )}
         </>
