@@ -15,6 +15,17 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 
+function looksLikeId(segment: string): boolean {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(segment)) {
+    return true
+  }
+  // cuid / cuid2 / nanoid-style ids — long opaque tokens, not kebab page names
+  if (/^[a-z0-9_-]{16,}$/i.test(segment) && !/^[a-z]+(?:-[a-z0-9]+)+$/i.test(segment)) {
+    return true
+  }
+  return false
+}
+
 function routeContext(pathname: string): { section: string; trail: string } {
   if (pathname === "/") return { section: "ORYX OS", trail: "Dashboard Overview" }
 
@@ -25,10 +36,19 @@ function routeContext(pathname: string): { section: string; trail: string } {
 
   if (mod) {
     const rest = pathname.slice(mod.href.length).replace(/^\//, "")
-    const trail = rest
-      ? `${mod.label} / ${rest.split("/").map(s => s.replace(/-/g, " ")).join(" / ")}`
-      : mod.label
-    return { section: "ORYX OS", trail }
+    if (!rest) return { section: "ORYX OS", trail: mod.label }
+
+    const parts = rest.split("/").filter(Boolean)
+    const readable = parts
+      .filter(p => !looksLikeId(p))
+      .map(p => p.replace(/-/g, " "))
+
+    if (!readable.length) {
+      const singular = mod.label.endsWith("s") ? mod.label.slice(0, -1) : mod.label
+      return { section: "ORYX OS", trail: `${singular} detail` }
+    }
+
+    return { section: "ORYX OS", trail: `${mod.label} / ${readable.join(" / ")}` }
   }
 
   return { section: "ORYX OS", trail: "Oryx Design" }
