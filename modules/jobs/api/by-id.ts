@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/lib/services/client-service"
-import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE, type JobStatusValue } from "@/lib/constants"
+import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE, sanitizeJobTags, type JobStatusValue } from "@/lib/constants"
 import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resourceResponse } from "@/shared/utils/api-cache"
@@ -93,7 +93,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const allowed = [
       "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "requestedBy", "status", "designer", "notes",
-      "requestedDate","requiredByDate","quoteReference","quoteDate","commercialNotes", "billable",
+      "requestedDate","requiredByDate","quoteReference","quoteDate","commercialNotes", "billable", "tags",
     ]
 
     const data: Record<string, unknown> = {}
@@ -129,6 +129,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
     if (body.billable !== undefined) {
       data.billable = Boolean(body.billable)
+    }
+    if (body.tags !== undefined) {
+      const sanitized = sanitizeJobTags(body.tags)
+      if (sanitized === null) {
+        return NextResponse.json({ error: "One or more tags are not in the approved list", field: "tags" }, { status: 422 })
+      }
+      data.tags = sanitized
     }
 
     // Resolve clientId and sync clientCompany

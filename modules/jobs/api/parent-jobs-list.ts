@@ -5,7 +5,7 @@ import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { createId } from "@paralleldrive/cuid2"
-import { isValidWorksType, OTHER_WORKS_TYPE } from "@/lib/constants"
+import { isValidWorksType, OTHER_WORKS_TYPE, sanitizeJobTags } from "@/lib/constants"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { clientService } from "@/lib/services/client-service"
@@ -120,6 +120,15 @@ export async function POST(req: NextRequest) {
       if (err) return err
     }
 
+    let tags: string[] = []
+    if (body.tags !== undefined) {
+      const sanitized = sanitizeJobTags(body.tags)
+      if (sanitized === null) {
+        return NextResponse.json({ error: "One or more tags are not in the approved list", field: "tags" }, { status: 422 })
+      }
+      tags = sanitized
+    }
+
     const drawingNumber = await allocateDrawingNumberAsync()
     const id = createId()
     const dashboard = await parentJobService.createWithOriginal({
@@ -135,6 +144,7 @@ export async function POST(req: NextRequest) {
       requestedBy,
       designer: typeof body.designer === "string" ? body.designer : "",
       notes: typeof body.notes === "string" ? body.notes : null,
+      tags,
       quoteValue: money.quoteValue ?? null,
       quoteReference: typeof body.quoteReference === "string" ? body.quoteReference : null,
       quoteDate: typeof body.quoteDate === "string" ? body.quoteDate : null,

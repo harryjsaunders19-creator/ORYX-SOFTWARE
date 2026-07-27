@@ -165,6 +165,7 @@ export function buildParentJobFromOriginal(
     customTypeDescription: job.customTypeDescription ?? null,
     legacyTypeOfWorks: job.legacyTypeOfWorks ?? null,
     description: job.notes?.trim() || null,
+    tags: [],
     requestedBy: job.requestedBy,
     itemType: "DESIGN",
     archivedAt: job.archivedAt ?? null,

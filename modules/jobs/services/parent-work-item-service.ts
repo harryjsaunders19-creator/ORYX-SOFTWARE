@@ -262,6 +262,7 @@ export const parentJobService = {
       customTypeDescription: input.customTypeDescription ?? null,
       legacyTypeOfWorks: null,
       description: input.notes?.trim() || null,
+      tags: input.tags ?? [],
       requestedBy: input.requestedBy,
       itemType: "DESIGN",
       archivedAt: null,

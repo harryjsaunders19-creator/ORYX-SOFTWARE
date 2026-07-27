@@ -94,6 +94,7 @@ export function buildJobRowFromImport(data: {
     dateCreated: dateCreated.slice(0, 10),
     dateCompleted: data.dateCompleted?.slice(0, 10) ?? null,
     notes: data.notes,
+    tags: [],
     quoteValue: data.quoteValue,
     quoteReference: data.quoteReference,
     quoteDate: null,

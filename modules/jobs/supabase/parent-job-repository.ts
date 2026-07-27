@@ -1,12 +1,13 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import { escapePostgrestFilterValue, postgrestOrIlike } from "@/shared/supabase/postgrest-filter"
+import { postgrestOrIlike, postgrestTagsOverlap } from "@/shared/supabase/postgrest-filter"
+import { matchingJobTags } from "@/lib/constants"
 import type { ParentJobRow } from "../types/parent-job-types"
 import { toParentJobRow, toSupabaseParentJob, type SupabaseParentJobRow } from "./parent-job-mapper"
 
 const COLS = [
   "id", "drawing_number", "client_id", "client_company", "site_name", "site_address",
   "address", "type_of_works", "custom_type_description", "legacy_type_of_works",
-  "description", "requested_by", "item_type", "archived_at", "archived_by",
+  "description", "tags", "requested_by", "item_type", "archived_at", "archived_by",
   "latitude", "longitude", "geocoded_at", "geocoded_address", "location_status",
   "location_source", "legacy_job_id", "migrated_at", "created_at", "updated_at",
 ].join(",")
@@ -42,8 +43,12 @@ export const supabaseParentJobRepo = {
     if (!opts.includeArchived) q = q.is("archived_at", null)
     if (opts.clientId) q = q.eq("client_id", opts.clientId)
     if (opts.search?.trim()) {
-      const term = escapePostgrestFilterValue(opts.search.trim())
-      const or = postgrestOrIlike(["drawing_number", "client_company", "site_name", "address", "description"], term)
+      const textOr = postgrestOrIlike(
+        ["drawing_number", "client_company", "site_name", "address", "description"],
+        opts.search,
+      )
+      const tagsOr = postgrestTagsOverlap("tags", matchingJobTags(opts.search))
+      const or = [textOr, tagsOr].filter(Boolean).join(",")
       if (or) q = q.or(or)
     }
     q = q.order("updated_at", { ascending: false })

@@ -5,7 +5,7 @@
  */
 import { createAdminClient } from "@/lib/supabase/admin"
 import { aggAvg, aggSum } from "@/lib/supabase/aggregates"
-import { VALID_ITEM_TYPES, VALID_STATUSES } from "@/lib/constants"
+import { VALID_ITEM_TYPES, VALID_STATUSES, matchingJobTags } from "@/lib/constants"
 import type { JobRow } from "../types/job-types"
 import type { FindManyOptions, WhereClause } from "@/lib/db/helpers"
 import { isDrawingNumberListSort, sortJobsForList } from "../job-list-sort"
@@ -14,7 +14,7 @@ import {
   noteJobsArchivedFromError,
   isMissingColumnError,
 } from "@/lib/supabase/archived-filter"
-import { postgrestOrIlike } from "@/shared/supabase/postgrest-filter"
+import { postgrestOrIlike, postgrestTagsOverlap } from "@/shared/supabase/postgrest-filter"
 import { logEvent } from "@/shared/logger"
 import { collectRevisionParentIds } from "@/lib/revision-chain"
 import {
@@ -45,7 +45,7 @@ const JOB_LIST_SELECT = [
   "date_created", "date_completed", "quote_value", "quote_reference", "quote_date",
   "variation_fees", "additional_charges", "invoice_id", "billing_status", "billing_batch_id",
   "requested_date", "required_by_date", "parent_job_id", "revision_letter", "billable",
-  "archived_at", "archived_by", "created_at", "updated_at",
+  "tags", "archived_at", "archived_by", "created_at", "updated_at",
 ].join(",")
 
 /** Perf: analytics only needs status/type/money/dates — avoid transferring full job rows. */
@@ -74,6 +74,7 @@ function missingColumnFromError(error: { code?: string; message?: string } | nul
     "latitude", "longitude", "geocoded_at", "geocoded_address",
     "variation_fees", "additional_charges",
     "list_sort_key",
+    "tags",
   ]) {
     if (isMissingColumnError(error, col)) return col
   }
@@ -146,7 +147,7 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
   }
 
   if (where.search) {
-    const orFilter = postgrestOrIlike(
+    const textOr = postgrestOrIlike(
       [
         "drawing_number",
         "address",
@@ -155,9 +156,12 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
         "type_of_works",
         "custom_type_description",
         "designer",
+        "quote_reference",
       ],
       where.search,
     )
+    const tagsOr = postgrestTagsOverlap("tags", matchingJobTags(where.search))
+    const orFilter = [textOr, tagsOr].filter(Boolean).join(",")
     if (orFilter) q = q.or(orFilter)
   }
   if (where.typeOfWorks) q = q.eq("type_of_works", where.typeOfWorks)

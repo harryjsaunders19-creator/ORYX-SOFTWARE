@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import {
@@ -26,6 +27,11 @@ import { PageShell } from "@/shared/layouts/page-layout"
 import { DesignerCombobox } from "@/components/designer-combobox"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { DesignWorkItemRow } from "@/modules/jobs/types/design-work-item-types"
+
+const JobDocumentsPanel = dynamic(
+  () => import("@/modules/job-documents/components/job-documents-panel").then(m => m.JobDocumentsPanel),
+  { ssr: false },
+)
 
 const EMPTY_WORK_ITEMS: DesignWorkItemRow[] = []
 
@@ -364,6 +370,10 @@ export default function ParentJobDashboardPage({
                 value={current ? current.title : "None — waiting for next revision"}
               />
             </div>
+          </section>
+
+          <section className="rounded-xl border border-bd bg-sr p-5">
+            <JobDocumentsPanel jobId={parent.id} />
           </section>
 
           {/* Revision Timeline */}

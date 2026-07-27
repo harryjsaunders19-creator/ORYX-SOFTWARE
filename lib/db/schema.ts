@@ -762,6 +762,8 @@ try {
   add("locationSource",   "TEXT")
   // Chargeable flag — revisions default false; originals true. Governs Ready for Invoicing.
   add("billable",         "INTEGER NOT NULL DEFAULT 1")
+  // Multi-select job tags — JSON array of JOB_TAGS values (see lib/constants.ts).
+  add("tags",             "TEXT NOT NULL DEFAULT '[]'")
   db.exec(`UPDATE Job SET siteAddress = address WHERE (siteAddress IS NULL OR TRIM(siteAddress) = '') AND address IS NOT NULL AND TRIM(address) != ''`)
   db.exec(`UPDATE Job SET locationStatus = 'mapped', locationSource = 'geocoded' WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND locationStatus IS NULL`)
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_location_status ON Job(locationStatus) WHERE status = 'ISSUED' AND archivedAt IS NULL")
@@ -888,11 +890,52 @@ try {
   addCol("BillingHandoff", "sourceWorkItemId", "TEXT REFERENCES WorkItem(id)")
   addCol("Quote", "parentJobId", "TEXT REFERENCES ParentJob(id) ON DELETE SET NULL")
   addCol("CalendarEvent", "workItemId", "TEXT REFERENCES WorkItem(id) ON DELETE SET NULL")
+  addCol("ParentJob", "tags", "TEXT NOT NULL DEFAULT '[]'")
 
   db.exec("CREATE INDEX IF NOT EXISTS idx_history_workitem ON StatusHistory(workItemId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_handoff_workitem ON BillingHandoff(sourceWorkItemId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_quote_parentjob ON Quote(parentJobId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_calendar_workitem ON CalendarEvent(workItemId)")
+})()
+
+// 2d. Job documents (attachments on job / revision families)
+;(function ensureJobDocumentsSchema() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS JobDocument (
+      id                TEXT PRIMARY KEY,
+      rootJobId         TEXT NOT NULL,
+      jobId             TEXT REFERENCES Job(id) ON DELETE CASCADE,
+      parentJobId       TEXT REFERENCES ParentJob(id) ON DELETE CASCADE,
+      workItemId        TEXT REFERENCES WorkItem(id) ON DELETE SET NULL,
+      revisionLetter    TEXT,
+      filename          TEXT NOT NULL,
+      originalFilename  TEXT NOT NULL,
+      mimeType          TEXT NOT NULL,
+      fileExt           TEXT NOT NULL DEFAULT '',
+      fileSize          INTEGER NOT NULL DEFAULT 0,
+      category          TEXT NOT NULL DEFAULT 'General',
+      description       TEXT,
+      storagePath       TEXT NOT NULL UNIQUE,
+      uploadedBy        TEXT NOT NULL,
+      uploadedByName    TEXT NOT NULL,
+      emailSubject      TEXT,
+      emailFrom         TEXT,
+      emailTo           TEXT,
+      emailCc           TEXT,
+      emailDate         TEXT,
+      emailPreview      TEXT,
+      parseStatus       TEXT NOT NULL DEFAULT 'none',
+      versionGroupId    TEXT,
+      approvalStatus    TEXT,
+      createdAt         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      updatedAt         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      deletedAt         TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_jobdoc_root ON JobDocument(rootJobId, deletedAt, createdAt);
+    CREATE INDEX IF NOT EXISTS idx_jobdoc_job ON JobDocument(jobId);
+    CREATE INDEX IF NOT EXISTS idx_jobdoc_parent ON JobDocument(parentJobId);
+    CREATE INDEX IF NOT EXISTS idx_jobdoc_category ON JobDocument(category);
+  `)
 })()
 
 // 2b. Add columns to Quote that may be missing on existing databases

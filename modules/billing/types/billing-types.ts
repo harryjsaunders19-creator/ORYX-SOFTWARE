@@ -45,6 +45,7 @@ export interface BillingExportSnapshotRow {
 
 export interface BillingHandoffListOptions {
   cleared?: boolean
+  search?: string
   skip?: number
   take?: number
 }

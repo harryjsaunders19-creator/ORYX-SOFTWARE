@@ -1,4 +1,5 @@
 import type { ParentJobRow } from "../types/parent-job-types"
+import { parseJobTags } from "@/lib/constants"
 
 export interface SupabaseParentJobRow {
   id: string
@@ -12,6 +13,7 @@ export interface SupabaseParentJobRow {
   custom_type_description: string | null
   legacy_type_of_works: string | null
   description: string | null
+  tags: string[] | null
   requested_by: string
   item_type: string
   archived_at: string | null
@@ -41,6 +43,7 @@ export function toParentJobRow(row: SupabaseParentJobRow): ParentJobRow {
     customTypeDescription: row.custom_type_description,
     legacyTypeOfWorks: row.legacy_type_of_works,
     description: row.description,
+    tags: parseJobTags(row.tags),
     requestedBy: row.requested_by,
     itemType: row.item_type,
     archivedAt: row.archived_at,
@@ -71,6 +74,7 @@ export function toSupabaseParentJob(row: ParentJobRow): SupabaseParentJobRow {
     custom_type_description: row.customTypeDescription,
     legacy_type_of_works: row.legacyTypeOfWorks,
     description: row.description,
+    tags: row.tags ?? [],
     requested_by: row.requestedBy,
     item_type: row.itemType,
     archived_at: row.archivedAt,

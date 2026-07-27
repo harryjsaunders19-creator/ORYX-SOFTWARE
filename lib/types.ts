@@ -16,6 +16,8 @@ export interface Job {
   dateCreated:     string
   dateCompleted:   string | null
   notes:           string | null
+  /** Controlled multi-select labels from JOB_TAGS. */
+  tags:            string[]
   quoteValue:      number | null
   quoteReference:  string | null
   quoteDate:       string | null
@@ -279,6 +281,7 @@ export interface JobFormData {
   designer:        string
   dateCompleted:   string
   notes:           string
+  tags:            string[]
   quoteValue:      string
   quoteReference:  string
   quoteDate:       string

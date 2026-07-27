@@ -38,6 +38,10 @@ const RevisionHistory = dynamic(
   () => import("@/components/revision-history").then(m => m.RevisionHistory),
   { ssr: false },
 )
+const JobDocumentsPanel = dynamic(
+  () => import("@/modules/job-documents/components/job-documents-panel").then(m => m.JobDocumentsPanel),
+  { ssr: false },
+)
 const JobForm = dynamic(
   () => import("./job-form").then(m => m.JobForm),
   { ssr: false },
@@ -347,6 +351,9 @@ export default function JobDetailPage({
                   {dl.label}
                 </Pill>
               )}
+              {(job.tags ?? []).map(tag => (
+                <Pill key={tag} tone="neutral">{tag}</Pill>
+              ))}
             </div>
             {!isCancelled ? (
               <div className="flex flex-wrap gap-2 w-full lg:w-auto">
@@ -443,6 +450,9 @@ export default function JobDetailPage({
                 <InfoField label="Required by" value={format(parseLocalDate(job.requiredByDate), "d MMMM yyyy")} />
               )}
               {job.notes && <InfoField label="Notes" value={job.notes} />}
+              {(job.tags ?? []).length > 0 && (
+                <InfoField label="Tags" value={(job.tags ?? []).join(", ")} />
+              )}
               </div>
             </div>
           </section>
@@ -461,6 +471,13 @@ export default function JobDetailPage({
                 }}
               />
             )}
+          </section>
+
+          <section className="oryx-surface-card overflow-hidden rounded-lg border border-bd bg-sr p-5">
+            <JobDocumentsPanel
+              jobId={job.id}
+              onTimelineChange={() => setHistoryKey(k => k + 1)}
+            />
           </section>
 
           <section className="oryx-surface-card overflow-hidden rounded-lg border border-bd bg-sr p-5">

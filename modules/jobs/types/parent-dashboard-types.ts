@@ -52,6 +52,7 @@ export interface CreateParentJobInput {
   requestedBy: string
   designer?: string
   notes?: string | null
+  tags?: string[]
   quoteValue?: number | null
   quoteReference?: string | null
   quoteDate?: string | null

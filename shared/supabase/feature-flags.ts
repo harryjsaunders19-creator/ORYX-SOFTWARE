@@ -44,6 +44,7 @@ export function supabaseModuleFlags() {
     leave:          useSupabaseLeave(),
     passwordVault:  useSupabasePasswordVault(),
     siteVisitCalculations: useSupabaseSiteVisitCalculations(),
+    jobDocuments:       useSupabaseJobDocuments(),
     workItems:          isWorkItemsModelEnabled(),
   }
 }
@@ -102,6 +103,10 @@ export function useSupabasePasswordVault(): boolean {
 
 export function useSupabaseSiteVisitCalculations(): boolean {
   return flag("SUPABASE_SITE_VISIT_CALCULATIONS")
+}
+
+export function useSupabaseJobDocuments(): boolean {
+  return flag("SUPABASE_JOB_DOCUMENTS")
 }
 
 /**

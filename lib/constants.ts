@@ -21,6 +21,9 @@ export function getJobStatus(v: string) {
 }
 
 // ── Work item types ───────────────────────────────────────────────
+// creatable:false keeps historical SURVEY/INSPECTION rows displayable and
+// filterable, but hides them from the new-job type picker (ORYX does not
+// offer those services).
 export const WORK_ITEM_TYPES = [
   {
     value:       "DESIGN",
@@ -30,6 +33,7 @@ export const WORK_ITEM_TYPES = [
     requiresDrawingNumber: true,
     requiresTypeOfWorks:   true,
     refPrefix:   null,
+    creatable:   true,
     color:       "bg-tag-design-bg text-tag-design",
     dot:         "bg-tag-design",
   },
@@ -41,6 +45,7 @@ export const WORK_ITEM_TYPES = [
     requiresDrawingNumber: true,   // auto-generated from parent
     requiresTypeOfWorks:   false,
     refPrefix:   null,
+    creatable:   false,            // created via POST /api/jobs/[id]/revisions
     color:       "bg-tag-revision-bg text-tag-revision",
     dot:         "bg-tag-revision",
   },
@@ -52,6 +57,7 @@ export const WORK_ITEM_TYPES = [
     requiresDrawingNumber: false,  // uses SV-YYYY-NNN
     requiresTypeOfWorks:   false,
     refPrefix:   "SV",
+    creatable:   true,
     color:       "bg-tag-sitevisit-bg text-tag-sitevisit",
     dot:         "bg-tag-sitevisit",
   },
@@ -63,6 +69,7 @@ export const WORK_ITEM_TYPES = [
     requiresDrawingNumber: false,  // uses SRV-YYYY-NNN
     requiresTypeOfWorks:   false,
     refPrefix:   "SRV",
+    creatable:   false,
     color:       "bg-tag-survey-bg text-tag-survey",
     dot:         "bg-tag-survey",
   },
@@ -74,6 +81,7 @@ export const WORK_ITEM_TYPES = [
     requiresDrawingNumber: false,  // uses INS-YYYY-NNN
     requiresTypeOfWorks:   false,
     refPrefix:   "INS",
+    creatable:   false,
     color:       "bg-tag-inspection-bg text-tag-inspection",
     dot:         "bg-tag-inspection",
   },
@@ -85,6 +93,7 @@ export const WORK_ITEM_TYPES = [
     requiresDrawingNumber: false,  // uses CAT3-YYYY-NNN
     requiresTypeOfWorks:   false,
     refPrefix:   "CAT3",
+    creatable:   true,
     color:       "bg-tag-catiii-bg text-tag-catiii",
     dot:         "bg-tag-catiii",
   },
@@ -92,6 +101,9 @@ export const WORK_ITEM_TYPES = [
 
 export type WorkItemTypeValue = (typeof WORK_ITEM_TYPES)[number]["value"]
 export const VALID_ITEM_TYPES = WORK_ITEM_TYPES.map(t => t.value)
+/** Item types offered when creating a new job (excludes Revision / Survey / Inspection). */
+export const CREATABLE_ITEM_TYPES = WORK_ITEM_TYPES.filter(t => t.creatable)
+export const CREATABLE_ITEM_TYPE_VALUES = CREATABLE_ITEM_TYPES.map(t => t.value)
 
 export function getWorkItemType(v: string) {
   return WORK_ITEM_TYPES.find(t => t.value === v) ?? WORK_ITEM_TYPES[0]
@@ -149,6 +161,79 @@ export const OTHER_WORKS_TYPE: WorksType = "Other"
 
 export function isValidWorksType(value: string): value is WorksType {
   return (WORKS_TYPES as readonly string[]).includes(value)
+}
+
+// ── Job tags (multi-select labels independent of Type of Works) ───
+export const JOB_TAGS = [
+  "Temporary Roof",
+  "Access Scaffold",
+  "Raking Shore",
+  "Flying Shore",
+  "Dead Shore",
+  "Network Rail",
+  "Freestanding",
+  "System Scaffold",
+  "Truss Out",
+  "Needled Shore",
+  "Lift Shaft",
+  "Birdcage",
+  "Hoist Tower",
+  "Gantry",
+  "Loading Bay",
+  "Public Access",
+  "Listed Building",
+] as const
+
+export type JobTag = (typeof JOB_TAGS)[number]
+
+export function isValidJobTag(value: string): value is JobTag {
+  return (JOB_TAGS as readonly string[]).includes(value)
+}
+
+/** JOB_TAGS that fuzzy-match a search query (for filters and ranking). */
+export function matchingJobTags(query: string): string[] {
+  const needle = query.trim().toLowerCase()
+  if (needle.length < 2) return []
+  return JOB_TAGS.filter(tag => {
+    const hay = tag.toLowerCase()
+    if (hay === needle || hay.includes(needle) || needle.includes(hay)) return true
+    return hay.split(/\s+/).some(tok => tok.startsWith(needle) || needle.startsWith(tok))
+  })
+}
+
+/** Parse tags from DB (Postgres text[] or SQLite JSON text) into a string[]. */
+export function parseJobTags(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((t): t is string => typeof t === "string")
+  }
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw) as unknown
+      if (Array.isArray(parsed)) {
+        return parsed.filter((t): t is string => typeof t === "string")
+      }
+    } catch { /* ignore malformed JSON */ }
+  }
+  return []
+}
+
+/**
+ * Validate + dedupe an incoming tags payload. Returns null when the value
+ * is not an array or contains unknown tags (caller should 422).
+ */
+export function sanitizeJobTags(input: unknown): string[] | null {
+  if (!Array.isArray(input)) return null
+  const out: string[] = []
+  for (const item of input) {
+    if (typeof item !== "string" || !isValidJobTag(item)) return null
+    if (!out.includes(item)) out.push(item)
+  }
+  return out
+}
+
+/** Serialize tags for SQLite TEXT storage. */
+export function serializeJobTags(tags: string[] | null | undefined): string {
+  return JSON.stringify(tags ?? [])
 }
 
 // ── Revision letters ──────────────────────────────────────────────

@@ -2,6 +2,7 @@
  * lib/supabase/mappers/job.ts — map between JobRow (app) and Supabase row (snake_case).
  */
 import type { JobRow } from "../types/job-types"
+import { parseJobTags } from "@/lib/constants"
 import { computeJobListSortKey } from "../job-list-sort"
 
 export interface SupabaseJobRow {
@@ -20,6 +21,7 @@ export interface SupabaseJobRow {
   date_created: string
   date_completed: string | null
   notes: string | null
+  tags: string[] | null
   quote_value: number | null
   quote_reference: string | null
   quote_date: string | null
@@ -71,6 +73,7 @@ export function toJobRow(row: SupabaseJobRow): JobRow {
     dateCreated: row.date_created,
     dateCompleted: row.date_completed,
     notes: row.notes,
+    tags: parseJobTags(row.tags),
     quoteValue: row.quote_value != null ? Number(row.quote_value) : null,
     quoteReference: row.quote_reference,
     quoteDate: row.quote_date,
@@ -118,6 +121,7 @@ export function toSupabaseRow(job: JobRow): SupabaseJobRow & { list_sort_key: st
     date_created: job.dateCreated,
     date_completed: dateOnly(job.dateCompleted),
     notes: job.notes,
+    tags: job.tags ?? [],
     quote_value: job.quoteValue,
     quote_reference: job.quoteReference,
     quote_date: dateOnly(job.quoteDate),

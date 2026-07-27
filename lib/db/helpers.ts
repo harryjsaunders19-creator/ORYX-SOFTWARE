@@ -35,8 +35,8 @@ export function buildWhere(where: WhereClause = {}): { sql: string; params: unkn
   const params:  unknown[] = []
   if (where.search) {
     const s = `%${where.search}%`
-    clauses.push("(drawingNumber LIKE ? OR address LIKE ? OR clientCompany LIKE ? OR requestedBy LIKE ? OR typeOfWorks LIKE ? OR customTypeDescription LIKE ? OR designer LIKE ?)")
-    params.push(s, s, s, s, s, s, s)
+    clauses.push("(drawingNumber LIKE ? OR address LIKE ? OR clientCompany LIKE ? OR requestedBy LIKE ? OR typeOfWorks LIKE ? OR customTypeDescription LIKE ? OR designer LIKE ? OR quoteReference LIKE ? OR tags LIKE ?)")
+    params.push(s, s, s, s, s, s, s, s, s)
   }
   if (where.typeOfWorks)      { clauses.push("typeOfWorks = ?");                    params.push(where.typeOfWorks) }
   if (where.itemType)         { clauses.push("itemType = ?");                       params.push(where.itemType) }

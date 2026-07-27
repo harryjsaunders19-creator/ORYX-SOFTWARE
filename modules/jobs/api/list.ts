@@ -6,7 +6,7 @@ import { allocateDrawingNumberAsync, nextRefNumberAsync } from "@/shared/supabas
 import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { createId } from "@paralleldrive/cuid2"
-import { VALID_ITEM_TYPES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE } from "@/lib/constants"
+import { CREATABLE_ITEM_TYPE_VALUES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE, sanitizeJobTags } from "@/lib/constants"
 import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
 import { MAX_JOB_LIST_EXPORT_ROWS } from "@/modules/import-export/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
@@ -201,10 +201,29 @@ export async function POST(req: NextRequest) {
     try { body = await req.json() }
     catch { return NextResponse.json({ error: "Invalid request body" }, { status: 400 }) }
 
-    // Determine item type (defaults to DESIGN for backwards compatibility)
-    const itemType = typeof body.itemType === "string" && VALID_ITEM_TYPES.includes(body.itemType as never)
-      ? body.itemType as string
+    // Determine item type (defaults to DESIGN). Survey/Inspection are no longer creatable.
+    const requestedType = typeof body.itemType === "string" ? body.itemType : "DESIGN"
+    if (requestedType !== "DESIGN" && !CREATABLE_ITEM_TYPE_VALUES.includes(requestedType as never)) {
+      if (requestedType === "REVISION") {
+        return NextResponse.json({ error: "Create revisions via POST /api/jobs/[parentId]/revisions" }, { status: 422 })
+      }
+      return NextResponse.json({
+        error: `Cannot create jobs of type "${requestedType}". Choose Design, Site Visit, or CATIII Design Check.`,
+        field: "itemType",
+      }, { status: 422 })
+    }
+    const itemType = CREATABLE_ITEM_TYPE_VALUES.includes(requestedType as never)
+      ? requestedType
       : "DESIGN"
+
+    let tags: string[] = []
+    if (body.tags !== undefined) {
+      const sanitized = sanitizeJobTags(body.tags)
+      if (sanitized === null) {
+        return NextResponse.json({ error: "One or more tags are not in the approved list", field: "tags" }, { status: 422 })
+      }
+      tags = sanitized
+    }
 
     // Required fields (all item types)
     const siteName = typeof body.siteName === "string" ? body.siteName.trim() : ""
@@ -271,7 +290,7 @@ export async function POST(req: NextRequest) {
       // Revisions are created via POST /api/jobs/[id]/revisions — not here
       return NextResponse.json({ error: "Create revisions via POST /api/jobs/[parentId]/revisions" }, { status: 422 })
     } else {
-      // Site Visit, Survey, Inspection
+    // Site Visit, CATIII Design Check, etc.
       const prefix = REF_PREFIXES[itemType]
       drawingNumber = await nextRefNumberAsync(prefix)
     }
@@ -319,6 +338,7 @@ export async function POST(req: NextRequest) {
       designer,
       dateCompleted:   body.dateCompleted ? String(body.dateCompleted) : null,
       notes:           body.notes ? String(body.notes).trim() : null,
+      tags,
       quoteValue,
       quoteReference:  body.quoteReference  ? String(body.quoteReference).trim()  : null,
       quoteDate:       body.quoteDate       ? String(body.quoteDate)                : null,

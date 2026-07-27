@@ -27,7 +27,7 @@ export const supabaseClientRepo = {
     if (opts.activeOnly) q = q.eq("active", true)
     if (opts.search) {
       const orFilter = postgrestOrIlike(
-        ["name_lower", "contact_name", "email"],
+        ["name_lower", "contact_name", "email", "phone", "account_code"],
         opts.search,
       )
       if (orFilter) q = q.or(orFilter)
@@ -47,7 +47,7 @@ export const supabaseClientRepo = {
     if (opts.activeOnly) q = q.eq("active", true)
     if (opts.search) {
       const orFilter = postgrestOrIlike(
-        ["name_lower", "contact_name", "email"],
+        ["name_lower", "contact_name", "email", "phone", "account_code"],
         opts.search,
       )
       if (orFilter) q = q.or(orFilter)

@@ -7,7 +7,7 @@ import { Textarea } from "@/shared/ui/textarea"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/shared/ui/select"
-import { JOB_STATUSES, WORK_ITEM_TYPES, OTHER_WORKS_TYPE, getWorkItemRefHint } from "@/lib/constants"
+import { JOB_STATUSES, CREATABLE_ITEM_TYPES, JOB_TAGS, OTHER_WORKS_TYPE, getWorkItemRefHint } from "@/lib/constants"
 import { AlertTriangle } from "lucide-react"
 import { ClientCombobox } from "@/components/client-combobox"
 import { DesignerCombobox } from "@/components/designer-combobox"
@@ -23,6 +23,7 @@ function emptyJobForm(): JobFormData {
     siteName: "", siteAddress: "", address: "",
     typeOfWorks: "", customTypeDescription: "", clientCompany: "", clientId: "", requestedBy: "",
     status: "NEW_REQUEST", designer: "", dateCompleted: "", notes: "",
+    tags: [],
     quoteValue: "", quoteReference: "", quoteDate: "", commercialNotes: "",
     variationFees: "", additionalCharges: "",
     requiredByDate: defaultRequiredByDate(),
@@ -94,6 +95,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       designer:        job.designer,
       dateCompleted:   job.dateCompleted ? new Date(job.dateCompleted).toISOString().split("T")[0] : "",
       notes:           job.notes ?? "",
+      tags:            Array.isArray(job.tags) ? [...job.tags] : [],
       quoteValue:      job.quoteValue != null ? String(job.quoteValue) : "",
       quoteReference:  job.quoteReference ?? "",
       quoteDate:       job.quoteDate ?? "",
@@ -171,8 +173,15 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   }
 
   // Determine which item types can be shown in the type selector
-  // When editing, itemType is immutable (locked)
-  const selectableTypes = WORK_ITEM_TYPES.filter(t => t.value !== "REVISION")
+  // When editing, itemType is immutable (locked). Survey/Inspection are not creatable.
+  const selectableTypes = CREATABLE_ITEM_TYPES
+
+  const toggleTag = (tag: string) => {
+    setForm(f => ({
+      ...f,
+      tags: f.tags.includes(tag) ? f.tags.filter(t => t !== tag) : [...f.tags, tag],
+    }))
+  }
 
   return (
     <form id={formId} onSubmit={handleSubmit} noValidate data-saving={saving ? "true" : undefined}>
@@ -312,6 +321,30 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
             <SH>Notes</SH>
             <Textarea value={form.notes} onChange={setF("notes")}
               placeholder="Additional requirements or context…" rows={3} />
+          </div>
+          <div>
+            <SH>Tags</SH>
+            <p className="text-xs text-t4 mb-2">Optional labels for scaffold type and site constraints.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {JOB_TAGS.map(tag => {
+                const selected = form.tags.includes(tag)
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    aria-pressed={selected}
+                    className={`text-[11px] px-2 py-1 rounded border font-medium transition-none ${
+                      selected
+                        ? "bg-ac text-on-ac border-ac"
+                        : "border-bd text-t3 hover:text-t2 hover:border-bds bg-sr"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                )
+              })}
+            </div>
           </div>
           <div>
             <SH>Commercial</SH>

@@ -56,6 +56,7 @@
     "generate:stress-export": "node scripts/generate-stress-test-export.mjs"
   },
   "dependencies": {
+    "@kenjiuno/msgreader": "^1.28.0",
     "@paralleldrive/cuid2": "^3.3.0",
     "@pdf-lib/fontkit": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.16",
@@ -72,6 +73,7 @@
     "leaflet": "^1.9.4",
     "leaflet.heat": "^0.2.0",
     "lucide-react": "^1.18.0",
+    "mailparser": "^3.9.14",
     "next": "16.2.12",
     "pdf-lib": "^1.17.1",
     "react": "19.2.4",
@@ -87,6 +89,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/leaflet": "^1.9.21",
+    "@types/mailparser": "^3.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

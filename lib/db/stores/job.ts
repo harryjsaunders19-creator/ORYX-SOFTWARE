@@ -5,9 +5,23 @@ import { totalJobCommercialValue } from "@/lib/utils"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { billingHandoffDb } from "./billing-handoff"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
+import { parseJobTags, serializeJobTags } from "@/lib/constants"
 
 export type { JobRow, CreateJobData, UpdateJobData } from "../job-types"
 import type { JobRow, CreateJobData, UpdateJobData } from "../job-types"
+
+function normalizeJobRow(row: JobRow | null): JobRow | null {
+  if (!row) return null
+  return {
+    ...row,
+    tags: parseJobTags((row as JobRow & { tags?: unknown }).tags),
+    billable: row.billable == null ? true : Boolean(row.billable),
+  }
+}
+
+function normalizeJobRows(rows: JobRow[]): JobRow[] {
+  return rows.map(r => normalizeJobRow(r)!)
+}
 
 export const jobDb = {
   /**
@@ -44,7 +58,7 @@ export const jobDb = {
     const order  = opts.orderBy ? safeOrder(opts.orderBy.field, opts.orderBy.dir) : safeOrder("drawingNumber", "asc")
     const limit  = opts.take != null ? `LIMIT ${opts.take}` : ""
     const offset = opts.skip != null ? `OFFSET ${opts.skip}` : ""
-    return db.prepare(`SELECT * FROM Job ${w} ${order} ${limit} ${offset}`).all(...params) as JobRow[]
+    return normalizeJobRows(db.prepare(`SELECT * FROM Job ${w} ${order} ${limit} ${offset}`).all(...params) as JobRow[])
   },
 
   count(where: WhereClause = {}): number {
@@ -53,7 +67,7 @@ export const jobDb = {
   },
 
   findUnique(id: string): JobRow | null {
-    return (db.prepare("SELECT * FROM Job WHERE id = ?").get(id) as JobRow) ?? null
+    return normalizeJobRow((db.prepare("SELECT * FROM Job WHERE id = ?").get(id) as JobRow) ?? null)
   },
 
   /** Batched version of findUnique for a list of ids — one query instead of N. Results
@@ -62,18 +76,18 @@ export const jobDb = {
   findManyByIds(ids: string[]): JobRow[] {
     if (!ids.length) return []
     const placeholders = ids.map(() => "?").join(",")
-    return db.prepare(`SELECT * FROM Job WHERE id IN (${placeholders})`).all(...ids) as JobRow[]
+    return normalizeJobRows(db.prepare(`SELECT * FROM Job WHERE id IN (${placeholders})`).all(...ids) as JobRow[])
   },
 
   revisionsForJob(parentId: string): JobRow[] {
-    return db.prepare("SELECT * FROM Job WHERE parentJobId = ? ORDER BY revisionLetter ASC").all(parentId) as JobRow[]
+    return normalizeJobRows(db.prepare("SELECT * FROM Job WHERE parentJobId = ? ORDER BY revisionLetter ASC").all(parentId) as JobRow[])
   },
 
   /** Latest revision row per original job (by max revisionLetter). */
   findLatestRevisionsForParents(parentIds: string[]): JobRow[] {
     if (!parentIds.length) return []
     const placeholders = parentIds.map(() => "?").join(",")
-    return db.prepare(`
+    return normalizeJobRows(db.prepare(`
       SELECT j.* FROM Job j
       INNER JOIN (
         SELECT parentJobId, MAX(revisionLetter) AS maxLetter
@@ -81,24 +95,25 @@ export const jobDb = {
         WHERE parentJobId IN (${placeholders})
         GROUP BY parentJobId
       ) latest ON j.parentJobId = latest.parentJobId AND j.revisionLetter = latest.maxLetter
-    `).all(...parentIds) as JobRow[]
+    `).all(...parentIds) as JobRow[])
   },
 
   create(data: CreateJobData): JobRow {
     const now = nowIso(); const changedBy = data.changedBy ?? "System"
+    const tagsJson = serializeJobTags(data.tags)
     db.transaction(() => {
       db.prepare(`
         INSERT INTO Job (id,drawingNumber,itemType,address,siteName,siteAddress,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
-          status,designer,dateCompleted,notes,quoteValue,quoteReference,quoteDate,commercialNotes,
+          status,designer,dateCompleted,notes,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
           variationFees,additionalCharges,
           parentJobId,revisionLetter,billable,requestedDate,requiredByDate,dateCreated,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `).run(data.id, data.drawingNumber, data.itemType ?? "DESIGN", data.address,
              data.siteName ?? null, data.siteAddress ?? null,
              data.typeOfWorks,
              data.customTypeDescription ?? null,
              data.clientCompany, data.clientId ?? null, data.requestedBy, data.status, data.designer ?? "",
-             data.dateCompleted ?? null, data.notes ?? null,
+             data.dateCompleted ?? null, data.notes ?? null, tagsJson,
              data.quoteValue ?? null, data.quoteReference ?? null,
              data.quoteDate ?? null, data.commercialNotes ?? null,
              data.variationFees ?? null, data.additionalCharges ?? null,
@@ -126,7 +141,7 @@ export const jobDb = {
     const oldStatus = existing.status
     const allowedColumns = new Set([
       "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
-      "requestedBy", "status", "designer", "dateCompleted", "notes", "quoteValue",
+      "requestedBy", "status", "designer", "dateCompleted", "notes", "tags", "quoteValue",
       "quoteReference", "quoteDate", "commercialNotes", "variationFees", "additionalCharges",
       "requestedDate", "requiredByDate", "billable",
     ])
@@ -135,7 +150,9 @@ export const jobDb = {
       if (key === "changedBy" || val === undefined) continue
       if (!allowedColumns.has(key)) continue
       fields.push(`"${key}" = ?`)
-      params.push(key === "billable" ? (val ? 1 : 0) : val)
+      if (key === "billable") params.push(val ? 1 : 0)
+      else if (key === "tags") params.push(serializeJobTags(val as string[]))
+      else params.push(val)
     }
     const siteName = data.siteName !== undefined ? (data.siteName?.trim() ?? null) : existing.siteName
     const siteAddress = data.siteAddress !== undefined ? (data.siteAddress?.trim() ?? null) : existing.siteAddress
@@ -279,14 +296,15 @@ export const jobDb = {
     db.prepare(`
       INSERT OR IGNORE INTO Job
         (id,drawingNumber,itemType,address,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
-         status,designer,dateCompleted,notes,quoteValue,quoteReference,quoteDate,commercialNotes,
+         status,designer,dateCompleted,notes,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
          variationFees,additionalCharges,parentJobId,revisionLetter,requestedDate,requiredByDate,
          dateCreated,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       job.id, job.drawingNumber, job.itemType, job.address, job.typeOfWorks,
       job.customTypeDescription ?? null, job.clientCompany, job.clientId ?? null, job.requestedBy,
       job.status, job.designer ?? "", job.dateCompleted ?? null, job.notes ?? null,
+      serializeJobTags(job.tags),
       job.quoteValue ?? null, job.quoteReference ?? null, job.quoteDate ?? null,
       job.commercialNotes ?? null, job.variationFees ?? null, job.additionalCharges ?? null,
       job.parentJobId ?? null, job.revisionLetter ?? null,
@@ -308,9 +326,9 @@ export const jobDb = {
 
   /** Overdue jobs for dashboard alert — all non-issued, non-archived jobs past their deadline */
   overdueJobs(): JobRow[] {
-    return db.prepare(
+    return normalizeJobRows(db.prepare(
       "SELECT * FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED' ORDER BY requiredByDate ASC LIMIT 20"
-    ).all() as JobRow[]
+    ).all() as JobRow[])
   },
 
   groupByStatus(): { status: string; count: number }[] {

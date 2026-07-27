@@ -161,6 +161,14 @@ const JobMobileCard = memo(function JobMobileCard({
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
+            {(job.tags ?? []).slice(0, 2).map(tag => (
+              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
+                {tag}
+              </span>
+            ))}
+            {(job.tags ?? []).length > 2 && (
+              <span className="text-[10px] text-t4">+{(job.tags ?? []).length - 2}</span>
+            )}
           </div>
           <p className="text-sm font-medium text-t1 mt-1 line-clamp-2">{job.address}</p>
           <p className="text-xs text-t3 mt-0.5 truncate">{job.clientCompany}</p>
@@ -242,6 +250,14 @@ const JobTableRow = memo(
             <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
+            )}
+            {(job.tags ?? []).slice(0, 2).map(tag => (
+              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
+                {tag}
+              </span>
+            ))}
+            {(job.tags ?? []).length > 2 && (
+              <span className="text-[10px] text-t4">+{(job.tags ?? []).length - 2}</span>
             )}
           </span>
         </td>

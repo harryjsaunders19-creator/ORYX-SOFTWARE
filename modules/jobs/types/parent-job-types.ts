@@ -12,6 +12,8 @@ export interface ParentJobRow {
   customTypeDescription: string | null
   legacyTypeOfWorks: string | null
   description: string | null
+  /** Controlled multi-select labels from JOB_TAGS. */
+  tags: string[]
   requestedBy: string
   itemType: string
   archivedAt: string | null

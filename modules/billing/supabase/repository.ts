@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { aggSum } from "@/lib/supabase/aggregates"
+import { postgrestOrIlike } from "@/shared/supabase/postgrest-filter"
 import type {
   BillingExportBatchRow,
   BillingExportSnapshotRow,
@@ -45,6 +46,13 @@ type Q = any
 function applyHandoffFilters(q: Q, opts: BillingHandoffListOptions): Q {
   if (opts.cleared === true) q = q.not("cleared_by_accounts_at", "is", null)
   if (opts.cleared === false) q = q.is("cleared_by_accounts_at", null)
+  if (opts.search) {
+    const orFilter = postgrestOrIlike(
+      ["drawing_number", "client_company", "address", "quote_reference", "designer"],
+      opts.search,
+    )
+    if (orFilter) q = q.or(orFilter)
+  }
   return q
 }
 

@@ -68,17 +68,23 @@ export interface AccountsHandoverSnapshot {
 }
 
 export const billingHandoffDb = {
-  findMany(opts: { cleared?: boolean; skip?: number; take?: number } = {}): BillingHandoffRow[] {
+  findMany(opts: { cleared?: boolean; search?: string; skip?: number; take?: number } = {}): BillingHandoffRow[] {
     const clauses: string[] = []
+    const params: unknown[] = []
     if (opts.cleared === true)  clauses.push("clearedByAccountsAt IS NOT NULL")
     if (opts.cleared === false) clauses.push("clearedByAccountsAt IS NULL")
+    if (opts.search) {
+      const s = `%${opts.search}%`
+      clauses.push("(drawingNumber LIKE ? OR clientCompany LIKE ? OR address LIKE ? OR quoteReference LIKE ? OR designer LIKE ?)")
+      params.push(s, s, s, s, s)
+    }
     const w = clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""
     // Awaiting items are FIFO (oldest-added first, so accounts works through
     // a backlog in order); cleared items are most-recently-cleared first.
     const order  = opts.cleared === true ? "ORDER BY clearedByAccountsAt DESC" : "ORDER BY addedToBillingQueueAt ASC"
     const limit  = opts.take != null ? `LIMIT ${opts.take}` : ""
     const offset = opts.skip != null ? `OFFSET ${opts.skip}` : ""
-    return db.prepare(`SELECT * FROM BillingHandoff ${w} ${order} ${limit} ${offset}`).all() as BillingHandoffRow[]
+    return db.prepare(`SELECT * FROM BillingHandoff ${w} ${order} ${limit} ${offset}`).all(...params) as BillingHandoffRow[]
   },
 
   /** Batched fetch for building an export — preserves no particular order;

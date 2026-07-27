@@ -12,9 +12,9 @@ export const clientDb = {
     const clauses: string[] = []
     const params:  unknown[] = []
     if (opts.search) {
-      clauses.push("(nameLower LIKE ? OR contactName LIKE ? OR email LIKE ?)")
+      clauses.push("(nameLower LIKE ? OR contactName LIKE ? OR email LIKE ? OR phone LIKE ? OR accountCode LIKE ?)")
       const s = `%${opts.search.toLowerCase()}%`
-      params.push(s, s, s)
+      params.push(s, s, s, s, s)
     }
     if (opts.activeOnly) { clauses.push("active = 1") }
     const w      = clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""
@@ -30,9 +30,9 @@ export const clientDb = {
     const clauses: string[] = []
     const params:  unknown[] = []
     if (opts.search) {
-      clauses.push("(c.nameLower LIKE ? OR c.contactName LIKE ? OR c.email LIKE ?)")
+      clauses.push("(c.nameLower LIKE ? OR c.contactName LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR c.accountCode LIKE ?)")
       const s = `%${opts.search.toLowerCase()}%`
-      params.push(s, s, s)
+      params.push(s, s, s, s, s)
     }
     if (opts.activeOnly) { clauses.push("c.active = 1") }
     const w      = clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""
@@ -50,9 +50,9 @@ export const clientDb = {
     const clauses: string[] = []
     const params:  unknown[] = []
     if (opts.search) {
-      clauses.push("(nameLower LIKE ? OR contactName LIKE ? OR email LIKE ?)")
+      clauses.push("(nameLower LIKE ? OR contactName LIKE ? OR email LIKE ? OR phone LIKE ? OR accountCode LIKE ?)")
       const s = `%${opts.search.toLowerCase()}%`
-      params.push(s, s, s)
+      params.push(s, s, s, s, s)
     }
     if (opts.activeOnly) { clauses.push("active = 1") }
     const w = clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""
