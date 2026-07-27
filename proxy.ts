@@ -88,6 +88,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url))
   }
 
+  if (
+    (pathname.startsWith("/job-map") || pathname.startsWith("/api/job-map"))
+    && !isExperimentalEnabled("jobMap")
+  ) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "This feature is not available yet" }, { status: 404 })
+    }
+    return NextResponse.redirect(new URL("/", request.url))
+  }
+
   if (pathname.startsWith("/api/leave") && !isExperimentalEnabled("leave")) {
     return NextResponse.json({ error: "This feature is not available yet" }, { status: 404 })
   }

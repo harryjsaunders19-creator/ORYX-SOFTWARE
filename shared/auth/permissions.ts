@@ -67,6 +67,7 @@ export function canAccessModule(role: Role, key: string): boolean {
 export function modulesForRole(role: Role): ModuleDef[] {
   return MODULES.filter(m => {
     if (m.key === "employees" && !isExperimentalEnabled("employees")) return false
+    if (m.key === "job-map" && !isExperimentalEnabled("jobMap")) return false
     return m.roles.includes(role)
   })
 }

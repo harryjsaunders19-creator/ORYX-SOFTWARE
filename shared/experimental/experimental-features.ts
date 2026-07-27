@@ -6,10 +6,12 @@ import { NextResponse } from "next/server"
  * when admin credentials are configured; turn `employees` on only after
  * verifying migrations 014–016 + 028 and HR workflows.
  * Keep `leave` false until leave is migrated off SQLite-first writes.
+ * Job Map is off for now — useful later, but currently buggy and optional for launch.
  */
 export const EXPERIMENTAL = {
   employees: false,
   leave: false,
+  jobMap: false,
 } as const
 
 export type ExperimentalFeature = keyof typeof EXPERIMENTAL
