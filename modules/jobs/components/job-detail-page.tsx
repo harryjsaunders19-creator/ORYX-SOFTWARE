@@ -71,10 +71,10 @@ function InfoField({ label, value }: { label: string; value?: string | null }) {
 
 function KpiCard({ label, value, badge }: { label: string; value: string; badge?: string | null }) {
   return (
-    <div className="rounded-xl border border-bd bg-sr p-4">
-      <p className="text-xs font-medium text-t3 mb-1">{label}</p>
+    <div className="space-y-1">
+      <p className="text-[9px] font-bold text-t3 uppercase tracking-widest">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
-        <p className="text-lg font-semibold text-t1 truncate">{value}</p>
+        <p className="text-base font-bold text-t1 truncate font-mono tabular-nums">{value}</p>
         {badge ? (
           <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
             {badge}
@@ -296,100 +296,94 @@ export default function JobDetailPage({
         </div>
       )}
 
-      {/* Header — Stitch Job Details */}
-      <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-7">
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className={cn(
-              "text-2xl sm:text-3xl font-semibold tracking-tight text-t1 font-mono",
-              isCancelled && "line-through opacity-70",
-            )}>
-              {job.drawingNumber}
-            </h1>
-            {isAdmin && !isCancelled && (
-              <button
-                onClick={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
-                className="text-t4 hover:text-ac"
-                title="Edit drawing number"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-          {job.address && (
-            <p className="text-sm sm:text-base text-t3 flex items-start gap-1.5">
-              <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>{job.address}</span>
-            </p>
-          )}
-          <div className="flex items-center gap-2 pt-1 flex-wrap">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-t3">Client</span>
-            <span className="text-sm font-semibold text-t1">{job.clientCompany}</span>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 lg:self-center">
-          <div className="flex flex-wrap gap-2 lg:mr-1 lg:pr-4 lg:border-r lg:border-bd">
-            <StatusBadge status={job.status} />
-            <WorkItemTypeBadge itemType={job.itemType ?? "DESIGN"} />
-            {revLetter && <Pill tone="ac">Revision {revLetter}</Pill>}
-            {!revLetter && (job.itemType === "DESIGN" || !job.itemType) && (
-              <Pill tone="neutral">Original Issue</Pill>
-            )}
-            {dl.severity !== "none" && (
-              <Pill tone={dl.severity === "overdue" ? "dn" : "neutral"}>
-                {dl.label}
-              </Pill>
-            )}
-          </div>
-          {!isCancelled ? (
-            <div className="flex flex-wrap gap-2">
-              {!job.designer && (
-                <Button variant="primary" size="sm" onClick={() => setAssignOpen(true)}>
-                  <UserPlus className="h-3.5 w-3.5" /> Assign designer
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                <Pencil className="h-3.5 w-3.5" /> Edit
-              </Button>
-              {isAdmin && (
-                <Button variant="ghost" size="icon-sm" onClick={() => setDelOpen(true)} title="Cancel job">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+      {/* Master job card — Stitch layout */}
+      <section className="oryx-surface-card mb-7 overflow-hidden rounded-lg border border-bd bg-sr p-6 sm:p-8">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-6">
+          <div className="min-w-0 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatusBadge status={job.status} />
+              <span className="font-mono text-sm text-t3 tabular-nums">{job.drawingNumber}</span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className={cn(
+                "text-2xl sm:text-3xl font-bold tracking-tight text-t1 uppercase",
+                isCancelled && "line-through opacity-70",
+              )}>
+                {job.clientCompany}
+              </h1>
+              {isAdmin && !isCancelled && (
+                <button
+                  onClick={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
+                  className="text-t4 hover:text-ac"
+                  title="Edit drawing number"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
               )}
             </div>
-          ) : isAdmin ? (
-            <Button variant="outline" size="sm" loading={restoring} onClick={handleRestore}>
-              <RotateCcw className="h-3.5 w-3.5" /> Restore
-            </Button>
-          ) : null}
-        </div>
-      </header>
+            {job.address && (
+              <p className="text-sm sm:text-base text-t2 flex items-start gap-1.5">
+                <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{job.address}</span>
+              </p>
+            )}
+            <p className="text-[11px] text-t3 pt-1">
+              Workflow actions apply to{" "}
+              <span className="font-semibold text-t1">
+                Current Revision: {revLetter ? `Rev ${revLetter}` : "Original"}
+              </span>
+            </p>
+          </div>
 
-      {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-7">
-        <KpiCard
-          label="Current Revision"
-          value={revLetter ? `Rev ${revLetter}` : "Original"}
-        />
-        <KpiCard
-          label="Active Designer"
-          value={job.designer?.trim() || "Unassigned"}
-        />
-        <KpiCard
-          label="Total Revisions"
-          value={job.revisionCount != null ? String(job.revisionCount) : "—"}
-        />
-        <KpiCard
-          label="Quote / Agreed"
-          value={formatGBP(commercialTotal) ?? "—"}
-        />
-        <KpiCard
-          label="Deadline"
-          value={job.requiredByDate ? format(parseLocalDate(job.requiredByDate), "d MMM yyyy") : "—"}
-          badge={dl.severity === "overdue" ? "Due" : dl.severity === "today" ? "Today" : null}
-        />
-      </div>
+          <div className="flex flex-wrap items-center gap-3 lg:self-start">
+            <div className="flex flex-wrap gap-2">
+              <WorkItemTypeBadge itemType={job.itemType ?? "DESIGN"} />
+              {revLetter && <Pill tone="ac">Revision {revLetter}</Pill>}
+              {!revLetter && (job.itemType === "DESIGN" || !job.itemType) && (
+                <Pill tone="neutral">Original Issue</Pill>
+              )}
+              {dl.severity !== "none" && (
+                <Pill tone={dl.severity === "overdue" ? "dn" : "neutral"}>
+                  {dl.label}
+                </Pill>
+              )}
+            </div>
+            {!isCancelled ? (
+              <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+                {!job.designer && (
+                  <Button variant="primary" size="sm" onClick={() => setAssignOpen(true)}>
+                    <UserPlus className="h-3.5 w-3.5" /> Assign designer
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </Button>
+                {isAdmin && (
+                  <Button variant="ghost" size="icon-sm" onClick={() => setDelOpen(true)} title="Cancel job">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            ) : isAdmin ? (
+              <Button variant="outline" size="sm" loading={restoring} onClick={handleRestore}>
+                <RotateCcw className="h-3.5 w-3.5" /> Restore
+              </Button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-2 border-t border-bd">
+          <KpiCard label="Current Revision" value={revLetter ? `Rev ${revLetter}` : "Original"} />
+          <KpiCard label="Active Designer" value={job.designer?.trim() || "Unassigned"} />
+          <KpiCard label="Total Revisions" value={job.revisionCount != null ? String(job.revisionCount) : "—"} />
+          <KpiCard label="Quote / Agreed" value={formatGBP(commercialTotal) ?? "—"} />
+          <KpiCard
+            label="Deadline"
+            value={job.requiredByDate ? format(parseLocalDate(job.requiredByDate), "d MMM yyyy") : "—"}
+            badge={dl.severity === "overdue" ? "Due" : dl.severity === "today" ? "Today" : null}
+          />
+        </div>
+      </section>
 
       {/* Revision timeline (family) */}
       <div className="mb-7">
@@ -404,14 +398,17 @@ export default function JobDetailPage({
       {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-5">
         <div className="lg:col-span-7 space-y-5">
-          <section className="rounded-xl border border-bd bg-sr p-5">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-t1">Job Information</h2>
-              <span className="text-xs text-t4">
-                Updated {format(new Date(job.updatedAt), "d MMM yyyy HH:mm")}
-              </span>
+          <section className="oryx-surface-card overflow-hidden rounded-lg border border-bd bg-sr">
+            <div className="px-5 py-3.5 border-b border-bd">
+              <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-t1">Job Information</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+            <div className="p-5">
+              <div className="flex items-center justify-end mb-4">
+                <span className="text-xs text-t4">
+                  Updated {format(new Date(job.updatedAt), "d MMM yyyy HH:mm")}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
               <InfoField
                 label="Job Type"
                 value={(() => {
@@ -446,11 +443,12 @@ export default function JobDetailPage({
                 <InfoField label="Required by" value={format(parseLocalDate(job.requiredByDate), "d MMMM yyyy")} />
               )}
               {job.notes && <InfoField label="Notes" value={job.notes} />}
+              </div>
             </div>
           </section>
 
-          <section className="rounded-xl border border-bd bg-sr p-5">
-            <h2 className="text-base font-semibold text-t1 mb-4">Status</h2>
+          <section className="oryx-surface-card overflow-hidden rounded-lg border border-bd bg-sr p-5">
+            <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-t1 mb-4">Status</h2>
             {isCancelled ? (
               <StatusBadge status={job.status} />
             ) : (
@@ -465,8 +463,8 @@ export default function JobDetailPage({
             )}
           </section>
 
-          <section className="rounded-xl border border-bd bg-sr p-5">
-            <h2 className="text-base font-semibold text-t1 mb-4">Activity</h2>
+          <section className="oryx-surface-card overflow-hidden rounded-lg border border-bd bg-sr p-5">
+            <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-t1 mb-4">Activity</h2>
             <StatusHistory
               key={historyKey}
               jobId={workflowJobId}

@@ -1,7 +1,7 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
-import { GitBranch, ChevronDown, ChevronUp, Loader2, Plus, UserCircle2, PenTool, Receipt } from "lucide-react"
+import { GitBranch, ChevronDown, ChevronUp, Loader2, Plus, UserCircle2, PenTool, Receipt, Check } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Textarea } from "@/shared/ui/textarea"
 import { Label } from "@/shared/ui/label"
@@ -40,59 +40,59 @@ function TimelineEntry({
 }) {
   return (
     <div
-      className={cn(
-        "relative flex gap-3 sm:gap-4",
-        !isLast && "pb-4 sm:pb-5",
-      )}
+      className={cn("relative flex gap-4 sm:gap-5", !isLast && "pb-6")}
       aria-current={entry.isCurrent ? "true" : undefined}
     >
-      <div className="flex flex-col items-center shrink-0 w-5 sm:w-6">
-        <div
-          className={cn(
-            "h-3 w-3 rounded-full border-2 shrink-0 mt-1.5",
-            entry.isCurrent
-              ? "border-ac bg-ac shadow-[0_0_0_3px] shadow-ac/20"
-              : entry.isOriginal
-                ? "border-t3 bg-sr"
-                : "border-ac/50 bg-ac-bg",
-          )}
-        />
-        {!isLast && <div className="w-px flex-1 bg-bd mt-1.5 min-h-[24px]" />}
+      {!isLast && (
+        <div className="absolute left-[10px] top-6 bottom-0 w-px bg-bd" aria-hidden />
+      )}
+
+      <div
+        className={cn(
+          "relative z-10 flex h-5 w-5 shrink-0 items-center justify-center border mt-0.5",
+          entry.isCurrent
+            ? "border-ac bg-ac text-on-ac"
+            : "border-ac bg-sr",
+        )}
+      >
+        {entry.isCurrent ? (
+          <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
+        ) : (
+          <div className="h-2 w-2 bg-ac" />
+        )}
       </div>
 
       <div
         className={cn(
-          "flex-1 min-w-0 rounded-xl border p-3 sm:p-3.5",
-          entry.isCurrent
-            ? "border-ac bg-ac-bg/60 shadow-sm"
-            : "border-bd bg-sr",
+          "flex-1 min-w-0 rounded-lg border p-4",
+          entry.isCurrent ? "border-ac bg-ac-bg/40" : "border-bd bg-sr",
         )}
       >
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
           <h4 className={cn(
-            "text-sm font-semibold",
+            "text-[13px] font-bold uppercase tracking-tight",
             entry.isCurrent ? "text-ac" : "text-t1",
           )}>
             {entry.title}
           </h4>
           {entry.isCurrent && (
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-ac text-on-ac">
+            <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-sm bg-ac text-on-ac">
               Current
             </span>
           )}
           <StatusBadge status={entry.status} />
           {entry.billable ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-ok-bg text-ok-tx border border-ok-bd">
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-sm bg-ok-bg text-ok-tx border border-ok-bd uppercase tracking-wide">
               <Receipt className="h-2.5 w-2.5" /> Billable
             </span>
           ) : !entry.isOriginal ? (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-pg text-t3 border border-bd">
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-sm bg-pg text-t3 border border-bd uppercase tracking-wide">
               Included
             </span>
           ) : null}
         </div>
 
-        <p className="text-xs text-t3 tabular-nums mb-2">
+        <p className="text-[10px] text-t3 uppercase tabular-nums mb-2">
           Created {formatHistoryDate(entry.dateCreated)}
         </p>
 
@@ -100,25 +100,25 @@ function TimelineEntry({
           {entry.designer && (
             <p className="flex items-center gap-1.5">
               <PenTool className="h-3 w-3 text-t4 shrink-0" />
-              <span className="text-t3">Designer</span>
-              <span className="font-medium">{entry.designer}</span>
+              <span className="text-t3 uppercase text-[10px] tracking-wide">Designer</span>
+              <span className="font-semibold">{entry.designer}</span>
             </p>
           )}
           {entry.issuedBy && (
-            <p className="flex items-center gap-1.5">
+            <p className="flex items-center gap-1.5 flex-wrap">
               <UserCircle2 className="h-3 w-3 text-t4 shrink-0" />
-              <span className="text-t3">Issued by</span>
-              <span className="font-medium">{entry.issuedBy}</span>
+              <span className="text-t3 uppercase text-[10px] tracking-wide">Issued by</span>
+              <span className="font-semibold">{entry.issuedBy}</span>
               {entry.issuedAt && (
-                <span className="text-t4 tabular-nums">
+                <span className="text-t4 tabular-nums uppercase text-[10px]">
                   ({formatHistoryDate(entry.issuedAt)})
                 </span>
               )}
             </p>
           )}
           {entry.notes ? (
-            <div className="pt-1.5 mt-1 rounded-md border border-bd bg-pg px-2.5 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-t3 mb-0.5">
+            <div className="pt-2 mt-1 rounded-md border border-bd bg-surface-low px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-t3 mb-1">
                 Reason for revision
               </p>
               <p className="text-sm text-t1 leading-relaxed whitespace-pre-wrap">
@@ -131,7 +131,7 @@ function TimelineEntry({
         </div>
 
         {isAdmin && !entry.isOriginal && onToggleBillable && (
-          <div className="mt-2.5 pt-2 border-t border-bd/60">
+          <div className="mt-3 pt-2 border-t border-bd/60">
             <label className="inline-flex items-center gap-2 text-xs text-t2 cursor-pointer">
               <input
                 type="checkbox"
@@ -281,20 +281,20 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFam
   const baseDrawing = family.baseDrawingNumber
 
   return (
-    <section className="mb-0 rounded-xl border border-bd bg-sr overflow-hidden">
+    <section className="oryx-surface-card mb-0 overflow-hidden rounded-lg border border-bd bg-sr">
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex w-full items-center gap-2 px-5 py-4 border-b border-bd bg-sr text-left hover:bg-pg/50 transition-colors"
+        className="flex w-full items-center gap-2 border-b border-bd bg-sr px-5 py-4 text-left transition-colors hover:bg-surface-low"
         aria-expanded={open}
       >
         <GitBranch className="h-4 w-4 text-ac shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-base font-semibold text-t1">Revision Timeline</p>
+          <p className="text-xs font-bold uppercase tracking-[0.15em] text-t1">Revision Timeline</p>
           <p className="text-[11px] text-t3 font-mono truncate mt-0.5">{baseDrawing}</p>
         </div>
         {hasRevisions && (
-          <span className="text-[10px] font-semibold text-t3 tabular-nums shrink-0">
+          <span className="text-[10px] font-semibold text-t3 tabular-nums shrink-0 uppercase tracking-wide">
             {family.revisions.length} revision{family.revisions.length === 1 ? "" : "s"}
           </span>
         )}

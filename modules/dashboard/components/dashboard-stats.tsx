@@ -5,7 +5,7 @@ import { format, startOfWeek, endOfWeek } from "date-fns"
 import { RevisionFamilyBadge } from "@/components/revision-family-badge"
 import {
   MapPin, Video, Receipt, Briefcase,
-  AlertOctagon, ClipboardCheck, AlertTriangle, Clock, RefreshCw,
+  AlertOctagon, ClipboardCheck, AlertTriangle, Clock, RefreshCw, ChevronRight,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useUser } from "@/shared/providers/user-context"
@@ -20,37 +20,54 @@ const TEAMS_MEETING_ID = "cat_teams_meeting"
 
 // ── Reusable pieces ─────────────────────────────────────────────────
 
-function StatCard({ icon: Icon, label, value, href }: {
-  icon: React.ElementType; label: string; value: number; href?: string
+/** Stitch dashboard KPI — accent top bar, large value, icon badge (ORYX semantic colours). */
+function StatCard({ icon: Icon, label, value, href, accent, iconTint }: {
+  icon: React.ElementType
+  label: string
+  value: number
+  href?: string
+  accent: string
+  iconTint: string
 }) {
   const inner = (
-    <div className="group relative h-full overflow-hidden rounded-xl border border-bd bg-sr p-6 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-md max-md:p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-t3">{label}</span>
-        <Icon className="h-5 w-5 text-ac" />
+    <div className="oryx-surface-card group relative h-full overflow-hidden rounded-lg border border-bd bg-sr p-6 transition-shadow hover:shadow-md max-md:p-4">
+      <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <p className="text-[48px] font-semibold tabular-nums leading-none tracking-tight text-t1 max-md:text-3xl">{value}</p>
+        <div className="rounded-lg p-2 shrink-0" style={{ backgroundColor: `${iconTint}18` }}>
+          <Icon className="h-5 w-5" style={{ color: iconTint }} />
+        </div>
       </div>
-      <p className="text-[32px] font-black tabular-nums leading-none tracking-tight text-t1 max-md:text-2xl">{value}</p>
-      <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-surface-low">
-        <div className="h-full w-2/3 rounded-full bg-ac transition-all group-hover:w-3/4" />
-      </div>
+      <p className="font-mono text-xs uppercase tracking-widest text-t3">{label}</p>
     </div>
   )
-  return href ? <Link href={href} className="block">{inner}</Link> : inner
+  return href ? <Link href={href} className="block h-full">{inner}</Link> : inner
 }
 
 function SectionHeader({ icon: Icon, accent, title, count, viewAllHref, viewAllLabel }: {
   icon: React.ElementType; accent: string; title: string; count?: number; viewAllHref: string; viewAllLabel?: string
 }) {
   return (
-    <div className="flex shrink-0 items-center justify-between border-b border-bd bg-sr px-4 py-3">
-      <div className="flex items-center gap-2">
-        <Icon className={cn("h-4 w-4 shrink-0", accent)} />
+    <div className="flex shrink-0 items-center justify-between border-b border-bd bg-sr px-5 py-3.5">
+      <div className="flex items-center gap-2 min-w-0">
+        <Icon className={cn("h-5 w-5 shrink-0", accent)} />
         <p className="text-sm font-semibold text-t1">{title}</p>
         {count != null && count > 0 && (
-          <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-pg px-1 text-[11px] font-bold text-t2">{count}</span>
+          <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-pg px-1.5 text-[11px] font-bold text-t2 tabular-nums">{count}</span>
         )}
       </div>
-      <Link href={viewAllHref} className="shrink-0 text-xs font-medium text-ac hover:text-ach">{viewAllLabel ?? "View all →"}</Link>
+      <Link href={viewAllHref} className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-ac hover:text-ach">
+        {viewAllLabel ?? "View all"}
+        <ChevronRight className="h-3.5 w-3.5" />
+      </Link>
+    </div>
+  )
+}
+
+function EmptyPanel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-1 items-center justify-center px-5 py-8">
+      <p className="text-center text-sm text-t3 italic opacity-70">{children}</p>
     </div>
   )
 }
@@ -113,19 +130,19 @@ export function DashboardStats({
     <div className="space-y-6">
 
       {/* ── KPI bento (12-col) ─────────────────────────────────── */}
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-12 gap-6">
         <div className="col-span-6 lg:col-span-3">
-          <StatCard icon={Briefcase} label="Active Jobs" value={stats?.totalActiveJobs ?? 0} href="/jobs" />
+          <StatCard icon={Briefcase} label="Active Jobs" value={stats?.totalActiveJobs ?? 0} href="/jobs" accent="var(--color-rs)" iconTint="var(--color-rs)" />
         </div>
         <div className="col-span-6 lg:col-span-3">
-          <StatCard icon={Clock} label="Due This Week" value={stats?.dueThisWeekCount ?? 0} href="/jobs?deadline=this_week" />
+          <StatCard icon={Clock} label="Due This Week" value={stats?.dueThisWeekCount ?? 0} href="/jobs?deadline=this_week" accent="var(--color-dn)" iconTint="var(--color-dn)" />
         </div>
         <div className="col-span-6 lg:col-span-3">
-          <StatCard icon={ClipboardCheck} label="Requires Checking" value={stats?.checking ?? 0} href="/jobs/checking" />
+          <StatCard icon={ClipboardCheck} label="Requires Checking" value={stats?.checking ?? 0} href="/jobs/checking" accent="var(--color-wn)" iconTint="var(--color-wn)" />
         </div>
         {isAdmin ? (
           <div className="col-span-6 lg:col-span-3">
-            <StatCard icon={Receipt} label="Ready For Invoicing" value={stats?.readyForInvoicingCount ?? 0} href="/billing" />
+            <StatCard icon={Receipt} label="Ready For Invoicing" value={stats?.readyForInvoicingCount ?? 0} href="/billing" accent="var(--color-ok-ic)" iconTint="var(--color-ok-ic)" />
           </div>
         ) : (
           <div className="col-span-6 lg:col-span-3 hidden lg:block" aria-hidden />
@@ -133,11 +150,11 @@ export function DashboardStats({
       </div>
 
       {/* ── Needs Attention ───────────────────────────────────── */}
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-6 overflow-hidden rounded-xl border border-bd bg-sr shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
+      <div className="grid grid-cols-12 gap-6">
+        <div className="col-span-12 lg:col-span-6 oryx-surface-card flex min-h-64 flex-col overflow-hidden rounded-lg border border-bd bg-sr">
           <SectionHeader icon={AlertOctagon} accent="text-dn" title="Overdue" count={stats?.overdueCount} viewAllHref="/jobs?deadline=overdue" />
           {overdueJobs.length === 0 ? (
-            <p className="px-4 py-6 text-xs text-t4 text-center">Nothing overdue — good shape.</p>
+            <EmptyPanel>Nothing overdue — good shape.</EmptyPanel>
           ) : (
             <div className="divide-y divide-bd">
               {overdueJobs.map(job => {
@@ -159,10 +176,10 @@ export function DashboardStats({
           )}
         </div>
 
-        <div className="col-span-12 lg:col-span-6 overflow-hidden rounded-xl border border-bd bg-sr shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
-          <SectionHeader icon={AlertTriangle} accent="text-ac" title="Clients On Hold" count={stats?.clientsOnHold} viewAllHref="/clients/hold-list" />
+        <div className="col-span-12 lg:col-span-6 oryx-surface-card flex min-h-64 flex-col overflow-hidden rounded-lg border border-bd bg-sr">
+          <SectionHeader icon={AlertTriangle} accent="text-wn" title="Clients On Hold" count={stats?.clientsOnHold} viewAllHref="/clients/hold-list" />
           {holds.length === 0 ? (
-            <p className="px-4 py-6 text-xs text-t4 text-center">No clients on hold.</p>
+            <EmptyPanel>No clients on hold.</EmptyPanel>
           ) : (
             <div className="divide-y divide-bd">
               {holds.map(hold => (
@@ -179,11 +196,11 @@ export function DashboardStats({
       </div>
 
       {/* ── Upcoming ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-6 overflow-hidden rounded-xl border border-bd bg-sr shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
-          <SectionHeader icon={MapPin} accent="text-[#3B82F6]" title="Upcoming Site Visits" count={siteVisits.length} viewAllHref="/calendar" viewAllLabel="View calendar →" />
+      <div className="grid grid-cols-12 gap-6">
+        <div className="col-span-12 lg:col-span-6 oryx-surface-card flex min-h-64 flex-col overflow-hidden rounded-lg border border-bd bg-sr">
+          <SectionHeader icon={MapPin} accent="text-rs" title="Upcoming Site Visits" count={siteVisits.length} viewAllHref="/calendar" viewAllLabel="View calendar" />
           {siteVisits.length === 0 ? (
-            <p className="px-4 py-7 text-xs text-t4 text-center">No site visits scheduled this week</p>
+            <EmptyPanel>No site visits scheduled this week</EmptyPanel>
           ) : (
             <div className="divide-y divide-bd">
               {siteVisits.slice(0, 5).map(e => (
@@ -208,10 +225,10 @@ export function DashboardStats({
           )}
         </div>
 
-        <div className="col-span-12 lg:col-span-6 overflow-hidden rounded-xl border border-bd bg-sr shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
-          <SectionHeader icon={Video} accent="text-[#A855F7]" title="Upcoming Meetings" count={teamsMeetings.length} viewAllHref="/calendar" viewAllLabel="View calendar →" />
+        <div className="col-span-12 lg:col-span-6 oryx-surface-card flex min-h-64 flex-col overflow-hidden rounded-lg border border-bd bg-sr">
+          <SectionHeader icon={Video} accent="text-ac2" title="Upcoming Meetings" count={teamsMeetings.length} viewAllHref="/calendar" viewAllLabel="View calendar" />
           {teamsMeetings.length === 0 ? (
-            <p className="px-4 py-7 text-xs text-t4 text-center">No meetings scheduled this week</p>
+            <EmptyPanel>No meetings scheduled this week</EmptyPanel>
           ) : (
             <div className="divide-y divide-bd">
               {teamsMeetings.slice(0, 5).map(e => (
