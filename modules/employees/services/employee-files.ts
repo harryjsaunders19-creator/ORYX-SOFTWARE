@@ -102,6 +102,13 @@ export async function writeEmployeeFile(params: {
     return key
   }
 
+  if (process.env.VERCEL === "1") {
+    throw new Error(
+      "Employee file storage requires Supabase Storage on Vercel (bucket `employee-files`). " +
+      "Refusing ephemeral /tmp write — configure SUPABASE_SERVICE_ROLE_KEY and run migration 028.",
+    )
+  }
+
   const dir = employeeUserDir(params.userId)
   const fullPath = path.join(dir, filename)
   fs.writeFileSync(fullPath, params.data)

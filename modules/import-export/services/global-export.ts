@@ -26,11 +26,17 @@ import { passwordVaultService }  from "@/modules/password-vault"
 import { getJobStatus, getWorkItemType } from "@/lib/constants"
 import { format } from "date-fns"
 import { MAX_GLOBAL_EXPORT_ROWS } from "../constants"
+import { sanitizeSpreadsheetCell } from "@/shared/utils/spreadsheet-sanitize"
 
 const SITE_VISIT_ID    = "cat_site_visit"
 const TEAMS_MEETING_ID = "cat_teams_meeting"
 const GBP_FMT          = '"£"#,##0.00'
 const PCT_FMT          = '0.00"%"'
+
+/** Sanitize string cells against Excel formula injection before writing a data row. */
+function dataRow(values: unknown[]): (string | number | boolean | Date | null)[] {
+  return values.map(sanitizeSpreadsheetCell)
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -97,7 +103,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   ])
   styleHeader(jobSheet)
   for (const j of jobs) {
-    jobSheet.addRow([
+    jobSheet.addRow(dataRow([
       j.drawingNumber,
       getWorkItemType(j.itemType).label,
       j.address,
@@ -115,7 +121,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
       fmtDate(j.dateCompleted),
       fmtDate(j.updatedAt),
       j.notes ?? "",
-    ])
+    ]))
   }
   applyColFmt(jobSheet, 10, GBP_FMT, jobs.length)
   applyColFmt(jobSheet, 11, GBP_FMT, jobs.length)
@@ -133,11 +139,11 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   ])
   styleHeader(clientSheet)
   for (const c of clients) {
-    clientSheet.addRow([
+    clientSheet.addRow(dataRow([
       c.name, c.accountCode ?? "", c.contactName ?? "", c.phone ?? "",
       c.email ?? "", c.billingAddress ?? "", c.notes ?? "",
       c.active ? "Active" : "Archived", fmtDate(c.createdAt),
-    ])
+    ]))
   }
 
   // ── 3. Quotes ───────────────────────────────────────────────────────────────
@@ -155,7 +161,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   ])
   styleHeader(quoteSheet)
   for (const q of quotes) {
-    quoteSheet.addRow([
+    quoteSheet.addRow(dataRow([
       q.quoteNumber,
       q.status,
       q.clientCompany,
@@ -168,7 +174,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
       fmtDate(q.expiryDate),
       q.createdBy,
       q.notes ?? "",
-    ])
+    ]))
   }
   applyColFmt(quoteSheet, 7, GBP_FMT, quotes.length)
   applyColFmt(quoteSheet, 8, PCT_FMT, quotes.length)
@@ -186,12 +192,12 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   ])
   styleHeader(invSheet)
   for (const h of handoffs) {
-    invSheet.addRow([
+    invSheet.addRow(dataRow([
       h.drawingNumber,
       h.billingEventType === "REVISION_COMPLETED" ? "Revision" : "Job",
       h.clientCompany, h.address, h.designer ?? "", h.quoteValue,
       h.quoteReference ?? "", fmtDate(h.completionDate), fmtDate(h.addedToBillingQueueAt),
-    ])
+    ]))
   }
   applyColFmt(invSheet, 6, GBP_FMT, handoffs.length)
 
@@ -214,11 +220,11 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   for (const e of calEvents) {
     const start = fmtDateTime(e.startDate)
     const end   = fmtDateTime(e.endDate)
-    calSheet.addRow([
+    calSheet.addRow(dataRow([
       e.categoryName, e.title, start.date, start.time, end.time,
       e.location ?? "", e.assignees.map(a => a.userName).join(", "),
       e.jobDrawingNumber ?? "", e.clientName ?? "", e.description ?? "",
-    ])
+    ]))
   }
 
   // ── 6. Status History ───────────────────────────────────────────────────────
@@ -236,14 +242,14 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   styleHeader(histSheet)
   for (const h of historyRows) {
     const dt = fmtDateTime(h.changedAt)
-    histSheet.addRow([
+    histSheet.addRow(dataRow([
       h.drawingNumber ?? h.jobId,
       dt.date, dt.time,
       h.changedBy,
       h.fromStatus ?? "",
       h.toStatus   ?? "",
       h.note       ?? "",
-    ])
+    ]))
   }
 
   // ── 7. Users ────────────────────────────────────────────────────────────────
@@ -257,14 +263,14 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   userSheet.addRow(["User ID", "Name", "Email", "Role", "Status", "Account Created"])
   styleHeader(userSheet)
   for (const u of users) {
-    userSheet.addRow([
+    userSheet.addRow(dataRow([
       u.id,
       u.name,
       u.email ?? "",
       u.role,
       u.active ? "Active" : "Disabled",
       fmtDate(u.createdAt),
-    ])
+    ]))
   }
 
   // ── 8. Account Passwords ────────────────────────────────────────────────────
@@ -280,7 +286,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   ])
   styleHeader(vaultSheet)
   for (const e of vaultEntries) {
-    vaultSheet.addRow([
+    vaultSheet.addRow(dataRow([
       e.serviceName,
       e.username ?? "",
       e.password,
@@ -289,7 +295,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
       e.notes ?? "",
       fmtDate(e.createdAt),
       fmtDate(e.updatedAt),
-    ])
+    ]))
   }
 
   return wb
