@@ -1,12 +1,16 @@
 /**
  * Aggregate designer performance from Users-tab people + classic jobs.
  *
- * Leaderboard rows = every user in `/users` (Admin and Engineer, active and
- * inactive). Roles are never filtered — both complete designs as job
- * "designers". Jobs are attributed when the designer text matches a user
- * name (case-insensitive, whitespace-collapsed). If the exact name misses,
- * a unique first-name match is accepted so "Harry" still lands on
- * "Harry Saunders".
+ * Leaderboard =
+ *   1. Every person in `/users` (Admin and Engineer — never role-filtered)
+ *   2. Plus any job.designer name that doesn't match a user (so free-text
+ *      names like "Harry" still appear even when the Users name differs)
+ *
+ * Job attribution tries, in order:
+ *   - exact name (case-insensitive, whitespace-collapsed)
+ *   - unique first name ("Harry" → "Harry Saunders" when only one Harry)
+ *   - unique email local-part ("harry" → harry@oryxdesignltd.co.uk)
+ *   - otherwise a synthetic row keyed by the designer text itself
  *
  * Completed-in-period uses dateCompleted, falling back to updatedAt when
  * ISSUED jobs were never stamped with a completion date.
@@ -39,6 +43,8 @@ export interface PerformanceUserInput {
   id: string
   name: string
   role?: string | null
+  email?: string | null
+  emailLower?: string | null
   active?: number
 }
 
@@ -56,6 +62,14 @@ function firstNameKey(name: string): string {
   const full = normalizeKey(name)
   if (!full) return ""
   return full.split(" ")[0] ?? ""
+}
+
+function emailLocalKey(email: string | null | undefined): string {
+  if (!email) return ""
+  const lower = email.trim().toLowerCase()
+  const at = lower.indexOf("@")
+  if (at <= 0) return ""
+  return lower.slice(0, at)
 }
 
 /** Normalize any Users-tab role string to ADMIN | ENGINEER. */
@@ -103,6 +117,7 @@ type AccRow = {
   userId: string
   name: string
   role: PerformanceRole
+  fromDirectory: boolean
   completedInPeriod: number
   completedAllTime: number
   inProgress: number
@@ -111,11 +126,17 @@ type AccRow = {
   lastCompletedAt: string | null
 }
 
-function emptyRow(userId: string, name: string, role: PerformanceRole): AccRow {
+function emptyRow(
+  userId: string,
+  name: string,
+  role: PerformanceRole,
+  fromDirectory: boolean,
+): AccRow {
   return {
     userId,
     name,
     role,
+    fromDirectory,
     completedInPeriod: 0,
     completedAllTime: 0,
     inProgress: 0,
@@ -125,9 +146,19 @@ function emptyRow(userId: string, name: string, role: PerformanceRole): AccRow {
   }
 }
 
+/** Mark a lookup key as unique → fullNameKey, or "" when ambiguous. */
+function rememberUnique(index: Map<string, string>, alias: string, fullKey: string) {
+  if (!alias) return
+  if (index.has(alias) && index.get(alias) !== fullKey) {
+    index.set(alias, "")
+  } else if (!index.has(alias)) {
+    index.set(alias, fullKey)
+  }
+}
+
 /**
- * Pure aggregation — seed one row per Users-tab person (Admin + Engineer),
- * then attribute jobs. Exported for unit tests.
+ * Pure aggregation — seed Users-tab people, attribute jobs, and keep any
+ * unmatched designer names visible. Exported for unit tests.
  */
 export function aggregatePerformance(opts: {
   users: PerformanceUserInput[]
@@ -139,7 +170,8 @@ export function aggregatePerformance(opts: {
   const today = opts.today ?? todayIsoDate()
 
   const byName = new Map<string, AccRow>()
-  const firstNameIndex = new Map<string, string>() // firstName → normalizeKey(fullName), only if unique
+  const firstNameIndex = new Map<string, string>()
+  const emailLocalIndex = new Map<string, string>()
 
   for (const u of opts.users) {
     const display = u.name.trim().replace(/\s+/g, " ")
@@ -149,31 +181,45 @@ export function aggregatePerformance(opts: {
     // Prefer the first user when duplicate names exist (stable, deterministic).
     // Never skip based on role — Admins design jobs too.
     if (!byName.has(key)) {
-      byName.set(key, emptyRow(u.id, display, role))
+      byName.set(key, emptyRow(u.id, display, role, true))
     }
-    const first = firstNameKey(display)
-    if (first && first !== key) {
-      if (firstNameIndex.has(first) && firstNameIndex.get(first) !== key) {
-        firstNameIndex.set(first, "") // ambiguous — disable fuzzy match
-      } else if (!firstNameIndex.has(first)) {
-        firstNameIndex.set(first, key)
-      }
-    }
+    rememberUnique(firstNameIndex, firstNameKey(display), key)
+    rememberUnique(
+      emailLocalIndex,
+      emailLocalKey(u.emailLower ?? u.email),
+      key,
+    )
   }
 
-  function resolveRow(designerRaw: string): AccRow | null {
+  function resolveOrCreateRow(designerRaw: string): AccRow | null {
     const key = normalizeKey(designerRaw)
     if (!key) return null
+
     const exact = byName.get(key)
     if (exact) return exact
+
     const first = firstNameKey(designerRaw)
-    const mapped = first ? firstNameIndex.get(first) : undefined
-    if (mapped) return byName.get(mapped) ?? null
-    return null
+    const byFirst = first ? firstNameIndex.get(first) : undefined
+    if (byFirst) {
+      const row = byName.get(byFirst)
+      if (row) return row
+    }
+
+    const byEmail = emailLocalIndex.get(key)
+    if (byEmail) {
+      const row = byName.get(byEmail)
+      if (row) return row
+    }
+
+    // Keep free-text designers visible (e.g. historical "Harry" on jobs).
+    const display = designerRaw.trim().replace(/\s+/g, " ")
+    const synthetic = emptyRow(`designer:${key}`, display, "ENGINEER", false)
+    byName.set(key, synthetic)
+    return synthetic
   }
 
   for (const job of opts.jobs) {
-    const row = resolveRow(job.designer)
+    const row = resolveOrCreateRow(job.designer)
     if (!row) continue
 
     const completedDay = dayPart(job.dateCompleted) ?? dayPart(job.updatedAt)
@@ -200,6 +246,7 @@ export function aggregatePerformance(opts: {
       userId: r.userId,
       name: r.name,
       role: r.role,
+      fromDirectory: r.fromDirectory,
       completedInPeriod: r.completedInPeriod,
       completedAllTime: r.completedAllTime,
       avgPerWeek: Math.round((r.completedInPeriod / weeks) * 100) / 100,
@@ -218,8 +265,10 @@ export function aggregatePerformance(opts: {
   const awaitingChecking = employees.reduce((n, e) => n + e.awaitingChecking, 0)
   const overdue = employees.reduce((n, e) => n + e.overdue, 0)
   const activeDesigners = employees.filter(e => e.inProgress > 0).length
-  const adminUsers = employees.filter(e => e.role === "ADMIN").length
-  const engineerUsers = employees.filter(e => e.role === "ENGINEER").length
+  // Counts only Users-directory people (not synthetic designer-only rows).
+  const directory = [...byName.values()].filter(r => r.fromDirectory)
+  const adminUsers = directory.filter(e => e.role === "ADMIN").length
+  const engineerUsers = directory.filter(e => e.role === "ENGINEER").length
 
   return {
     period: opts.period,
@@ -230,7 +279,7 @@ export function aggregatePerformance(opts: {
       activeDesigners,
       awaitingChecking,
       overdue,
-      totalUsers: employees.length,
+      totalUsers: directory.length,
       adminUsers,
       engineerUsers,
     },

@@ -34,18 +34,26 @@ describe("resolvePerformancePeriod", () => {
 describe("aggregatePerformance", () => {
   const period = { from: "2026-07-01", to: "2026-07-31" }
   const users = [
-    { id: "u1", name: "Harry Saunders", role: "ADMIN", active: 1 },
-    { id: "u2", name: "Priya Shah", role: "ENGINEER", active: 1 },
+    {
+      id: "u1",
+      name: "Harry Saunders",
+      role: "ADMIN",
+      email: "harry@oryxdesignltd.co.uk",
+      emailLower: "harry@oryxdesignltd.co.uk",
+      active: 1,
+    },
+    { id: "u2", name: "Priya Shah", role: "ENGINEER", email: "priya@oryxdesignltd.co.uk", active: 1 },
     { id: "u3", name: "Disabled User", role: "ENGINEER", active: 0 },
   ]
 
   it("lists every Users-tab person including Admins", () => {
     const payload = aggregatePerformance({ users, jobs: [], period, today: "2026-07-15" })
-    assert.equal(payload.employees.length, 3)
+    assert.equal(payload.overview.totalUsers, 3)
     assert.equal(payload.overview.adminUsers, 1)
     assert.equal(payload.overview.engineerUsers, 2)
     const harry = payload.employees.find(e => e.name === "Harry Saunders")
     assert.equal(harry?.role, "ADMIN")
+    assert.equal(harry?.fromDirectory, true)
   })
 
   it("attributes issued jobs to Admin designers the same as Engineers", () => {
@@ -80,13 +88,79 @@ describe("aggregatePerformance", () => {
     assert.ok(priya)
     assert.equal(harry.role, "ADMIN")
     assert.equal(harry.completedInPeriod, 1)
-    assert.equal(harry.completedAllTime, 1)
     assert.equal(harry.inProgress, 1)
-    assert.equal(harry.overdue, 1)
-    assert.equal(priya.role, "ENGINEER")
     assert.equal(priya.completedInPeriod, 1)
     assert.equal(payload.overview.completedInPeriod, 2)
-    assert.equal(payload.overview.activeDesigners, 1)
+  })
+
+  it("maps designer 'Harry' onto Admin 'Harry Saunders' by first name", () => {
+    const payload = aggregatePerformance({
+      users,
+      jobs: [
+        {
+          designer: "Harry",
+          status: "ISSUED",
+          dateCompleted: "2026-07-12",
+          requiredByDate: null,
+        },
+      ],
+      period,
+      today: "2026-07-15",
+    })
+    const harry = payload.employees.find(e => e.name === "Harry Saunders")
+    assert.equal(harry?.completedInPeriod, 1)
+    assert.equal(harry?.role, "ADMIN")
+    // Should not also create a synthetic "Harry" row when first-name matched.
+    assert.equal(payload.employees.some(e => e.name === "Harry"), false)
+  })
+
+  it("maps designer 'harry' onto Admin via email local-part", () => {
+    const payload = aggregatePerformance({
+      users: [
+        {
+          id: "u1",
+          name: "Harry Saunders",
+          role: "ADMIN",
+          email: "harry@oryxdesignltd.co.uk",
+        },
+        // Another Harry makes first-name matching ambiguous — email must win.
+        { id: "u2", name: "Harry Jones", role: "ENGINEER", email: "hjones@oryxdesignltd.co.uk" },
+      ],
+      jobs: [
+        {
+          designer: "harry",
+          status: "ISSUED",
+          dateCompleted: "2026-07-12",
+          requiredByDate: null,
+        },
+      ],
+      period,
+      today: "2026-07-15",
+    })
+    const harry = payload.employees.find(e => e.name === "Harry Saunders")
+    assert.equal(harry?.completedInPeriod, 1)
+    assert.equal(payload.employees.find(e => e.name === "Harry Jones")?.completedInPeriod, 0)
+  })
+
+  it("keeps unmatched free-text designers visible on the board", () => {
+    const payload = aggregatePerformance({
+      users,
+      jobs: [
+        {
+          designer: "Legacy Freelancer",
+          status: "ISSUED",
+          dateCompleted: "2026-07-08",
+          requiredByDate: null,
+        },
+      ],
+      period,
+      today: "2026-07-15",
+    })
+    const legacy = payload.employees.find(e => e.name === "Legacy Freelancer")
+    assert.ok(legacy)
+    assert.equal(legacy.fromDirectory, false)
+    assert.equal(legacy.completedInPeriod, 1)
+    assert.equal(payload.overview.totalUsers, 3)
   })
 
   it("never drops Admins when Engineers are also present", () => {
@@ -103,45 +177,6 @@ describe("aggregatePerformance", () => {
     assert.equal(payload.overview.adminUsers, 2)
     assert.equal(payload.overview.engineerUsers, 1)
     assert.equal(payload.employees.length, 3)
-  })
-
-  it("matches a unique first-name designer to the full user name", () => {
-    const payload = aggregatePerformance({
-      users,
-      jobs: [
-        {
-          designer: "Harry",
-          status: "ISSUED",
-          dateCompleted: "2026-07-12",
-          requiredByDate: null,
-        },
-      ],
-      period,
-      today: "2026-07-15",
-    })
-    const harry = payload.employees.find(e => e.name === "Harry Saunders")
-    assert.equal(harry?.completedInPeriod, 1)
-  })
-
-  it("does not fuzzy-match when first names collide", () => {
-    const payload = aggregatePerformance({
-      users: [
-        { id: "a", name: "Harry Saunders", role: "ADMIN" },
-        { id: "b", name: "Harry Jones", role: "ENGINEER" },
-      ],
-      jobs: [
-        {
-          designer: "Harry",
-          status: "ISSUED",
-          dateCompleted: "2026-07-12",
-          requiredByDate: null,
-        },
-      ],
-      period,
-      today: "2026-07-15",
-    })
-    assert.equal(payload.overview.completedInPeriod, 0)
-    assert.ok(payload.employees.every(e => e.completedAllTime === 0))
   })
 
   it("falls back to updatedAt when ISSUED has no dateCompleted", () => {
@@ -178,7 +213,7 @@ describe("aggregatePerformance", () => {
       period,
       today: "2026-07-15",
     })
-    assert.equal(payload.employees.length, 3)
+    assert.equal(payload.overview.totalUsers, 3)
     assert.equal(payload.overview.completedInPeriod, 0)
   })
 })

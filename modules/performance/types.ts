@@ -25,6 +25,8 @@ export interface PerformanceEmployeeRow {
   name: string
   /** Users-tab role — Admins and Engineers both design jobs. */
   role: PerformanceRole
+  /** False when the row is a free-text job designer not in Users. */
+  fromDirectory: boolean
   completedInPeriod: number
   completedAllTime: number
   avgPerWeek: number

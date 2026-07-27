@@ -274,7 +274,7 @@ function PerformancePageInner() {
       </div>
 
       <p className="text-xs text-t4">
-        Admins and Engineers from Users are listed. Job counts land on a row when the designer name matches that person (case-insensitive; a unique first name also matches).
+        Admins and Engineers from Users are listed. Jobs count when the designer matches a person by full name, unique first name, or email prefix (e.g. Harry → Harry Saunders / harry@…). Unmatched designer names from jobs still appear.
       </p>
     </PageShell>
   )
@@ -313,6 +313,11 @@ function SortTh({
 }
 
 function EmployeeRow({ row }: { row: PerformanceEmployeeRow }) {
+  const roleLabel = !row.fromDirectory
+    ? "On jobs"
+    : row.role === "ADMIN"
+      ? "Admin"
+      : "Engineer"
   return (
     <tr className="border-b border-bd/70 last:border-0 hover:bg-pg/30">
       <td className="px-3 py-3">
@@ -322,9 +327,7 @@ function EmployeeRow({ row }: { row: PerformanceEmployeeRow }) {
           </div>
           <div className="min-w-0">
             <span className="font-medium text-t1">{row.name}</span>
-            <p className="text-[11px] text-t3">
-              {row.role === "ADMIN" ? "Admin" : "Engineer"}
-            </p>
+            <p className="text-[11px] text-t3">{roleLabel}</p>
           </div>
         </div>
       </td>
