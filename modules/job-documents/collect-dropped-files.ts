@@ -22,12 +22,138 @@ function looksLikeEml(textStart: string): boolean {
   )
 }
 
+/** Outlook drag/clipboard summary (not full RFC822). */
+function looksLikeOutlookSummary(text: string): boolean {
+  const t = text.trim()
+  if (t.length < 12) return false
+  const hits = [
+    /^from:\s*.+/im.test(t),
+    /^sent:\s*.+/im.test(t),
+    /^to:\s*.+/im.test(t),
+    /^subject:\s*.+/im.test(t),
+    /^date:\s*.+/im.test(t),
+    /^cc:\s*.+/im.test(t),
+  ].filter(Boolean).length
+  return hits >= 2
+}
+
 function sanitizeFilename(name: string): string {
   const cleaned = name
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
     .replace(/\s+/g, " ")
     .trim()
-  return cleaned || "email"
+  return cleaned.slice(0, 120) || "email"
+}
+
+function headerValue(text: string, name: string): string | null {
+  const re = new RegExp(`^${name}:\\s*(.+)$`, "im")
+  const m = text.match(re)
+  return m?.[1]?.trim() || null
+}
+
+function subjectFromText(text: string): string | null {
+  return headerValue(text, "subject")
+}
+
+/**
+ * Build a usable .eml when Outlook only hands the browser a text summary
+ * (common with New Outlook and some classic Outlook → Chromium drops).
+ */
+export function outlookTextToEmlFile(text: string, html?: string): File | null {
+  const raw = text?.trim() || ""
+  const htmlRaw = html?.trim() || ""
+  if (!raw && !htmlRaw) return null
+
+  if (raw && looksLikeEml(raw) && !htmlRaw) {
+    const base = sanitizeFilename(subjectFromText(raw) || "email")
+    const name = fileExt(base) === ".eml" ? base : `${base}.eml`
+    return new File([raw.replace(/\n/g, "\r\n")], name, {
+      type: "message/rfc822",
+      lastModified: Date.now(),
+    })
+  }
+
+  if (!looksLikeOutlookSummary(raw) && !looksLikeEml(raw) && !htmlRaw) {
+    // Still accept a long plain body as a last resort (some Outlook builds)
+    if (raw.length < 40) return null
+  }
+
+  const subject = subjectFromText(raw) || subjectFromHtml(htmlRaw) || "Outlook email"
+  const from = headerValue(raw, "from") || "unknown@outlook.local"
+  const to = headerValue(raw, "to") || ""
+  const cc = headerValue(raw, "cc") || ""
+  const sent = headerValue(raw, "sent") || headerValue(raw, "date") || new Date().toUTCString()
+
+  let body = raw
+  const blank = raw.search(/\r?\n\r?\n/)
+  if (blank >= 0) body = raw.slice(blank).replace(/^\r?\n\r?\n/, "")
+  if (!body && htmlRaw) body = stripHtml(htmlRaw)
+
+  const boundary = `----=_oryx_${Date.now().toString(36)}`
+  let eml: string
+
+  if (htmlRaw) {
+    eml = [
+      `From: ${from}`,
+      to ? `To: ${to}` : null,
+      cc ? `Cc: ${cc}` : null,
+      `Subject: ${subject}`,
+      `Date: ${sent}`,
+      "MIME-Version: 1.0",
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      "",
+      `--${boundary}`,
+      "Content-Type: text/plain; charset=utf-8",
+      "Content-Transfer-Encoding: 8bit",
+      "",
+      body || stripHtml(htmlRaw),
+      "",
+      `--${boundary}`,
+      "Content-Type: text/html; charset=utf-8",
+      "Content-Transfer-Encoding: 8bit",
+      "",
+      htmlRaw,
+      "",
+      `--${boundary}--`,
+      "",
+    ].filter(line => line !== null).join("\r\n")
+  } else {
+    eml = [
+      `From: ${from}`,
+      to ? `To: ${to}` : null,
+      cc ? `Cc: ${cc}` : null,
+      `Subject: ${subject}`,
+      `Date: ${sent}`,
+      "MIME-Version: 1.0",
+      "Content-Type: text/plain; charset=utf-8",
+      "Content-Transfer-Encoding: 8bit",
+      "",
+      body,
+      "",
+    ].filter(line => line !== null).join("\r\n")
+  }
+
+  const name = `${sanitizeFilename(subject)}.eml`
+  return new File([eml], name, { type: "message/rfc822", lastModified: Date.now() })
+}
+
+function subjectFromHtml(html: string): string | null {
+  const m = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+  return m?.[1]?.trim() || null
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .trim()
 }
 
 /**
@@ -35,8 +161,6 @@ function sanitizeFilename(name: string): string {
  * Normalize so our upload allow-list and email parser recognize them.
  */
 export async function normalizeDroppedFile(file: File): Promise<File | null> {
-  // Materialize bytes immediately. Outlook virtual files can report size 0 until read,
-  // and the underlying stream may disappear if we delay.
   let buffer: ArrayBuffer
   try {
     buffer = await file.arrayBuffer()
@@ -57,7 +181,7 @@ export async function normalizeDroppedFile(file: File): Promise<File | null> {
       ext = ".msg"
     } else {
       const asText = new TextDecoder("utf-8", { fatal: false }).decode(head)
-      if (looksLikeEml(asText)) {
+      if (looksLikeEml(asText) || looksLikeOutlookSummary(asText)) {
         name = `${name}.eml`
         mime = "message/rfc822"
         ext = ".eml"
@@ -65,7 +189,6 @@ export async function normalizeDroppedFile(file: File): Promise<File | null> {
         name = `${name}${mime.includes("outlook") ? ".msg" : ".eml"}`
         ext = fileExt(name)
       } else if (!mime || mime === "application/octet-stream") {
-        // Classic Outlook often drops the subject as the filename with no extension.
         name = `${name}.msg`
         mime = "application/vnd.ms-outlook"
         ext = ".msg"
@@ -87,18 +210,12 @@ export async function normalizeDroppedFile(file: File): Promise<File | null> {
   })
 }
 
-/**
- * Parse Chromium DownloadURL drag payload: `mimeType:fileName:url`
- * Used by New Outlook / some shell drops. Filename may contain colons —
- * URL starts at the last "://" or "blob:" segment after the second colon rule.
- */
 function parseDownloadURL(raw: string): { mime: string; name: string; url: string } | null {
   const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
   for (const line of lines) {
     const first = line.indexOf(":")
     if (first <= 0) continue
     const rest = line.slice(first + 1)
-    // Prefer splitting on ":https:", ":http:", ":blob:"
     const urlMatch = rest.match(/:(https?:\/\/.+|blob:.+)$/i)
     if (urlMatch && urlMatch.index != null) {
       const name = sanitizeFilename(rest.slice(0, urlMatch.index))
@@ -129,29 +246,52 @@ async function fileFromUrl(url: string, name: string, mime: string): Promise<Fil
   }
 }
 
-type SyncDropCapture = {
+type FileSystemHandleLike = { kind: string; getFile?: () => Promise<File> }
+
+export type SyncDropCapture = {
   files: File[]
+  /** Promises created synchronously via DataTransferItem.getAsFileSystemHandle(). */
+  handlePromises: Array<Promise<FileSystemHandleLike | null>>
   downloadURL: string | null
   textPlain: string
   textHtml: string
   uriList: string
+  types: string[]
   otherStrings: Array<{ type: string; data: string }>
+  /** True when we synthesized .eml from Outlook text rather than a real .msg file. */
+  synthesizedFromText?: boolean
 }
 
 /**
- * MUST run synchronously inside the drop handler — browsers clear DataTransfer
- * after the event handler yields, which breaks Outlook virtual-file drops.
+ * MUST run synchronously inside the drop/paste handler — browsers clear
+ * DataTransfer after the event handler yields.
  */
 export function captureDropDataSync(dt: DataTransfer): SyncDropCapture {
   const files: File[] = []
+  const handlePromises: Array<Promise<FileSystemHandleLike | null>> = []
 
-  // Prefer items.getAsFile() — Outlook virtual MSG files often appear here first.
   if (dt.items?.length) {
     for (let i = 0; i < dt.items.length; i++) {
       const item = dt.items[i]
-      if (!item || item.kind !== "file") continue
-      const file = item.getAsFile()
-      if (file) files.push(file)
+      if (!item) continue
+
+      if (item.kind === "file") {
+        const file = item.getAsFile()
+        if (file) files.push(file)
+
+        const getHandle = (item as DataTransferItem & {
+          getAsFileSystemHandle?: () => Promise<FileSystemHandleLike>
+        }).getAsFileSystemHandle
+        if (typeof getHandle === "function") {
+          try {
+            handlePromises.push(
+              getHandle.call(item).catch(() => null),
+            )
+          } catch {
+            // unsupported
+          }
+        }
+      }
     }
   }
 
@@ -179,31 +319,10 @@ export function captureDropDataSync(dt: DataTransfer): SyncDropCapture {
     else if (lower === "text/plain") textPlain = data
     else if (lower === "text/html") textHtml = data
     else if (lower === "text/uri-list") uriList = data
-    else if (itemLooksUsefulString(lower, data)) otherStrings.push({ type: lower, data })
+    else otherStrings.push({ type: lower, data })
   }
 
-  return { files, downloadURL, textPlain, textHtml, uriList, otherStrings }
-}
-
-function itemLooksUsefulString(type: string, data: string): boolean {
-  if (data.length < 8) return false
-  if (type.includes("uri") || type.includes("url") || type.includes("download")) return true
-  if (looksLikeEml(data)) return true
-  // Chromium custom MIME from New Outlook sometimes carries JSON + urls
-  if (data.includes("http://") || data.includes("https://") || data.includes("blob:")) return true
-  return false
-}
-
-function emlFileFromText(text: string, suggestedName?: string): File | null {
-  if (!looksLikeEml(text)) return null
-  const base = sanitizeFilename(suggestedName || subjectFromEml(text) || "email")
-  const name = fileExt(base) === ".eml" ? base : `${base}.eml`
-  return new File([text], name, { type: "message/rfc822", lastModified: Date.now() })
-}
-
-function subjectFromEml(text: string): string | null {
-  const m = text.match(/^subject:\s*(.+)$/im)
-  return m?.[1]?.trim() || null
+  return { files, handlePromises, downloadURL, textPlain, textHtml, uriList, types, otherStrings }
 }
 
 function urlsFromUriList(uriList: string): string[] {
@@ -213,14 +332,19 @@ function urlsFromUriList(uriList: string): string[] {
     .filter(l => l && !l.startsWith("#") && /^(https?:|blob:)/i.test(l))
 }
 
+export type DropCollectResult = {
+  files: File[]
+  /** Email was rebuilt from Outlook text/HTML — attachments will be missing. */
+  synthesizedFromText: boolean
+}
+
 /**
- * Collect files from a drop event, including Outlook virtual .msg/.eml drops.
- * Pass the result of `captureDropDataSync(e.dataTransfer)` — do not read
- * DataTransfer after an await.
+ * Collect files from a sync capture (drop or paste).
  */
-export async function collectDroppedFilesFromCapture(capture: SyncDropCapture): Promise<File[]> {
+export async function collectDroppedFilesFromCapture(capture: SyncDropCapture): Promise<DropCollectResult> {
   const collected: File[] = []
   const seen = new Set<string>()
+  let synthesizedFromText = false
 
   const pushUnique = async (file: File | null | undefined) => {
     if (!file) return
@@ -234,6 +358,18 @@ export async function collectDroppedFilesFromCapture(capture: SyncDropCapture): 
 
   for (const file of capture.files) {
     await pushUnique(file)
+  }
+
+  if (!collected.length && capture.handlePromises.length) {
+    const handles = await Promise.all(capture.handlePromises)
+    for (const handle of handles) {
+      if (!handle || handle.kind !== "file" || typeof handle.getFile !== "function") continue
+      try {
+        await pushUnique(await handle.getFile())
+      } catch {
+        // ignore
+      }
+    }
   }
 
   if (!collected.length && capture.downloadURL) {
@@ -251,15 +387,28 @@ export async function collectDroppedFilesFromCapture(capture: SyncDropCapture): 
     }
   }
 
+  // Outlook often only provides a text/HTML summary — convert to .eml so the drop still works.
   if (!collected.length) {
-    const fromPlain = emlFileFromText(capture.textPlain)
-    if (fromPlain) await pushUnique(fromPlain)
+    const synthesized = outlookTextToEmlFile(capture.textPlain, capture.textHtml)
+    if (synthesized) {
+      synthesizedFromText = true
+      await pushUnique(synthesized)
+    }
   }
 
   if (!collected.length) {
-    for (const { data } of capture.otherStrings) {
-      const fromText = emlFileFromText(data)
+    for (const { data, type } of capture.otherStrings) {
+      if (type.includes("html")) {
+        const synthesized = outlookTextToEmlFile("", data)
+        if (synthesized) {
+          synthesizedFromText = true
+          await pushUnique(synthesized)
+          break
+        }
+      }
+      const fromText = outlookTextToEmlFile(data)
       if (fromText) {
+        synthesizedFromText = true
         await pushUnique(fromText)
         break
       }
@@ -268,7 +417,6 @@ export async function collectDroppedFilesFromCapture(capture: SyncDropCapture): 
         await pushUnique(await fileFromUrl(asDownload.url, asDownload.name, asDownload.mime))
         if (collected.length) break
       }
-      // New Outlook Chromium JSON metadata sometimes embeds a file URL
       try {
         const json = JSON.parse(data) as Record<string, unknown>
         const maybeUrl =
@@ -285,18 +433,40 @@ export async function collectDroppedFilesFromCapture(capture: SyncDropCapture): 
           await pushUnique(await fileFromUrl(maybeUrl, maybeName, "application/octet-stream"))
           if (collected.length) break
         }
+        // Some New Outlook payloads embed subject/body in JSON
+        const subject = typeof json.subject === "string" ? json.subject : ""
+        const body =
+          (typeof json.body === "string" && json.body) ||
+          (typeof json.preview === "string" && json.preview) ||
+          (typeof json.text === "string" && json.text) ||
+          ""
+        if (subject || body) {
+          const fake = [
+            subject ? `Subject: ${subject}` : null,
+            typeof json.from === "string" ? `From: ${json.from}` : "From: unknown@outlook.local",
+            typeof json.to === "string" ? `To: ${json.to}` : null,
+            "",
+            body || subject,
+          ].filter(Boolean).join("\r\n")
+          const synthesized = outlookTextToEmlFile(fake)
+          if (synthesized) {
+            synthesizedFromText = true
+            await pushUnique(synthesized)
+            break
+          }
+        }
       } catch {
         // not JSON
       }
     }
   }
 
-  return collected
+  return { files: collected, synthesizedFromText }
 }
 
-/** @deprecated Prefer captureDropDataSync + collectDroppedFilesFromCapture */
 export async function collectDroppedFiles(dt: DataTransfer): Promise<File[]> {
-  return collectDroppedFilesFromCapture(captureDropDataSync(dt))
+  const result = await collectDroppedFilesFromCapture(captureDropDataSync(dt))
+  return result.files
 }
 
 export function droppedFilesIncludeEmail(files: File[]): boolean {
@@ -312,20 +482,16 @@ export function droppedFilesIncludeEmail(files: File[]): boolean {
 }
 
 export function outlookDropHint(capture: SyncDropCapture): string {
-  const types = [
-    capture.downloadURL ? "DownloadURL" : null,
-    capture.uriList ? "text/uri-list" : null,
-    capture.textPlain ? "text/plain" : null,
-    capture.files.length ? "file" : null,
-    ...capture.otherStrings.map(s => s.type),
-  ].filter(Boolean)
+  const hasAnyPayload =
+    capture.files.length > 0 ||
+    !!capture.textPlain ||
+    !!capture.textHtml ||
+    !!capture.downloadURL ||
+    capture.otherStrings.length > 0
 
-  const looksLikeOutlookMeta = types.some(t =>
-    /mail|outlook|napi|chromium|message/i.test(String(t)),
-  )
-
-  if (!capture.files.length && (looksLikeOutlookMeta || capture.uriList || !types.length)) {
-    return "Outlook did not hand over the email file to the browser. Use classic Outlook, or save the email as .msg/.eml (File → Save As) and drop that file."
+  if (!hasAnyPayload) {
+    return "Outlook did not share any email data with the browser. Save as .msg or .eml (File → Save As) and choose that file."
   }
-  return "Could not read that drop. Try again, or save as .msg/.eml and upload."
+
+  return "Could not import that Outlook drop as a file. Save the email as .msg/.eml and upload it to keep attachments."
 }
