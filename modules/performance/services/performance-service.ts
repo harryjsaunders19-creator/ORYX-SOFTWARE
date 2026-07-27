@@ -1,5 +1,5 @@
 /**
- * Aggregate designer performance from active ENGINEER users + classic jobs.
+ * Aggregate designer performance from active users (all roles) + classic jobs.
  * Jobs are attributed when lower(trim(jobs.designer)) === lower(trim(user.name)).
  */
 import { jobService } from "@/modules/jobs"
@@ -73,7 +73,6 @@ export async function buildPerformancePayload(
     jobService.findPerformanceFields(),
   ])
 
-  const engineers = users.filter(u => u.role === "ENGINEER")
   const byName = new Map<string, {
     userId: string
     name: string
@@ -85,7 +84,7 @@ export async function buildPerformancePayload(
     lastCompletedAt: string | null
   }>()
 
-  for (const u of engineers) {
+  for (const u of users) {
     byName.set(normalizeKey(u.name), {
       userId: u.id,
       name: u.name,

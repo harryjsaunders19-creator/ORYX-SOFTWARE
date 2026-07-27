@@ -214,7 +214,7 @@ function PerformancePageInner() {
           accent="var(--color-ac)"
         />
         <KpiTile
-          label="Active designers"
+          label="Active team"
           value={overview?.activeDesigners ?? (isLoading ? "…" : 0)}
           sub="With ≥1 in-progress job"
           accent="var(--color-ac)"
@@ -235,10 +235,10 @@ function PerformancePageInner() {
 
       <div className={cn(surfaceCard, "overflow-hidden")}>
         <div className="flex items-center justify-between gap-2 border-b border-bd px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-t3">Designer leaderboard</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-t3">Team leaderboard</p>
           <p className="text-xs text-t4">
             {from} → {to}
-            {isLoading ? " · Loading…" : ` · ${employees.length} engineers`}
+            {isLoading ? " · Loading…" : ` · ${employees.length} users`}
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -259,7 +259,7 @@ function PerformancePageInner() {
               {!isLoading && employees.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-sm text-t3 italic">
-                    No active engineer users found. Create ENGINEER users whose names match job designer fields.
+                    No active users found. Create users whose names match job designer fields.
                   </td>
                 </tr>
               )}
