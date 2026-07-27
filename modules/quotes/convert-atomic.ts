@@ -4,6 +4,7 @@
  */
 import { createId } from "@paralleldrive/cuid2"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
 import { nowIso } from "@/lib/db/helpers"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import type { CreateJobData, JobRow } from "@/modules/jobs/types/job-types"
@@ -120,8 +121,11 @@ export async function convertQuoteToLegacyJob(
   const changedBy = data.changedBy ?? "System"
   const job = buildJobRow(data, now)
 
-  const viaRpc = await convertViaRpc(quoteId, job, changedBy)
-  if (viaRpc !== "missing_rpc") return viaRpc
+  // Local/CI SQLite has no admin client — skip RPC and use the create+link path.
+  if (isSupabaseAdminConfigured()) {
+    const viaRpc = await convertViaRpc(quoteId, job, changedBy)
+    if (viaRpc !== "missing_rpc") return viaRpc
+  }
 
   return convertLegacyFallback(quoteId, data)
 }
