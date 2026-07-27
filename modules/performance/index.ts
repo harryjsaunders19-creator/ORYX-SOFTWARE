@@ -6,6 +6,7 @@ export type {
   PerformanceOverview,
   PerformanceEmployeeRow,
   PerformancePayload,
+  PerformanceRole,
 } from "./types"
 
 export {
@@ -13,4 +14,5 @@ export {
   resolvePerformancePeriod,
   aggregatePerformance,
   normalizeKey,
+  normalizeRole,
 } from "./services/performance-service"

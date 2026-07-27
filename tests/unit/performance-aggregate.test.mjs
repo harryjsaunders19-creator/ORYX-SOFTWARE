@@ -3,12 +3,22 @@ import assert from "node:assert/strict"
 import {
   aggregatePerformance,
   normalizeKey,
+  normalizeRole,
   resolvePerformancePeriod,
 } from "../../modules/performance/services/performance-service.ts"
 
 describe("normalizeKey", () => {
   it("trims, lowercases, and collapses whitespace", () => {
     assert.equal(normalizeKey("  Harry   Saunders "), "harry saunders")
+  })
+})
+
+describe("normalizeRole", () => {
+  it("treats only ADMIN as admin (case-insensitive)", () => {
+    assert.equal(normalizeRole("ADMIN"), "ADMIN")
+    assert.equal(normalizeRole("admin"), "ADMIN")
+    assert.equal(normalizeRole("ENGINEER"), "ENGINEER")
+    assert.equal(normalizeRole(null), "ENGINEER")
   })
 })
 
@@ -24,32 +34,38 @@ describe("resolvePerformancePeriod", () => {
 describe("aggregatePerformance", () => {
   const period = { from: "2026-07-01", to: "2026-07-31" }
   const users = [
-    { id: "u1", name: "Harry Saunders", active: 1 },
-    { id: "u2", name: "Admin", active: 1 },
-    { id: "u3", name: "Disabled User", active: 0 },
+    { id: "u1", name: "Harry Saunders", role: "ADMIN", active: 1 },
+    { id: "u2", name: "Priya Shah", role: "ENGINEER", active: 1 },
+    { id: "u3", name: "Disabled User", role: "ENGINEER", active: 0 },
   ]
 
-  it("lists every Users-tab person even with zero jobs", () => {
+  it("lists every Users-tab person including Admins", () => {
     const payload = aggregatePerformance({ users, jobs: [], period, today: "2026-07-15" })
     assert.equal(payload.employees.length, 3)
-    assert.deepEqual(
-      payload.employees.map(e => e.name).sort(),
-      ["Admin", "Disabled User", "Harry Saunders"],
-    )
+    assert.equal(payload.overview.adminUsers, 1)
+    assert.equal(payload.overview.engineerUsers, 2)
+    const harry = payload.employees.find(e => e.name === "Harry Saunders")
+    assert.equal(harry?.role, "ADMIN")
   })
 
-  it("attributes issued jobs by exact designer name (case-insensitive)", () => {
+  it("attributes issued jobs to Admin designers the same as Engineers", () => {
     const payload = aggregatePerformance({
       users,
       jobs: [
         {
-          designer: "harry saunders",
+          designer: "Harry Saunders",
           status: "ISSUED",
           dateCompleted: "2026-07-10",
           requiredByDate: null,
         },
         {
-          designer: "Admin",
+          designer: "Priya Shah",
+          status: "ISSUED",
+          dateCompleted: "2026-07-11",
+          requiredByDate: null,
+        },
+        {
+          designer: "Harry Saunders",
           status: "IN_DESIGN",
           dateCompleted: null,
           requiredByDate: "2026-07-01",
@@ -59,15 +75,34 @@ describe("aggregatePerformance", () => {
       today: "2026-07-15",
     })
     const harry = payload.employees.find(e => e.name === "Harry Saunders")
-    const admin = payload.employees.find(e => e.name === "Admin")
+    const priya = payload.employees.find(e => e.name === "Priya Shah")
     assert.ok(harry)
-    assert.ok(admin)
+    assert.ok(priya)
+    assert.equal(harry.role, "ADMIN")
     assert.equal(harry.completedInPeriod, 1)
     assert.equal(harry.completedAllTime, 1)
-    assert.equal(admin.inProgress, 1)
-    assert.equal(admin.overdue, 1)
-    assert.equal(payload.overview.completedInPeriod, 1)
+    assert.equal(harry.inProgress, 1)
+    assert.equal(harry.overdue, 1)
+    assert.equal(priya.role, "ENGINEER")
+    assert.equal(priya.completedInPeriod, 1)
+    assert.equal(payload.overview.completedInPeriod, 2)
     assert.equal(payload.overview.activeDesigners, 1)
+  })
+
+  it("never drops Admins when Engineers are also present", () => {
+    const payload = aggregatePerformance({
+      users: [
+        { id: "a", name: "Admin One", role: "ADMIN" },
+        { id: "b", name: "Admin Two", role: "ADMIN" },
+        { id: "c", name: "Engineer One", role: "ENGINEER" },
+      ],
+      jobs: [],
+      period,
+      today: "2026-07-15",
+    })
+    assert.equal(payload.overview.adminUsers, 2)
+    assert.equal(payload.overview.engineerUsers, 1)
+    assert.equal(payload.employees.length, 3)
   })
 
   it("matches a unique first-name designer to the full user name", () => {
@@ -91,8 +126,8 @@ describe("aggregatePerformance", () => {
   it("does not fuzzy-match when first names collide", () => {
     const payload = aggregatePerformance({
       users: [
-        { id: "a", name: "Harry Saunders" },
-        { id: "b", name: "Harry Jones" },
+        { id: "a", name: "Harry Saunders", role: "ADMIN" },
+        { id: "b", name: "Harry Jones", role: "ENGINEER" },
       ],
       jobs: [
         {
@@ -131,7 +166,7 @@ describe("aggregatePerformance", () => {
 
   it("skips blank user names and unassigned jobs", () => {
     const payload = aggregatePerformance({
-      users: [...users, { id: "blank", name: "   " }],
+      users: [...users, { id: "blank", name: "   ", role: "ADMIN" }],
       jobs: [
         {
           designer: "",

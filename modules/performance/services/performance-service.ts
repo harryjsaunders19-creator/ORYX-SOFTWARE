@@ -1,15 +1,15 @@
 /**
  * Aggregate designer performance from Users-tab people + classic jobs.
  *
- * Leaderboard rows = every user in `/users` (active and inactive), same
- * directory the job designer picker uses. Jobs are attributed when the
- * job's designer text matches a user name (case-insensitive, trimmed /
- * whitespace-collapsed). If the exact name misses, a unique first-name
- * match is accepted so "Harry" still lands on "Harry Saunders".
+ * Leaderboard rows = every user in `/users` (Admin and Engineer, active and
+ * inactive). Roles are never filtered — both complete designs as job
+ * "designers". Jobs are attributed when the designer text matches a user
+ * name (case-insensitive, whitespace-collapsed). If the exact name misses,
+ * a unique first-name match is accepted so "Harry" still lands on
+ * "Harry Saunders".
  *
  * Completed-in-period uses dateCompleted, falling back to updatedAt when
- * ISSUED jobs were never stamped with a completion date (common for
- * status-workflow transitions).
+ * ISSUED jobs were never stamped with a completion date.
  */
 import { jobService } from "@/modules/jobs"
 import { userService } from "@/modules/users"
@@ -17,6 +17,7 @@ import type {
   PerformanceEmployeeRow,
   PerformancePayload,
   PerformancePeriod,
+  PerformanceRole,
 } from "../types"
 
 const IN_PROGRESS = new Set([
@@ -37,6 +38,7 @@ export interface PerformanceJobInput {
 export interface PerformanceUserInput {
   id: string
   name: string
+  role?: string | null
   active?: number
 }
 
@@ -54,6 +56,11 @@ function firstNameKey(name: string): string {
   const full = normalizeKey(name)
   if (!full) return ""
   return full.split(" ")[0] ?? ""
+}
+
+/** Normalize any Users-tab role string to ADMIN | ENGINEER. */
+export function normalizeRole(role: string | null | undefined): PerformanceRole {
+  return String(role ?? "").trim().toUpperCase() === "ADMIN" ? "ADMIN" : "ENGINEER"
 }
 
 function weeksInPeriod(from: string, to: string): number {
@@ -95,6 +102,7 @@ export function resolvePerformancePeriod(
 type AccRow = {
   userId: string
   name: string
+  role: PerformanceRole
   completedInPeriod: number
   completedAllTime: number
   inProgress: number
@@ -103,10 +111,11 @@ type AccRow = {
   lastCompletedAt: string | null
 }
 
-function emptyRow(userId: string, name: string): AccRow {
+function emptyRow(userId: string, name: string, role: PerformanceRole): AccRow {
   return {
     userId,
     name,
+    role,
     completedInPeriod: 0,
     completedAllTime: 0,
     inProgress: 0,
@@ -117,8 +126,8 @@ function emptyRow(userId: string, name: string): AccRow {
 }
 
 /**
- * Pure aggregation — seed one row per Users-tab person, then attribute jobs.
- * Exported for unit tests.
+ * Pure aggregation — seed one row per Users-tab person (Admin + Engineer),
+ * then attribute jobs. Exported for unit tests.
  */
 export function aggregatePerformance(opts: {
   users: PerformanceUserInput[]
@@ -136,9 +145,11 @@ export function aggregatePerformance(opts: {
     const display = u.name.trim().replace(/\s+/g, " ")
     if (!display) continue
     const key = normalizeKey(display)
+    const role = normalizeRole(u.role)
     // Prefer the first user when duplicate names exist (stable, deterministic).
+    // Never skip based on role — Admins design jobs too.
     if (!byName.has(key)) {
-      byName.set(key, emptyRow(u.id, display))
+      byName.set(key, emptyRow(u.id, display, role))
     }
     const first = firstNameKey(display)
     if (first && first !== key) {
@@ -188,6 +199,7 @@ export function aggregatePerformance(opts: {
     .map(r => ({
       userId: r.userId,
       name: r.name,
+      role: r.role,
       completedInPeriod: r.completedInPeriod,
       completedAllTime: r.completedAllTime,
       avgPerWeek: Math.round((r.completedInPeriod / weeks) * 100) / 100,
@@ -206,6 +218,8 @@ export function aggregatePerformance(opts: {
   const awaitingChecking = employees.reduce((n, e) => n + e.awaitingChecking, 0)
   const overdue = employees.reduce((n, e) => n + e.overdue, 0)
   const activeDesigners = employees.filter(e => e.inProgress > 0).length
+  const adminUsers = employees.filter(e => e.role === "ADMIN").length
+  const engineerUsers = employees.filter(e => e.role === "ENGINEER").length
 
   return {
     period: opts.period,
@@ -216,6 +230,9 @@ export function aggregatePerformance(opts: {
       activeDesigners,
       awaitingChecking,
       overdue,
+      totalUsers: employees.length,
+      adminUsers,
+      engineerUsers,
     },
     employees,
   }
@@ -224,8 +241,8 @@ export function aggregatePerformance(opts: {
 export async function buildPerformancePayload(
   period: PerformancePeriod,
 ): Promise<PerformancePayload> {
-  // Same directory as the Users page — every person, not role-filtered.
-  // Active designers on jobs are picked from this same list.
+  // Same directory as the Users page — every person, Admin and Engineer.
+  // Do not pass activeOnly and do not filter by role.
   const [users, jobs] = await Promise.all([
     userService.findMany(),
     jobService.findPerformanceFields(),

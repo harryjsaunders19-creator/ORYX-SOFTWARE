@@ -142,7 +142,7 @@ function PerformancePageInner() {
     <PageShell wide className="space-y-6">
       <PageHeader
         title="Employee Performance"
-        description="Everyone from Users, measured by the designs they complete as job designers."
+        description="Everyone from Users (Admins and Engineers) — measured by the designs they complete as job designers."
       />
 
       <div className="flex flex-wrap items-end gap-3">
@@ -238,7 +238,9 @@ function PerformancePageInner() {
           <p className="text-xs font-semibold uppercase tracking-wider text-t3">Team leaderboard</p>
           <p className="text-xs text-t4">
             {from} → {to}
-            {isLoading ? " · Loading…" : ` · ${employees.length} users`}
+            {isLoading
+              ? " · Loading…"
+              : ` · ${employees.length} users (${overview?.adminUsers ?? 0} admin · ${overview?.engineerUsers ?? 0} engineer)`}
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -272,7 +274,7 @@ function PerformancePageInner() {
       </div>
 
       <p className="text-xs text-t4">
-        Every Users-tab person is listed. Job counts land on a row when the designer name matches that person (case-insensitive; a unique first name also matches).
+        Admins and Engineers from Users are listed. Job counts land on a row when the designer name matches that person (case-insensitive; a unique first name also matches).
       </p>
     </PageShell>
   )
@@ -318,7 +320,12 @@ function EmployeeRow({ row }: { row: PerformanceEmployeeRow }) {
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pg text-[11px] font-semibold text-t2">
             {initials(row.name) || "?"}
           </div>
-          <span className="font-medium text-t1">{row.name}</span>
+          <div className="min-w-0">
+            <span className="font-medium text-t1">{row.name}</span>
+            <p className="text-[11px] text-t3">
+              {row.role === "ADMIN" ? "Admin" : "Engineer"}
+            </p>
+          </div>
         </div>
       </td>
       <td className="px-3 py-3 text-right tabular-nums text-t1">{row.completedInPeriod}</td>
