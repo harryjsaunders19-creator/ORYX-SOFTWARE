@@ -199,4 +199,6 @@ export const RATE_PRESETS = {
   import: { windowMs: 60 * 60 * 1000, maxAttempts: 10 },
   export: { windowMs: 60 * 60 * 1000, maxAttempts: 5 },
   billingExport: { windowMs: 60 * 60 * 1000, maxAttempts: 10 },
+  /** Client error-boundary reports (keyed by IP — crashes can happen pre-login). */
+  clientError: { windowMs: 5 * 60 * 1000, maxAttempts: 20 },
 } as const

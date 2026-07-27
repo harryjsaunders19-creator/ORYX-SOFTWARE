@@ -16,6 +16,7 @@ const PUBLIC_API_PREFIXES = [
   "/api/auth/session",
   "/api/auth/logout",
   "/api/ping",
+  "/api/client-errors",
 ]
 
 /** API routes allowed while must-change-password is pending. */
@@ -23,6 +24,7 @@ const PASSWORD_CHANGE_API_PREFIXES = [
   "/api/auth/set-password",
   "/api/auth/session",
   "/api/auth/logout",
+  "/api/client-errors",
 ]
 
 function matchesPrefix(pathname: string, prefixes: string[]): boolean {

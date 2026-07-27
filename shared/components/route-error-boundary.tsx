@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { reportClientError } from "@/shared/client-error-report"
 
 type Props = {
   tag: string
@@ -15,6 +16,7 @@ type Props = {
 export function RouteErrorBoundary({ tag, error, reset, backHref = "/", backLabel = "Go home" }: Props) {
   useEffect(() => {
     console.error(`[${tag}]`, error)
+    reportClientError({ tag, error })
   }, [tag, error])
 
   return (
