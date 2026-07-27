@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { requireRole } from "@/shared/auth/auth"
@@ -6,6 +7,20 @@ import { importFromExcelBuffer } from "../services/excel-import"
 
 /** Large imports batch-upsert to Supabase — allow up to 60s on Vercel (see vercel.json). */
 export const maxDuration = 60
+
+const excelFileSchema = z.custom<File>(
+  (value) => {
+    if (!value || typeof value !== "object") return false
+    const v = value as Record<string, unknown>
+    return typeof v.name === "string" && typeof v.arrayBuffer === "function"
+  },
+  "No file provided",
+).refine(
+  file =>
+    file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    file.name.toLowerCase().endsWith(".xlsx"),
+  "File must be an Excel (.xlsx) workbook",
+)
 
 export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
@@ -18,21 +33,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const formData = await req.formData()
-    const file = formData.get("file")
-
-    if (!file || typeof file === "string") {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 })
+    const fileParsed = excelFileSchema.safeParse(formData.get("file"))
+    if (!fileParsed.success) {
+      return NextResponse.json({ error: fileParsed.error.issues[0]?.message ?? "Invalid upload" }, { status: 400 })
     }
-
-    const mimeType = (file as File).type
-    if (
-      mimeType !== "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" &&
-      !((file as File).name ?? "").endsWith(".xlsx")
-    ) {
-      return NextResponse.json({ error: "File must be an Excel (.xlsx) workbook" }, { status: 400 })
-    }
-
-    const buffer = await (file as File).arrayBuffer()
+    const buffer = await fileParsed.data.arrayBuffer()
     const result = await importFromExcelBuffer(buffer)
 
     return NextResponse.json(result)

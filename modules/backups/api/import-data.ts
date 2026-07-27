@@ -4,12 +4,26 @@
  * Restore Users, Clients, Jobs, and Quotes from a logical backup JSON pack.
  */
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 import { requireRole } from "@/shared/auth/auth"
 import { importLogicalBackupPack } from "../services/logical-import"
 import { backupRecordService } from "../services/backup-record-service"
+import { logicalBackupPackSchema } from "../services/logical-backup-schema"
 
 export const maxDuration = 60
+
+const jsonFileSchema = z.custom<File>(
+  (value) => {
+    if (!value || typeof value !== "object") return false
+    const v = value as Record<string, unknown>
+    return typeof v.name === "string" && typeof v.text === "function"
+  },
+  "No file provided",
+).refine(
+  file => file.name.toLowerCase().endsWith(".json"),
+  "File must be an Oryx logical backup (.json)",
+)
 
 export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
@@ -24,21 +38,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const formData = await req.formData()
-    const file = formData.get("file")
-
-    if (!file || typeof file === "string") {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 })
+    const fileParsed = jsonFileSchema.safeParse(formData.get("file"))
+    if (!fileParsed.success) {
+      return NextResponse.json({ error: fileParsed.error.issues[0]?.message ?? "Invalid upload" }, { status: 400 })
     }
+    const file = fileParsed.data
 
-    const name = (file as File).name ?? ""
-    if (!name.toLowerCase().endsWith(".json")) {
-      return NextResponse.json(
-        { error: "File must be an Oryx logical backup (.json)" },
-        { status: 400 },
-      )
-    }
-
-    const text = await (file as File).text()
+    const text = await file.text()
     let parsed: unknown
     try {
       parsed = JSON.parse(text)
@@ -46,7 +52,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON file" }, { status: 400 })
     }
 
-    const result = await importLogicalBackupPack(parsed)
+    const payloadParsed = logicalBackupPackSchema.safeParse(parsed)
+    if (!payloadParsed.success) {
+      return NextResponse.json(
+        { error: "Invalid backup file. Expected an Oryx logical backup JSON (Export full data)." },
+        { status: 422 },
+      )
+    }
+
+    const result = await importLogicalBackupPack(payloadParsed.data)
 
     await backupRecordService
       .logAudit({

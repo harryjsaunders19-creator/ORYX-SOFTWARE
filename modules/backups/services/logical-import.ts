@@ -28,6 +28,7 @@ import {
   LOGICAL_BACKUP_VERSION,
   type LogicalBackupPack,
 } from "./logical-export"
+import { logicalBackupPackSchema } from "./logical-backup-schema"
 
 export type LogicalSheetResult = {
   created: number
@@ -45,17 +46,6 @@ export type LogicalImportResult = {
 
 function emptyResult(): LogicalSheetResult {
   return { created: 0, updated: 0, skipped: 0, errors: [] }
-}
-
-function isLogicalBackupPack(value: unknown): value is LogicalBackupPack {
-  if (!value || typeof value !== "object") return false
-  const v = value as Record<string, unknown>
-  return (
-    v.kind === "oryx-logical-backup" &&
-    typeof v.version === "number" &&
-    v.tables != null &&
-    typeof v.tables === "object"
-  )
 }
 
 async function importUsers(
@@ -541,21 +531,23 @@ async function importQuotes(
 export async function importLogicalBackupPack(
   raw: unknown,
 ): Promise<LogicalImportResult> {
-  if (!isLogicalBackupPack(raw)) {
+  const parsed = logicalBackupPackSchema.safeParse(raw)
+  if (!parsed.success) {
     throw new Error(
       "Invalid backup file. Expected an Oryx logical backup JSON (Export full data).",
     )
   }
-  if (raw.version > LOGICAL_BACKUP_VERSION) {
+  const pack = parsed.data as LogicalBackupPack
+  if (pack.version > LOGICAL_BACKUP_VERSION) {
     throw new Error(
-      `This backup format (v${raw.version}) is newer than the app supports (v${LOGICAL_BACKUP_VERSION}).`,
+      `This backup format (v${pack.version}) is newer than the app supports (v${LOGICAL_BACKUP_VERSION}).`,
     )
   }
 
-  const users = await importUsers(raw.tables.users ?? [])
-  const clients = await importClients(raw.tables.clients ?? [])
-  const jobs = await importJobs(raw.tables.jobs ?? [])
-  const quotes = await importQuotes(raw.tables.quotes ?? [])
+  const users = await importUsers(pack.tables.users ?? [])
+  const clients = await importClients(pack.tables.clients ?? [])
+  const jobs = await importJobs(pack.tables.jobs ?? [])
+  const quotes = await importQuotes(pack.tables.quotes ?? [])
 
   return { users, clients, jobs, quotes }
 }
