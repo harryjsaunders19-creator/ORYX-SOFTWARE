@@ -36,6 +36,12 @@ export async function register() {
         "warn",
       )
     }
+
+    // Durable file uploads: never allow silent /tmp fallback on Vercel.
+    const { assertVercelObjectStorageReady } = await import(
+      "@/shared/storage/assert-vercel-object-storage"
+    )
+    await assertVercelObjectStorageReady()
   }
 
   const { isSupabaseOnly } = await import("@/lib/supabase/feature-flags")

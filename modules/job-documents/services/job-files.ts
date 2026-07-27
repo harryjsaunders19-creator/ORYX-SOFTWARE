@@ -94,6 +94,14 @@ export async function writeJobFile(params: {
       )
   }
 
+  // Vercel /tmp is wiped on cold start — never silently fall back to local disk.
+  if (process.env.VERCEL === "1") {
+    throw new Error(
+      "Job file storage requires Supabase Storage on Vercel (bucket `job-files`). " +
+      "Refusing ephemeral /tmp write — configure SUPABASE_SERVICE_ROLE_KEY and run migration 037.",
+    )
+  }
+
   const relative = objectPathFromKey(key)
   const fullPath = path.join(jobFilesRoot(), relative)
   fs.mkdirSync(path.dirname(fullPath), { recursive: true })

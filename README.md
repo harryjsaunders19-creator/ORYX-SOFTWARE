@@ -131,6 +131,8 @@ Employees and Leave are gated by `shared/experimental/experimental-features.ts` 
 - Keep `employees` / `leave` experimental flags **false** until HR review is complete.
 - Local filesystem backups and employee document files are **not durable** across multiple Vercel instances — use Supabase backups / storage for production durability.
 - `AUTH_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` are **required** on Vercel (boot fails loudly without a configured Supabase admin client).
+- Boot also verifies the private Supabase Storage bucket `job-files` exists (migration `037`). With `employees` enabled, `employee-files` (migration `028`) is required too — uploads never fall back to ephemeral `/tmp`.
+- Set `ORS_API_KEY` for reliable site-visit routing (optional but recommended).
 
 ### Geocoding (job map + site visit)
 
