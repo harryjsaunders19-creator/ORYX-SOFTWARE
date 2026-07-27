@@ -12,7 +12,7 @@ test.describe("Jobs API smoke", () => {
         siteName: "Temple Quay",
         siteAddress: "Bristol, BS1 6DG",
         typeOfWorks: "Access Scaffold",
-        designer: "Sarah Mitchell",
+        designer: "Admin",
       },
     })
     expect(createRes.status(), await createRes.text()).toBe(201)

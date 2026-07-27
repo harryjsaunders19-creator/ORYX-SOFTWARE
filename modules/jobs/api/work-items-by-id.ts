@@ -7,6 +7,7 @@ import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { workItemService, parentJobService } from "@/modules/jobs/services/parent-work-item-service"
 import type { UpdateWorkItemInput } from "@/modules/jobs/types/parent-dashboard-types"
+import { resolveDirectoryDesigner } from "../services/designer-directory"
 
 function modelDisabled() {
   return NextResponse.json(
@@ -55,7 +56,13 @@ export async function PATCH(
       }
       patch.status = body.status
     }
-    if (typeof body.designer === "string") patch.designer = body.designer
+    if (typeof body.designer === "string") {
+      const resolved = await resolveDirectoryDesigner(body.designer)
+      if (!resolved.ok) {
+        return NextResponse.json({ error: resolved.error, field: "designer" }, { status: 422 })
+      }
+      patch.designer = resolved.designer
+    }
     if (body.description !== undefined) patch.description = body.description
     if (body.notes !== undefined) patch.notes = body.notes
     if (body.commercialNotes !== undefined) patch.commercialNotes = body.commercialNotes

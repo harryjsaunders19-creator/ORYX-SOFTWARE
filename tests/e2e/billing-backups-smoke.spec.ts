@@ -12,7 +12,7 @@ test.describe("Billing + backups smoke", () => {
         siteName: "Temple Quay",
         siteAddress: "Bristol, BS1 6DG",
         typeOfWorks: "Access Scaffold",
-        designer: "Sarah Mitchell",
+        designer: "Admin",
         quoteValue: 950,
       },
     })

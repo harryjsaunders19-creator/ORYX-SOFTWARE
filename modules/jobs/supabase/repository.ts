@@ -51,8 +51,8 @@ const JOB_LIST_SELECT = [
 /** Perf: analytics only needs status/type/money/dates — avoid transferring full job rows. */
 const JOB_ANALYTICS_SELECT = "status,item_type,quote_value,date_created,date_completed"
 
-/** Perf: employee performance aggregates — designer + status + deadline fields only. */
-const JOB_PERFORMANCE_SELECT = "designer,status,date_completed,required_by_date"
+/** Perf: employee performance aggregates — designer + status + deadline + stamp fields. */
+const JOB_PERFORMANCE_SELECT = "designer,status,date_completed,required_by_date,updated_at"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type JobQuery = any
@@ -448,6 +448,7 @@ export const supabaseJobRepo = {
     status: string
     dateCompleted: string | null
     requiredByDate: string | null
+    updatedAt: string | null
   }[]> {
     const pageSize = 1000
     let useArchived = jobsArchivedFilterEnabled()
@@ -476,11 +477,13 @@ export const supabaseJobRepo = {
       status: string
       date_completed: string | null
       required_by_date: string | null
+      updated_at: string | null
     }[]).map(r => ({
       designer: (r.designer ?? "").trim(),
       status: r.status,
       dateCompleted: r.date_completed ?? null,
       requiredByDate: r.required_by_date ?? null,
+      updatedAt: r.updated_at ?? null,
     }))
   },
 

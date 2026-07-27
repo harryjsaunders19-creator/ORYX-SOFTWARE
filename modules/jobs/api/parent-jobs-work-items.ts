@@ -5,6 +5,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { parentJobService } from "@/modules/jobs/services/parent-work-item-service"
+import { resolveDirectoryDesigner } from "../services/designer-directory"
 
 function modelDisabled() {
   return NextResponse.json(
@@ -42,10 +43,17 @@ export async function POST(
       )
     }
 
+    const designerResolved = await resolveDirectoryDesigner(
+      typeof body.designer === "string" ? body.designer : "",
+    )
+    if (!designerResolved.ok) {
+      return NextResponse.json({ error: designerResolved.error, field: "designer" }, { status: 422 })
+    }
+
     const item = await parentJobService.createRevision(id, {
       description,
       billable: body.billable === true || body.billable === "true",
-      designer: typeof body.designer === "string" ? body.designer : "",
+      designer: designerResolved.designer,
       priority: typeof body.priority === "string" ? body.priority : null,
       quoteValue: money.quoteValue ?? null,
       requiredByDate: resolveRequiredByDate(body.requiredByDate) ?? null,

@@ -17,6 +17,7 @@ import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { apiInternalError } from "@/shared/api-errors"
 import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
+import { resolveDirectoryDesigner } from "../services/designer-directory"
 
 /**
  * Revision family flags + overlay current-revision status/designer onto parent rows.
@@ -263,7 +264,13 @@ export async function POST(req: NextRequest) {
 
     const id        = createId()
     const changedBy = actorName(auth.user)
-    const designer  = typeof body.designer === "string" ? body.designer.trim() : ""
+    const designerResolved = await resolveDirectoryDesigner(
+      typeof body.designer === "string" ? body.designer : "",
+    )
+    if (!designerResolved.ok) {
+      return NextResponse.json({ error: designerResolved.error, field: "designer" }, { status: 422 })
+    }
+    const designer = designerResolved.designer
 
     const rawQuote = body.quoteValue !== undefined && body.quoteValue !== null && body.quoteValue !== ""
       ? parseFloat(String(body.quoteValue)) : null

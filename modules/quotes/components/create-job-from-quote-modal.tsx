@@ -83,7 +83,7 @@ export function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Designer</Label>
-            <DesignerCombobox value={designer} onChange={setDesigner} placeholder="Sarah Mitchell (optional)" autoFocus />
+            <DesignerCombobox value={designer} onChange={setDesigner} placeholder="Select a user (optional)" autoFocus />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Required by date</Label>

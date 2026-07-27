@@ -28,7 +28,7 @@ test.describe("Quote convert API", () => {
     expect(acceptRes.ok(), await acceptRes.text()).toBeTruthy()
 
     const convertRes = await page.request.post(`/api/quotes/${quote.id}/convert`, {
-      data: { designer: "Sarah Mitchell" },
+      data: { designer: "Admin" },
     })
     expect(convertRes.status(), await convertRes.text()).toBe(201)
 
@@ -100,7 +100,7 @@ test.describe("Quote convert API", () => {
     expect(blockedBody.holdReason).toBeTruthy()
 
     const proceed = await page.request.post(`/api/quotes/${quote.id}/convert`, {
-      data: { proceedDespiteHold: true, designer: "Test Designer" },
+      data: { proceedDespiteHold: true, designer: "Admin" },
     })
     expect(proceed.status(), await proceed.text()).toBe(201)
   })

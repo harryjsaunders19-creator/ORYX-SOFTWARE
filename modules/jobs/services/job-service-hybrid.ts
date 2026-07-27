@@ -183,6 +183,7 @@ export const jobService = {
     status: string
     dateCompleted: string | null
     requiredByDate: string | null
+    updatedAt: string | null
   }[]> {
     if (!useSupabaseJobs()) {
       return jobDb.findMany().map(j => ({
@@ -190,6 +191,7 @@ export const jobService = {
         status: j.status,
         dateCompleted: j.dateCompleted,
         requiredByDate: j.requiredByDate,
+        updatedAt: j.updatedAt ?? null,
       }))
     }
     return supabaseJobRepo.findPerformanceFields()

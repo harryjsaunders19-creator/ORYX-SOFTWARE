@@ -142,7 +142,7 @@ function PerformancePageInner() {
     <PageShell wide className="space-y-6">
       <PageHeader
         title="Employee Performance"
-        description="Attributed by designer name matching the employee user name."
+        description="Everyone from Users (Admins and Engineers) — measured by the designs they complete as job designers."
       />
 
       <div className="flex flex-wrap items-end gap-3">
@@ -238,7 +238,9 @@ function PerformancePageInner() {
           <p className="text-xs font-semibold uppercase tracking-wider text-t3">Team leaderboard</p>
           <p className="text-xs text-t4">
             {from} → {to}
-            {isLoading ? " · Loading…" : ` · ${employees.length} users`}
+            {isLoading
+              ? " · Loading…"
+              : ` · ${employees.length} users (${overview?.adminUsers ?? 0} admin · ${overview?.engineerUsers ?? 0} engineer)`}
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -259,7 +261,7 @@ function PerformancePageInner() {
               {!isLoading && employees.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-sm text-t3 italic">
-                    No active users found. Create users whose names match job designer fields.
+                    No users found. Add people in Users — they appear here automatically and match job designers by name.
                   </td>
                 </tr>
               )}
@@ -272,7 +274,7 @@ function PerformancePageInner() {
       </div>
 
       <p className="text-xs text-t4">
-        Jobs only appear on a row when the job&apos;s designer text matches the user name exactly (case-insensitive).
+        Admins and Engineers from Users are listed. Jobs count when the designer matches a person by full name, unique first name, or email prefix (e.g. Harry → Harry Saunders / harry@…). Unmatched designer names from jobs still appear.
       </p>
     </PageShell>
   )
@@ -311,6 +313,11 @@ function SortTh({
 }
 
 function EmployeeRow({ row }: { row: PerformanceEmployeeRow }) {
+  const roleLabel = !row.fromDirectory
+    ? "On jobs"
+    : row.role === "ADMIN"
+      ? "Admin"
+      : "Engineer"
   return (
     <tr className="border-b border-bd/70 last:border-0 hover:bg-pg/30">
       <td className="px-3 py-3">
@@ -318,7 +325,10 @@ function EmployeeRow({ row }: { row: PerformanceEmployeeRow }) {
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pg text-[11px] font-semibold text-t2">
             {initials(row.name) || "?"}
           </div>
-          <span className="font-medium text-t1">{row.name}</span>
+          <div className="min-w-0">
+            <span className="font-medium text-t1">{row.name}</span>
+            <p className="text-[11px] text-t3">{roleLabel}</p>
+          </div>
         </div>
       </td>
       <td className="px-3 py-3 text-right tabular-nums text-t1">{row.completedInPeriod}</td>

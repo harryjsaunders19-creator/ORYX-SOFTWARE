@@ -139,6 +139,16 @@ export const jobDb = {
     const changedBy = data.changedBy ?? "System"
     const statusChanged = data.status !== undefined && data.status !== existing.status
     const oldStatus = existing.status
+    // Stamp completion when moving to ISSUED so performance period KPIs work.
+    const patch: UpdateJobData = { ...data }
+    if (
+      statusChanged
+      && data.status === "ISSUED"
+      && data.dateCompleted === undefined
+      && !existing.dateCompleted
+    ) {
+      patch.dateCompleted = nowIso().slice(0, 10)
+    }
     const allowedColumns = new Set([
       "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
       "requestedBy", "status", "designer", "dateCompleted", "notes", "tags", "quoteValue",
@@ -146,7 +156,7 @@ export const jobDb = {
       "requestedDate", "requiredByDate", "billable",
     ])
     const fields: string[] = []; const params: unknown[] = []
-    for (const [key, val] of Object.entries(data)) {
+    for (const [key, val] of Object.entries(patch)) {
       if (key === "changedBy" || val === undefined) continue
       if (!allowedColumns.has(key)) continue
       fields.push(`"${key}" = ?`)
@@ -154,14 +164,14 @@ export const jobDb = {
       else if (key === "tags") params.push(serializeJobTags(val as string[]))
       else params.push(val)
     }
-    const siteName = data.siteName !== undefined ? (data.siteName?.trim() ?? null) : existing.siteName
-    const siteAddress = data.siteAddress !== undefined ? (data.siteAddress?.trim() ?? null) : existing.siteAddress
-    const nextAddress = data.address !== undefined
-      ? data.address
-      : (data.siteName !== undefined || data.siteAddress !== undefined)
+    const siteName = patch.siteName !== undefined ? (patch.siteName?.trim() ?? null) : existing.siteName
+    const siteAddress = patch.siteAddress !== undefined ? (patch.siteAddress?.trim() ?? null) : existing.siteAddress
+    const nextAddress = patch.address !== undefined
+      ? patch.address
+      : (patch.siteName !== undefined || patch.siteAddress !== undefined)
         ? composeJobAddress(siteName, siteAddress, existing.address)
         : existing.address
-    if (data.siteName !== undefined || data.siteAddress !== undefined) {
+    if (patch.siteName !== undefined || patch.siteAddress !== undefined) {
       const hasAddressField = fields.some(f => f.startsWith('"address"'))
       if (!hasAddressField) {
         fields.push('"address" = ?')
@@ -169,9 +179,9 @@ export const jobDb = {
       }
     }
     const locationChanged = (
-      (data.address !== undefined && data.address.trim().toLowerCase() !== existing.address.trim().toLowerCase())
-      || (data.siteName !== undefined && (data.siteName?.trim() ?? "") !== (existing.siteName?.trim() ?? ""))
-      || (data.siteAddress !== undefined && (data.siteAddress?.trim() ?? "") !== (existing.siteAddress?.trim() ?? ""))
+      (patch.address !== undefined && patch.address.trim().toLowerCase() !== existing.address.trim().toLowerCase())
+      || (patch.siteName !== undefined && (patch.siteName?.trim() ?? "") !== (existing.siteName?.trim() ?? ""))
+      || (patch.siteAddress !== undefined && (patch.siteAddress?.trim() ?? "") !== (existing.siteAddress?.trim() ?? ""))
     )
     if (locationChanged) {
       fields.push(

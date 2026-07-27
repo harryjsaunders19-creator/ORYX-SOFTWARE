@@ -8,6 +8,7 @@ import { resourceResponse } from "@/shared/utils/api-cache"
 import { cancelRecordForJob } from "@/lib/cancel-record"
 import { apiInternalError } from "@/shared/api-errors"
 import { billingHandoffService } from "@/modules/billing"
+import { resolveDirectoryDesigner } from "../services/designer-directory"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -126,6 +127,15 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
     if (body.dateCompleted !== undefined) {
       data.dateCompleted = body.dateCompleted ? String(body.dateCompleted) : null
+    }
+    if (body.designer !== undefined) {
+      const resolved = await resolveDirectoryDesigner(
+        body.designer == null ? "" : String(body.designer),
+      )
+      if (!resolved.ok) {
+        return NextResponse.json({ error: resolved.error, field: "designer" }, { status: 422 })
+      }
+      data.designer = resolved.designer
     }
     if (body.billable !== undefined) {
       data.billable = Boolean(body.billable)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireRole } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
+import { listResponse } from "@/shared/utils/api-cache"
 import {
   buildPerformancePayload,
   resolvePerformancePeriod,
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams
     const period = resolvePerformancePeriod(sp.get("from"), sp.get("to"))
     const payload = await buildPerformancePayload(period)
-    return NextResponse.json(payload)
+    return listResponse(payload)
   } catch (err) {
     return apiInternalError("performance.get", err)
   }

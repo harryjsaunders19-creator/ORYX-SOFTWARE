@@ -14,6 +14,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { parentJobService } from "@/modules/jobs/services/parent-work-item-service"
+import { resolveDirectoryDesigner } from "../services/designer-directory"
 
 function modelDisabled() {
   return NextResponse.json(
@@ -131,6 +132,12 @@ export async function POST(req: NextRequest) {
 
     const drawingNumber = await allocateDrawingNumberAsync()
     const id = createId()
+    const designerResolved = await resolveDirectoryDesigner(
+      typeof body.designer === "string" ? body.designer : "",
+    )
+    if (!designerResolved.ok) {
+      return NextResponse.json({ error: designerResolved.error, field: "designer" }, { status: 422 })
+    }
     const dashboard = await parentJobService.createWithOriginal({
       id,
       drawingNumber,
@@ -142,7 +149,7 @@ export async function POST(req: NextRequest) {
       clientCompany,
       clientId,
       requestedBy,
-      designer: typeof body.designer === "string" ? body.designer : "",
+      designer: designerResolved.designer,
       notes: typeof body.notes === "string" ? body.notes : null,
       tags,
       quoteValue: money.quoteValue ?? null,

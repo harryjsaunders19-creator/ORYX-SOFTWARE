@@ -5,8 +5,8 @@ import { listResponse } from "@/shared/utils/api-cache"
 import { apiInternalError } from "@/shared/api-errors"
 
 /**
- * Designer picker options — active Users-tab names (not historical job.designer strings).
- * Keeps assignment aligned with ENGINEER/ADMIN directory names used for performance attribution.
+ * Designer picker options — active Users-tab names only (Admin + Engineer).
+ * Used by job list / form dropdowns so assignment matches Performance.
  */
 export async function GET() {
   try {
@@ -16,7 +16,7 @@ export async function GET() {
     const users = await userService.findMany({ activeOnly: true })
     const designers = [...new Set(
       users
-        .map(u => u.name.trim())
+        .map(u => u.name.trim().replace(/\s+/g, " "))
         .filter(Boolean),
     )].sort((a, b) => a.localeCompare(b))
 

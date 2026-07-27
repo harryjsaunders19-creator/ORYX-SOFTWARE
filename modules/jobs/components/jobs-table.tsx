@@ -35,7 +35,6 @@ import { InlineStatusSelect, InlineDesignerSelect } from "@/components/inline-ed
 // Lazy-load heavy dialog components — only downloaded when the user first
 // opens a create/edit dialog, not on every initial page load.
 const JobForm            = dynamic(() => import("./job-form").then(m => m.JobForm), { ssr: false })
-const AssignDesignerModal = dynamic(() => import("@/components/assign-designer-modal").then(m => m.AssignDesignerModal), { ssr: false })
 import { useToast }      from "@/shared/ui/toast"
 import { useUser }       from "@/shared/providers/user-context"
 import { JOB_STATUSES, WORK_ITEM_TYPES, WORKS_TYPES, getJobStatus } from "@/lib/constants"
@@ -223,7 +222,6 @@ interface JobTableRowProps {
   onPatchField:         (job: JobWithRevision, field: "status" | "designer", value: string) => void
   onEdit:               (job: JobWithRevision) => void
   onDelete:             (job: JobWithRevision) => void
-  onAssign:             (job: JobWithRevision) => void
   onQuickRevision:      (job: JobWithRevision) => void
   onNavigate:           (path: string) => void
 }
@@ -234,7 +232,7 @@ interface JobTableRowProps {
 const JobTableRow = memo(
   function JobTableRow({
     job, isOnHold, designers, isAdmin, creatingRevisionFor, showTags,
-    onPatchField, onEdit, onDelete, onAssign, onQuickRevision, onNavigate,
+    onPatchField, onEdit, onDelete, onQuickRevision, onNavigate,
   }: JobTableRowProps) {
     const dl = getJobDeadlineInfo(job)
     const showDeadlineFlag = dl.severity === "overdue" || dl.severity === "today" || dl.severity === "soon"
@@ -336,7 +334,6 @@ const JobTableRow = memo(
               designer={job.designer}
               designers={designers}
               onChange={value => onPatchField(job, "designer", value)}
-              onRequestNew={() => onAssign(job)}
             />
           </div>
         </td>
@@ -432,7 +429,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const { toast }    = useToast()
   const { isAdmin } = useUser()
 
-  const [extraDesigners, setExtraDesigners] = useState<string[]>([])
   const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
   const searchParams = useSearchParams()
   const [search,       setSearch]       = useState(() => searchParams.get("search") ?? "")
@@ -456,7 +452,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const [deleteJob,    setDeleteJob]    = useState<Job | null>(null)
   const [cancelReason, setCancelReason] = useState("")
   const [deleting,     setDeleting]     = useState(false)
-  const [assignJob,    setAssignJob]    = useState<Job | null>(null)
   const [creatingRevisionFor, setCreatingRevisionFor] = useState<string | null>(null)
 
   useEffect(() => { setPage(1) }, [debouncedSearch])
@@ -488,18 +483,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     () => new Set(holdData?.holds.map(h => h.clientId) ?? []),
     [holdData],
   )
-  const designers = useMemo(() => {
-    const base = designersData?.designers ?? []
-    if (!extraDesigners.length) return base
-    const merged = new Set(base)
-    for (const name of extraDesigners) merged.add(name)
-    return [...merged].sort((a, b) => a.localeCompare(b))
-  }, [designersData, extraDesigners])
-
-  const rememberDesigner = useCallback((value: string | null | undefined) => {
-    if (!value) return
-    setExtraDesigners(prev => (prev.includes(value) ? prev : [...prev, value]))
-  }, [])
+  const designers = designersData?.designers ?? []
 
   const loading = isLoading && !data
   const refreshing = isValidating && !!data
@@ -654,14 +638,11 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         } : current,
         { revalidate: false },
       )
-      if (field === "designer") {
-        rememberDesigner(value)
-      }
     } catch {
       toast("Network error", "error")
       await mutate()
     }
-  }, [mutate, toast, rememberDesigner])
+  }, [mutate, toast])
 
   // Perf: stable handlers so JobMobileCard memo is not busted by inline lambdas per row.
   const openJob = useCallback((jobId: string) => { router.push(`/jobs/${jobId}`) }, [router])
@@ -1025,7 +1006,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
                   onPatchField={patchJobField}
                   onEdit={setEditJob}
                   onDelete={setDeleteJob}
-                  onAssign={setAssignJob}
                   onQuickRevision={handleQuickRevision}
                   onNavigate={router.push}
                 />
@@ -1135,36 +1115,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Assign designer modal — fallback for entering a brand-new name not yet in the inline picker */}
-      <AssignDesignerModal
-        job={assignJob
-          ? { ...assignJob, id: assignJob.currentRevisionId ?? assignJob.id }
-          : null}
-        onClose={() => setAssignJob(null)}
-        onSaved={updated => {
-          const listRowId = assignJob?.id
-          setAssignJob(null)
-          // Merge into the list row — do NOT replace with the raw API job (drops canAddRevision).
-          mutate(
-            current => current ? {
-              ...current,
-              jobs: current.jobs.map(j => {
-                const match = (listRowId && j.id === listRowId)
-                  || j.id === updated.id
-                  || j.currentRevisionId === updated.id
-                if (!match) return j
-                return {
-                  ...j,
-                  designer: updated.designer,
-                  updatedAt: updated.updatedAt,
-                }
-              }),
-            } : current,
-            { revalidate: false },
-          )
-          rememberDesigner(updated.designer)
-        }}
-      />
     </>
   )
 }

@@ -17,6 +17,7 @@ import {
 import { StatusBadge }        from "@/components/status-badge"
 import { WorkItemTypeBadge }  from "@/components/work-item-type-badge"
 import { StatusWorkflow }     from "@/components/status-workflow"
+import { DesignerCombobox }   from "@/components/designer-combobox"
 import { useToast }            from "@/shared/ui/toast"
 import { formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue, cn } from "@/shared/utils/utils"
 import { useUser }             from "@/shared/providers/user-context"
@@ -199,11 +200,42 @@ export default function JobDetailPage({
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form }),
       })
-      if (!res.ok) { toast("Failed to save", "error"); throw new Error() }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "Failed to save", "error")
+        throw new Error()
+      }
       toast("Saved", "success")
       setEditOpen(false)
       load(); setHistoryKey(k => k + 1)
     } finally { setEditSaving(false) }
+  }
+
+  /** Reassign designer from the overview dropdown (Users directory only). */
+  const handleDesignerChange = async (designer: string) => {
+    if (!job) return
+    const previous = job.designer ?? ""
+    if (designer === previous) return
+    void mutateJob({ ...job, designer }, { revalidate: false })
+    try {
+      const res = await fetch(`/api/jobs/${workflowJobId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ designer }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "Failed to assign designer", "error")
+        void mutateJob({ ...job, designer: previous }, { revalidate: false })
+        return
+      }
+      toast(designer ? `Assigned to ${designer}` : "Designer unassigned", "success")
+      setHistoryKey(k => k + 1)
+      void mutateJob()
+    } catch {
+      toast("Network error", "error")
+      void mutateJob({ ...job, designer: previous }, { revalidate: false })
+    }
   }
 
   const handleDelete = async () => {
@@ -366,11 +398,10 @@ export default function JobDetailPage({
             </div>
             {!isCancelled ? (
               <div className="flex flex-wrap gap-2 w-full lg:w-auto">
-                {!job.designer && (
-                  <Button variant="primary" size="sm" onClick={() => setAssignOpen(true)}>
-                    <UserPlus className="h-3.5 w-3.5" /> Assign designer
-                  </Button>
-                )}
+                <Button variant={job.designer ? "outline" : "primary"} size="sm" onClick={() => setAssignOpen(true)}>
+                  <UserPlus className="h-3.5 w-3.5" />
+                  {job.designer ? "Change designer" : "Assign designer"}
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-3.5 w-3.5" /> Edit
                 </Button>
@@ -474,7 +505,20 @@ export default function JobDetailPage({
                       value={formatGBP(job.quoteValue) ?? (parentJob?.quoteValue != null ? formatGBP(parentJob.quoteValue) : null)}
                     />
                     <InfoField label="Requested by" value={job.requestedBy} />
-                    <InfoField label="Engineer Assigned" value={job.designer || "Unassigned"} />
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-t3 mb-1.5">
+                        Engineer Assigned
+                      </p>
+                      {isCancelled ? (
+                        <p className="text-sm text-t1">{job.designer || "Unassigned"}</p>
+                      ) : (
+                        <DesignerCombobox
+                          value={job.designer}
+                          onChange={v => void handleDesignerChange(v)}
+                          placeholder="Select a user…"
+                        />
+                      )}
+                    </div>
                     <InfoField label="Client" value={job.clientCompany} />
                     <InfoField label="Created" value={format(new Date(job.dateCreated), "d MMMM yyyy")} />
                     {job.legacyTypeOfWorks && (
@@ -671,11 +715,15 @@ export default function JobDetailPage({
               </p>
             ) : (
               <div className="space-y-1.5">
-                {!job.designer && (
-                  <Button variant="primary" size="sm" className="w-full justify-start" onClick={() => setAssignOpen(true)}>
-                    <UserPlus className="h-3.5 w-3.5" /> Assign designer
-                  </Button>
-                )}
+                <Button
+                  variant={job.designer ? "outline" : "primary"}
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => setAssignOpen(true)}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  {job.designer ? "Change designer" : "Assign designer"}
+                </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-3.5 w-3.5" /> Edit details
                 </Button>

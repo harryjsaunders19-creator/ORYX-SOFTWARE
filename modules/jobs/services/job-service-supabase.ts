@@ -79,6 +79,7 @@ export const jobService = {
     status: string
     dateCompleted: string | null
     requiredByDate: string | null
+    updatedAt: string | null
   }[]> {
     return supabaseJobRepo.findPerformanceFields()
   },

@@ -9,6 +9,7 @@ import { defaultRequiredByDate } from "@/shared/utils/utils"
 import { apiInternalError } from "@/shared/api-errors"
 import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import { parentJobService, workItemService } from "../services/parent-work-item-service"
+import { resolveDirectoryDesigner } from "../services/designer-directory"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -102,10 +103,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       }
 
       try {
+        const designerResolved = await resolveDirectoryDesigner(
+          typeof body.designer === "string" ? body.designer : "",
+        )
+        if (!designerResolved.ok) {
+          return NextResponse.json({ error: designerResolved.error, field: "designer" }, { status: 422 })
+        }
         const item = await parentJobService.createRevision(parentId, {
           description: reason,
           billable: body.billable === true || body.billable === "true",
-          designer: typeof body.designer === "string" ? body.designer : "",
+          designer: designerResolved.designer,
           priority: typeof body.priority === "string" ? body.priority : null,
           notes: reason,
           changedBy: actorName(auth.user),

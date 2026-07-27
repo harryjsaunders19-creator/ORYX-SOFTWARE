@@ -401,10 +401,20 @@ export default function ParentJobDashboardPage({
                   }
                 />
                 <InfoField label="Requested by" value={parent.requestedBy} />
-                <InfoField
-                  label="Engineer Assigned"
-                  value={current?.designer || "Unassigned"}
-                />
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-t3 mb-1.5">
+                    Engineer Assigned
+                  </p>
+                  {current ? (
+                    <DesignerCombobox
+                      value={current.designer}
+                      onChange={v => void patchWorkItem(current.id, { designer: v })}
+                      placeholder="Select a user…"
+                    />
+                  ) : (
+                    <p className="text-sm text-t4 italic">Unassigned</p>
+                  )}
+                </div>
                 <InfoField label="Site name" value={parent.siteName} />
                 <InfoField
                   label="Active work"
