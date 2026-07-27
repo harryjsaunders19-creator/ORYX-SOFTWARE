@@ -10,7 +10,11 @@
  *   Quotes   — upsert by Quote Number (bulk Supabase upsert when linked)
  *
  * Sheets that are read-only / derived are skipped:
- *   Status History, Calendar, Invoicing Queue, Users
+ *   Status History, Calendar, Invoicing Queue, Account Passwords
+ *
+ * Users sheet is imported (directory restore). Login passwords are not in
+ * Excel — new/restored accounts without an existing hash get a temporary
+ * password and mustChangePassword. Use JSON logical backup to keep hashes.
  */
 import ExcelJS from "exceljs"
 import { createId } from "@paralleldrive/cuid2"
@@ -19,6 +23,8 @@ import { JOB_STATUSES, WORK_ITEM_TYPES } from "@/lib/constants"
 import { clientService } from "@/lib/services/client-service"
 import { jobService } from "@/lib/services/job-service"
 import { quoteService } from "@/lib/services/quote-service"
+import { userService } from "@/lib/services/user-service"
+import { hashPassword, generateTempPassword } from "@/lib/password"
 import type { ClientRow } from "@/lib/db/client-types"
 import { sheetDataRows } from "../utils/excel-import-rows"
 import {
@@ -131,6 +137,7 @@ export interface ImportResult {
   clients: SheetResult
   jobs:    SheetResult
   quotes:  SheetResult
+  users:   SheetResult
 }
 
 // ── Client import ─────────────────────────────────────────────────────────────
@@ -258,6 +265,9 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
     return result
   }
   const clientByName = new Map(allClients.map(c => [c.name.toLowerCase(), c]))
+  const clientByAccount = new Map(
+    allClients.filter(c => c.accountCode).map(c => [c.accountCode!, c]),
+  )
 
   const rows: ReturnType<typeof buildJobRowFromImport>[] = []
   let createCount = 0
@@ -271,6 +281,7 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
     const address = str(row.getCell(3))
     const typeOfWorks = str(row.getCell(4)) || "Other"
     const clientCompany = str(row.getCell(5)) || ""
+    const customerId = str(row.getCell(6))
     const requestedBy = str(row.getCell(7)) || ""
     const statusLabel = str(row.getCell(8)).toLowerCase()
     const designer = str(row.getCell(9)) || ""
@@ -284,7 +295,9 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 
     const status = STATUS_BY_LABEL[statusLabel] ?? "NEW_REQUEST"
     const itemType = ITEM_TYPE_BY_LABEL[itemTypeLabel] ?? "DESIGN"
-    const client = clientByName.get(clientCompany.toLowerCase())
+    const client =
+      (customerId ? clientByAccount.get(customerId) : null) ??
+      clientByName.get(clientCompany.toLowerCase())
     const clientId = client?.id ?? null
 
     const existing = jobByDrawingNumber.get(drawingNumber.toUpperCase())
@@ -299,7 +312,7 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
       itemType,
       address,
       typeOfWorks,
-      clientCompany,
+      clientCompany: client?.name ?? clientCompany,
       clientId,
       requestedBy,
       status,
@@ -512,6 +525,79 @@ async function importQuotes(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
   return result
 }
 
+// ── Users import ──────────────────────────────────────────────────────────────
+
+async function importUsers(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
+  const result: SheetResult = { created: 0, updated: 0, skipped: 0, errors: [] }
+
+  const header = sheet.getRow(1)
+  const firstHeader = str(header.getCell(1)).toLowerCase()
+  // New layout: User ID | Name | Email | Role | Status | Account Created
+  // Legacy layout: Name | Email | Role | Status | Account Created
+  const hasUserId = firstHeader.includes("user id") || firstHeader === "id"
+  const col = hasUserId
+    ? { id: 1, name: 2, email: 3, role: 4, status: 5 }
+    : { id: 0, name: 1, email: 2, role: 3, status: 4 }
+
+  let existingUsers: Awaited<ReturnType<typeof userService.findMany>>
+  try {
+    existingUsers = await userService.findMany()
+  } catch (err) {
+    result.errors.push(`Could not load users: ${formatImportError(err)}`)
+    return result
+  }
+  const byId = new Map(existingUsers.map(u => [u.id, u]))
+  const byEmail = new Map(
+    existingUsers.filter(u => u.emailLower).map(u => [u.emailLower!, u]),
+  )
+
+  for (const row of cappedSheetRows(sheet, result)) {
+    const name = str(row.getCell(col.name))
+    if (!name) { result.skipped++; continue }
+
+    const idRaw = col.id ? str(row.getCell(col.id)) : ""
+    const emailRaw = str(row.getCell(col.email))
+    const email = emailRaw ? emailRaw.toLowerCase() : null
+    const roleRaw = str(row.getCell(col.role)).toUpperCase()
+    const role = roleRaw === "ADMIN" ? "ADMIN" as const : "ENGINEER" as const
+    const statusLabel = str(row.getCell(col.status)).toLowerCase()
+    const active = statusLabel === "disabled" || statusLabel === "archived" ? 0 : 1
+
+    const matched =
+      (idRaw ? byId.get(idRaw) : undefined) ??
+      (email ? byEmail.get(email) : undefined)
+
+    try {
+      if (matched) {
+        await userService.update(matched.id, {
+          name,
+          email,
+          role,
+          active,
+        })
+        result.updated++
+      } else {
+        const id = idRaw || createId()
+        await userService.create({
+          id,
+          name,
+          email,
+          role,
+          passwordHash: hashPassword(generateTempPassword()),
+          mustChangePassword: 1,
+        })
+        if (active === 0) await userService.update(id, { active: 0 })
+        result.created++
+      }
+    } catch (err) {
+      result.errors.push(`User "${name}": ${formatImportError(err)}`)
+      result.skipped++
+    }
+  }
+
+  return result
+}
+
 // ── Main entry point ──────────────────────────────────────────────────────────
 
 export async function importFromExcelBuffer(buffer: ArrayBuffer): Promise<ImportResult> {
@@ -521,10 +607,16 @@ export async function importFromExcelBuffer(buffer: ArrayBuffer): Promise<Import
   const clientsSheet = wb.getWorksheet("Clients")
   const jobsSheet = wb.getWorksheet("Jobs")
   const quotesSheet = wb.getWorksheet("Quotes")
+  const usersSheet = wb.getWorksheet("Users")
 
+  // Clients + Users first so Jobs can resolve Customer ID / designers.
   const clients = clientsSheet
     ? await importClients(clientsSheet)
     : { created: 0, updated: 0, skipped: 0, errors: ["No 'Clients' sheet found"] }
+
+  const users = usersSheet
+    ? await importUsers(usersSheet)
+    : { created: 0, updated: 0, skipped: 0, errors: [] }
 
   const jobs = jobsSheet
     ? await importJobs(jobsSheet)
@@ -534,7 +626,7 @@ export async function importFromExcelBuffer(buffer: ArrayBuffer): Promise<Import
     ? await importQuotes(quotesSheet)
     : { created: 0, updated: 0, skipped: 0, errors: ["No 'Quotes' sheet found"] }
 
-  return { clients, jobs, quotes }
+  return { clients, jobs, quotes, users }
 }
 
 /** @deprecated used internally — exported for tests */

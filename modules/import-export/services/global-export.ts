@@ -247,15 +247,18 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
   }
 
   // ── 7. Users ────────────────────────────────────────────────────────────────
+  // User ID enables Excel round-trip restore. Passwords are never written here —
+  // use Export full data (JSON) when login hashes must be recovered.
   const users = await userService.findMany()
   const userSheet = wb.addWorksheet("Users")
   userSheet.columns = [
-    { width: 24 }, { width: 28 }, { width: 12 }, { width: 10 }, { width: 20 },
+    { width: 28 }, { width: 24 }, { width: 28 }, { width: 12 }, { width: 10 }, { width: 20 },
   ]
-  userSheet.addRow(["Name", "Email", "Role", "Status", "Account Created"])
+  userSheet.addRow(["User ID", "Name", "Email", "Role", "Status", "Account Created"])
   styleHeader(userSheet)
   for (const u of users) {
     userSheet.addRow([
+      u.id,
       u.name,
       u.email ?? "",
       u.role,

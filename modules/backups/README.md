@@ -4,6 +4,15 @@ System backup, restore, and audit trail.
 
 **Routes:** `/backups`, `/api/backups/*`
 
-**Migration status:** **Migrated (Phase 9)** — logic in `modules/backups/`.
+## Production (Supabase + Vercel)
 
-**Public API:** `backupRecordService`, backup orchestration helpers, restore, scheduler, download tokens, `BackupsPage`.
+| Tool | What it covers |
+|------|----------------|
+| **Supabase project backups / PITR** | Full database — primary disaster recovery |
+| **Export full data** (`GET /api/backups/export-data`) | Live JSON pack: Users (incl. password hashes), Clients, Jobs, Quotes |
+| **Import JSON** (`POST /api/backups/import-data`) | Upserts that pack back into the live store |
+| **Export / Import Excel** | Users directory, Clients, Jobs (designer + dates + Customer ID link), Quotes — no login hashes in Excel |
+
+Local SQLite filesystem dumps (`POST /api/backups`, scheduler) are disabled when Supabase is the primary store.
+
+**Public API:** `backupRecordService`, logical export/import, SQLite orchestration helpers, restore, scheduler, download tokens, `BackupsPage`.
