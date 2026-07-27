@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireSignIn } from "@/shared/auth/auth"
-import { useWorkItemsModel } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { parentJobService } from "@/modules/jobs/services/parent-work-item-service"
 
@@ -18,7 +18,7 @@ export async function GET(
 ) {
   const auth = await requireSignIn()
   if (auth instanceof NextResponse) return auth
-  if (!useWorkItemsModel()) return modelDisabled()
+  if (!isWorkItemsModelEnabled()) return modelDisabled()
 
   try {
     const { id } = await ctx.params

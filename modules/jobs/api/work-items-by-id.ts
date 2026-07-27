@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
-import { useWorkItemsModel } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { VALID_STATUSES } from "@/lib/constants"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
@@ -22,7 +22,7 @@ export async function GET(
 ) {
   const auth = await requireSignIn()
   if (auth instanceof NextResponse) return auth
-  if (!useWorkItemsModel()) return modelDisabled()
+  if (!isWorkItemsModelEnabled()) return modelDisabled()
 
   try {
     const { id } = await ctx.params
@@ -42,7 +42,7 @@ export async function PATCH(
 ) {
   const auth = await requireRole(["ADMIN", "ENGINEER"])
   if (auth instanceof NextResponse) return auth
-  if (!useWorkItemsModel()) return modelDisabled()
+  if (!isWorkItemsModelEnabled()) return modelDisabled()
 
   try {
     const { id } = await ctx.params

@@ -44,7 +44,7 @@ export function supabaseModuleFlags() {
     leave:          useSupabaseLeave(),
     passwordVault:  useSupabasePasswordVault(),
     siteVisitCalculations: useSupabaseSiteVisitCalculations(),
-    workItems:          useWorkItemsModel(),
+    workItems:          isWorkItemsModelEnabled(),
   }
 }
 
@@ -115,10 +115,15 @@ export function isSupabaseOnly(): boolean {
 /**
  * Phase 2+ — read/write design projects via parent_jobs + work_items.
  * Phase 1 only creates schema and backfills; app keeps using jobs table until enabled.
+ *
+ * Prefer this over `useWorkItemsModel` in server/route code — the `use*` name
+ * triggers react-hooks/rules-of-hooks when called from async handlers.
  */
-export function useWorkItemsModel(): boolean {
-  if (!isSupabaseAdminConfigured()) {
-    return process.env.WORK_ITEMS_MODEL?.trim().toLowerCase() === "true"
-  }
+export function isWorkItemsModelEnabled(): boolean {
   return process.env.WORK_ITEMS_MODEL?.trim().toLowerCase() === "true"
+}
+
+/** @deprecated Use `isWorkItemsModelEnabled` — kept for client call sites only. */
+export function useWorkItemsModel(): boolean {
+  return isWorkItemsModelEnabled()
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireRole, actorName } from "@/shared/auth/auth"
-import { useWorkItemsModel } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
@@ -20,7 +20,7 @@ export async function POST(
 ) {
   const auth = await requireRole(["ADMIN", "ENGINEER"])
   if (auth instanceof NextResponse) return auth
-  if (!useWorkItemsModel()) return modelDisabled()
+  if (!isWorkItemsModelEnabled()) return modelDisabled()
 
   try {
     const { id } = await ctx.params

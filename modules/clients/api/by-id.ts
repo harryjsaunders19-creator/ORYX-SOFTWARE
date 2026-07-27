@@ -5,7 +5,7 @@ import { canViewCommercialValues, canViewClientAnalytics } from "@/shared/auth/p
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { apiInternalError } from "@/shared/api-errors"
 import { parseContactsFromBody } from "./parse-contacts"
-import { useWorkItemsModel } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const role = auth.user.role as import("@/shared/auth/permissions").Role
     let jobs = await clientService.jobsForClient(id, 50)
 
-    if (useWorkItemsModel()) {
+    if (isWorkItemsModelEnabled()) {
       try {
         const { supabaseParentJobRepo } = await import("@/modules/jobs/supabase/parent-job-repository")
         const { supabaseWorkItemRepo } = await import("@/modules/jobs/supabase/work-item-repository")

@@ -1,6 +1,5 @@
 "use client"
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { format } from "date-fns"
 import dynamic from "next/dynamic"

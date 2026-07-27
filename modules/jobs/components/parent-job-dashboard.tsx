@@ -27,6 +27,8 @@ import { DesignerCombobox } from "@/components/designer-combobox"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { DesignWorkItemRow } from "@/modules/jobs/types/design-work-item-types"
 
+const EMPTY_WORK_ITEMS: DesignWorkItemRow[] = []
+
 function Skeleton() {
   return (
     <div className="space-y-6">
@@ -153,7 +155,7 @@ export default function ParentJobDashboardPage({
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const parent = data?.parent
-  const workItems = data?.workItems ?? []
+  const workItems = data?.workItems ?? EMPTY_WORK_ITEMS
   const current = data?.currentActive
 
   const sortedItems = useMemo(

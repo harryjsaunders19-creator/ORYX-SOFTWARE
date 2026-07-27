@@ -11,7 +11,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
-import { isSupabaseOnly, useWorkItemsModel } from "@/lib/supabase/feature-flags"
+import { isSupabaseOnly, isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { ensureClientInSqlite } from "@/lib/services/client-service"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const drawingNumber = await allocateDrawingNumberAsync()
     const address = quote!.address?.trim() || "Address TBC"
 
-    if (useWorkItemsModel()) {
+    if (isWorkItemsModelEnabled()) {
       const dashboard = await parentJobService.createWithOriginal({
         id: jobId,
         drawingNumber,

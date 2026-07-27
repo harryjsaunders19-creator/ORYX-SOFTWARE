@@ -656,7 +656,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       router.push(`/jobs/${revision.parentJobId ?? job.id}`)
     } catch { toast("Network error", "error") }
     finally { setCreatingRevisionFor(null) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mutate, router, toast])
 
   const handleExport = async () => {

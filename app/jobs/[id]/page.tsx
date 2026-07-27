@@ -5,7 +5,7 @@ import { jobService } from "@/modules/jobs/services/job-service"
 import { parentJobService, workItemService } from "@/modules/jobs/services/parent-work-item-service"
 import { cancelRecordForJob } from "@/lib/cancel-record"
 import { billingHandoffService } from "@/modules/billing"
-import { useWorkItemsModel } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import type { Job } from "@/lib/types"
 import type { BillingHandoff } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
@@ -23,7 +23,7 @@ export default async function JobDetailRoute({
 }) {
   const { id } = await params
 
-  if (useWorkItemsModel()) {
+  if (isWorkItemsModelEnabled()) {
     let fallback: ParentJobDashboard | null = null
     const user = await getCurrentUser().catch(() => null)
     if (user) {

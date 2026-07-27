@@ -7,7 +7,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { defaultRequiredByDate } from "@/shared/utils/utils"
 import { apiInternalError } from "@/shared/api-errors"
-import { useWorkItemsModel } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import { parentJobService, workItemService } from "../services/parent-work-item-service"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -26,7 +26,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
     const { id } = await params
 
-    if (useWorkItemsModel()) {
+    if (isWorkItemsModelEnabled()) {
       const parentId = await resolveParentIdForWorkItems(id)
       if (!parentId) return NextResponse.json({ error: "Not found" }, { status: 404 })
       const dash = await parentJobService.getDashboard(parentId)
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     let body: Record<string, unknown> = {}
     try { body = await req.json() } catch { /* body is optional */ }
 
-    if (useWorkItemsModel()) {
+    if (isWorkItemsModelEnabled()) {
       const parentId = await resolveParentIdForWorkItems(id)
       if (!parentId) return NextResponse.json({ error: "Not found" }, { status: 404 })
 

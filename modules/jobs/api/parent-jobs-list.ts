@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
-import { useWorkItemsModel } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
 import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
 import { createId } from "@paralleldrive/cuid2"
@@ -26,7 +26,7 @@ function modelDisabled() {
 export async function GET(req: NextRequest) {
   const auth = await requireSignIn()
   if (auth instanceof NextResponse) return auth
-  if (!useWorkItemsModel()) return modelDisabled()
+  if (!isWorkItemsModelEnabled()) return modelDisabled()
 
   try {
     const sp = req.nextUrl.searchParams
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN", "ENGINEER"])
   if (auth instanceof NextResponse) return auth
-  if (!useWorkItemsModel()) return modelDisabled()
+  if (!isWorkItemsModelEnabled()) return modelDisabled()
 
   try {
     await ensureSequencesSeeded()
@@ -74,8 +74,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Site / address is required" }, { status: 400 })
     }
 
-    let typeOfWorks = typeof body.typeOfWorks === "string" ? body.typeOfWorks.trim() : ""
-    let customTypeDescription: string | null =
+    const typeOfWorks = typeof body.typeOfWorks === "string" ? body.typeOfWorks.trim() : ""
+    const customTypeDescription: string | null =
       typeof body.customTypeDescription === "string" ? body.customTypeDescription.trim() || null : null
     if (!typeOfWorks || !isValidWorksType(typeOfWorks)) {
       return NextResponse.json({ error: "Type of works is required" }, { status: 400 })

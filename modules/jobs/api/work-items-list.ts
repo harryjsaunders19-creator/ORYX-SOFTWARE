@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
-import { useWorkItemsModel } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { VALID_STATUSES } from "@/lib/constants"
@@ -20,7 +20,7 @@ function modelDisabled() {
 export async function GET(req: NextRequest) {
   const auth = await requireSignIn()
   if (auth instanceof NextResponse) return auth
-  if (!useWorkItemsModel()) return modelDisabled()
+  if (!isWorkItemsModelEnabled()) return modelDisabled()
 
   try {
     const sp = req.nextUrl.searchParams
