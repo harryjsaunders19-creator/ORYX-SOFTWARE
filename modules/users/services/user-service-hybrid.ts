@@ -59,8 +59,17 @@ export const userService = {
 
   async findByEmail(email: string): Promise<UserRow | null> {
     if (!useSupabaseUsers()) return userDb.findByEmail(email)
-    const user = await supabaseUserRepo.findByEmail(email)
-    if (user) return user
+    try {
+      const user = await supabaseUserRepo.findByEmail(email)
+      if (user) return user
+    } catch (err) {
+      // On Vercel, SQLite is empty — surface the Supabase failure to the login
+      // route instead of silently returning "invalid password".
+      if (process.env.VERCEL === "1" || process.env.FORCE_SUPABASE_ONLY === "true") {
+        throw err
+      }
+      console.warn("[users.findByEmail] Supabase lookup failed; trying SQLite.", err)
+    }
     // Not in Supabase yet — try SQLite (bootstrap accounts / pre-migration state)
     // and mirror into Supabase so the next login goes directly through Supabase.
     return sqliteFallback(userDb.findByEmail(email))
