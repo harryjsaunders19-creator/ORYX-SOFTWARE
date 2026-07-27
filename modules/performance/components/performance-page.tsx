@@ -138,53 +138,68 @@ function PerformancePageInner() {
 
   const overview = data?.overview
 
+  const periodLabel = `${from} → ${to}`
+  const teamMeta = isLoading
+    ? "Loading…"
+    : `${employees.length} users · ${overview?.adminUsers ?? 0} admin · ${overview?.engineerUsers ?? 0} engineer`
+
   return (
-    <PageShell wide className="space-y-6">
+    <PageShell wide className="space-y-5 max-md:space-y-4">
       <PageHeader
         title="Employee Performance"
         description="Everyone from Users (Admins and Engineers) — measured by the designs they complete as job designers."
       />
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-wrap gap-2">
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {PRESETS.map(p => (
             <Button
               key={p.id}
               type="button"
               variant={preset === p.id ? "primary" : "outline"}
               size="sm"
+              className="min-w-0 justify-center px-2 sm:px-3"
               onClick={() => applyPreset(p.id)}
             >
               {p.label}
             </Button>
           ))}
         </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="space-y-1">
-            <label className="block text-[11px] font-mono uppercase tracking-wider text-t3">From</label>
-            <Input
-              type="date"
-              className="w-[150px]"
-              value={customFrom}
-              onChange={e => {
-                setCustomFrom(e.target.value)
-                setPreset("custom")
-              }}
-            />
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-2">
+            <div className="min-w-0 space-y-1.5 sm:space-y-1">
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-t3">From</label>
+              <Input
+                type="date"
+                className="w-full min-w-0 sm:w-[150px]"
+                value={customFrom}
+                onChange={e => {
+                  setCustomFrom(e.target.value)
+                  setPreset("custom")
+                }}
+              />
+            </div>
+            <div className="min-w-0 space-y-1.5 sm:space-y-1">
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-t3">To</label>
+              <Input
+                type="date"
+                className="w-full min-w-0 sm:w-[150px]"
+                value={customTo}
+                onChange={e => {
+                  setCustomTo(e.target.value)
+                  setPreset("custom")
+                }}
+              />
+            </div>
           </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] font-mono uppercase tracking-wider text-t3">To</label>
-            <Input
-              type="date"
-              className="w-[150px]"
-              value={customTo}
-              onChange={e => {
-                setCustomTo(e.target.value)
-                setPreset("custom")
-              }}
-            />
-          </div>
-          <Button type="button" size="sm" variant={preset === "custom" ? "primary" : "outline"} onClick={applyCustom}>
+          <Button
+            type="button"
+            size="sm"
+            variant={preset === "custom" ? "primary" : "outline"}
+            className="w-full shrink-0 sm:w-auto"
+            onClick={applyCustom}
+          >
             Apply range
           </Button>
         </div>
@@ -194,38 +209,44 @@ function PerformancePageInner() {
         <p className="text-sm text-er">{error instanceof Error ? error.message : "Failed to load performance"}</p>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-3">
         <KpiTile
+          className="max-md:p-4"
           label="Designs completed"
           value={overview?.completedInPeriod ?? (isLoading ? "…" : 0)}
           sub="In selected period"
           accent="var(--color-ok)"
         />
         <KpiTile
+          className="max-md:p-4"
           label="In progress"
           value={overview?.inProgress ?? (isLoading ? "…" : 0)}
           sub="Live"
           accent="var(--color-ac)"
         />
         <KpiTile
+          className="max-md:p-4"
           label="Avg completed / week"
           value={overview?.avgCompletedPerWeek ?? (isLoading ? "…" : 0)}
           sub="In selected period"
           accent="var(--color-ac)"
         />
         <KpiTile
+          className="max-md:p-4"
           label="Active team"
           value={overview?.activeDesigners ?? (isLoading ? "…" : 0)}
           sub="With ≥1 in-progress job"
           accent="var(--color-ac)"
         />
         <KpiTile
+          className="max-md:p-4"
           label="Awaiting checking"
           value={overview?.awaitingChecking ?? (isLoading ? "…" : 0)}
           sub="Live"
           accent="var(--color-wn)"
         />
         <KpiTile
+          className="max-md:p-4"
           label="Overdue"
           value={overview?.overdue ?? (isLoading ? "…" : 0)}
           sub="Live"
@@ -234,16 +255,33 @@ function PerformancePageInner() {
       </div>
 
       <div className={cn(surfaceCard, "overflow-hidden")}>
-        <div className="flex items-center justify-between gap-2 border-b border-bd px-4 py-3">
+        <div className="flex flex-col gap-1 border-b border-bd px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-t3">Team leaderboard</p>
-          <p className="text-xs text-t4">
-            {from} → {to}
-            {isLoading
-              ? " · Loading…"
-              : ` · ${employees.length} users (${overview?.adminUsers ?? 0} admin · ${overview?.engineerUsers ?? 0} engineer)`}
+          <p className="text-xs text-t4 break-words">
+            <span className="tabular-nums">{periodLabel}</span>
+            <span className="text-t4"> · {teamMeta}</span>
           </p>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* Mobile: stacked cards — avoids a squashed 880px table */}
+        <div className="divide-y divide-bd md:hidden">
+          <div className="flex flex-wrap gap-2 px-4 py-3">
+            <MobileSortChip label="Completed" active={sortKey === "completedInPeriod"} dir={sortDir} onClick={() => toggleSort("completedInPeriod")} />
+            <MobileSortChip label="Name" active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")} />
+            <MobileSortChip label="In progress" active={sortKey === "inProgress"} dir={sortDir} onClick={() => toggleSort("inProgress")} />
+            <MobileSortChip label="Overdue" active={sortKey === "overdue"} dir={sortDir} onClick={() => toggleSort("overdue")} />
+          </div>
+          {!isLoading && employees.length === 0 && (
+            <p className="px-4 py-10 text-center text-sm text-t3 italic">
+              No users found. Add people in Users — they appear here automatically and match job designers by name.
+            </p>
+          )}
+          {employees.map(row => (
+            <EmployeeCard key={row.userId} row={row} />
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead>
               <tr className="border-b border-bd bg-pg/40 text-[11px] font-mono uppercase tracking-wider text-t3">
@@ -273,10 +311,39 @@ function PerformancePageInner() {
         </div>
       </div>
 
-      <p className="text-xs text-t4">
+      <p className="text-xs text-t4 max-md:leading-relaxed">
         Admins and Engineers from Users are listed. Jobs count when the designer matches a person by full name, unique first name, or email prefix (e.g. Harry → Harry Saunders / harry@…). Unmatched designer names from jobs still appear.
       </p>
     </PageShell>
+  )
+}
+
+function MobileSortChip({
+  label,
+  active,
+  dir,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  dir: "asc" | "desc"
+  onClick: () => void
+}) {
+  const Icon = !active ? ArrowUpDown : dir === "asc" ? ArrowUp : ArrowDown
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1 rounded border px-2.5 py-1.5 text-[11px] font-medium",
+        active
+          ? "border-t1 bg-t1 text-pg"
+          : "border-bd bg-sr text-t3",
+      )}
+    >
+      {label}
+      <Icon className="h-3 w-3 opacity-70" />
+    </button>
   )
 }
 
@@ -312,12 +379,64 @@ function SortTh({
   )
 }
 
+function roleLabelFor(row: PerformanceEmployeeRow): string {
+  if (!row.fromDirectory) return "On jobs"
+  return row.role === "ADMIN" ? "Admin" : "Engineer"
+}
+
+function EmployeeCard({ row }: { row: PerformanceEmployeeRow }) {
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-pg text-[11px] font-semibold text-t2">
+          {initials(row.name) || "?"}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate font-medium text-t1">{row.name}</p>
+              <p className="text-[11px] text-t3">{roleLabelFor(row)}</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-lg font-semibold tabular-nums leading-none text-t1">{row.completedInPeriod}</p>
+              <p className="mt-0.5 text-[10px] font-mono uppercase tracking-wider text-t4">Done</p>
+            </div>
+          </div>
+          <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+            <div className="flex justify-between gap-2">
+              <dt className="text-t4">All time</dt>
+              <dd className="tabular-nums text-t2">{row.completedAllTime}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-t4">Avg / wk</dt>
+              <dd className="tabular-nums text-t2">{row.avgPerWeek}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-t4">In progress</dt>
+              <dd className="tabular-nums text-t2">{row.inProgress}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-t4">Checking</dt>
+              <dd className="tabular-nums text-t2">{row.awaitingChecking}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-t4">Overdue</dt>
+              <dd className={cn("tabular-nums", row.overdue > 0 ? "font-semibold text-er" : "text-t2")}>
+                {row.overdue}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-t4">Last done</dt>
+              <dd className="tabular-nums text-t2">{row.lastCompletedAt ?? "—"}</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EmployeeRow({ row }: { row: PerformanceEmployeeRow }) {
-  const roleLabel = !row.fromDirectory
-    ? "On jobs"
-    : row.role === "ADMIN"
-      ? "Admin"
-      : "Engineer"
   return (
     <tr className="border-b border-bd/70 last:border-0 hover:bg-pg/30">
       <td className="px-3 py-3">
@@ -327,7 +446,7 @@ function EmployeeRow({ row }: { row: PerformanceEmployeeRow }) {
           </div>
           <div className="min-w-0">
             <span className="font-medium text-t1">{row.name}</span>
-            <p className="text-[11px] text-t3">{roleLabel}</p>
+            <p className="text-[11px] text-t3">{roleLabelFor(row)}</p>
           </div>
         </div>
       </td>
