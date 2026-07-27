@@ -29,6 +29,27 @@ function resolveCategory(category: string | undefined): string {
   return "General"
 }
 
+/** email_date is timestamptz — only persist valid ISO timestamps. */
+function sanitizeEmailDate(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? null : d.toISOString()
+}
+
+function ensureEmailExtension(filename: string, mimeType: string): string {
+  const ext = fileExt(filename)
+  if (ext === ".eml" || ext === ".msg") return filename
+  if (mimeType === "message/rfc822") {
+    const base = filename.replace(/\.$/, "") || "email"
+    return `${base}.eml`
+  }
+  if (mimeType === "application/vnd.ms-outlook") {
+    const base = filename.replace(/\.$/, "") || "email"
+    return `${base}.msg`
+  }
+  return filename
+}
+
 export const jobDocumentService = {
   async list(opts: JobDocumentListOptions): Promise<JobDocumentListResult> {
     if (useRemote()) return supabaseJobDocumentRepo.list(opts)
@@ -53,7 +74,10 @@ export const jobDocumentService = {
     uploadedByName: string
     timelineJobId?: string | null
   }): Promise<JobDocumentRow> {
-    const originalFilename = params.file.name || "file"
+    const originalFilename = ensureEmailExtension(
+      params.file.name || "file",
+      inferMimeType(params.file.name || "file", params.file.type),
+    )
     const mimeType = inferMimeType(originalFilename, params.file.type)
     if (!isAllowedUpload(originalFilename, mimeType)) {
       throw Object.assign(new Error("File type is not allowed"), { status: 422 })
@@ -85,7 +109,7 @@ export const jobDocumentService = {
         from: parsed.from,
         to: parsed.to,
         cc: parsed.cc,
-        date: parsed.date,
+        date: sanitizeEmailDate(parsed.date),
         preview: parsed.preview,
         parseStatus: parsed.ok ? "ok" : "failed",
       }
@@ -170,9 +194,14 @@ export const jobDocumentService = {
         })
         documents.push(row)
       } catch (err) {
+        const message = err instanceof Error
+          ? err.message
+          : err && typeof err === "object" && "message" in err
+            ? String((err as { message: unknown }).message)
+            : "Upload failed"
         errors.push({
           name: file.name,
-          error: err instanceof Error ? err.message : "Upload failed",
+          error: message || "Upload failed",
         })
       }
     }

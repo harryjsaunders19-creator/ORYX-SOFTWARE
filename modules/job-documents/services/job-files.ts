@@ -61,15 +61,37 @@ export async function writeJobFile(params: {
   contentType: string
 }): Promise<string> {
   const key = jobObjectKey(params)
+  // Prefer a clean MIME; fall back to octet-stream if Storage rejects the type
+  // (Windows often sends `message/rfc822; charset=…` which fails allow-lists).
+  const primaryType = (params.contentType || "application/octet-stream").split(";")[0]!.trim()
+    || "application/octet-stream"
+  const candidates = primaryType === "application/octet-stream"
+    ? [primaryType]
+    : [primaryType, "application/octet-stream"]
+
   if (useJobObjectStorage()) {
-    const { error } = await createAdminClient().storage
-      .from(JOB_FILES_BUCKET)
-      .upload(objectPathFromKey(key), params.data, {
-        contentType: params.contentType,
-        upsert: true,
-      })
-    if (error) throw error
-    return key
+    const client = createAdminClient()
+    let lastError: unknown = null
+    for (const contentType of candidates) {
+      const { error } = await client.storage
+        .from(JOB_FILES_BUCKET)
+        .upload(objectPathFromKey(key), params.data, {
+          contentType,
+          upsert: true,
+        })
+      if (!error) return key
+      lastError = error
+      const msg = error.message?.toLowerCase() ?? ""
+      // Only retry with octet-stream for MIME allow-list failures
+      if (!/mime|content.?type|not (supported|allowed)/i.test(msg)) break
+    }
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(
+        lastError && typeof lastError === "object" && "message" in lastError
+          ? String((lastError as { message: unknown }).message)
+          : "Storage upload failed",
+      )
   }
 
   const relative = objectPathFromKey(key)

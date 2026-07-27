@@ -37,6 +37,7 @@ export const PDF_MIME = new Set(["application/pdf"])
 export const EMAIL_MIME = new Set([
   "message/rfc822",
   "application/vnd.ms-outlook",
+  "application/mbox",
 ])
 
 export const EMAIL_EXT = new Set([".eml", ".msg"])
@@ -62,6 +63,10 @@ export const ALLOWED_MIME = new Set([
   "image/vnd.dwg",
   "image/vnd.dxf",
   "text/plain",
+  // Windows / Outlook alternate labels for saved emails
+  "application/eml",
+  "text/eml",
+  "message/partial",
 ])
 
 export const ALLOWED_EXT = new Set([
@@ -84,9 +89,27 @@ export function fileExt(filename: string): string {
   return i >= 0 ? filename.slice(i).toLowerCase() : ""
 }
 
+/** Strip charset / boundary parameters: `message/rfc822; charset=utf-8` → `message/rfc822`. */
+export function baseMimeType(reported?: string | null): string {
+  if (!reported) return ""
+  return reported.split(";")[0]!.trim().toLowerCase()
+}
+
 export function inferMimeType(filename: string, reported?: string | null): string {
   const ext = fileExt(filename)
-  if (reported && reported !== "application/octet-stream") return reported
+  const base = baseMimeType(reported)
+
+  // Always trust email extensions — browsers/Windows often lie about .eml MIME.
+  if (ext === ".eml") return "message/rfc822"
+  if (ext === ".msg") return "application/vnd.ms-outlook"
+
+  if (base === "application/eml" || base === "text/eml" || base === "message/partial") {
+    return "message/rfc822"
+  }
+  if (base && base !== "application/octet-stream" && base !== "application/force-download") {
+    return base
+  }
+
   switch (ext) {
     case ".jpg":
     case ".jpeg": return "image/jpeg"
@@ -100,19 +123,17 @@ export function inferMimeType(filename: string, reported?: string | null): strin
     case ".xls": return "application/vnd.ms-excel"
     case ".xlsx": return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     case ".zip": return "application/zip"
-    case ".eml": return "message/rfc822"
-    case ".msg": return "application/vnd.ms-outlook"
     case ".dwg": return "application/acad"
     case ".dxf": return "application/dxf"
     case ".txt": return "text/plain"
-    default: return reported || "application/octet-stream"
+    default: return base || "application/octet-stream"
   }
 }
 
 export function isAllowedUpload(filename: string, mime: string): boolean {
   const ext = fileExt(filename)
   if (ALLOWED_EXT.has(ext)) return true
-  return ALLOWED_MIME.has(mime)
+  return ALLOWED_MIME.has(baseMimeType(mime) || mime)
 }
 
 export function documentKind(mime: string, ext: string): DocumentKindFilter {
@@ -131,7 +152,7 @@ export function documentKind(mime: string, ext: string): DocumentKindFilter {
 }
 
 export function isEmailFile(filename: string, mime: string): boolean {
-  return EMAIL_EXT.has(fileExt(filename)) || EMAIL_MIME.has(mime)
+  return EMAIL_EXT.has(fileExt(filename)) || EMAIL_MIME.has(baseMimeType(mime) || mime)
 }
 
 export function storageScope(revisionLetter: string | null | undefined): string {

@@ -1,7 +1,7 @@
 "use client"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
-import { Search, HelpCircle, Menu, ExternalLink, Mail } from "lucide-react"
+import { Search, HelpCircle, Menu, ExternalLink } from "lucide-react"
 import { NotificationsMenu } from "@/components/notifications-menu"
 import { UserProfileMenu } from "@/components/user-profile-menu"
 import { SettingsMenu } from "@/shared/layouts/settings-menu"
@@ -119,12 +119,7 @@ export function StitchTopBar({ onMenuClick }: Props) {
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <a href="mailto:support@oryxgroup.co.uk" className="flex items-center gap-2">
-                    <Mail className="h-3.5 w-3.5" /> Email support
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <a href="https://oryxgroup.co.uk" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                  <a href="https://www.oryxdesignltd.co.uk/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                     <ExternalLink className="h-3.5 w-3.5" /> Oryx website
                   </a>
                 </DropdownMenuItem>
