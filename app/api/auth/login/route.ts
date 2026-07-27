@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user.passwordHash) {
-      return NextResponse.json({ error: "No password set for this account. Contact your administrator." }, { status: 401 })
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
 
     if (!verifyPassword(password, user.passwordHash)) {

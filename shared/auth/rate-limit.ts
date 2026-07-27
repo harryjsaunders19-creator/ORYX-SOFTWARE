@@ -47,7 +47,7 @@ function checkMemory(key: string, opts: RateLimitOptions): boolean {
   return true
 }
 
-async function checkSupabase(key: string, opts: RateLimitOptions): Promise<boolean> {
+async function checkSupabaseLegacy(key: string, opts: RateLimitOptions): Promise<boolean> {
   const supabase = createAdminClient()
   const now = Date.now()
   const nowIso = new Date(now).toISOString()
@@ -94,6 +94,29 @@ async function checkSupabase(key: string, opts: RateLimitOptions): Promise<boole
   }
 
   return true
+}
+
+function isMissingRpcError(message: string): boolean {
+  return /check_rate_limit|42883|does not exist|PGRST202/i.test(message)
+}
+
+async function checkSupabase(key: string, opts: RateLimitOptions): Promise<boolean> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase.rpc("check_rate_limit", {
+    p_rate_key: key,
+    p_window_ms: opts.windowMs,
+    p_max_attempts: opts.maxAttempts,
+  })
+
+  if (error) {
+    if (isMissingRpcError(error.message)) {
+      return checkSupabaseLegacy(key, opts)
+    }
+    console.warn("[rate-limit] rpc failed, using legacy:", error.message)
+    return checkSupabaseLegacy(key, opts)
+  }
+
+  return data === true
 }
 
 function bypassEnabled(): boolean {

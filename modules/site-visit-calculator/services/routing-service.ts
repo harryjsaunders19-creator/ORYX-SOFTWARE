@@ -17,72 +17,155 @@ interface RoutePoint {
   lng: number
 }
 
-/** OpenRouteService — free tier (2,000 requests/day). Requires ORS_API_KEY. */
-async function routeViaOpenRouteService(from: RoutePoint, to: RoutePoint): Promise<SiteVisitRouteLeg> {
-  const apiKey = process.env.ORS_API_KEY?.trim()
-  if (!apiKey) throw new RoutingError("Routing is not configured (missing ORS_API_KEY)", "UNAVAILABLE")
+type RouteAttemptFailure = {
+  provider: string
+  status?: number
+  detail: string
+}
 
-  const url = "https://api.openrouteservice.org/v2/directions/driving-car"
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: apiKey,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      coordinates: [[from.lng, from.lat], [to.lng, to.lat]],
-    }),
-    signal: AbortSignal.timeout(15000),
-  })
+function hasOrsKey(): boolean {
+  return Boolean(process.env.ORS_API_KEY?.trim())
+}
 
-  if (!res.ok) {
-    if (res.status === 404 || res.status === 400) {
-      throw new RoutingError("No driving route found between the office and this site", "NO_ROUTE")
-    }
-    throw new RoutingError("Routing service is temporarily unavailable — try again shortly", "UNAVAILABLE")
-  }
-
-  const data = await res.json() as {
-    routes?: { summary?: { distance?: number; duration?: number } }[]
-  }
-  const summary = data.routes?.[0]?.summary
-  if (!summary?.distance || summary.duration == null) {
-    throw new RoutingError("No driving route found between the office and this site", "NO_ROUTE")
-  }
-
-  return {
-    oneWayDistanceMiles: milesFromMetres(summary.distance),
-    oneWayDurationMinutes: minutesFromSeconds(summary.duration),
+async function readErrorSnippet(res: Response): Promise<string> {
+  try {
+    const text = await res.text()
+    return text.replace(/\s+/g, " ").trim().slice(0, 180)
+  } catch {
+    return ""
   }
 }
 
-/**
- * OSRM public demo — no API key (suitable for low-volume internal use when ORS key absent).
- * https://project-osrm.org/ — not intended for heavy production load.
- */
-async function routeViaOsrm(from: RoutePoint, to: RoutePoint): Promise<SiteVisitRouteLeg> {
-  const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`
-  const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=false`
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) })
-  if (!res.ok) {
-    throw new RoutingError("Routing service is temporarily unavailable — try again shortly", "UNAVAILABLE")
-  }
-  const data = await res.json() as {
-    code?: string
-    routes?: { distance?: number; duration?: number }[]
-  }
-  if (data.code !== "Ok" || !data.routes?.[0]) {
-    throw new RoutingError("No driving route found between the office and this site", "NO_ROUTE")
-  }
-  const route = data.routes[0]
-  if (route.distance == null || route.duration == null) {
-    throw new RoutingError("No driving route found between the office and this site", "NO_ROUTE")
-  }
+function legFromMetresSeconds(distanceM: number, durationS: number): SiteVisitRouteLeg {
   return {
-    oneWayDistanceMiles: milesFromMetres(route.distance),
-    oneWayDurationMinutes: minutesFromSeconds(route.duration),
+    oneWayDistanceMiles: milesFromMetres(distanceM),
+    oneWayDurationMinutes: minutesFromSeconds(durationS),
   }
+}
+
+/** OpenRouteService — free tier (~2,000 requests/day). Requires ORS_API_KEY. */
+async function routeViaOpenRouteService(
+  from: RoutePoint,
+  to: RoutePoint,
+): Promise<SiteVisitRouteLeg | RouteAttemptFailure> {
+  const apiKey = process.env.ORS_API_KEY?.trim()
+  if (!apiKey) {
+    return { provider: "openrouteservice", detail: "ORS_API_KEY missing" }
+  }
+
+  try {
+    const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
+      method: "POST",
+      headers: {
+        Authorization: apiKey,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        coordinates: [[from.lng, from.lat], [to.lng, to.lat]],
+      }),
+      signal: AbortSignal.timeout(15000),
+    })
+
+    if (!res.ok) {
+      const snippet = await readErrorSnippet(res)
+      if (res.status === 404 || res.status === 400) {
+        throw new RoutingError("No driving route found between the office and this site", "NO_ROUTE")
+      }
+      if (res.status === 401 || res.status === 403) {
+        throw new RoutingError(
+          "Routing API key is invalid or blocked — check ORS_API_KEY in environment settings",
+          "UNAVAILABLE",
+        )
+      }
+      if (res.status === 429) {
+        return {
+          provider: "openrouteservice",
+          status: 429,
+          detail: snippet || "rate limited",
+        }
+      }
+      return {
+        provider: "openrouteservice",
+        status: res.status,
+        detail: snippet || res.statusText || "request failed",
+      }
+    }
+
+    const data = await res.json() as {
+      routes?: { summary?: { distance?: number; duration?: number } }[]
+    }
+    const summary = data.routes?.[0]?.summary
+    if (summary?.distance == null || summary.duration == null) {
+      throw new RoutingError("No driving route found between the office and this site", "NO_ROUTE")
+    }
+    return legFromMetresSeconds(summary.distance, summary.duration)
+  } catch (err) {
+    if (err instanceof RoutingError) throw err
+    const msg = err instanceof Error ? err.message : "network error"
+    return { provider: "openrouteservice", detail: msg }
+  }
+}
+
+const OSRM_ENDPOINTS = [
+  "https://router.project-osrm.org",
+  "https://routing.openstreetmap.de/routed-car",
+] as const
+
+/** Public OSRM mirrors — used when ORS is unset or unavailable. */
+async function routeViaOsrm(
+  from: RoutePoint,
+  to: RoutePoint,
+): Promise<SiteVisitRouteLeg | RouteAttemptFailure[]> {
+  const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`
+  const failures: RouteAttemptFailure[] = []
+
+  for (const base of OSRM_ENDPOINTS) {
+    const url = `${base}/route/v1/driving/${coords}?overview=false`
+    try {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(15000),
+        headers: { Accept: "application/json" },
+      })
+      if (!res.ok) {
+        failures.push({
+          provider: `osrm:${new URL(base).host}`,
+          status: res.status,
+          detail: await readErrorSnippet(res) || res.statusText,
+        })
+        continue
+      }
+      const data = await res.json() as {
+        code?: string
+        routes?: { distance?: number; duration?: number }[]
+      }
+      if (data.code !== "Ok" || !data.routes?.[0]) {
+        failures.push({
+          provider: `osrm:${new URL(base).host}`,
+          detail: `code=${data.code ?? "unknown"}`,
+        })
+        continue
+      }
+      const route = data.routes[0]
+      if (route.distance == null || route.duration == null) {
+        failures.push({
+          provider: `osrm:${new URL(base).host}`,
+          detail: "missing distance/duration",
+        })
+        continue
+      }
+      return legFromMetresSeconds(route.distance, route.duration)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "network error"
+      failures.push({ provider: `osrm:${new URL(base).host}`, detail: msg })
+    }
+  }
+
+  return failures
+}
+
+function isRouteLeg(value: SiteVisitRouteLeg | RouteAttemptFailure | RouteAttemptFailure[]): value is SiteVisitRouteLeg {
+  return typeof value === "object" && value !== null && "oneWayDistanceMiles" in value
 }
 
 export async function getDrivingRouteToSite(site: RoutePoint): Promise<SiteVisitRouteLeg> {
@@ -94,8 +177,44 @@ export async function getDrivingRouteToSite(site: RoutePoint): Promise<SiteVisit
     return { oneWayDistanceMiles: 0, oneWayDurationMinutes: 0 }
   }
 
-  if (process.env.ORS_API_KEY?.trim()) {
-    return routeViaOpenRouteService(from, site)
+  const failures: RouteAttemptFailure[] = []
+
+  if (hasOrsKey()) {
+    try {
+      const ors = await routeViaOpenRouteService(from, site)
+      if (isRouteLeg(ors)) return ors
+      failures.push(ors)
+    } catch (err) {
+      // Genuine "no road between points" — don't waste fallbacks claiming unavailable.
+      if (err instanceof RoutingError && err.code === "NO_ROUTE") throw err
+      if (err instanceof RoutingError) {
+        failures.push({ provider: "openrouteservice", detail: err.message })
+      } else {
+        failures.push({
+          provider: "openrouteservice",
+          detail: err instanceof Error ? err.message : "failed",
+        })
+      }
+    }
   }
-  return routeViaOsrm(from, site)
+
+  const osrm = await routeViaOsrm(from, site)
+  if (isRouteLeg(osrm)) return osrm
+  failures.push(...osrm)
+
+  if (typeof console !== "undefined") {
+    console.warn("[site-visit-routing] all providers failed", failures)
+  }
+
+  if (!hasOrsKey()) {
+    throw new RoutingError(
+      "Routing service is unavailable. Set ORS_API_KEY (free key from openrouteservice.org) in your environment, then retry.",
+      "UNAVAILABLE",
+    )
+  }
+
+  throw new RoutingError(
+    "Routing service is temporarily unavailable — try again shortly",
+    "UNAVAILABLE",
+  )
 }

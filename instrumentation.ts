@@ -29,7 +29,10 @@ export async function register() {
       const { logEvent } = await import("@/shared/logger")
       logEvent(
         "boot.ors_api_key_missing",
-        { message: "ORS_API_KEY is unset — site visit routing will return UNAVAILABLE until configured." },
+        {
+          message:
+            "ORS_API_KEY is unset — site visit routing falls back to public OSRM mirrors (often blocked from Vercel). Set a free OpenRouteService key for reliable routing.",
+        },
         "warn",
       )
     }

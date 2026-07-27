@@ -292,6 +292,45 @@ export const supabaseBillingRepo = {
   },
 
   /**
+   * Atomically insert batch + snapshots + clear handoffs (migration 032 RPC).
+   * Falls back to legacy multi-step writes when RPC is not deployed yet.
+   */
+  async commitExportTransaction(params: {
+    batch: BillingExportBatchRow
+    snapshots: BillingExportSnapshotRow[]
+    handoffIds: string[]
+    clearedAt: string
+    clearedBy: string
+    notes?: string | null
+  }): Promise<void> {
+    const supabase = createAdminClient()
+    const { error } = await supabase.rpc("commit_billing_export", {
+      p_batch: toSupabaseBillingExportBatchRow(params.batch),
+      p_snapshots: params.snapshots.map(toSupabaseBillingExportSnapshotRow),
+      p_handoff_ids: params.handoffIds,
+      p_cleared_at: params.clearedAt,
+      p_cleared_by: params.clearedBy,
+      p_notes: params.notes ?? null,
+    })
+
+    if (error) {
+      if (/commit_billing_export|42883|does not exist|PGRST202/i.test(error.message)) {
+        await this.upsertBatch(params.batch)
+        await this.upsertSnapshots(params.snapshots)
+        await this.clearHandoffsForExport({
+          handoffIds: params.handoffIds,
+          batchId: params.batch.id,
+          clearedAt: params.clearedAt,
+          clearedBy: params.clearedBy,
+          notes: params.notes,
+        })
+        return
+      }
+      throwSupabaseError(error)
+    }
+  },
+
+  /**
    * Best-effort cleanup after a failed export (no multi-statement PG transaction yet).
    * Deletes snapshot rows then the batch row. Does not un-clear handoffs.
    */

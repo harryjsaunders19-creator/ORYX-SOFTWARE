@@ -50,9 +50,8 @@ export const billingHandoffService = {
   /**
    * Create an export batch, persist snapshots, then clear handoffs.
    *
-   * Not a single Postgres transaction. Clears use a conditional UPDATE
-   * (uncleared only) plus an in-process lock; rollback deletes the batch on
-   * clear failure. A full transactional RPC remains a follow-up.
+   * Uses Postgres RPC `commit_billing_export` when migration 032 is applied
+   * (single transaction). Falls back to conditional clear + in-process lock.
    */
   async createExportBatch(data: {
     handoffIds: string[]
@@ -85,8 +84,6 @@ export const billingHandoffService = {
         notes: data.notes ?? null,
         createdAt: now,
       }
-      await supabaseBillingRepo.upsertBatch(batch)
-
       const snapshotRows: BillingExportSnapshotRow[] = orderedHandoffs.map((h, i) => ({
         id: nanoid(),
         batchId,
@@ -94,32 +91,15 @@ export const billingHandoffService = {
         snapshotJson: JSON.stringify(snapshots[i]),
         createdAt: now,
       }))
-      await supabaseBillingRepo.upsertSnapshots(snapshotRows)
 
-      try {
-        await supabaseBillingRepo.clearHandoffsForExport({
-          handoffIds: data.handoffIds,
-          batchId,
-          clearedAt: now,
-          clearedBy: data.exportedBy,
-          notes: data.notes,
-        })
-
-        const stillAwaiting = await supabaseBillingRepo.countUnclearedAmong(data.handoffIds)
-        if (stillAwaiting > 0) {
-          throw new Error(`${stillAwaiting} item(s) failed to move to Cleared in Supabase`)
-        }
-      } catch (err) {
-        try {
-          await supabaseBillingRepo.deleteBatchAndSnapshots(batchId)
-        } catch (cleanupErr) {
-          console.warn(
-            "[billing] export rollback cleanup failed:",
-            cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
-          )
-        }
-        throw err
-      }
+      await supabaseBillingRepo.commitExportTransaction({
+        batch,
+        snapshots: snapshotRows,
+        handoffIds: data.handoffIds,
+        clearedAt: now,
+        clearedBy: data.exportedBy,
+        notes: data.notes,
+      })
 
       return { batch, snapshots }
     })
