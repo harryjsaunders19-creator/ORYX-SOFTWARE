@@ -64,9 +64,9 @@ function Skeleton() {
 
 function InfoField({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="flex flex-col gap-1 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
-      <span className="text-xs font-medium text-t3 tracking-wide">{label}</span>
-      <span className="text-sm font-semibold text-t1">
+    <div className="flex flex-col gap-1.5 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
+      <span className="text-sm font-medium text-t3">{label}</span>
+      <span className="text-base font-semibold text-t1 leading-snug">
         {value?.trim() ? value : <span className="font-normal text-t4 italic">Not set</span>}
       </span>
     </div>
@@ -75,12 +75,12 @@ function InfoField({ label, value }: { label: string; value?: string | null }) {
 
 function KpiCard({ label, value, badge }: { label: string; value: string; badge?: string | null }) {
   return (
-    <div className="space-y-1">
-      <p className="text-[9px] font-bold text-t3 uppercase tracking-widest">{label}</p>
+    <div className="space-y-1.5">
+      <p className="text-xs font-semibold text-t3 uppercase tracking-wide">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
-        <p className="text-base font-bold text-t1 truncate font-mono tabular-nums">{value}</p>
+        <p className="text-lg font-bold text-t1 truncate font-mono tabular-nums">{value}</p>
         {badge ? (
-          <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
+          <span className="shrink-0 px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
             {badge}
           </span>
         ) : null}
@@ -110,7 +110,7 @@ function Pill({
   }
   return (
     <span className={cn(
-      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold",
+      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold",
       tones[tone],
     )}>
       <span className={cn("h-1.5 w-1.5 rounded-full", dots[tone])} />
@@ -118,6 +118,17 @@ function Pill({
     </span>
   )
 }
+
+type DetailTab = "information" | "timeline" | "documents" | "financial" | "status" | "activity"
+
+const DETAIL_TABS: Array<{ id: DetailTab; label: string }> = [
+  { id: "information", label: "Job Information" },
+  { id: "timeline", label: "Timeline" },
+  { id: "documents", label: "Documents" },
+  { id: "financial", label: "Financial" },
+  { id: "status", label: "Status" },
+  { id: "activity", label: "Activity" },
+]
 
 export default function JobDetailPage({
   fallbackJob,
@@ -166,6 +177,7 @@ export default function JobDetailPage({
   const [cancelReason, setCancelReason] = useState("")
   const [restoring,  setRestoring]  = useState(false)
   const [historyKey, setHistoryKey] = useState(0)
+  const [activeTab, setActiveTab] = useState<DetailTab>("information")
   const [dnEditOpen,   setDnEditOpen]   = useState(false)
   const [dnEditValue,  setDnEditValue]  = useState("")
   const [dnEditSaving, setDnEditSaving] = useState(false)
@@ -256,7 +268,7 @@ export default function JobDetailPage({
 
   return (
     <PageShell wide>
-      <nav className="flex items-center gap-1.5 text-xs text-t3 mb-5">
+      <nav className="flex items-center gap-1.5 text-sm text-t3 mb-6">
         <button
           type="button"
           className="hover:text-t1 transition-colors"
@@ -264,7 +276,7 @@ export default function JobDetailPage({
         >
           Jobs
         </button>
-        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        <ChevronRight className="h-4 w-4 shrink-0" />
         <span className={cn("font-semibold text-t1 font-mono", isCancelled && "line-through opacity-70")}>
           {job.drawingNumber}
         </span>
@@ -301,12 +313,12 @@ export default function JobDetailPage({
       )}
 
       {/* Master job card — Stitch layout */}
-      <section className="oryx-surface-card mb-7 overflow-hidden rounded-lg border border-bd bg-sr p-6 sm:p-8">
+      <section className="oryx-surface-card mb-8 overflow-hidden rounded-xl border border-bd bg-sr p-6 sm:p-8 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-6">
-          <div className="min-w-0 space-y-2">
+          <div className="min-w-0 space-y-2.5">
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge status={job.status} />
-              <span className="font-mono text-sm text-t3 tabular-nums">{job.drawingNumber}</span>
+              <span className="font-mono text-base text-t3 tabular-nums">{job.drawingNumber}</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className={cn(
@@ -321,17 +333,17 @@ export default function JobDetailPage({
                   className="text-t4 hover:text-ac"
                   title="Edit drawing number"
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <Pencil className="h-4 w-4" />
                 </button>
               )}
             </div>
             {job.address && (
-              <p className="text-sm sm:text-base text-t2 flex items-start gap-1.5">
-                <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+              <p className="text-base text-t2 flex items-start gap-1.5">
+                <MapPin className="h-4 w-4 mt-1 shrink-0" />
                 <span>{job.address}</span>
               </p>
             )}
-            <p className="text-[11px] text-t3 pt-1">
+            <p className="text-sm text-t3 pt-1">
               Workflow actions apply to{" "}
               <span className="font-semibold text-t1">
                 Current Revision: {revLetter ? `Rev ${revLetter}` : "Original"}
@@ -351,9 +363,6 @@ export default function JobDetailPage({
                   {dl.label}
                 </Pill>
               )}
-              {(job.tags ?? []).map(tag => (
-                <Pill key={tag} tone="neutral">{tag}</Pill>
-              ))}
             </div>
             {!isCancelled ? (
               <div className="flex flex-wrap gap-2 w-full lg:w-auto">
@@ -379,7 +388,15 @@ export default function JobDetailPage({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-2 border-t border-bd">
+        {(job.tags ?? []).length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-5 pb-5 border-b border-bd">
+            {(job.tags ?? []).map(tag => (
+              <Pill key={tag} tone="neutral">{tag}</Pill>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-2 border-t border-bd">
           <KpiCard label="Current Revision" value={revLetter ? `Rev ${revLetter}` : "Original"} />
           <KpiCard label="Active Designer" value={job.designer?.trim() || "Unassigned"} />
           <KpiCard label="Total Revisions" value={job.revisionCount != null ? String(job.revisionCount) : "—"} />
@@ -392,191 +409,232 @@ export default function JobDetailPage({
         </div>
       </section>
 
-      {/* Revision timeline (family) */}
-      <div className="mb-7">
-        <RevisionHistory
-          job={job}
-          refreshKey={historyKey}
-          defaultOpen
-          onFamilyChanged={() => { void mutateJob(); setHistoryKey(k => k + 1) }}
-        />
-      </div>
-
       {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-5">
-        <div className="lg:col-span-7 space-y-5">
-          <section className="oryx-surface-card overflow-hidden rounded-lg border border-bd bg-sr">
-            <div className="px-5 py-3.5 border-b border-bd">
-              <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-t1">Job Information</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        <div className="lg:col-span-7">
+          <section className="oryx-surface-card overflow-hidden rounded-xl border border-bd bg-sr shadow-sm">
+            <div
+              role="tablist"
+              aria-label="Job detail sections"
+              className="flex flex-wrap gap-1 border-b border-bd bg-pg/40 px-2 pt-2 sm:px-3"
+            >
+              {DETAIL_TABS.map(tab => {
+                const selected = activeTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      "px-3.5 py-2.5 text-sm font-semibold rounded-t-lg border border-b-0 transition-colors",
+                      selected
+                        ? "bg-sr text-t1 border-bd -mb-px"
+                        : "bg-transparent text-t3 border-transparent hover:text-t1 hover:bg-sr/60",
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
             </div>
-            <div className="p-5">
-              <div className="flex items-center justify-end mb-4">
-                <span className="text-xs text-t4">
-                  Updated {format(new Date(job.updatedAt), "d MMM yyyy HH:mm")}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
-              <InfoField
-                label="Job Type"
-                value={(() => {
-                  const t = job.itemType ?? "DESIGN"
-                  return t.charAt(0) + t.slice(1).toLowerCase().replace("_", " ")
-                })()}
-              />
-              <InfoField label="Site Address" value={job.address} />
-              <InfoField
-                label="Type of works"
-                value={
-                  job.typeOfWorks === OTHER_WORKS_TYPE
-                    ? `Other — ${job.customTypeDescription || "no description"}`
-                    : job.typeOfWorks
-                }
-              />
-              <InfoField
-                label="Initial Quote"
-                value={formatGBP(job.quoteValue) ?? (parentJob?.quoteValue != null ? formatGBP(parentJob.quoteValue) : null)}
-              />
-              <InfoField label="Requested by" value={job.requestedBy} />
-              <InfoField label="Engineer Assigned" value={job.designer || "Unassigned"} />
-              <InfoField label="Client" value={job.clientCompany} />
-              <InfoField label="Created" value={format(new Date(job.dateCreated), "d MMMM yyyy")} />
-              {job.legacyTypeOfWorks && (
-                <InfoField label="Originally entered as" value={job.legacyTypeOfWorks} />
+
+            <div className="p-5 sm:p-6" role="tabpanel">
+              {activeTab === "information" && (
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-5">
+                    <div>
+                      <h2 className="text-lg font-semibold text-t1">Job Information</h2>
+                      <p className="text-sm text-t3 mt-0.5">Site, client, and assignment details</p>
+                    </div>
+                    <span className="text-sm text-t4 shrink-0">
+                      Updated {format(new Date(job.updatedAt), "d MMM yyyy HH:mm")}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+                    <InfoField
+                      label="Job Type"
+                      value={(() => {
+                        const t = job.itemType ?? "DESIGN"
+                        return t.charAt(0) + t.slice(1).toLowerCase().replace("_", " ")
+                      })()}
+                    />
+                    <InfoField label="Site Address" value={job.address} />
+                    <InfoField
+                      label="Type of works"
+                      value={
+                        job.typeOfWorks === OTHER_WORKS_TYPE
+                          ? `Other — ${job.customTypeDescription || "no description"}`
+                          : job.typeOfWorks
+                      }
+                    />
+                    <InfoField
+                      label="Initial Quote"
+                      value={formatGBP(job.quoteValue) ?? (parentJob?.quoteValue != null ? formatGBP(parentJob.quoteValue) : null)}
+                    />
+                    <InfoField label="Requested by" value={job.requestedBy} />
+                    <InfoField label="Engineer Assigned" value={job.designer || "Unassigned"} />
+                    <InfoField label="Client" value={job.clientCompany} />
+                    <InfoField label="Created" value={format(new Date(job.dateCreated), "d MMMM yyyy")} />
+                    {job.legacyTypeOfWorks && (
+                      <InfoField label="Originally entered as" value={job.legacyTypeOfWorks} />
+                    )}
+                    {job.dateCompleted && (
+                      <InfoField label="Completed" value={format(parseLocalDate(job.dateCompleted), "d MMMM yyyy")} />
+                    )}
+                    {job.requiredByDate && (
+                      <InfoField label="Required by" value={format(parseLocalDate(job.requiredByDate), "d MMMM yyyy")} />
+                    )}
+                    {job.notes && <InfoField label="Notes" value={job.notes} />}
+                    {(job.tags ?? []).length > 0 && (
+                      <InfoField label="Tags" value={(job.tags ?? []).join(", ")} />
+                    )}
+                  </div>
+                </div>
               )}
-              {job.dateCompleted && (
-                <InfoField label="Completed" value={format(parseLocalDate(job.dateCompleted), "d MMMM yyyy")} />
+
+              {activeTab === "timeline" && (
+                <RevisionHistory
+                  job={job}
+                  refreshKey={historyKey}
+                  embedded
+                  onFamilyChanged={() => { void mutateJob(); setHistoryKey(k => k + 1) }}
+                />
               )}
-              {job.requiredByDate && (
-                <InfoField label="Required by" value={format(parseLocalDate(job.requiredByDate), "d MMMM yyyy")} />
+
+              {activeTab === "documents" && (
+                <div>
+                  <h2 className="text-lg font-semibold text-t1 mb-1">Documents</h2>
+                  <p className="text-sm text-t3 mb-5">Emails, photos, drawings, and supporting files</p>
+                  <JobDocumentsPanel
+                    jobId={job.id}
+                    showTitle={false}
+                    onTimelineChange={() => setHistoryKey(k => k + 1)}
+                  />
+                </div>
               )}
-              {job.notes && <InfoField label="Notes" value={job.notes} />}
-              {(job.tags ?? []).length > 0 && (
-                <InfoField label="Tags" value={(job.tags ?? []).join(", ")} />
+
+              {activeTab === "financial" && (
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-5">
+                    <div>
+                      <h2 className="text-lg font-semibold text-t1">Financial</h2>
+                      <p className="text-sm text-t3 mt-0.5">Quote, variations, and invoicing</p>
+                    </div>
+                    {!isCancelled && (
+                      <button
+                        type="button"
+                        onClick={() => setEditOpen(true)}
+                        className="text-sm text-ac hover:text-ach font-medium shrink-0"
+                      >
+                        {job.quoteValue != null || job.quoteReference || job.quoteDate || job.commercialNotes
+                          || job.variationFees != null || job.additionalCharges != null
+                          ? "Edit quote"
+                          : "Add quote"}
+                      </button>
+                    )}
+                  </div>
+                  {job.quoteValue != null || job.quoteReference || job.quoteDate || job.commercialNotes
+                    || job.variationFees != null || job.additionalCharges != null ? (
+                    <div className="max-w-xl space-y-4 text-base">
+                      {job.quoteValue != null && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-t3">Quote value</span>
+                          <span className="font-semibold tabular-nums text-t1">{formatGBP(job.quoteValue)}</span>
+                        </div>
+                      )}
+                      {job.variationFees != null && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-t3">Variation fees</span>
+                          <span className="font-semibold tabular-nums text-t1">{formatGBP(job.variationFees)}</span>
+                        </div>
+                      )}
+                      {job.additionalCharges != null && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-t3">Additional charges</span>
+                          <span className="font-semibold tabular-nums text-t1">{formatGBP(job.additionalCharges)}</span>
+                        </div>
+                      )}
+                      {commercialTotal != null && (
+                        <div className="flex justify-between gap-2 pt-3 border-t border-bd">
+                          <span className="text-t3 font-medium">Total agreed</span>
+                          <span className="font-bold tabular-nums text-t1">{formatGBP(commercialTotal)}</span>
+                        </div>
+                      )}
+                      {job.quoteReference && (
+                        <p className="text-sm text-t4 pt-1">Ref {job.quoteReference}</p>
+                      )}
+                      {job.quoteDate && (
+                        <p className="text-sm text-t4">
+                          Quote date {format(parseLocalDate(job.quoteDate), "d MMM yyyy")}
+                        </p>
+                      )}
+                      {job.commercialNotes && (
+                        <p className="text-sm text-t3 pt-1 whitespace-pre-wrap">{job.commercialNotes}</p>
+                      )}
+                      {isRevision && parentJob && job.quoteValue == null && parentJob.quoteValue != null && (
+                        <p className="text-sm text-t3 pt-2 border-t border-bd">
+                          Inherited from parent:{" "}
+                          <span className="font-semibold text-t1">{formatGBP(parentJob.quoteValue)}</span>
+                        </p>
+                      )}
+                      {billingHandoff && (
+                        <div className="pt-2 mt-1 border-t border-bd">
+                          <p className="text-sm text-t3">
+                            Invoicing:{" "}
+                            {billingHandoff.clearedByAccountsAt ? (
+                              <span className="font-medium text-ok-tx">
+                                Cleared{billingHandoff.clearedBy ? ` (${billingHandoff.clearedBy})` : ""}
+                              </span>
+                            ) : (
+                              <span className="font-medium text-wn-tx">Awaiting accounts</span>
+                            )}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-base text-t4 italic">No quote added yet.</p>
+                  )}
+                </div>
               )}
-              </div>
+
+              {activeTab === "status" && (
+                <div>
+                  <h2 className="text-lg font-semibold text-t1 mb-1">Status</h2>
+                  <p className="text-sm text-t3 mb-5">Update the workflow for the current revision</p>
+                  {isCancelled ? (
+                    <StatusBadge status={job.status} />
+                  ) : (
+                    <StatusWorkflow
+                      jobId={workflowJobId}
+                      currentStatus={job.status}
+                      onStatusChange={s => {
+                        void mutateJob({ ...job, status: s }, { revalidate: false })
+                        setHistoryKey(k => k + 1)
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+
+              {activeTab === "activity" && (
+                <div>
+                  <h2 className="text-lg font-semibold text-t1 mb-1">Activity</h2>
+                  <p className="text-sm text-t3 mb-5">Status changes, notes, and document events</p>
+                  <StatusHistory
+                    key={historyKey}
+                    jobId={workflowJobId}
+                    onUpdate={() => setHistoryKey(k => k + 1)}
+                  />
+                </div>
+              )}
             </div>
-          </section>
-
-          <section className="oryx-surface-card overflow-hidden rounded-lg border border-bd bg-sr p-5">
-            <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-t1 mb-4">Status</h2>
-            {isCancelled ? (
-              <StatusBadge status={job.status} />
-            ) : (
-              <StatusWorkflow
-                jobId={workflowJobId}
-                currentStatus={job.status}
-                onStatusChange={s => {
-                  void mutateJob({ ...job, status: s }, { revalidate: false })
-                  setHistoryKey(k => k + 1)
-                }}
-              />
-            )}
-          </section>
-
-          <section className="oryx-surface-card overflow-hidden rounded-lg border border-bd bg-sr p-5">
-            <JobDocumentsPanel
-              jobId={job.id}
-              onTimelineChange={() => setHistoryKey(k => k + 1)}
-            />
-          </section>
-
-          <section className="oryx-surface-card overflow-hidden rounded-lg border border-bd bg-sr p-5">
-            <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-t1 mb-4">Activity</h2>
-            <StatusHistory
-              key={historyKey}
-              jobId={workflowJobId}
-              onUpdate={() => setHistoryKey(k => k + 1)}
-            />
           </section>
         </div>
 
-        <div className="lg:col-span-3 space-y-5">
-          <section className="rounded-xl border border-bd bg-sr p-5">
-            <h2 className="text-base font-semibold text-t1 mb-4">Financial Summary</h2>
-            {job.quoteValue != null || job.quoteReference || job.quoteDate || job.commercialNotes
-              || job.variationFees != null || job.additionalCharges != null ? (
-              <div className="space-y-3 text-sm">
-                {job.quoteValue != null && (
-                  <div className="flex justify-between gap-2">
-                    <span className="text-t3">Quote value</span>
-                    <span className="font-semibold tabular-nums text-t1">{formatGBP(job.quoteValue)}</span>
-                  </div>
-                )}
-                {job.variationFees != null && (
-                  <div className="flex justify-between gap-2">
-                    <span className="text-t3">Variation fees</span>
-                    <span className="font-semibold tabular-nums text-t1">{formatGBP(job.variationFees)}</span>
-                  </div>
-                )}
-                {job.additionalCharges != null && (
-                  <div className="flex justify-between gap-2">
-                    <span className="text-t3">Additional charges</span>
-                    <span className="font-semibold tabular-nums text-t1">{formatGBP(job.additionalCharges)}</span>
-                  </div>
-                )}
-                {commercialTotal != null && (
-                  <div className="flex justify-between gap-2 pt-2 border-t border-bd">
-                    <span className="text-t3">Total agreed</span>
-                    <span className="font-semibold tabular-nums text-t1">{formatGBP(commercialTotal)}</span>
-                  </div>
-                )}
-                {job.quoteReference && (
-                  <p className="text-xs text-t4 pt-1">Ref {job.quoteReference}</p>
-                )}
-                {job.quoteDate && (
-                  <p className="text-xs text-t4">
-                    Quote date {format(parseLocalDate(job.quoteDate), "d MMM yyyy")}
-                  </p>
-                )}
-                {job.commercialNotes && (
-                  <p className="text-xs text-t3 pt-1 whitespace-pre-wrap">{job.commercialNotes}</p>
-                )}
-                {isRevision && parentJob && job.quoteValue == null && parentJob.quoteValue != null && (
-                  <p className="text-xs text-t3 pt-2 border-t border-bd">
-                    Inherited from parent:{" "}
-                    <span className="font-semibold text-t1">{formatGBP(parentJob.quoteValue)}</span>
-                  </p>
-                )}
-                {billingHandoff && (
-                  <div className="pt-2 mt-1 border-t border-bd">
-                    <p className="text-xs text-t3">
-                      Invoicing:{" "}
-                      {billingHandoff.clearedByAccountsAt ? (
-                        <span className="font-medium text-ok-tx">
-                          Cleared{billingHandoff.clearedBy ? ` (${billingHandoff.clearedBy})` : ""}
-                        </span>
-                      ) : (
-                        <span className="font-medium text-wn-tx">Awaiting accounts</span>
-                      )}
-                    </p>
-                  </div>
-                )}
-                {!isCancelled && (
-                  <button
-                    type="button"
-                    onClick={() => setEditOpen(true)}
-                    className="text-xs text-ac hover:text-ach font-medium pt-1"
-                  >
-                    Edit quote
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs text-t4 italic">No quote added yet.</p>
-                {!isCancelled && (
-                  <button
-                    type="button"
-                    onClick={() => setEditOpen(true)}
-                    className="text-xs text-ac hover:text-ach font-medium"
-                  >
-                    Add quote
-                  </button>
-                )}
-              </div>
-            )}
-          </section>
-
+        <div className="lg:col-span-3 space-y-6">
           {job.requiredByDate && job.status !== "ISSUED" && (
             <div className={cn(
               "rounded-xl border p-4",
@@ -636,7 +694,7 @@ export default function JobDetailPage({
           </section>
 
           <section className="rounded-xl border border-bd bg-sr p-5">
-            <h2 className="text-base font-semibold text-t1 mb-3">Timeline</h2>
+            <h2 className="text-base font-semibold text-t1 mb-3">Dates</h2>
             <dl className="space-y-2">
               {([
                 ["Created", format(new Date(job.dateCreated), "d MMM yyyy")],

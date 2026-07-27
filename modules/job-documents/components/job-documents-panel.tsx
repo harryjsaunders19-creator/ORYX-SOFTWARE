@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   startTransition,
+  type DragEvent,
 } from "react"
 import { format } from "date-fns"
 import {
@@ -36,6 +37,7 @@ import {
   type DocumentScopeFilter,
 } from "../constants"
 import type { JobDocumentRow } from "../types"
+import { collectDroppedFiles, droppedFilesIncludeEmail } from "../collect-dropped-files"
 import { DocumentLightbox } from "./document-lightbox"
 import { DocumentPdfPreview } from "./document-pdf-preview"
 import { DocumentEmailCard } from "./document-email-card"
@@ -75,10 +77,12 @@ function DocIcon({ doc }: { doc: JobDocumentRow }) {
 export function JobDocumentsPanel({
   jobId,
   canWrite = true,
+  showTitle = true,
   onTimelineChange,
 }: {
   jobId: string
   canWrite?: boolean
+  showTitle?: boolean
   onTimelineChange?: () => void
 }) {
   const { toast } = useToast()
@@ -148,15 +152,22 @@ export function JobDocumentsPanel({
     [docs],
   )
 
-  const uploadFiles = async (fileList: FileList | File[]) => {
+  const uploadFiles = async (fileList: FileList | File[], opts?: { preferEmailCategory?: boolean }) => {
     if (!writeOk) return
-    const files = Array.from(fileList)
-    if (!files.length) return
+    const files = Array.from(fileList).filter(f => f.size > 0)
+    if (!files.length) {
+      toast("Could not read the dropped file. Try saving the email as .msg/.eml first.", "error")
+      return
+    }
     setUploading(true)
     try {
       const form = new FormData()
       for (const file of files) form.append("files", file)
-      form.append("category", uploadCategory)
+      const category =
+        opts?.preferEmailCategory && uploadCategory === "General" && droppedFilesIncludeEmail(files)
+          ? "Client Email"
+          : uploadCategory
+      form.append("category", category)
       if (attachToRevision) form.append("attachToRevision", "true")
 
       const res = await fetch(`/api/jobs/${jobId}/documents`, { method: "POST", body: form })
@@ -183,6 +194,22 @@ export function JobDocumentsPanel({
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
     }
+  }
+
+  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+    if (!writeOk || uploading) return
+    const files = await collectDroppedFiles(e.dataTransfer)
+    if (!files.length) {
+      toast(
+        "Could not import that drop. Drag the email from Outlook again, or save as .msg/.eml and upload.",
+        "error",
+      )
+      return
+    }
+    await uploadFiles(files, { preferEmailCategory: true })
   }
 
   const handleRename = async () => {
@@ -236,18 +263,20 @@ export function JobDocumentsPanel({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-t1">Documents</h2>
-          <p className="text-xs text-t4 mt-1">
+          {showTitle ? (
+            <h2 className="text-lg font-semibold text-t1">Documents</h2>
+          ) : null}
+          <p className={cn("text-sm text-t3", showTitle ? "mt-0.5" : "")}>
             {total} file{total === 1 ? "" : "s"} — emails, photos, drawings and supporting files
           </p>
         </div>
         {writeOk && (
           <div className="flex flex-wrap items-center gap-2">
             <Select value={uploadCategory} onValueChange={setUploadCategory}>
-              <SelectTrigger className="h-8 w-[150px] text-xs">
+              <SelectTrigger className="h-9 w-[160px] text-sm">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -256,7 +285,7 @@ export function JobDocumentsPanel({
                 ))}
               </SelectContent>
             </Select>
-            <label className="flex items-center gap-1.5 text-xs text-t3 cursor-pointer select-none">
+            <label className="flex items-center gap-1.5 text-sm text-t3 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={attachToRevision}
@@ -278,6 +307,7 @@ export function JobDocumentsPanel({
               ref={fileInputRef}
               type="file"
               multiple
+              accept=".msg,.eml,.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.dwg,.dxf,.zip,.txt,message/rfc822,application/vnd.ms-outlook,application/pdf,image/*"
               className="hidden"
               onChange={e => e.target.files && void uploadFiles(e.target.files)}
             />
@@ -287,43 +317,57 @@ export function JobDocumentsPanel({
 
       {writeOk && (
         <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={e => {
+          onDragEnter={e => {
             e.preventDefault()
-            setDragOver(false)
-            if (e.dataTransfer.files?.length) void uploadFiles(e.dataTransfer.files)
+            e.stopPropagation()
+            setDragOver(true)
           }}
+          onDragOver={e => {
+            e.preventDefault()
+            e.stopPropagation()
+            e.dataTransfer.dropEffect = "copy"
+            setDragOver(true)
+          }}
+          onDragLeave={e => {
+            e.preventDefault()
+            // Only clear when leaving the drop zone itself
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return
+            setDragOver(false)
+          }}
+          onDrop={e => { void handleDrop(e) }}
           className={cn(
-            "rounded-lg border border-dashed px-4 py-6 text-center transition-colors",
+            "rounded-lg border border-dashed px-4 py-7 text-center transition-colors",
             dragOver ? "border-ac bg-ac/5" : "border-bd bg-pg/30",
+            uploading && "pointer-events-none opacity-60",
           )}
         >
-          <p className="text-sm text-t2">Drag & drop files here, or use Upload</p>
-          <p className="text-[11px] text-t4 mt-1">
+          <p className="text-base text-t2">
+            Drag & drop files here — including emails from Outlook
+          </p>
+          <p className="text-sm text-t4 mt-1">
             Images, PDFs, DWG/DXF, Office, ZIP, MSG/EML — up to 50 MB each
           </p>
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-t4" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-t4" />
           <Input
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Search filename, category, email subject…"
-            className="pl-8 h-9 text-sm"
+            className="pl-9 h-10 text-base"
           />
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {(["all", "current", "previous"] as DocumentScopeFilter[]).map(s => (
             <button
               key={s}
               type="button"
               onClick={() => setScope(s)}
               className={cn(
-                "text-[11px] px-2.5 py-1 rounded-full font-medium border",
+                "text-sm px-3 py-1.5 rounded-full font-medium border",
                 scope === s ? "bg-ac text-on-ac border-ac" : "border-bd text-t3 hover:text-t2",
               )}
             >
@@ -336,7 +380,7 @@ export function JobDocumentsPanel({
               type="button"
               onClick={() => setKind(c.value)}
               className={cn(
-                "text-[11px] px-2.5 py-1 rounded-full font-medium border",
+                "text-sm px-3 py-1.5 rounded-full font-medium border",
                 kind === c.value ? "bg-sr text-t1 border-bds" : "border-bd text-t3 hover:text-t2",
               )}
             >
@@ -346,7 +390,7 @@ export function JobDocumentsPanel({
         </div>
         <div className="flex flex-wrap gap-2">
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className="h-8 w-[160px] text-xs">
+            <SelectTrigger className="h-9 w-[170px] text-sm">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
@@ -357,7 +401,7 @@ export function JobDocumentsPanel({
             </SelectContent>
           </Select>
           <Select value={period} onValueChange={v => setPeriod(v as DocumentPeriodFilter)}>
-            <SelectTrigger className="h-8 w-[140px] text-xs">
+            <SelectTrigger className="h-9 w-[150px] text-sm">
               <SelectValue placeholder="Uploaded" />
             </SelectTrigger>
             <SelectContent>
@@ -375,15 +419,15 @@ export function JobDocumentsPanel({
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       ) : docs.length === 0 ? (
-        <p className="text-sm text-t4 py-8 text-center">No documents match these filters.</p>
+        <p className="text-base text-t4 py-8 text-center">No documents match these filters.</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {docs.map(doc => {
             const kind = documentKind(doc.mimeType, doc.fileExt)
             return (
               <li
                 key={doc.id}
-                className="rounded-lg border border-bd bg-sr p-3 flex flex-col sm:flex-row gap-3"
+                className="rounded-lg border border-bd bg-sr p-3.5 flex flex-col sm:flex-row gap-3"
               >
                 <div className="shrink-0">
                   {kind === "images" ? (
@@ -411,8 +455,8 @@ export function JobDocumentsPanel({
                     <DocumentEmailCard doc={doc} jobId={jobId} />
                   ) : (
                     <>
-                      <p className="text-sm font-semibold text-t1 truncate">{doc.filename}</p>
-                      <p className="text-xs text-t3 flex flex-wrap gap-x-2 gap-y-0.5">
+                      <p className="text-base font-semibold text-t1 truncate">{doc.filename}</p>
+                      <p className="text-sm text-t3 flex flex-wrap gap-x-2 gap-y-0.5">
                         <span className="font-medium text-t2">{doc.category}</span>
                         <span>·</span>
                         <span>{doc.uploadedByName}</span>
@@ -436,7 +480,7 @@ export function JobDocumentsPanel({
                     </Button>
                     <a
                       href={`/api/jobs/${jobId}/documents/${doc.id}/download`}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-t3 hover:text-t1 px-2 py-1.5"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-t3 hover:text-t1 px-2 py-1.5"
                     >
                       <Download className="h-3.5 w-3.5" /> Download
                     </a>

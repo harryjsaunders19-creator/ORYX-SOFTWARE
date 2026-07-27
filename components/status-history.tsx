@@ -74,29 +74,29 @@ export function StatusHistory({ jobId, onUpdate }: {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   {isNote ? (
-                    <p className="text-xs text-t2">
-                      <span className="font-medium">{entry.changedBy}</span> added a note
+                    <p className="text-sm text-t2">
+                      <span className="font-medium text-t1">{entry.changedBy}</span> added a note
                     </p>
                   ) : entry.fromStatus ? (
-                    <div className="flex items-center gap-1 flex-wrap text-xs text-t2">
-                      <span className="font-medium">{entry.changedBy}</span>
+                    <div className="flex items-center gap-1.5 flex-wrap text-sm text-t2">
+                      <span className="font-medium text-t1">{entry.changedBy}</span>
                       <span className="text-t3">moved</span>
                       <span>{getJobStatus(entry.fromStatus).label}</span>
-                      <ArrowRight className="h-3 w-3 text-t4" />
-                      <span className="font-medium">{getJobStatus(entry.toStatus).label}</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-t4" />
+                      <span className="font-medium text-t1">{getJobStatus(entry.toStatus).label}</span>
                     </div>
                   ) : (
-                    <p className="text-xs text-t2">
-                      <span className="font-medium">{entry.changedBy}</span>{" "}
-                      created as <span className="font-medium">{getJobStatus(entry.toStatus).label}</span>
+                    <p className="text-sm text-t2">
+                      <span className="font-medium text-t1">{entry.changedBy}</span>{" "}
+                      created as <span className="font-medium text-t1">{getJobStatus(entry.toStatus).label}</span>
                     </p>
                   )}
-                  {entry.note && <p className="text-xs text-t2 mt-0.5">{entry.note}</p>}
+                  {entry.note && <p className="text-sm text-t2 mt-1 leading-relaxed">{entry.note}</p>}
                 </div>
                 <time
                   dateTime={entry.changedAt}
                   title={format(new Date(entry.changedAt), "d MMM yyyy, HH:mm")}
-                  className="text-[11px] text-t4 shrink-0 tabular-nums"
+                  className="text-sm text-t4 shrink-0 tabular-nums"
                 >
                   {formatDistanceToNow(new Date(entry.changedAt), { addSuffix: true })}
                 </time>
@@ -126,7 +126,7 @@ export function StatusHistory({ jobId, onUpdate }: {
       ) : (
         <button
           onClick={() => setAddNote(true)}
-          className="flex items-center gap-1.5 text-xs text-t4 hover:text-t2 mt-1 focus:outline-none"
+          className="flex items-center gap-1.5 text-sm text-t4 hover:text-t2 mt-2 focus:outline-none"
         >
           <Plus className="h-3 w-3" /> Add note
         </button>

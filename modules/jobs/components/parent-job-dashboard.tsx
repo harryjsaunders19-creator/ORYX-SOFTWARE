@@ -52,9 +52,9 @@ function Skeleton() {
 
 function InfoField({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="flex flex-col gap-1 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
-      <span className="text-xs font-medium text-t3 tracking-wide">{label}</span>
-      <span className="text-sm font-semibold text-t1">
+    <div className="flex flex-col gap-1.5 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
+      <span className="text-sm font-medium text-t3">{label}</span>
+      <span className="text-base font-semibold text-t1 leading-snug">
         {value?.trim() ? value : <span className="font-normal text-t4 italic">Not set</span>}
       </span>
     </div>
@@ -72,11 +72,11 @@ function KpiCard({
 }) {
   return (
     <div className="rounded-xl border border-bd bg-sr p-4">
-      <p className="text-xs font-medium text-t3 mb-1">{label}</p>
+      <p className="text-xs font-semibold text-t3 uppercase tracking-wide mb-1.5">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
-        <p className="text-lg font-semibold text-t1 truncate">{value}</p>
+        <p className="text-lg font-bold text-t1 truncate font-mono tabular-nums">{value}</p>
         {badge ? (
-          <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
+          <span className="shrink-0 px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
             {badge}
           </span>
         ) : null}
@@ -106,7 +106,7 @@ function Pill({
   }
   return (
     <span className={cn(
-      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold",
+      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold",
       tones[tone],
     )}>
       <span className={cn("h-1.5 w-1.5 rounded-full", dots[tone])} />
@@ -114,6 +114,16 @@ function Pill({
     </span>
   )
 }
+
+type DetailTab = "information" | "timeline" | "documents" | "financial" | "status"
+
+const DETAIL_TABS: Array<{ id: DetailTab; label: string }> = [
+  { id: "information", label: "Job Information" },
+  { id: "timeline", label: "Timeline" },
+  { id: "documents", label: "Documents" },
+  { id: "financial", label: "Financial" },
+  { id: "status", label: "Status" },
+]
 
 function invoiceLabel(status: string): string {
   switch (status) {
@@ -159,6 +169,7 @@ export default function ParentJobDashboardPage({
   const [designer, setDesigner] = useState("")
   const [priority, setPriority] = useState("")
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<DetailTab>("information")
 
   const parent = data?.parent
   const workItems = data?.workItems ?? EMPTY_WORK_ITEMS
@@ -279,8 +290,8 @@ export default function ParentJobDashboardPage({
             </p>
           )}
           <div className="flex items-center gap-2 pt-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-t3">Client</span>
-            <span className="text-sm font-semibold text-t1">{parent.clientCompany}</span>
+            <span className="text-sm font-semibold text-t3">Client</span>
+            <span className="text-base font-semibold text-t1">{parent.clientCompany}</span>
           </div>
         </div>
 
@@ -308,7 +319,7 @@ export default function ParentJobDashboardPage({
       </header>
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-7">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <KpiCard label="Current Revision" value={currentRevLabel} />
         <KpiCard
           label="Active Designer"
@@ -329,234 +340,288 @@ export default function ParentJobDashboardPage({
         />
       </div>
 
-      {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-5">
-        <div className="lg:col-span-7 space-y-5">
-          {/* Job Information */}
-          <section className="rounded-xl border border-bd bg-sr p-5">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-t1">Job Information</h2>
-              <span className="text-xs text-t4">
-                Updated {format(new Date(parent.updatedAt), "d MMM yyyy HH:mm")}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
-              <InfoField label="Job Type" value="Design" />
-              <InfoField label="Site Address" value={siteLine} />
-              <InfoField
-                label="Type of works"
-                value={
-                  parent.typeOfWorks === "Other" && parent.customTypeDescription
-                    ? `Other — ${parent.customTypeDescription}`
-                    : parent.typeOfWorks
-                }
-              />
-              <InfoField
-                label="Initial Quote"
-                value={
-                  workItems.find(w => w.workType === "ORIGINAL")?.quoteValue != null
-                    ? formatGBP(workItems.find(w => w.workType === "ORIGINAL")!.quoteValue)
-                    : formatGBP(summary.quotedTotal)
-                }
-              />
-              <InfoField label="Requested by" value={parent.requestedBy} />
-              <InfoField
-                label="Engineer Assigned"
-                value={current?.designer || "Unassigned"}
-              />
-              <InfoField label="Site name" value={parent.siteName} />
-              <InfoField
-                label="Active work"
-                value={current ? current.title : "None — waiting for next revision"}
-              />
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-bd bg-sr p-5">
-            <JobDocumentsPanel jobId={parent.id} />
-          </section>
-
-          {/* Revision Timeline */}
-          <section className="rounded-xl border border-bd bg-sr p-5">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-base font-semibold text-t1 inline-flex items-center gap-2">
-                <GitBranch className="h-4 w-4 text-ac" />
-                Revision Timeline
-              </h2>
-              <span className="text-xs text-t3 tabular-nums">
-                {workItems.length} work item{workItems.length === 1 ? "" : "s"}
-              </span>
-            </div>
-
-            <div className="relative pl-8">
-              <div className="absolute left-[11px] top-2 bottom-2 w-px bg-bd" aria-hidden />
-              <div className="space-y-6">
-                {sortedItems.map(item => {
-                  const isCurrent = current?.id === item.id
-                  const isComplete = item.status === "ISSUED"
-                  const reason = item.description || item.notes
-
-                  return (
-                    <div key={item.id} className="relative">
-                      <div
-                        className={cn(
-                          "absolute -left-8 top-1.5 h-4 w-4 rounded-full border-[3px] border-sr z-10",
-                          isCurrent
-                            ? "bg-ac shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-ac)_25%,transparent)]"
-                            : isComplete
-                              ? "bg-ok-ic"
-                              : "bg-t4",
-                        )}
-                        aria-hidden
-                      />
-                      <div
-                        className={cn(
-                          "rounded-xl border p-4",
-                          isCurrent
-                            ? "border-ac/40 bg-ac-bg/30"
-                            : "border-bd bg-sr",
-                          !isCurrent && isComplete && "opacity-80",
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <div className="min-w-0">
-                            <h3 className="text-sm font-bold text-t1">
-                              {item.title}
-                              {isCurrent ? " — In Progress" : isComplete ? " — Complete" : ""}
-                            </h3>
-                            <p className="text-xs text-t3 mt-0.5">
-                              Created {format(new Date(item.dateCreated), "d MMM yyyy")}
-                              {item.designer ? ` · ${item.designer}` : ""}
-                            </p>
-                          </div>
-                          <div className="shrink-0 flex flex-wrap gap-1.5 justify-end">
-                            {isCurrent && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-ac text-on-ac">
-                                Active
-                              </span>
-                            )}
-                            <StatusBadge status={item.status} />
-                          </div>
-                        </div>
-
-                        {item.workType === "REVISION" && (
-                          <blockquote className="text-sm text-t2 leading-relaxed mb-3 border-l-2 border-bd pl-3">
-                            {reason
-                              ? `“${reason}”`
-                              : <span className="italic text-t4">No reason recorded</span>}
-                          </blockquote>
-                        )}
-                        {item.workType === "ORIGINAL" && reason && (
-                          <p className="text-sm text-t2 mb-3 whitespace-pre-wrap">{reason}</p>
-                        )}
-
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-t3 mb-2">
-                          <p className="inline-flex items-center gap-1">
-                            <UserCircle2 className="h-3 w-3" />
-                            {item.designer || "Unassigned"}
-                          </p>
-                          <p className="inline-flex items-center gap-1">
-                            <Receipt className="h-3 w-3" />
-                            {invoiceLabel(item.invoiceStatus)}
-                            {item.invoiceNumber ? ` · ${item.invoiceNumber}` : ""}
-                          </p>
-                          {(item.quoteValue != null || item.billedValue != null) && (
-                            <p className="tabular-nums">
-                              {item.billedValue != null
-                                ? `Billed ${formatGBP(item.billedValue)}`
-                                : `Quoted ${formatGBP(item.quoteValue)}`}
-                            </p>
-                          )}
-                          {item.completedAt && (
-                            <p>Completed {format(new Date(item.completedAt), "d MMM yyyy")}</p>
-                          )}
-                        </div>
-
-                        {isAdmin && item.workType === "REVISION" && (
-                          <label className="mt-1 inline-flex items-center gap-2 text-xs text-t2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={item.billable}
-                              disabled={togglingId === item.id}
-                              onChange={e => void toggleBillable(item, e.target.checked)}
-                            />
-                            Chargeable (Ready for Invoicing when Complete)
-                          </label>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {data.canAddRevision && (
-              <div className="mt-6 pt-4 border-t border-bd">
-                <Button variant="outline" size="sm" onClick={() => setRevOpen(true)}>
-                  <Plus className="h-3.5 w-3.5" />
-                  Add revision{data.nextRevisionLetter ? ` ${data.nextRevisionLetter}` : ""}
-                </Button>
-              </div>
-            )}
-          </section>
+      {/* Main content — tabs */}
+      <section className="overflow-hidden rounded-xl border border-bd bg-sr shadow-sm">
+        <div
+          role="tablist"
+          aria-label="Job detail sections"
+          className="flex flex-wrap gap-1 border-b border-bd bg-pg/40 px-2 pt-2 sm:px-3"
+        >
+          {DETAIL_TABS.map(tab => {
+            const selected = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "px-3.5 py-2.5 text-sm font-semibold rounded-t-lg border border-b-0 transition-colors",
+                  selected
+                    ? "bg-sr text-t1 border-bd -mb-px"
+                    : "bg-transparent text-t3 border-transparent hover:text-t1 hover:bg-sr/60",
+                )}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
         </div>
 
-        {/* Sidebar */}
-        <div className="lg:col-span-3 space-y-5">
-          {current && (
-            <section className="rounded-xl border border-bd bg-sr p-5">
-              <h2 className="text-base font-semibold text-t1 mb-3">
-                Active — {current.title}
-              </h2>
-              <div className="mb-3">
-                <StatusBadge status={current.status} />
-              </div>
-              <StatusWorkflow
-                jobId={current.id}
-                currentStatus={current.status}
-                onStatusChange={() => void mutate()}
-                patchUrl={`/api/work-items/${current.id}`}
-              />
-              <div className="mt-4">
-                <Label className="text-xs text-t3">Designer</Label>
-                <div className="mt-1.5">
-                  <DesignerCombobox
-                    value={current.designer}
-                    onChange={v => void patchWorkItem(current.id, { designer: v })}
-                  />
+        <div className="p-5 sm:p-6" role="tabpanel">
+          {activeTab === "information" && (
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-5">
+                <div>
+                  <h2 className="text-lg font-semibold text-t1">Job Information</h2>
+                  <p className="text-sm text-t3 mt-0.5">Site, client, and assignment details</p>
                 </div>
+                <span className="text-sm text-t4 shrink-0">
+                  Updated {format(new Date(parent.updatedAt), "d MMM yyyy HH:mm")}
+                </span>
               </div>
-            </section>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+                <InfoField label="Job Type" value="Design" />
+                <InfoField label="Site Address" value={siteLine} />
+                <InfoField
+                  label="Type of works"
+                  value={
+                    parent.typeOfWorks === "Other" && parent.customTypeDescription
+                      ? `Other — ${parent.customTypeDescription}`
+                      : parent.typeOfWorks
+                  }
+                />
+                <InfoField
+                  label="Initial Quote"
+                  value={
+                    workItems.find(w => w.workType === "ORIGINAL")?.quoteValue != null
+                      ? formatGBP(workItems.find(w => w.workType === "ORIGINAL")!.quoteValue)
+                      : formatGBP(summary.quotedTotal)
+                  }
+                />
+                <InfoField label="Requested by" value={parent.requestedBy} />
+                <InfoField
+                  label="Engineer Assigned"
+                  value={current?.designer || "Unassigned"}
+                />
+                <InfoField label="Site name" value={parent.siteName} />
+                <InfoField
+                  label="Active work"
+                  value={current ? current.title : "None — waiting for next revision"}
+                />
+              </div>
+            </div>
           )}
 
-          <section className="rounded-xl border border-bd bg-sr p-5">
-            <h2 className="text-base font-semibold text-t1 mb-4">Financial Summary</h2>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between gap-2">
-                <span className="text-t3">Quoted total</span>
-                <span className="font-semibold tabular-nums text-t1">
-                  {formatGBP(summary.quotedTotal) ?? "—"}
+          {activeTab === "timeline" && (
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-5">
+                <div>
+                  <h2 className="text-lg font-semibold text-t1 inline-flex items-center gap-2">
+                    <GitBranch className="h-5 w-5 text-ac" />
+                    Revision Timeline
+                  </h2>
+                  <p className="text-sm text-t3 mt-0.5">Original issue and revisions for this job</p>
+                </div>
+                <span className="text-sm text-t3 tabular-nums shrink-0">
+                  {workItems.length} work item{workItems.length === 1 ? "" : "s"}
                 </span>
               </div>
-              <div className="flex justify-between gap-2">
-                <span className="text-t3">Billed</span>
-                <span className="font-semibold tabular-nums text-ok">
-                  {formatGBP(summary.billedTotal) ?? "—"}
-                </span>
+
+              <div className="relative pl-8">
+                <div className="absolute left-[11px] top-2 bottom-2 w-px bg-bd" aria-hidden />
+                <div className="space-y-6">
+                  {sortedItems.map(item => {
+                    const isCurrent = current?.id === item.id
+                    const isComplete = item.status === "ISSUED"
+                    const reason = item.description || item.notes
+
+                    return (
+                      <div key={item.id} className="relative">
+                        <div
+                          className={cn(
+                            "absolute -left-8 top-1.5 h-4 w-4 rounded-full border-[3px] border-sr z-10",
+                            isCurrent
+                              ? "bg-ac shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-ac)_25%,transparent)]"
+                              : isComplete
+                                ? "bg-ok-ic"
+                                : "bg-t4",
+                          )}
+                          aria-hidden
+                        />
+                        <div
+                          className={cn(
+                            "rounded-xl border p-4",
+                            isCurrent
+                              ? "border-ac/40 bg-ac-bg/30"
+                              : "border-bd bg-sr",
+                            !isCurrent && isComplete && "opacity-80",
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="min-w-0">
+                              <h3 className="text-base font-bold text-t1">
+                                {item.title}
+                                {isCurrent ? " — In Progress" : isComplete ? " — Complete" : ""}
+                              </h3>
+                              <p className="text-sm text-t3 mt-0.5">
+                                Created {format(new Date(item.dateCreated), "d MMM yyyy")}
+                                {item.designer ? ` · ${item.designer}` : ""}
+                              </p>
+                            </div>
+                            <div className="shrink-0 flex flex-wrap gap-1.5 justify-end">
+                              {isCurrent && (
+                                <span className="px-2 py-0.5 rounded text-xs font-bold uppercase bg-ac text-on-ac">
+                                  Active
+                                </span>
+                              )}
+                              <StatusBadge status={item.status} />
+                            </div>
+                          </div>
+
+                          {item.workType === "REVISION" && (
+                            <blockquote className="text-base text-t2 leading-relaxed mb-3 border-l-2 border-bd pl-3">
+                              {reason
+                                ? `“${reason}”`
+                                : <span className="italic text-t4">No reason recorded</span>}
+                            </blockquote>
+                          )}
+                          {item.workType === "ORIGINAL" && reason && (
+                            <p className="text-base text-t2 mb-3 whitespace-pre-wrap">{reason}</p>
+                          )}
+
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-t3 mb-2">
+                            <p className="inline-flex items-center gap-1">
+                              <UserCircle2 className="h-3.5 w-3.5" />
+                              {item.designer || "Unassigned"}
+                            </p>
+                            <p className="inline-flex items-center gap-1">
+                              <Receipt className="h-3.5 w-3.5" />
+                              {invoiceLabel(item.invoiceStatus)}
+                              {item.invoiceNumber ? ` · ${item.invoiceNumber}` : ""}
+                            </p>
+                            {(item.quoteValue != null || item.billedValue != null) && (
+                              <p className="tabular-nums">
+                                {item.billedValue != null
+                                  ? `Billed ${formatGBP(item.billedValue)}`
+                                  : `Quoted ${formatGBP(item.quoteValue)}`}
+                              </p>
+                            )}
+                            {item.completedAt && (
+                              <p>Completed {format(new Date(item.completedAt), "d MMM yyyy")}</p>
+                            )}
+                          </div>
+
+                          {isAdmin && item.workType === "REVISION" && (
+                            <label className="mt-1 inline-flex items-center gap-2 text-sm text-t2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={item.billable}
+                                disabled={togglingId === item.id}
+                                onChange={e => void toggleBillable(item, e.target.checked)}
+                              />
+                              Chargeable (Ready for Invoicing when Complete)
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-              <div className="flex justify-between gap-2">
-                <span className="text-t3">Ready to invoice</span>
-                <span className="font-semibold tabular-nums text-t1">
-                  {formatGBP(summary.readyTotal) ?? "—"}
-                </span>
-              </div>
-              <p className="text-xs text-t4 pt-3 border-t border-bd">
-                {summary.invoicedCount} of {summary.itemCount} work items invoiced
-              </p>
+
+              {data.canAddRevision && (
+                <div className="mt-6 pt-4 border-t border-bd">
+                  <Button variant="outline" size="sm" onClick={() => setRevOpen(true)}>
+                    <Plus className="h-3.5 w-3.5" />
+                    Add revision{data.nextRevisionLetter ? ` ${data.nextRevisionLetter}` : ""}
+                  </Button>
+                </div>
+              )}
             </div>
-          </section>
+          )}
+
+          {activeTab === "documents" && (
+            <div>
+              <h2 className="text-lg font-semibold text-t1 mb-1">Documents</h2>
+              <p className="text-sm text-t3 mb-5">Emails, photos, drawings, and supporting files</p>
+              <JobDocumentsPanel jobId={parent.id} showTitle={false} />
+            </div>
+          )}
+
+          {activeTab === "financial" && (
+            <div>
+              <h2 className="text-lg font-semibold text-t1 mb-1">Financial</h2>
+              <p className="text-sm text-t3 mb-5">Quoted, billed, and ready-to-invoice totals</p>
+              <div className="max-w-xl space-y-4 text-base">
+                <div className="flex justify-between gap-2">
+                  <span className="text-t3">Quoted total</span>
+                  <span className="font-semibold tabular-nums text-t1">
+                    {formatGBP(summary.quotedTotal) ?? "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-t3">Billed</span>
+                  <span className="font-semibold tabular-nums text-ok">
+                    {formatGBP(summary.billedTotal) ?? "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-t3">Ready to invoice</span>
+                  <span className="font-semibold tabular-nums text-t1">
+                    {formatGBP(summary.readyTotal) ?? "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2 pt-3 border-t border-bd">
+                  <span className="text-t3">Outstanding</span>
+                  <span className="font-bold tabular-nums text-t1">
+                    {formatGBP(outstanding) ?? "—"}
+                  </span>
+                </div>
+                <p className="text-sm text-t4 pt-1">
+                  {summary.invoicedCount} of {summary.itemCount} work items invoiced
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "status" && (
+            <div>
+              <h2 className="text-lg font-semibold text-t1 mb-1">Status</h2>
+              <p className="text-sm text-t3 mb-5">
+                {current
+                  ? `Update workflow for ${current.title}`
+                  : "No active work item — create a revision to continue"}
+              </p>
+              {current ? (
+                <>
+                  <div className="mb-4">
+                    <StatusBadge status={current.status} />
+                  </div>
+                  <StatusWorkflow
+                    jobId={current.id}
+                    currentStatus={current.status}
+                    onStatusChange={() => void mutate()}
+                    patchUrl={`/api/work-items/${current.id}`}
+                  />
+                  <div className="mt-5">
+                    <Label className="text-sm text-t3">Designer</Label>
+                    <div className="mt-1.5">
+                      <DesignerCombobox
+                        value={current.designer}
+                        onChange={v => void patchWorkItem(current.id, { designer: v })}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-base text-t4 italic">Nothing to update yet.</p>
+              )}
+            </div>
+          )}
         </div>
-      </div>
+      </section>
 
       <Dialog open={revOpen} onOpenChange={o => {
         if (!revSaving) {

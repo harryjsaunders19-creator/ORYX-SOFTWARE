@@ -18,6 +18,8 @@ interface Props {
   job: Job
   refreshKey?: number
   defaultOpen?: boolean
+  /** When true, skip the outer card/header (used inside a tab panel). */
+  embedded?: boolean
   onFamilyChanged?: () => void
 }
 
@@ -68,71 +70,71 @@ function TimelineEntry({
           entry.isCurrent ? "border-ac bg-ac-bg/40" : "border-bd bg-sr",
         )}
       >
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mb-1.5">
           <h4 className={cn(
-            "text-[13px] font-bold uppercase tracking-tight",
+            "text-base font-bold tracking-tight",
             entry.isCurrent ? "text-ac" : "text-t1",
           )}>
             {entry.title}
           </h4>
           {entry.isCurrent && (
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-sm bg-ac text-on-ac">
+            <span className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-sm bg-ac text-on-ac">
               Current
             </span>
           )}
           <StatusBadge status={entry.status} />
           {entry.billable ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-sm bg-ok-bg text-ok-tx border border-ok-bd uppercase tracking-wide">
-              <Receipt className="h-2.5 w-2.5" /> Billable
+            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-sm bg-ok-bg text-ok-tx border border-ok-bd uppercase tracking-wide">
+              <Receipt className="h-3 w-3" /> Billable
             </span>
           ) : !entry.isOriginal ? (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-sm bg-pg text-t3 border border-bd uppercase tracking-wide">
+            <span className="text-xs font-medium px-2 py-0.5 rounded-sm bg-pg text-t3 border border-bd uppercase tracking-wide">
               Included
             </span>
           ) : null}
         </div>
 
-        <p className="text-[10px] text-t3 uppercase tabular-nums mb-2">
+        <p className="text-sm text-t3 tabular-nums mb-2.5">
           Created {formatHistoryDate(entry.dateCreated)}
         </p>
 
-        <div className="space-y-1 text-xs text-t2">
+        <div className="space-y-1.5 text-sm text-t2">
           {entry.designer && (
             <p className="flex items-center gap-1.5">
-              <PenTool className="h-3 w-3 text-t4 shrink-0" />
-              <span className="text-t3 uppercase text-[10px] tracking-wide">Designer</span>
-              <span className="font-semibold">{entry.designer}</span>
+              <PenTool className="h-3.5 w-3.5 text-t4 shrink-0" />
+              <span className="text-t3 text-sm">Designer</span>
+              <span className="font-semibold text-t1">{entry.designer}</span>
             </p>
           )}
           {entry.issuedBy && (
             <p className="flex items-center gap-1.5 flex-wrap">
-              <UserCircle2 className="h-3 w-3 text-t4 shrink-0" />
-              <span className="text-t3 uppercase text-[10px] tracking-wide">Issued by</span>
-              <span className="font-semibold">{entry.issuedBy}</span>
+              <UserCircle2 className="h-3.5 w-3.5 text-t4 shrink-0" />
+              <span className="text-t3 text-sm">Issued by</span>
+              <span className="font-semibold text-t1">{entry.issuedBy}</span>
               {entry.issuedAt && (
-                <span className="text-t4 tabular-nums uppercase text-[10px]">
+                <span className="text-t4 tabular-nums text-sm">
                   ({formatHistoryDate(entry.issuedAt)})
                 </span>
               )}
             </p>
           )}
           {entry.notes ? (
-            <div className="pt-2 mt-1 rounded-md border border-bd bg-surface-low px-3 py-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-t3 mb-1">
+            <div className="pt-2 mt-1 rounded-md border border-bd bg-surface-low px-3.5 py-2.5">
+              <p className="text-sm font-semibold text-t3 mb-1">
                 Reason for revision
               </p>
-              <p className="text-sm text-t1 leading-relaxed whitespace-pre-wrap">
+              <p className="text-base text-t1 leading-relaxed whitespace-pre-wrap">
                 {entry.notes}
               </p>
             </div>
           ) : entry.isOriginal ? null : (
-            <p className="text-t4 italic text-xs">No reason recorded</p>
+            <p className="text-t4 italic text-sm">No reason recorded</p>
           )}
         </div>
 
         {isAdmin && !entry.isOriginal && onToggleBillable && (
           <div className="mt-3 pt-2 border-t border-bd/60">
-            <label className="inline-flex items-center gap-2 text-xs text-t2 cursor-pointer">
+            <label className="inline-flex items-center gap-2 text-sm text-t2 cursor-pointer">
               <input
                 type="checkbox"
                 className="rounded border-bd"
@@ -142,7 +144,7 @@ function TimelineEntry({
               />
               Chargeable / billable variation
             </label>
-            <p className="text-[10px] text-t4 mt-1">
+            <p className="text-xs text-t4 mt-1">
               Only billable revisions appear in Ready for Invoicing when Complete.
             </p>
           </div>
@@ -152,7 +154,7 @@ function TimelineEntry({
   )
 }
 
-export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFamilyChanged }: Props) {
+export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, embedded = false, onFamilyChanged }: Props) {
   const { toast } = useToast()
   const { isAdmin } = useUser()
 
@@ -261,8 +263,8 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFam
 
   if (loading) {
     return (
-      <div className="mb-4 flex items-center gap-2 rounded-xl border border-bd bg-pg px-4 py-3 text-xs text-t4">
-        <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+      <div className="mb-4 flex items-center gap-2 rounded-xl border border-bd bg-pg px-5 py-4 text-sm text-t4">
+        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
         Loading revision history…
       </div>
     )
@@ -270,7 +272,7 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFam
 
   if (!family) {
     return (
-      <div className="mb-4 rounded-xl border border-bd bg-pg px-4 py-3 text-xs text-t4">
+      <div className="mb-4 rounded-xl border border-bd bg-pg px-5 py-4 text-sm text-t4">
         Could not load revision history.
       </div>
     )
@@ -280,35 +282,12 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFam
   const chain = family.chain
   const baseDrawing = family.baseDrawingNumber
 
-  return (
-    <section className="oryx-surface-card mb-0 overflow-hidden rounded-lg border border-bd bg-sr">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="flex w-full items-center gap-2 border-b border-bd bg-sr px-5 py-4 text-left transition-colors hover:bg-surface-low"
-        aria-expanded={open}
-      >
-        <GitBranch className="h-4 w-4 text-ac shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.15em] text-t1">Revision Timeline</p>
-          <p className="text-[11px] text-t3 font-mono truncate mt-0.5">{baseDrawing}</p>
-        </div>
-        {hasRevisions && (
-          <span className="text-[10px] font-semibold text-t3 tabular-nums shrink-0 uppercase tracking-wide">
-            {family.revisions.length} revision{family.revisions.length === 1 ? "" : "s"}
-          </span>
-        )}
-        {open
-          ? <ChevronUp className="h-4 w-4 text-t4 shrink-0" />
-          : <ChevronDown className="h-4 w-4 text-t4 shrink-0" />}
-      </button>
-
-      {open && (
-        <div className="px-5 py-5">
+  const body = (
+        <div className={embedded ? "" : "px-5 py-6 sm:px-6"}>
           {!hasRevisions ? (
-            <p className="text-sm text-t4 italic mb-4">No previous revisions.</p>
+            <p className="text-base text-t4 italic mb-4">No previous revisions.</p>
           ) : (
-            <div className="mb-4">
+            <div className="mb-5">
               {chain.map((entry, index) => (
                 <TimelineEntry
                   key={entry.id}
@@ -324,14 +303,14 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFam
 
           {family.canAddRevision && (
             adding ? (
-              <form onSubmit={handleCreate} className="border border-bd rounded-xl p-4 bg-pg space-y-3">
-                <p className="text-xs font-semibold text-t1">
+              <form onSubmit={handleCreate} className="border border-bd rounded-xl p-5 bg-pg space-y-3">
+                <p className="text-base font-semibold text-t1">
                   Create Revision {family.nextRevisionLetter}
-                  <span className="text-t4 font-normal ml-2">
+                  <span className="text-t4 font-normal ml-2 text-sm">
                     → {baseDrawing} Rev {family.nextRevisionLetter}
                   </span>
                 </p>
-                <p className="text-[11px] text-t3">
+                <p className="text-sm text-t3">
                   The parent job stays the same. This becomes the current revision (status starts as New Request). Not billable by default — mark Chargeable if it should invoice separately.
                 </p>
                 <div className="flex flex-col gap-1.5">
@@ -379,7 +358,54 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, onFam
             )
           )}
         </div>
-      )}
+  )
+
+  if (embedded) {
+    return (
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-5">
+          <div>
+            <h2 className="text-lg font-semibold text-t1 inline-flex items-center gap-2">
+              <GitBranch className="h-5 w-5 text-ac" />
+              Revision Timeline
+            </h2>
+            <p className="text-sm text-t3 font-mono mt-0.5">{baseDrawing}</p>
+          </div>
+          {hasRevisions && (
+            <span className="text-sm font-semibold text-t3 tabular-nums shrink-0">
+              {family.revisions.length} revision{family.revisions.length === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <section className="oryx-surface-card mb-0 overflow-hidden rounded-xl border border-bd bg-sr shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="flex w-full items-center gap-3 border-b border-bd bg-pg/30 px-5 py-4 text-left transition-colors hover:bg-surface-low"
+        aria-expanded={open}
+      >
+        <GitBranch className="h-5 w-5 text-ac shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-lg font-semibold text-t1">Revision Timeline</p>
+          <p className="text-sm text-t3 font-mono truncate mt-0.5">{baseDrawing}</p>
+        </div>
+        {hasRevisions && (
+          <span className="text-sm font-semibold text-t3 tabular-nums shrink-0">
+            {family.revisions.length} revision{family.revisions.length === 1 ? "" : "s"}
+          </span>
+        )}
+        {open
+          ? <ChevronUp className="h-5 w-5 text-t4 shrink-0" />
+          : <ChevronDown className="h-5 w-5 text-t4 shrink-0" />}
+      </button>
+
+      {open && body}
     </section>
   )
 }
