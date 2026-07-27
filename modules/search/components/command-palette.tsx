@@ -91,6 +91,7 @@ type Props = {
 export function CommandPalette({ open, onOpenChange }: Props) {
   const router = useRouter()
   const { user } = useUser()
+  const userId = user?.id
   const listId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -114,10 +115,10 @@ export function CommandPalette({ open, onOpenChange }: Props) {
   }, [onOpenChange])
 
   const navigateTo = useCallback((hit: SearchHit, q: string) => {
-    if (user?.id) writeRecent(user.id, q || hit.title)
+    if (userId) writeRecent(userId, q || hit.title)
     close()
     router.push(hit.href)
-  }, [close, router, user?.id])
+  }, [close, router, userId])
 
   // Reset + focus when opened
   useEffect(() => {
@@ -125,10 +126,10 @@ export function CommandPalette({ open, onOpenChange }: Props) {
     setQuery("")
     setResult(null)
     setActiveIndex(0)
-    setRecent(readRecent(user?.id))
+    setRecent(readRecent(userId))
     const t = window.setTimeout(() => inputRef.current?.focus(), 10)
     return () => window.clearTimeout(t)
-  }, [open, user?.id])
+  }, [open, userId])
 
   // Empty-state recents from list APIs
   useEffect(() => {
