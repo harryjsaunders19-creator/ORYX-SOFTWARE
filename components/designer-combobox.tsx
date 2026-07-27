@@ -20,7 +20,7 @@ interface Props {
   className?: string
   autoFocus?: boolean
   allowUnassigned?: boolean
-  /** Pre-loaded Users-tab names. When provided, skips /api/jobs/designers. */
+  /** Pre-loaded Users-tab names. When provided and non-empty, skips fetch. */
   designers?: string[]
 }
 
@@ -39,14 +39,20 @@ export function DesignerCombobox({
   designers: designersProp,
 }: Props) {
   const [fetched, setFetched] = useState<string[]>([])
-  const designers = designersProp ?? fetched
+  // Prefer parent list when it has names; otherwise use / fall back to fetch.
+  const designers =
+    designersProp && designersProp.length > 0 ? designersProp : fetched
 
   useEffect(() => {
-    if (designersProp) return
+    if (designersProp && designersProp.length > 0) return
+    let cancelled = false
     fetch("/api/jobs/designers")
       .then(r => r.json() as Promise<{ designers: string[] }>)
-      .then(d => setFetched(d.designers ?? []))
+      .then(d => {
+        if (!cancelled) setFetched(d.designers ?? [])
+      })
       .catch(() => {})
+    return () => { cancelled = true }
   }, [designersProp])
 
   // Keep a legacy free-text value visible until the user picks a directory name.
