@@ -37,8 +37,8 @@ export function InlineStatusSelect({ status, onChange, size = "md" }: { status: 
   )
 }
 
-/** Designer cell — pick an existing designer in one click, or fall back to "+ New designer…"
- *  which signals the caller to open the full assign-designer modal for free-text entry. */
+/** Designer cell — pick a Users-tab name in one click, or fall back to "+ New designer…"
+ *  which opens the assign modal (still prefers the user directory list). */
 export function InlineDesignerSelect({ designer, designers, onChange, onRequestNew }: {
   designer: string
   designers: string[]

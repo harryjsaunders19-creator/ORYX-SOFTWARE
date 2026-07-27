@@ -178,6 +178,23 @@ export const jobService = {
     return supabaseJobRepo.findAnalyticsFields(opts)
   },
 
+  async findPerformanceFields(): Promise<{
+    designer: string
+    status: string
+    dateCompleted: string | null
+    requiredByDate: string | null
+  }[]> {
+    if (!useSupabaseJobs()) {
+      return jobDb.findMany().map(j => ({
+        designer: (j.designer ?? "").trim(),
+        status: j.status,
+        dateCompleted: j.dateCompleted,
+        requiredByDate: j.requiredByDate,
+      }))
+    }
+    return supabaseJobRepo.findPerformanceFields()
+  },
+
   async count(where: WhereClause = {}): Promise<number> {
     if (!useSupabaseJobs()) return jobDb.count(where)
     return supabaseJobRepo.count(where)

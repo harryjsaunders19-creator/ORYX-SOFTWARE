@@ -74,6 +74,15 @@ export const jobService = {
     return supabaseJobRepo.findAnalyticsFields(opts)
   },
 
+  async findPerformanceFields(): Promise<{
+    designer: string
+    status: string
+    dateCompleted: string | null
+    requiredByDate: string | null
+  }[]> {
+    return supabaseJobRepo.findPerformanceFields()
+  },
+
   async count(where: WhereClause = {}): Promise<number> {
     return supabaseJobRepo.count(where)
   },

@@ -49,6 +49,7 @@ export const MODULES: ModuleDef[] = [
   { key: "employees",  label: "Employees",  href: "/employees",         roles: ["ADMIN", "ENGINEER"] },
   { key: "password-vault", label: "Account Passwords", href: "/password-vault", roles: ["ADMIN"] },
   { key: "billing",    label: "Ready For Invoicing", href: "/billing", roles: ["ADMIN"] },
+  { key: "performance", label: "Performance", href: "/performance",    roles: ["ADMIN"] },
   { key: "archived",   label: "Archived Items", href: "/archived",      roles: ["ADMIN"] },
   { key: "users",      label: "Users",      href: "/users",            roles: ["ADMIN"] },
   { key: "backups",    label: "System Backup", href: "/backups",       roles: ["ADMIN"] },

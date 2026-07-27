@@ -1,12 +1,12 @@
 "use client"
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog"
 import { Button }  from "@/components/ui/button"
-import { Input }   from "@/components/ui/input"
 import { Label }   from "@/components/ui/label"
 import { useToast } from "@/components/ui/toast"
+import { DesignerCombobox } from "@/components/designer-combobox"
 import type { Job } from "@/lib/types"
 
 interface Props {
@@ -19,14 +19,10 @@ export function AssignDesignerModal({ job, onClose, onSaved }: Props) {
   const { toast }    = useToast()
   const [name,    setName]    = useState("")
   const [saving,  setSaving]  = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
 
-  // Reset & focus each time a job is opened
+  // Reset each time a job is opened
   useEffect(() => {
-    if (job) {
-      setName(job.designer || "")
-      setTimeout(() => inputRef.current?.focus(), 50)
-    }
+    if (job) setName(job.designer || "")
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-fetch when job changes
   }, [job?.id])
 
@@ -73,16 +69,16 @@ export function AssignDesignerModal({ job, onClose, onSaved }: Props) {
           <div
             style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "6px" }}
           >
-            <Label htmlFor="designer-input">Designer name</Label>
-            <Input
-              id="designer-input"
-              ref={inputRef}
+            <Label htmlFor="designer-input">Designer</Label>
+            <DesignerCombobox
               value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="e.g. Sarah Mitchell"
-              autoComplete="off"
+              onChange={setName}
+              placeholder="Select a user…"
+              autoFocus
             />
-
+            <p className="text-[11px] text-t4 mt-1">
+              Names come from active users. Prefer an exact Users-tab name so performance tracking matches.
+            </p>
           </div>
         </form>
 

@@ -128,11 +128,14 @@ function SortTh({ field, label, current, dir, onSort, className }: {
 const JobMobileCard = memo(function JobMobileCard({
   job,
   isOnHold,
+  showTags,
   onOpen,
   onStatusChange,
 }: {
   job: Job
   isOnHold: boolean
+  /** Tags clutter the default list — only show while searching. */
+  showTags: boolean
   // Perf: stable callbacks from parent so memo skips re-render when filters change.
   onOpen: (jobId: string) => void
   onStatusChange: (job: Job, status: string) => void
@@ -161,12 +164,12 @@ const JobMobileCard = memo(function JobMobileCard({
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
-            {(job.tags ?? []).slice(0, 2).map(tag => (
+            {showTags && (job.tags ?? []).slice(0, 2).map(tag => (
               <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
                 {tag}
               </span>
             ))}
-            {(job.tags ?? []).length > 2 && (
+            {showTags && (job.tags ?? []).length > 2 && (
               <span className="text-[10px] text-t4">+{(job.tags ?? []).length - 2}</span>
             )}
           </div>
@@ -215,6 +218,8 @@ interface JobTableRowProps {
   designers:            string[]
   isAdmin:              boolean
   creatingRevisionFor:  string | null
+  /** Tags clutter the default list — only show while searching. */
+  showTags:             boolean
   onPatchField:         (job: JobWithRevision, field: "status" | "designer", value: string) => void
   onEdit:               (job: JobWithRevision) => void
   onDelete:             (job: JobWithRevision) => void
@@ -228,7 +233,7 @@ interface JobTableRowProps {
 // search filters or page number changes.
 const JobTableRow = memo(
   function JobTableRow({
-    job, isOnHold, designers, isAdmin, creatingRevisionFor,
+    job, isOnHold, designers, isAdmin, creatingRevisionFor, showTags,
     onPatchField, onEdit, onDelete, onAssign, onQuickRevision, onNavigate,
   }: JobTableRowProps) {
     const dl = getJobDeadlineInfo(job)
@@ -251,12 +256,12 @@ const JobTableRow = memo(
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
-            {(job.tags ?? []).slice(0, 2).map(tag => (
+            {showTags && (job.tags ?? []).slice(0, 2).map(tag => (
               <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
                 {tag}
               </span>
             ))}
-            {(job.tags ?? []).length > 2 && (
+            {showTags && (job.tags ?? []).length > 2 && (
               <span className="text-[10px] text-t4">+{(job.tags ?? []).length - 2}</span>
             )}
           </span>
@@ -401,7 +406,8 @@ const JobTableRow = memo(
     prev.isOnHold === next.isOnHold &&
     prev.creatingRevisionFor === next.creatingRevisionFor &&
     prev.designers === next.designers &&
-    prev.isAdmin === next.isAdmin,
+    prev.isAdmin === next.isAdmin &&
+    prev.showTags === next.showTags,
 )
 
 function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
@@ -497,6 +503,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
 
   const loading = isLoading && !data
   const refreshing = isValidating && !!data
+  const showListTags = debouncedSearch.trim().length > 0
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
@@ -630,6 +637,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       }
       const updated = await res.json() as Job
       // Keep parent row id in the list; overlay the patched fields from the current revision.
+      // Preserve revision-family flags (canAddRevision, etc.) — the PATCH body is a raw JobRow.
       await mutate(
         current => current ? {
           ...current,
@@ -967,6 +975,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               key={job.id}
               job={job}
               isOnHold={!!(job.clientId && holdClientIds.has(job.clientId))}
+              showTags={showListTags}
               onOpen={openJob}
               onStatusChange={patchMobileStatus}
             />
@@ -1012,6 +1021,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
                   designers={designers}
                   isAdmin={isAdmin}
                   creatingRevisionFor={creatingRevisionFor}
+                  showTags={showListTags}
                   onPatchField={patchJobField}
                   onEdit={setEditJob}
                   onDelete={setDeleteJob}
@@ -1127,12 +1137,29 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       </Dialog>
       {/* Assign designer modal — fallback for entering a brand-new name not yet in the inline picker */}
       <AssignDesignerModal
-        job={assignJob}
+        job={assignJob
+          ? { ...assignJob, id: assignJob.currentRevisionId ?? assignJob.id }
+          : null}
         onClose={() => setAssignJob(null)}
         onSaved={updated => {
+          const listRowId = assignJob?.id
           setAssignJob(null)
+          // Merge into the list row — do NOT replace with the raw API job (drops canAddRevision).
           mutate(
-            current => current ? { ...current, jobs: current.jobs.map(j => j.id === updated.id ? updated : j) } : current,
+            current => current ? {
+              ...current,
+              jobs: current.jobs.map(j => {
+                const match = (listRowId && j.id === listRowId)
+                  || j.id === updated.id
+                  || j.currentRevisionId === updated.id
+                if (!match) return j
+                return {
+                  ...j,
+                  designer: updated.designer,
+                  updatedAt: updated.updatedAt,
+                }
+              }),
+            } : current,
             { revalidate: false },
           )
           rememberDesigner(updated.designer)

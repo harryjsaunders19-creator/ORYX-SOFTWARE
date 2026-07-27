@@ -51,6 +51,9 @@ const JOB_LIST_SELECT = [
 /** Perf: analytics only needs status/type/money/dates — avoid transferring full job rows. */
 const JOB_ANALYTICS_SELECT = "status,item_type,quote_value,date_created,date_completed"
 
+/** Perf: employee performance aggregates — designer + status + deadline fields only. */
+const JOB_PERFORMANCE_SELECT = "designer,status,date_completed,required_by_date"
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type JobQuery = any
 
@@ -433,6 +436,51 @@ export const supabaseJobRepo = {
       quoteValue: r.quote_value != null ? Number(r.quote_value) : null,
       dateCreated: r.date_created,
       dateCompleted: r.date_completed ?? null,
+    }))
+  },
+
+  /**
+   * Perf: slim projection for employee performance dashboard.
+   * Pages through all non-archived jobs (PostgREST default cap is 1000).
+   */
+  async findPerformanceFields(): Promise<{
+    designer: string
+    status: string
+    dateCompleted: string | null
+    requiredByDate: string | null
+  }[]> {
+    const pageSize = 1000
+    let useArchived = jobsArchivedFilterEnabled()
+    const fetchPage = (from: number, archived: boolean) => {
+      let q = table().select(JOB_PERFORMANCE_SELECT).range(from, from + pageSize - 1)
+      if (archived) q = q.is("archived_at", null)
+      return q
+    }
+
+    let { data, error } = await fetchPage(0, useArchived)
+    if (error && noteJobsArchivedFromError(error)) {
+      useArchived = false
+      ;({ data, error } = await fetchPage(0, false))
+    }
+    if (error) throw error
+
+    const rows = [...(data ?? [])]
+    while ((data?.length ?? 0) === pageSize) {
+      ;({ data, error } = await fetchPage(rows.length, useArchived))
+      if (error) throw error
+      rows.push(...(data ?? []))
+    }
+
+    return (rows as {
+      designer: string | null
+      status: string
+      date_completed: string | null
+      required_by_date: string | null
+    }[]).map(r => ({
+      designer: (r.designer ?? "").trim(),
+      status: r.status,
+      dateCompleted: r.date_completed ?? null,
+      requiredByDate: r.required_by_date ?? null,
     }))
   },
 

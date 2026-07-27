@@ -15,10 +15,8 @@ interface Props {
   designers?: string[]
 }
 
-/** Free-text designer field with a typeahead dropdown of names already used elsewhere in the
- *  system — picking one is a single click; typing a brand-new name works exactly like a plain
- *  text input, no extra confirmation step (unlike clients, a designer name isn't a backing
- *  record, so there's nothing to "create"). */
+/** Free-text designer field with a typeahead of active user names (Users tab).
+ *  Prefer picking a directory name so job.designer matches performance attribution. */
 export function DesignerCombobox({ value, onChange, placeholder, disabled, className, autoFocus, designers: designersProp }: Props) {
   const [fetchedDesigners, setFetchedDesigners] = useState<string[]>([])
   const designers = designersProp ?? fetchedDesigners

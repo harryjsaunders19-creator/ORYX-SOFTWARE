@@ -11,7 +11,7 @@ import { STITCH_SIDEBAR_W } from "@/shared/branding/stitch-layout"
 import { isNavItemActive } from "@/shared/layouts/nav-utils"
 import { navIcon } from "@/shared/layouts/nav-icons"
 
-const ADMIN_KEYS = new Set(["job-map", "billing", "archived", "users", "backups", "health"])
+const ADMIN_KEYS = new Set(["job-map", "billing", "performance", "archived", "users", "backups", "health"])
 
 type NavLinkProps = {
   item: ModuleDef
