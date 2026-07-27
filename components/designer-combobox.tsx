@@ -1,93 +1,85 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { useEffect, useState } from "react"
+
+const UNASSIGNED = "__unassigned__"
 
 interface Props {
-  value:      string
-  onChange:   (name: string) => void
+  value: string
+  onChange: (name: string) => void
   placeholder?: string
-  disabled?:  boolean
+  disabled?: boolean
   className?: string
   autoFocus?: boolean
-  /** Pre-loaded designer names. When provided the component skips its own
-   *  /api/jobs/designers fetch — callers that already have this data (e.g.
-   *  JobsTable) should pass it down to avoid duplicate network requests. */
+  allowUnassigned?: boolean
+  /** Pre-loaded Users-tab names. When provided, skips /api/jobs/designers. */
   designers?: string[]
 }
 
-/** Free-text designer field with a typeahead of active user names (Users tab).
- *  Prefer picking a directory name so job.designer matches performance attribution. */
-export function DesignerCombobox({ value, onChange, placeholder, disabled, className, autoFocus, designers: designersProp }: Props) {
-  const [fetchedDesigners, setFetchedDesigners] = useState<string[]>([])
-  const designers = designersProp ?? fetchedDesigners
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
+/**
+ * Designer / engineer picker — dropdown of active Users-tab names only.
+ * No free text, so job.designer always matches performance attribution.
+ */
+export function DesignerCombobox({
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  className,
+  autoFocus,
+  allowUnassigned = true,
+  designers: designersProp,
+}: Props) {
+  const [fetched, setFetched] = useState<string[]>([])
+  const designers = designersProp ?? fetched
 
   useEffect(() => {
-    if (designersProp) return  // skip fetch when parent already provides the list
+    if (designersProp) return
     fetch("/api/jobs/designers")
       .then(r => r.json() as Promise<{ designers: string[] }>)
-      .then(d => setFetchedDesigners(d.designers))
+      .then(d => setFetched(d.designers ?? []))
       .catch(() => {})
   }, [designersProp])
 
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
-  }, [])
+  // Keep a legacy free-text value visible until the user picks a directory name.
+  const options =
+    value && !designers.includes(value) ? [value, ...designers] : designers
 
-  const matches = designers.filter(d =>
-    d.toLowerCase() !== value.trim().toLowerCase() &&
-    (value.trim() === "" || d.toLowerCase().includes(value.trim().toLowerCase()))
-  ).slice(0, 6)
+  const selectValue = value ? value : UNASSIGNED
 
   return (
-    <div ref={wrapRef} className={cn("relative", className)}>
-      <input
-        type="text"
-        value={value}
-        onChange={e => { onChange(e.target.value); setOpen(true) }}
-        onFocus={() => setOpen(true)}
-        disabled={disabled}
+    <Select
+      value={selectValue}
+      onValueChange={v => onChange(v === UNASSIGNED ? "" : v)}
+      disabled={disabled}
+    >
+      <SelectTrigger
+        className={cn("h-8", className)}
+        style={{ height: "32px" }}
         autoFocus={autoFocus}
-        placeholder={placeholder ?? "e.g. Sarah Mitchell"}
-        autoComplete="off"
-        className="flex h-8 w-full rounded border border-bd bg-sr px-3 text-sm text-t1 placeholder:text-t4 focus:outline-none focus:ring-2 focus:ring-ac focus:border-bds disabled:cursor-not-allowed disabled:opacity-50"
-        style={{
-          height: "32px", width: "100%", borderRadius: "6px",
-          border: "1px solid var(--color-bd)", backgroundColor: "var(--color-sr)",
-          paddingLeft: "12px", paddingRight: "12px", fontSize: "14px", color: "var(--color-t1)", outline: "none",
-        }}
-        onKeyDown={e => { if (e.key === "Escape") setOpen(false) }}
-      />
-      {open && matches.length > 0 && (
-        <div
-          className="absolute z-[200] mt-1 w-full rounded border border-bd bg-sr shadow-card overflow-hidden"
-          style={{
-            position: "absolute", zIndex: 200, marginTop: "4px", width: "100%",
-            borderRadius: "6px", border: "1px solid var(--color-bd)", backgroundColor: "var(--color-sr)",
-            boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04)",
-            overflow: "hidden",
-          }}
-        >
-          <ul className="max-h-44 overflow-y-auto thin-scroll">
-            {matches.map(d => (
-              <li key={d}>
-                <button
-                  type="button"
-                  onMouseDown={e => { e.preventDefault(); onChange(d); setOpen(false) }}
-                  className="w-full flex items-center px-3 py-2 text-left text-sm text-t1 hover:bg-pg"
-                >
-                  {d}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+        aria-label="Assign designer"
+      >
+        <SelectValue placeholder={placeholder ?? "Select a user…"} />
+      </SelectTrigger>
+      <SelectContent>
+        {allowUnassigned && (
+          <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+        )}
+        {options.map(d => (
+          <SelectItem key={d} value={d}>
+            {d}
+            {value === d && !designers.includes(d) ? " (not in Users)" : ""}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }

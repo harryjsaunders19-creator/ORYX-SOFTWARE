@@ -1,13 +1,12 @@
 "use client"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { ChevronDown } from "lucide-react"
-import { SelectContent, SelectItem, SelectSeparator } from "@/components/ui/select"
+import { SelectContent, SelectItem } from "@/components/ui/select"
 import { StatusBadge } from "@/components/status-badge"
 import { JOB_STATUSES } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 
-const NEW_DESIGNER  = "__new__"
-const UNASSIGNED     = "__unassigned__"
+const UNASSIGNED = "__unassigned__"
 
 /** Status cell that looks like a plain badge until clicked, then opens a real dropdown.
  *  Keeps the table visually clean (no permanent input boxes) while making status changeable
@@ -37,23 +36,20 @@ export function InlineStatusSelect({ status, onChange, size = "md" }: { status: 
   )
 }
 
-/** Designer cell — pick a Users-tab name in one click, or fall back to "+ New designer…"
- *  which opens the assign modal (still prefers the user directory list). */
-export function InlineDesignerSelect({ designer, designers, onChange, onRequestNew }: {
+/** Designer cell — Users-tab names only (same directory as Performance). */
+export function InlineDesignerSelect({ designer, designers, onChange }: {
   designer: string
   designers: string[]
   onChange: (designer: string) => void
-  onRequestNew: () => void
 }) {
   const value = designer ? designer : UNASSIGNED
-  // Make sure the job's current designer always appears as an option even if it somehow
-  // isn't in the distinct-designers list yet (e.g. very first job for a brand-new name).
+  // Legacy free-text values stay visible until reassigned to a Users name.
   const options = designer && !designers.includes(designer) ? [designer, ...designers] : designers
 
   return (
     <SelectPrimitive.Root
       value={value}
-      onValueChange={v => { if (v === NEW_DESIGNER) onRequestNew(); else onChange(v === UNASSIGNED ? "" : v) }}
+      onValueChange={v => onChange(v === UNASSIGNED ? "" : v)}
     >
       <SelectPrimitive.Trigger
         onClick={e => e.stopPropagation()}
@@ -68,9 +64,12 @@ export function InlineDesignerSelect({ designer, designers, onChange, onRequestN
       </SelectPrimitive.Trigger>
       <SelectContent align="start">
         <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-        {options.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-        <SelectSeparator />
-        <SelectItem value={NEW_DESIGNER}>+ New designer…</SelectItem>
+        {options.map(d => (
+          <SelectItem key={d} value={d}>
+            {d}
+            {designer === d && !designers.includes(d) ? " (not in Users)" : ""}
+          </SelectItem>
+        ))}
       </SelectContent>
     </SelectPrimitive.Root>
   )

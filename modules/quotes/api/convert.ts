@@ -21,6 +21,7 @@ import { logError, logEvent } from "@/shared/logger"
 import { apiInternalError } from "@/shared/api-errors"
 import { parentJobService } from "@/modules/jobs/services/parent-work-item-service"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
+import { resolveDirectoryDesigner } from "@/modules/jobs/services/designer-directory"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -40,7 +41,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     try { body = await req.json() } catch { /* body optional */ }
 
     const changedBy      = actorName(auth.user)
-    const designer       = body.designer  ? String(body.designer).trim() : ""
+    const designerResolved = await resolveDirectoryDesigner(
+      body.designer ? String(body.designer) : "",
+    )
+    if (!designerResolved.ok) {
+      return NextResponse.json({ error: designerResolved.error, field: "designer" }, { status: 422 })
+    }
+    const designer = designerResolved.designer
     const requiredByDate = resolveRequiredByDate(body.requiredByDate ? String(body.requiredByDate) : null)
     const works          = resolveWorksFromQuote(quote!)
     const proceedDespiteHold = body.proceedDespiteHold === true

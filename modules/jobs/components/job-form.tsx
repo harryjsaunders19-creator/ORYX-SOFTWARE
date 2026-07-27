@@ -293,9 +293,9 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
           <div>
             <SH>Assignment</SH>
             <div className="space-y-3">
-              <F label="Designer / Engineer" hint={!job ? "Can be assigned later" : undefined}>
+              <F label="Designer / Engineer" hint={!job ? "Pick from Users — can leave unassigned" : "Active users only"}>
                 <DesignerCombobox value={form.designer} onChange={v => setForm(f => ({ ...f, designer: v }))}
-                  placeholder="Sarah Mitchell (optional)" designers={designers} />
+                  placeholder="Select a user…" designers={designers} />
               </F>
               {job && (
                 <F label="Status">

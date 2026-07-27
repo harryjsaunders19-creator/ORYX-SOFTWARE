@@ -75,9 +75,10 @@ export function AssignDesignerModal({ job, onClose, onSaved }: Props) {
               onChange={setName}
               placeholder="Select a user…"
               autoFocus
+              allowUnassigned={false}
             />
             <p className="text-[11px] text-t4 mt-1">
-              Names come from active users. Prefer an exact Users-tab name so performance tracking matches.
+              Choose from active Users — the same list Performance tracks.
             </p>
           </div>
         </form>
