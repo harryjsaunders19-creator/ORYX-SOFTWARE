@@ -11,4 +11,6 @@ export type {
 export {
   buildPerformancePayload,
   resolvePerformancePeriod,
+  aggregatePerformance,
+  normalizeKey,
 } from "./services/performance-service"

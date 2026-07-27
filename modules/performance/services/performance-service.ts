@@ -1,6 +1,15 @@
 /**
- * Aggregate designer performance from active users (all roles) + classic jobs.
- * Jobs are attributed when lower(trim(jobs.designer)) === lower(trim(user.name)).
+ * Aggregate designer performance from Users-tab people + classic jobs.
+ *
+ * Leaderboard rows = every user in `/users` (active and inactive), same
+ * directory the job designer picker uses. Jobs are attributed when the
+ * job's designer text matches a user name (case-insensitive, trimmed /
+ * whitespace-collapsed). If the exact name misses, a unique first-name
+ * match is accepted so "Harry" still lands on "Harry Saunders".
+ *
+ * Completed-in-period uses dateCompleted, falling back to updatedAt when
+ * ISSUED jobs were never stamped with a completion date (common for
+ * status-workflow transitions).
  */
 import { jobService } from "@/modules/jobs"
 import { userService } from "@/modules/users"
@@ -17,13 +26,34 @@ const IN_PROGRESS = new Set([
   "READY_TO_SEND",
 ])
 
+export interface PerformanceJobInput {
+  designer: string
+  status: string
+  dateCompleted: string | null
+  requiredByDate: string | null
+  updatedAt?: string | null
+}
+
+export interface PerformanceUserInput {
+  id: string
+  name: string
+  active?: number
+}
+
 function dayPart(iso: string | null | undefined): string | null {
   if (!iso) return null
   return iso.length >= 10 ? iso.slice(0, 10) : iso
 }
 
-function normalizeKey(name: string): string {
-  return name.trim().toLowerCase()
+/** Collapse internal whitespace and lower-case for stable name keys. */
+export function normalizeKey(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLowerCase()
+}
+
+function firstNameKey(name: string): string {
+  const full = normalizeKey(name)
+  if (!full) return ""
+  return full.split(" ")[0] ?? ""
 }
 
 function weeksInPeriod(from: string, to: string): number {
@@ -62,51 +92,83 @@ export function resolvePerformancePeriod(
   return { from, to }
 }
 
-export async function buildPerformancePayload(
-  period: PerformancePeriod,
-): Promise<PerformancePayload> {
-  const weeks = weeksInPeriod(period.from, period.to)
-  const today = todayIsoDate()
+type AccRow = {
+  userId: string
+  name: string
+  completedInPeriod: number
+  completedAllTime: number
+  inProgress: number
+  awaitingChecking: number
+  overdue: number
+  lastCompletedAt: string | null
+}
 
-  const [users, jobs] = await Promise.all([
-    userService.findMany({ activeOnly: true }),
-    jobService.findPerformanceFields(),
-  ])
+function emptyRow(userId: string, name: string): AccRow {
+  return {
+    userId,
+    name,
+    completedInPeriod: 0,
+    completedAllTime: 0,
+    inProgress: 0,
+    awaitingChecking: 0,
+    overdue: 0,
+    lastCompletedAt: null,
+  }
+}
 
-  const byName = new Map<string, {
-    userId: string
-    name: string
-    completedInPeriod: number
-    completedAllTime: number
-    inProgress: number
-    awaitingChecking: number
-    overdue: number
-    lastCompletedAt: string | null
-  }>()
+/**
+ * Pure aggregation — seed one row per Users-tab person, then attribute jobs.
+ * Exported for unit tests.
+ */
+export function aggregatePerformance(opts: {
+  users: PerformanceUserInput[]
+  jobs: PerformanceJobInput[]
+  period: PerformancePeriod
+  today?: string
+}): PerformancePayload {
+  const weeks = weeksInPeriod(opts.period.from, opts.period.to)
+  const today = opts.today ?? todayIsoDate()
 
-  for (const u of users) {
-    byName.set(normalizeKey(u.name), {
-      userId: u.id,
-      name: u.name,
-      completedInPeriod: 0,
-      completedAllTime: 0,
-      inProgress: 0,
-      awaitingChecking: 0,
-      overdue: 0,
-      lastCompletedAt: null,
-    })
+  const byName = new Map<string, AccRow>()
+  const firstNameIndex = new Map<string, string>() // firstName → normalizeKey(fullName), only if unique
+
+  for (const u of opts.users) {
+    const display = u.name.trim().replace(/\s+/g, " ")
+    if (!display) continue
+    const key = normalizeKey(display)
+    // Prefer the first user when duplicate names exist (stable, deterministic).
+    if (!byName.has(key)) {
+      byName.set(key, emptyRow(u.id, display))
+    }
+    const first = firstNameKey(display)
+    if (first && first !== key) {
+      if (firstNameIndex.has(first) && firstNameIndex.get(first) !== key) {
+        firstNameIndex.set(first, "") // ambiguous — disable fuzzy match
+      } else if (!firstNameIndex.has(first)) {
+        firstNameIndex.set(first, key)
+      }
+    }
   }
 
-  for (const job of jobs) {
-    const key = normalizeKey(job.designer)
-    if (!key) continue
-    const row = byName.get(key)
+  function resolveRow(designerRaw: string): AccRow | null {
+    const key = normalizeKey(designerRaw)
+    if (!key) return null
+    const exact = byName.get(key)
+    if (exact) return exact
+    const first = firstNameKey(designerRaw)
+    const mapped = first ? firstNameIndex.get(first) : undefined
+    if (mapped) return byName.get(mapped) ?? null
+    return null
+  }
+
+  for (const job of opts.jobs) {
+    const row = resolveRow(job.designer)
     if (!row) continue
 
-    const completedDay = dayPart(job.dateCompleted)
+    const completedDay = dayPart(job.dateCompleted) ?? dayPart(job.updatedAt)
     if (job.status === "ISSUED") {
       row.completedAllTime += 1
-      if (completedDay && completedDay >= period.from && completedDay <= period.to) {
+      if (completedDay && completedDay >= opts.period.from && completedDay <= opts.period.to) {
         row.completedInPeriod += 1
       }
       if (completedDay && (!row.lastCompletedAt || completedDay > row.lastCompletedAt)) {
@@ -146,7 +208,7 @@ export async function buildPerformancePayload(
   const activeDesigners = employees.filter(e => e.inProgress > 0).length
 
   return {
-    period,
+    period: opts.period,
     overview: {
       completedInPeriod,
       inProgress,
@@ -157,4 +219,17 @@ export async function buildPerformancePayload(
     },
     employees,
   }
+}
+
+export async function buildPerformancePayload(
+  period: PerformancePeriod,
+): Promise<PerformancePayload> {
+  // Same directory as the Users page — every person, not role-filtered.
+  // Active designers on jobs are picked from this same list.
+  const [users, jobs] = await Promise.all([
+    userService.findMany(),
+    jobService.findPerformanceFields(),
+  ])
+
+  return aggregatePerformance({ users, jobs, period })
 }

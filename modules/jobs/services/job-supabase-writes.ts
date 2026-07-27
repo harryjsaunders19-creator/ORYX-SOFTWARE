@@ -181,6 +181,13 @@ export const jobSupabaseWrites = {
       || (data.siteAddress !== undefined && (data.siteAddress?.trim() ?? "") !== (existing.siteAddress?.trim() ?? ""))
     )
 
+    // Stamp completion when moving to ISSUED (parity with work-items) so
+    // performance / period KPIs have a real completion day.
+    let dateCompleted = data.dateCompleted !== undefined ? data.dateCompleted : existing.dateCompleted
+    if (statusChanged && data.status === "ISSUED" && !dateCompleted) {
+      dateCompleted = now.slice(0, 10)
+    }
+
     const updated: JobRow = {
       ...existing,
       address,
@@ -195,7 +202,7 @@ export const jobSupabaseWrites = {
       requestedBy: data.requestedBy ?? existing.requestedBy,
       status: data.status ?? existing.status,
       designer: data.designer ?? existing.designer,
-      dateCompleted: data.dateCompleted !== undefined ? data.dateCompleted : existing.dateCompleted,
+      dateCompleted,
       notes: data.notes !== undefined ? data.notes : existing.notes,
       tags: data.tags !== undefined ? data.tags : existing.tags,
       quoteValue: data.quoteValue !== undefined ? data.quoteValue : existing.quoteValue,
