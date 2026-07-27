@@ -37,7 +37,7 @@ import {
   type DocumentScopeFilter,
 } from "../constants"
 import type { JobDocumentRow } from "../types"
-import { collectDroppedFiles, droppedFilesIncludeEmail } from "../collect-dropped-files"
+import { collectDroppedFilesFromCapture, captureDropDataSync, droppedFilesIncludeEmail, outlookDropHint } from "../collect-dropped-files"
 import { DocumentLightbox } from "./document-lightbox"
 import { DocumentPdfPreview } from "./document-pdf-preview"
 import { DocumentEmailCard } from "./document-email-card"
@@ -196,20 +196,23 @@ export function JobDocumentsPanel({
     }
   }
 
-  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     setDragOver(false)
     if (!writeOk || uploading) return
-    const files = await collectDroppedFiles(e.dataTransfer)
-    if (!files.length) {
-      toast(
-        "Could not import that drop. Drag the email from Outlook again, or save as .msg/.eml and upload.",
-        "error",
-      )
-      return
-    }
-    await uploadFiles(files, { preferEmailCategory: true })
+
+    // Capture DataTransfer synchronously — Outlook virtual files vanish after await.
+    const capture = captureDropDataSync(e.dataTransfer)
+
+    void (async () => {
+      const files = await collectDroppedFilesFromCapture(capture)
+      if (!files.length) {
+        toast(outlookDropHint(capture), "error")
+        return
+      }
+      await uploadFiles(files, { preferEmailCategory: true })
+    })()
   }
 
   const handleRename = async () => {
@@ -345,7 +348,8 @@ export function JobDocumentsPanel({
             Drag & drop files here — including emails from Outlook
           </p>
           <p className="text-sm text-t4 mt-1">
-            Images, PDFs, DWG/DXF, Office, ZIP, MSG/EML — up to 50 MB each
+            Classic Outlook works best. New Outlook may require Save As .msg/.eml.
+            Images, PDFs, DWG/DXF, Office, ZIP — up to 50 MB each.
           </p>
         </div>
       )}
