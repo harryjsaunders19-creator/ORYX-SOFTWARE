@@ -36,20 +36,6 @@ function sanitizeEmailDate(value: string | null | undefined): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
-function ensureEmailExtension(filename: string, mimeType: string): string {
-  const ext = fileExt(filename)
-  if (ext === ".eml" || ext === ".msg") return filename
-  if (mimeType === "message/rfc822") {
-    const base = filename.replace(/\.$/, "") || "email"
-    return `${base}.eml`
-  }
-  if (mimeType === "application/vnd.ms-outlook") {
-    const base = filename.replace(/\.$/, "") || "email"
-    return `${base}.msg`
-  }
-  return filename
-}
-
 export const jobDocumentService = {
   async list(opts: JobDocumentListOptions): Promise<JobDocumentListResult> {
     if (useRemote()) return supabaseJobDocumentRepo.list(opts)
@@ -74,13 +60,19 @@ export const jobDocumentService = {
     uploadedByName: string
     timelineJobId?: string | null
   }): Promise<JobDocumentRow> {
-    const originalFilename = ensureEmailExtension(
-      params.file.name || "file",
-      inferMimeType(params.file.name || "file", params.file.type),
-    )
+    const originalFilename = params.file.name || "file"
     const mimeType = inferMimeType(originalFilename, params.file.type)
+    if (isEmailFile(originalFilename, mimeType)) {
+      throw Object.assign(
+        new Error("Email files (.msg / .eml) are not supported — print the email to PDF and upload that"),
+        { status: 422 },
+      )
+    }
     if (!isAllowedUpload(originalFilename, mimeType)) {
-      throw Object.assign(new Error("File type is not allowed"), { status: 422 })
+      throw Object.assign(
+        new Error("Only PDF and image files can be uploaded"),
+        { status: 422 },
+      )
     }
     if (params.file.size > MAX_JOB_DOC_BYTES || params.file.buffer.length > MAX_JOB_DOC_BYTES) {
       throw Object.assign(new Error("File exceeds 50 MB limit"), { status: 422 })

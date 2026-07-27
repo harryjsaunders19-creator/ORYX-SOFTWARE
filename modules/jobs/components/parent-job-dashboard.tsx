@@ -545,7 +545,7 @@ export default function ParentJobDashboardPage({
           {activeTab === "documents" && (
             <div>
               <h2 className="text-lg font-semibold text-t1 mb-1">Documents</h2>
-              <p className="text-sm text-t3 mb-5">Emails, photos, drawings, and supporting files</p>
+              <p className="text-sm text-t3 mb-5">PDFs and images — print emails to PDF to attach them</p>
               <JobDocumentsPanel jobId={parent.id} showTitle={false} />
             </div>
           )}

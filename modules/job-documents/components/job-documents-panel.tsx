@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
   startTransition,
-  type ClipboardEvent,
   type DragEvent,
 } from "react"
 import { format } from "date-fns"
@@ -38,7 +37,7 @@ import {
   type DocumentScopeFilter,
 } from "../constants"
 import type { JobDocumentRow } from "../types"
-import { collectDroppedFilesFromCapture, captureDropDataSync, droppedFilesIncludeEmail, outlookDropHint } from "../collect-dropped-files"
+import { collectDroppedFilesFromCapture, captureDropDataSync } from "../collect-dropped-files"
 import { DocumentLightbox } from "./document-lightbox"
 import { DocumentPdfPreview } from "./document-pdf-preview"
 import { DocumentEmailCard } from "./document-email-card"
@@ -114,10 +113,8 @@ export function JobDocumentsPanel({
   const [categoryDoc, setCategoryDoc] = useState<JobDocumentRow | null>(null)
   const [categoryValue, setCategoryValue] = useState("General")
   const [deleteDoc, setDeleteDoc] = useState<JobDocumentRow | null>(null)
-  const [outlookHelpOpen, setOutlookHelpOpen] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const emailFileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async (pageNum = 1) => {
     setLoading(true)
@@ -155,25 +152,18 @@ export function JobDocumentsPanel({
     [docs],
   )
 
-  const uploadFiles = async (fileList: FileList | File[], opts?: {
-    preferEmailCategory?: boolean
-    synthesizedFromText?: boolean
-  }) => {
+  const uploadFiles = async (fileList: FileList | File[]) => {
     if (!writeOk) return
     const files = Array.from(fileList).filter(f => f.size > 0)
     if (!files.length) {
-      toast("Could not read the dropped file. Try saving the email as .msg/.eml first.", "error")
+      toast("No files to upload", "error")
       return
     }
     setUploading(true)
     try {
       const form = new FormData()
       for (const file of files) form.append("files", file)
-      const category =
-        opts?.preferEmailCategory && uploadCategory === "General" && droppedFilesIncludeEmail(files)
-          ? "Client Email"
-          : uploadCategory
-      form.append("category", category)
+      form.append("category", uploadCategory)
       if (attachToRevision) form.append("attachToRevision", "true")
 
       const res = await fetch(`/api/jobs/${jobId}/documents`, { method: "POST", body: form })
@@ -185,16 +175,7 @@ export function JobDocumentsPanel({
 
       const uploaded = data.documents?.length ?? 0
       if (uploaded) {
-        if (opts?.synthesizedFromText) {
-          toast(
-            uploaded === 1
-              ? "Email saved from Outlook text (attachments not included)"
-              : `${uploaded} emails saved from Outlook text (attachments not included)`,
-            "success",
-          )
-        } else {
-          toast(uploaded === 1 ? "Document uploaded" : `${uploaded} documents uploaded`, "success")
-        }
+        toast(uploaded === 1 ? "Document uploaded" : `${uploaded} documents uploaded`, "success")
         onTimelineChange?.()
         await load(1)
       }
@@ -208,24 +189,7 @@ export function JobDocumentsPanel({
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
-      if (emailFileInputRef.current) emailFileInputRef.current.value = ""
     }
-  }
-
-  const ingestDataTransfer = (dt: DataTransfer) => {
-    const capture = captureDropDataSync(dt)
-    void (async () => {
-      const { files, synthesizedFromText } = await collectDroppedFilesFromCapture(capture)
-      if (!files.length) {
-        setOutlookHelpOpen(true)
-        toast(outlookDropHint(capture), "error")
-        return
-      }
-      await uploadFiles(files, {
-        preferEmailCategory: true,
-        synthesizedFromText,
-      })
-    })()
   }
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -233,20 +197,23 @@ export function JobDocumentsPanel({
     e.stopPropagation()
     setDragOver(false)
     if (!writeOk || uploading) return
-    ingestDataTransfer(e.dataTransfer)
-  }
-
-  const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
-    if (!writeOk || uploading) return
-    const dt = e.clipboardData
-    if (!dt) return
-    // Only intercept when Outlook/files are on the clipboard
-    const hasFiles = (dt.files?.length ?? 0) > 0 || Array.from(dt.items ?? []).some(i => i.kind === "file")
-    const types = Array.from(dt.types ?? [])
-    const looksMail = types.some(t => /mail|outlook|plain|html/i.test(t))
-    if (!hasFiles && !looksMail) return
-    e.preventDefault()
-    ingestDataTransfer(dt)
+    const capture = captureDropDataSync(e.dataTransfer)
+    void (async () => {
+      const { files, rejected } = await collectDroppedFilesFromCapture(capture)
+      if (!files.length) {
+        toast(
+          rejected.some(n => /\.(msg|eml)$/i.test(n))
+            ? "Email files aren't supported — print to PDF and upload that"
+            : "Only PDF and image files can be uploaded",
+          "error",
+        )
+        return
+      }
+      if (rejected.length) {
+        toast("Skipped non-PDF/image files (including emails)", "error")
+      }
+      await uploadFiles(files)
+    })()
   }
 
   const handleRename = async () => {
@@ -307,7 +274,7 @@ export function JobDocumentsPanel({
             <h2 className="text-lg font-semibold text-t1">Documents</h2>
           ) : null}
           <p className={cn("text-sm text-t3", showTitle ? "mt-0.5" : "")}>
-            {total} file{total === 1 ? "" : "s"} — emails, photos, drawings and supporting files
+            {total} file{total === 1 ? "" : "s"} — PDFs and images (print emails to PDF)
           </p>
         </div>
         {writeOk && (
@@ -344,7 +311,7 @@ export function JobDocumentsPanel({
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".msg,.eml,.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.dwg,.dxf,.zip,.txt,message/rfc822,application/vnd.ms-outlook,application/pdf,image/*"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.heif,application/pdf,image/*"
               className="hidden"
               onChange={e => e.target.files && void uploadFiles(e.target.files)}
             />
@@ -354,7 +321,6 @@ export function JobDocumentsPanel({
 
       {writeOk && (
         <div
-          tabIndex={0}
           onDragEnter={e => {
             e.preventDefault()
             e.stopPropagation()
@@ -372,72 +338,18 @@ export function JobDocumentsPanel({
             setDragOver(false)
           }}
           onDrop={e => { handleDrop(e) }}
-          onPaste={e => { handlePaste(e) }}
           className={cn(
-            "rounded-lg border border-dashed px-4 py-7 text-center transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ac/40",
+            "rounded-lg border border-dashed px-4 py-7 text-center transition-colors",
             dragOver ? "border-ac bg-ac/5" : "border-bd bg-pg/30",
             uploading && "pointer-events-none opacity-60",
           )}
         >
-          <p className="text-base text-t2">
-            Drag & drop files here — or paste an Outlook email (Ctrl+V)
-          </p>
+          <p className="text-base text-t2">Drag & drop PDFs or images here</p>
           <p className="text-sm text-t4 mt-1">
-            If Outlook blocks the drop, use{" "}
-            <button
-              type="button"
-              className="text-ac hover:underline font-medium"
-              onClick={() => emailFileInputRef.current?.click()}
-            >
-              Choose .msg / .eml
-            </button>
-            {" "}or File → Save As in Outlook.
+            For emails, print to PDF first — then upload. Up to 50 MB each.
           </p>
-          <input
-            ref={emailFileInputRef}
-            type="file"
-            multiple
-            accept=".msg,.eml,message/rfc822,application/vnd.ms-outlook"
-            className="hidden"
-            onChange={e => e.target.files && void uploadFiles(e.target.files, { preferEmailCategory: true })}
-          />
         </div>
       )}
-
-      <Dialog open={outlookHelpOpen} onOpenChange={setOutlookHelpOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add email from Outlook</DialogTitle>
-            <DialogDescription>
-              Your Outlook app did not give the browser a full email file (common with New Outlook).
-              Save the message first, then upload it here so attachments are kept.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody className="space-y-3 text-sm text-t2">
-            <ol className="list-decimal pl-5 space-y-1.5">
-              <li>In Outlook, open the email</li>
-              <li>Choose <span className="font-semibold text-t1">File → Save As</span></li>
-              <li>Save as <span className="font-semibold text-t1">Outlook Message Format (.msg)</span> or <span className="font-semibold text-t1">.eml</span></li>
-              <li>Select that file below</li>
-            </ol>
-          </DialogBody>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOutlookHelpOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => {
-                setOutlookHelpOpen(false)
-                emailFileInputRef.current?.click()
-              }}
-            >
-              Choose .msg / .eml
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <div className="flex flex-col gap-3">
         <div className="relative">
@@ -445,7 +357,7 @@ export function JobDocumentsPanel({
           <Input
             value={q}
             onChange={e => setQ(e.target.value)}
-            placeholder="Search filename, category, email subject…"
+            placeholder="Search filename, category…"
             className="pl-9 h-10 text-base"
           />
         </div>

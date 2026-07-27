@@ -34,6 +34,7 @@ export const IMAGE_MIME = new Set([
 
 export const PDF_MIME = new Set(["application/pdf"])
 
+/** Kept for classifying any legacy email files already stored. */
 export const EMAIL_MIME = new Set([
   "message/rfc822",
   "application/vnd.ms-outlook",
@@ -46,38 +47,15 @@ export const DRAWING_EXT = new Set([".dwg", ".dxf"])
 
 export const CALC_EXT = new Set([".xlsx", ".xls", ".csv"])
 
+/** New uploads: images and PDFs only (print emails to PDF). */
 export const ALLOWED_MIME = new Set([
   ...IMAGE_MIME,
   ...PDF_MIME,
-  ...EMAIL_MIME,
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/zip",
-  "application/x-zip-compressed",
-  "application/octet-stream",
-  "application/acad",
-  "application/x-acad",
-  "application/dxf",
-  "image/vnd.dwg",
-  "image/vnd.dxf",
-  "text/plain",
-  // Windows / Outlook alternate labels for saved emails
-  "application/eml",
-  "text/eml",
-  "message/partial",
 ])
 
 export const ALLOWED_EXT = new Set([
   ".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif",
   ".pdf",
-  ".doc", ".docx",
-  ".xls", ".xlsx",
-  ".zip",
-  ".dwg", ".dxf",
-  ".msg", ".eml",
-  ".txt",
 ])
 
 export type DocumentKindFilter = "images" | "pdfs" | "emails" | "drawings" | "calculations" | "other"
@@ -89,7 +67,7 @@ export function fileExt(filename: string): string {
   return i >= 0 ? filename.slice(i).toLowerCase() : ""
 }
 
-/** Strip charset / boundary parameters: `message/rfc822; charset=utf-8` → `message/rfc822`. */
+/** Strip charset / boundary parameters: `application/pdf; charset=binary` → `application/pdf`. */
 export function baseMimeType(reported?: string | null): string {
   if (!reported) return ""
   return reported.split(";")[0]!.trim().toLowerCase()
@@ -99,41 +77,29 @@ export function inferMimeType(filename: string, reported?: string | null): strin
   const ext = fileExt(filename)
   const base = baseMimeType(reported)
 
-  // Always trust email extensions — browsers/Windows often lie about .eml MIME.
+  if (ext === ".pdf") return "application/pdf"
+  if ([".jpg", ".jpeg"].includes(ext)) return "image/jpeg"
+  if (ext === ".png") return "image/png"
+  if (ext === ".webp") return "image/webp"
+  if (ext === ".heic") return "image/heic"
+  if (ext === ".heif") return "image/heif"
+
+  // Legacy email files (read/download only — not accepted for new uploads)
   if (ext === ".eml") return "message/rfc822"
   if (ext === ".msg") return "application/vnd.ms-outlook"
 
-  if (base === "application/eml" || base === "text/eml" || base === "message/partial") {
-    return "message/rfc822"
-  }
   if (base && base !== "application/octet-stream" && base !== "application/force-download") {
     return base
   }
 
-  switch (ext) {
-    case ".jpg":
-    case ".jpeg": return "image/jpeg"
-    case ".png": return "image/png"
-    case ".webp": return "image/webp"
-    case ".heic": return "image/heic"
-    case ".heif": return "image/heif"
-    case ".pdf": return "application/pdf"
-    case ".doc": return "application/msword"
-    case ".docx": return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    case ".xls": return "application/vnd.ms-excel"
-    case ".xlsx": return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    case ".zip": return "application/zip"
-    case ".dwg": return "application/acad"
-    case ".dxf": return "application/dxf"
-    case ".txt": return "text/plain"
-    default: return base || "application/octet-stream"
-  }
+  return base || "application/octet-stream"
 }
 
 export function isAllowedUpload(filename: string, mime: string): boolean {
   const ext = fileExt(filename)
   if (ALLOWED_EXT.has(ext)) return true
-  return ALLOWED_MIME.has(baseMimeType(mime) || mime)
+  const base = baseMimeType(mime) || mime
+  return ALLOWED_MIME.has(base)
 }
 
 export function documentKind(mime: string, ext: string): DocumentKindFilter {
