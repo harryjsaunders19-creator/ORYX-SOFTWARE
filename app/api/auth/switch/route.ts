@@ -13,9 +13,10 @@ import { apiInternalError } from "@/shared/api-errors"
 import { withoutPassword } from "@/modules/users/types/user-types"
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { userService } from "@/lib/services/user-service"
-import { SESSION_COOKIE, getRealUser } from "@/lib/auth"
+import { SESSION_COOKIE, REAL_SESSION_COOKIE, getRealUser } from "@/lib/auth"
 import { setSessionCookies } from "@/lib/auth-cookies"
-import { verifySessionToken } from "@/lib/session-cookie"
+import { verifySessionToken, verifySessionTokenDetailed } from "@/lib/session-cookie"
+import { sessionRevocationService } from "@/lib/services/session-revocation-service"
 import { logError } from "@/shared/logger"
 
 async function softAuditLog(
@@ -50,6 +51,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
     }
 
+    // M3: pre-parse incoming cookies so we can revoke their specific token
+    // signatures immediately after we rotate session cookies.
+    const activeToken = req.cookies.get(SESSION_COOKIE)?.value
+    const realToken = req.cookies.get(REAL_SESSION_COOKIE)?.value
+    const [activeDetailed, realDetailed] = await Promise.all([
+      verifySessionTokenDetailed(activeToken),
+      verifySessionTokenDetailed(realToken),
+    ])
+
     if (realUser.id === target.id) {
       // Re-selecting your own real identity. Only worth logging as
       // "impersonation ended" if an impersonation was actually in
@@ -62,6 +72,22 @@ export async function POST(req: NextRequest) {
         await softAuditLog({ action: "IMPERSONATION_ENDED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name, detail: "Returned to own identity via switch" })
       }
       const res = NextResponse.json({ user: withoutPassword(target), isImpersonating: false })
+
+      // Revoke stolen/previous cookies immediately; they remain valid until exp.
+      await Promise.all([
+        activeDetailed
+          ? sessionRevocationService.revokeToken(
+              activeDetailed.tokenSig,
+              new Date(activeDetailed.expUnixSec * 1000).toISOString(),
+            )
+          : Promise.resolve(),
+        realDetailed
+          ? sessionRevocationService.revokeToken(
+              realDetailed.tokenSig,
+              new Date(realDetailed.expUnixSec * 1000).toISOString(),
+            )
+          : Promise.resolve(),
+      ])
       await setSessionCookies(res, target.id, realUser.id, {
         mustChangePassword: target.mustChangePassword === 1,
       })
@@ -84,6 +110,21 @@ export async function POST(req: NextRequest) {
       isImpersonating: true,
       realUser: { id: realUser.id, name: realUser.name },
     })
+
+    await Promise.all([
+      activeDetailed
+        ? sessionRevocationService.revokeToken(
+            activeDetailed.tokenSig,
+            new Date(activeDetailed.expUnixSec * 1000).toISOString(),
+          )
+        : Promise.resolve(),
+      realDetailed
+        ? sessionRevocationService.revokeToken(
+            realDetailed.tokenSig,
+            new Date(realDetailed.expUnixSec * 1000).toISOString(),
+          )
+        : Promise.resolve(),
+    ])
     await setSessionCookies(res, target.id, realUser.id)
     return res
   } catch (err) {

@@ -372,6 +372,17 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_identityswitch_real   ON IdentitySwitchLog(realUserId);
   CREATE INDEX IF NOT EXISTS idx_identityswitch_action ON IdentitySwitchLog(action);
 
+  -- ── Session revocations ────────────────────────────────────────────────
+  -- Stores token signatures (not user ids) so specific stolen cookies can be
+  -- invalidated early, before their original exp time.
+  CREATE TABLE IF NOT EXISTS SessionRevocation (
+    tokenSig   TEXT PRIMARY KEY,
+    revokedAt  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    expiresAt  TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sessionrevocation_expires ON SessionRevocation(expiresAt);
+
   -- ── Backup system ─────────────────────────────────────────────────
   -- One row per backup attempt, permanent — never deleted even once the
   -- underlying file is pruned by the retention policy (fileDeletedAt marks

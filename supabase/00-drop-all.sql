@@ -25,6 +25,7 @@ drop table if exists public.employee_profiles cascade;
 drop table if exists public.backup_audit_logs cascade;
 drop table if exists public.backup_jobs cascade;
 drop table if exists public.identity_switch_logs cascade;
+drop table if exists public.session_revocations cascade;
 drop table if exists public.billing_export_snapshots cascade;
 drop table if exists public.billing_handoffs cascade;
 drop table if exists public.billing_export_batches cascade;

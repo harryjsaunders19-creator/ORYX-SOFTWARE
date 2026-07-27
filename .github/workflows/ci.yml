@@ -30,10 +30,8 @@ jobs:
         run: npm run lint
 
       - name: Security audit
-        # High-severity issues exist in transitive deps (e.g. Next/sharp/postcss) that are
-        # not straightforward to remediate without larger dependency upgrades.
-        # We still fail CI on "critical" issues to keep the pipeline unblocked.
-        run: npm audit --audit-level=critical
+        # Fail on high+ so transitive advisories stay visible in CI.
+        run: npm audit --audit-level=high
 
       - name: Build
         run: npm run build

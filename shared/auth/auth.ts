@@ -13,7 +13,12 @@ import { NextResponse } from "next/server"
 import type { UserRow } from "@/lib/db/user-types"
 import type { Role } from "@/shared/types/role"
 import { userService } from "@/lib/services/user-service"
-import { verifySessionToken, SESSION_COOKIE, REAL_SESSION_COOKIE } from "@/shared/auth/session-cookie"
+import {
+  verifySessionTokenDetailed,
+  SESSION_COOKIE,
+  REAL_SESSION_COOKIE,
+} from "@/shared/auth/session-cookie"
+import { sessionRevocationService } from "@/lib/services/session-revocation-service"
 
 export { SESSION_COOKIE, REAL_SESSION_COOKIE }
 
@@ -26,7 +31,12 @@ export function passwordChangeRequiredResponse(): NextResponse {
 
 async function userIdFromCookie(name: string): Promise<string | null> {
   const store = await cookies()
-  return verifySessionToken(store.get(name)?.value)
+  const detailed = await verifySessionTokenDetailed(store.get(name)?.value)
+  if (!detailed) return null
+
+  // M3: block specific stolen cookies early, even before exp.
+  if (await sessionRevocationService.isTokenRevoked(detailed.tokenSig)) return null
+  return detailed.userId
 }
 
 /**

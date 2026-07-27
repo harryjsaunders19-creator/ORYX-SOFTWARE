@@ -12,6 +12,9 @@ import { useSupabaseUsers } from "@/lib/supabase/feature-flags"
 import { verifyPassword } from "@/lib/password"
 import { checkLoginRateLimit } from "@/lib/login-rate-limit"
 import { setSessionCookies } from "@/lib/auth-cookies"
+import { SESSION_COOKIE, REAL_SESSION_COOKIE } from "@/lib/auth"
+import { verifySessionTokenDetailed } from "@/lib/session-cookie"
+import { sessionRevocationService } from "@/lib/services/session-revocation-service"
 import { apiInternalError } from "@/shared/api-errors"
 import { logError } from "@/shared/logger"
 
@@ -86,6 +89,29 @@ export async function POST(req: NextRequest) {
       isImpersonating: false,
       realUser: null,
     })
+
+    // M3: if any existing (possibly stolen) session cookies are present in the
+    // browser, revoke their signatures before rotating to the fresh ones.
+    const activeToken = req.cookies.get(SESSION_COOKIE)?.value
+    const realToken = req.cookies.get(REAL_SESSION_COOKIE)?.value
+    const [activeDetailed, realDetailed] = await Promise.all([
+      verifySessionTokenDetailed(activeToken),
+      verifySessionTokenDetailed(realToken),
+    ])
+    await Promise.all([
+      activeDetailed
+        ? sessionRevocationService.revokeToken(
+            activeDetailed.tokenSig,
+            new Date(activeDetailed.expUnixSec * 1000).toISOString(),
+          )
+        : Promise.resolve(),
+      realDetailed
+        ? sessionRevocationService.revokeToken(
+            realDetailed.tokenSig,
+            new Date(realDetailed.expUnixSec * 1000).toISOString(),
+          )
+        : Promise.resolve(),
+    ])
 
     await setSessionCookies(res, user.id, user.id, {
       mustChangePassword: user.mustChangePassword === 1,

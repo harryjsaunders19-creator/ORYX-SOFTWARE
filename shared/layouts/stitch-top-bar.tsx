@@ -1,11 +1,18 @@
 "use client"
 import { useCallback, useMemo, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Search, HelpCircle, Menu } from "lucide-react"
+import { Search, HelpCircle, Menu, ExternalLink, Mail } from "lucide-react"
 import { NotificationsMenu } from "@/components/notifications-menu"
 import { UserProfileMenu } from "@/components/user-profile-menu"
 import { SettingsMenu } from "@/shared/layouts/settings-menu"
 import { MODULES } from "@/shared/auth/permissions"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 
 function routeContext(pathname: string): { section: string; trail: string } {
   if (pathname === "/") return { section: "ORYX OS", trail: "Dashboard Overview" }
@@ -90,9 +97,30 @@ export function StitchTopBar({ onMenuClick }: Props) {
         <div className="flex items-center gap-1">
           <NotificationsMenu />
           <SettingsMenu />
-          <button type="button" className="hidden rounded p-2 text-t3 transition-colors hover:text-t1 sm:block" aria-label="Help">
-            <HelpCircle className="h-5 w-5" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="hidden rounded p-2 text-t3 transition-colors hover:text-t1 sm:block" aria-label="Help">
+                <HelpCircle className="h-5 w-5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-3 py-2">
+                <p className="text-xs font-medium text-t1">ORYX OS</p>
+                <p className="text-xs text-t4">v{process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0"}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <a href="mailto:support@oryxgroup.co.uk" className="flex items-center gap-2">
+                  <Mail className="h-3.5 w-3.5" /> Email support
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href="https://oryxgroup.co.uk" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                  <ExternalLink className="h-3.5 w-3.5" /> Oryx website
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <UserProfileMenu />

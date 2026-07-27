@@ -93,8 +93,21 @@ export async function createSessionToken(userId: string): Promise<string> {
   return `${VERSION}.${payload}.${sig}`
 }
 
-/** Verify token and return the user id, or null if invalid/expired. */
-export async function verifySessionToken(token: string | undefined): Promise<string | null> {
+export type VerifiedSessionToken = {
+  userId: string
+  /** Token payload expiry (unix seconds). */
+  expUnixSec: number
+  /**
+   * HMAC signature part of the cookie (base64url, no padding).
+   * Used as the revocation key in `SessionRevocation`.
+   */
+  tokenSig: string
+}
+
+function parseVersionedToken(token: string | undefined): {
+  payload: string
+  tokenSig: string
+} | null {
   if (!token || !token.startsWith(`${VERSION}.`)) return null
 
   const rest = token.slice(VERSION.length + 1)
@@ -102,16 +115,37 @@ export async function verifySessionToken(token: string | undefined): Promise<str
   if (sigSep === -1) return null
 
   const payload = rest.slice(0, sigSep)
-  const signature = rest.slice(sigSep + 1)
+  const tokenSig = rest.slice(sigSep + 1)
+  const dot = payload.indexOf(".")
+  if (dot === -1) return null
+
+  // userId + expUnixSec are validated later.
+  return { payload, tokenSig }
+}
+
+/** Verify token and return full details, or null if invalid/expired. */
+export async function verifySessionTokenDetailed(
+  token: string | undefined,
+): Promise<VerifiedSessionToken | null> {
+  const parsed = parseVersionedToken(token)
+  if (!parsed) return null
+
+  const { payload, tokenSig } = parsed
   const dot = payload.indexOf(".")
   if (dot === -1) return null
 
   const userId = payload.slice(0, dot)
-  const exp = parseInt(payload.slice(dot + 1), 10)
-  if (!userId || isNaN(exp) || exp < Math.floor(Date.now() / 1000)) return null
+  const expUnixSec = parseInt(payload.slice(dot + 1), 10)
+  if (!userId || isNaN(expUnixSec) || expUnixSec < Math.floor(Date.now() / 1000)) return null
 
-  const ok = await verifyPayload(payload, signature)
-  return ok ? userId : null
+  const ok = await verifyPayload(payload, tokenSig)
+  return ok ? { userId, expUnixSec, tokenSig } : null
+}
+
+/** Verify token and return the user id, or null if invalid/expired. */
+export async function verifySessionToken(token: string | undefined): Promise<string | null> {
+  const detailed = await verifySessionTokenDetailed(token)
+  return detailed?.userId ?? null
 }
 
 /** Quick presence check for middleware — valid format + not expired (includes HMAC verify). */
