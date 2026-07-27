@@ -5,6 +5,7 @@
  * Returns: { job, quote }
  */
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { quoteService } from "../services/quote-service"
 import { createId } from "@paralleldrive/cuid2"
 import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
@@ -25,6 +26,12 @@ import { resolveDirectoryDesigner } from "@/modules/jobs/services/designer-direc
 
 type Ctx = { params: Promise<{ id: string }> }
 
+const convertQuoteBodySchema = z.object({
+  designer: z.string().optional(),
+  requiredByDate: z.union([z.string(), z.null()]).optional(),
+  proceedDespiteHold: z.boolean().optional(),
+}).passthrough()
+
 export async function POST(req: NextRequest, { params }: Ctx) {
   const auth = await requireSignIn()
   if (auth instanceof NextResponse) return auth
@@ -37,8 +44,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       return NextResponse.json(validation.body, { status: validation.status })
     }
 
-    let body: Record<string, unknown> = {}
-    try { body = await req.json() } catch { /* body optional */ }
+    let bodyRaw: unknown = {}
+    try { bodyRaw = await req.json() } catch { /* body optional */ }
+    const parsedBody = convertQuoteBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data as Record<string, unknown>
 
     const changedBy      = actorName(auth.user)
     const designerResolved = await resolveDirectoryDesigner(

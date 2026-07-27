@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { listResponse } from "@/shared/utils/api-cache"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/lib/services/client-service"
@@ -92,6 +93,31 @@ function filterByCurrentDisplay<T extends {
 
 // Reference-number prefixes for non-drawing item types — sourced from WORK_ITEM_TYPES
 const REF_PREFIXES = REF_PREFIX_BY_ITEM_TYPE
+
+const createJobBodySchema = z.object({
+  itemType: z.string().optional(),
+  tags: z.unknown().optional(),
+  siteName: z.string().optional(),
+  siteAddress: z.string().optional(),
+  address: z.string().optional(),
+  clientCompany: z.string().optional(),
+  clientId: z.string().optional(),
+  requestedBy: z.string().optional(),
+  typeOfWorks: z.string().optional(),
+  customTypeDescription: z.string().optional(),
+  designer: z.string().optional(),
+  proceedDespiteHold: z.boolean().optional(),
+  dateCompleted: z.union([z.string(), z.null()]).optional(),
+  notes: z.union([z.string(), z.null()]).optional(),
+  quoteValue: z.union([z.string(), z.number(), z.null()]).optional(),
+  quoteReference: z.union([z.string(), z.null()]).optional(),
+  quoteDate: z.union([z.string(), z.null()]).optional(),
+  commercialNotes: z.union([z.string(), z.null()]).optional(),
+  variationFees: z.union([z.string(), z.number(), z.null()]).optional(),
+  additionalCharges: z.union([z.string(), z.number(), z.null()]).optional(),
+  requestedDate: z.union([z.string(), z.null()]).optional(),
+  requiredByDate: z.union([z.string(), z.null()]).optional(),
+}).passthrough()
 
 export async function GET(req: NextRequest) {
   try {
@@ -198,9 +224,14 @@ export async function POST(req: NextRequest) {
     const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
 
-    let body: Record<string, unknown>
-    try { body = await req.json() }
+    let bodyRaw: unknown
+    try { bodyRaw = await req.json() }
     catch { return NextResponse.json({ error: "Invalid request body" }, { status: 400 }) }
+    const parsedBody = createJobBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data as Record<string, unknown>
 
     // Determine item type (defaults to DESIGN). Survey/Inspection are no longer creatable.
     const requestedType = typeof body.itemType === "string" ? body.itemType : "DESIGN"

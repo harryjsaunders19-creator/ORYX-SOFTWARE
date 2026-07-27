@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { billingHandoffService } from "../services/billing-handoff-service"
 import { buildAccountsHandoverWorkbook, workbookToBuffer } from "../billing-export"
 import { requireRole, actorName } from "@/shared/auth/auth"
@@ -9,6 +10,11 @@ import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth
 /** Large exports sync many handoffs + snapshots to Supabase — allow up to 60s. */
 export const maxDuration = 60
 
+const billingExportBodySchema = z.object({
+  handoffIds: z.array(z.string().min(1)).min(1, "No items selected"),
+  notes: z.union([z.string(), z.null()]).optional(),
+}).passthrough()
+
 export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
   if (auth instanceof NextResponse) return auth
@@ -18,15 +24,19 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json() as { handoffIds?: string[]; notes?: string | null }
-    const handoffIds = Array.isArray(body.handoffIds) ? body.handoffIds : []
-    if (!handoffIds.length) return NextResponse.json({ error: "No items selected" }, { status: 422 })
+    const bodyRaw = await req.json()
+    const parsedBody = billingExportBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      const issue = parsedBody.error.issues[0]
+      return NextResponse.json({ error: issue?.message ?? "Invalid request body", field: issue?.path?.[0] }, { status: 422 })
+    }
+    const { handoffIds, notes } = parsedBody.data
 
     const exportedBy = actorName(auth.user)
     const exportDate = new Date().toISOString().slice(0, 10)
 
     const { batch, snapshots } = await billingHandoffService.createExportBatch({
-      handoffIds, exportedBy, exportDate, notes: body.notes ?? null,
+      handoffIds, exportedBy, exportDate, notes: notes ?? null,
     })
 
     if (!snapshots.length) {

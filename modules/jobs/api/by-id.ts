@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/lib/services/client-service"
 import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE, sanitizeJobTags, type JobStatusValue } from "@/lib/constants"
@@ -11,6 +12,31 @@ import { billingHandoffService } from "@/modules/billing"
 import { resolveDirectoryDesigner } from "../services/designer-directory"
 
 type Ctx = { params: Promise<{ id: string }> }
+
+const patchJobBodySchema = z.object({
+  address: z.string().optional(),
+  siteName: z.union([z.string(), z.null()]).optional(),
+  siteAddress: z.union([z.string(), z.null()]).optional(),
+  typeOfWorks: z.string().optional(),
+  customTypeDescription: z.union([z.string(), z.null()]).optional(),
+  clientCompany: z.string().optional(),
+  clientId: z.union([z.string(), z.null()]).optional(),
+  requestedBy: z.string().optional(),
+  status: z.string().optional(),
+  designer: z.union([z.string(), z.null()]).optional(),
+  notes: z.union([z.string(), z.null()]).optional(),
+  requestedDate: z.union([z.string(), z.null()]).optional(),
+  requiredByDate: z.union([z.string(), z.null()]).optional(),
+  quoteReference: z.union([z.string(), z.null()]).optional(),
+  quoteDate: z.union([z.string(), z.null()]).optional(),
+  commercialNotes: z.union([z.string(), z.null()]).optional(),
+  billable: z.boolean().optional(),
+  tags: z.unknown().optional(),
+  dateCompleted: z.union([z.string(), z.null()]).optional(),
+  quoteValue: z.union([z.string(), z.number(), z.null()]).optional(),
+  variationFees: z.union([z.string(), z.number(), z.null()]).optional(),
+  additionalCharges: z.union([z.string(), z.number(), z.null()]).optional(),
+}).passthrough()
 
 export async function GET(req: NextRequest, { params }: Ctx) {
   try {
@@ -75,9 +101,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
-    let body: Record<string, unknown>
-    try { body = await req.json() }
+    let bodyRaw: unknown
+    try { bodyRaw = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
+    const parsedBody = patchJobBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data as Record<string, unknown>
 
     // Validate status if provided
     if (body.status && !VALID_STATUSES.includes(body.status as JobStatusValue)) {
