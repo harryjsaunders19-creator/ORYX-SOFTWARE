@@ -293,7 +293,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
           <div>
             <SH>Assignment</SH>
             <div className="space-y-3">
-              <F label="Designer / Engineer" hint={!job ? "Pick from Users — can leave unassigned" : "Active users only"}>
+              <F label="Designer / Engineer" hint="Users directory only — same list as Performance">
                 <DesignerCombobox value={form.designer} onChange={v => setForm(f => ({ ...f, designer: v }))}
                   placeholder="Select a user…" designers={designers} />
               </F>
