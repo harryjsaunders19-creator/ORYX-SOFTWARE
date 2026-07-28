@@ -1,7 +1,7 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
-import { Check, Loader2, X } from "lucide-react"
+import { Check, X } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useToast } from "@/shared/ui/toast"
 import { apiErrorDetail } from "@/shared/utils/error-message"
