@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { userService } from "../services/user-service"
-import { withoutPassword } from "../types/user-types"
+import { toPublicUser } from "../types/user-types"
 import { createId } from "@paralleldrive/cuid2"
 import { requireRole } from "@/shared/auth/auth"
-import { isValidRole, DEFAULT_ROLE } from "@/shared/auth/permissions"
+import { isValidRole, DEFAULT_ROLE, normalizeModuleAccess, serializeModuleAccess } from "@/shared/auth/permissions"
 import { generateTempPassword, hashPassword } from "@/lib/password"
 
 export async function GET() {
@@ -12,7 +13,7 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth
 
   try {
-    const users = (await userService.findMany()).map(withoutPassword)
+    const users = (await userService.findMany()).map(toPublicUser)
     return NextResponse.json({ users, total: users.length })
   } catch (err) {
     return apiInternalError("users.api.list", err)
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
     if (existing) return NextResponse.json({ error: `A user with email "${email}" already exists.` }, { status: 409 })
 
     const role = isValidRole(body.role) ? body.role : DEFAULT_ROLE
+    const moduleAccess = role === "ADMIN" ? null : normalizeModuleAccess(body.moduleAccess)
     const tempPassword = generateTempPassword()
 
     const user = await userService.create({
@@ -45,11 +47,12 @@ export async function POST(req: NextRequest) {
       name,
       email,
       role,
+      moduleAccessJson: serializeModuleAccess(moduleAccess),
       passwordHash: hashPassword(tempPassword),
       mustChangePassword: 1,
     })
 
-    return NextResponse.json({ user: withoutPassword(user), tempPassword }, { status: 201 })
+    return NextResponse.json({ user: toPublicUser(user), tempPassword }, { status: 201 })
   } catch (err) {
     return apiInternalError("users.api.list", err)
   }

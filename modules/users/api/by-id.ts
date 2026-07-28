@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { userService } from "../services/user-service"
-import { withoutPassword } from "../types/user-types"
+import { toPublicUser } from "../types/user-types"
 import { requireRole } from "@/shared/auth/auth"
-import { isValidRole } from "@/shared/auth/permissions"
+import { isValidRole, normalizeModuleAccess, serializeModuleAccess } from "@/shared/auth/permissions"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -14,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const { id } = await params
   const user = await userService.findUnique(id)
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  return NextResponse.json(withoutPassword(user))
+  return NextResponse.json(toPublicUser(user))
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
@@ -47,15 +48,25 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (body.role !== undefined && !isValidRole(body.role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 422 })
     }
+    if (body.moduleAccess !== undefined && body.moduleAccess !== null && !Array.isArray(body.moduleAccess)) {
+      return NextResponse.json({ error: "moduleAccess must be an array or null" }, { status: 422 })
+    }
+
+    const normalizedModuleAccess = body.moduleAccess === undefined ? undefined : normalizeModuleAccess(body.moduleAccess)
 
     const updated = await userService.update(id, {
       ...(body.name   !== undefined && { name:   String(body.name).trim() }),
       ...(body.email  !== undefined && { email:  body.email ? String(body.email).trim() : null }),
       ...(body.role   !== undefined && { role:   body.role as "ADMIN" | "ENGINEER" }),
       ...(body.active !== undefined && { active: body.active ? 1 : 0 }),
+      ...(normalizedModuleAccess !== undefined && {
+        moduleAccessJson: (body.role === "ADMIN" || existing.role === "ADMIN")
+          ? null
+          : serializeModuleAccess(normalizedModuleAccess),
+      }),
     })
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    return NextResponse.json(withoutPassword(updated))
+    return NextResponse.json(toPublicUser(updated))
   } catch (err) {
     return apiInternalError("users.api.by-id", err)
   }

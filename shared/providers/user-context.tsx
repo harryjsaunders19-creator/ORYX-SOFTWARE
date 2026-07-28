@@ -114,8 +114,8 @@ export function UserProvider({
   const isAdmin = role === "ADMIN"
 
   const canAccess = useCallback(
-    (moduleKey: string) => canAccessModuleFn(role, moduleKey),
-    [role],
+    (moduleKey: string) => canAccessModuleFn(role, moduleKey, user?.moduleAccess ?? null),
+    [role, user?.moduleAccess],
   )
 
   // With RSC fallback, treat as loaded once we have seeded or fetched data.

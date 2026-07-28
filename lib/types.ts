@@ -67,6 +67,7 @@ export interface User {
   email:     string | null
   role:      Role
   active:    number   // 1 = active, 0 = disabled
+  moduleAccess: string[] | null
   createdAt: string
   updatedAt: string
 }

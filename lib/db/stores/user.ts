@@ -42,11 +42,11 @@ export const userDb = {
     const now   = nowIso()
     const email = data.email?.trim() || null
     db.prepare(`
-      INSERT INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,1,?,?,?,?)
+      INSERT INTO User (id,name,email,emailLower,role,active,moduleAccessJson,passwordHash,mustChangePassword,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,1,?,?,?,?,?)
     `).run(
       data.id, data.name.trim(), email, email?.toLowerCase() ?? null,
-      data.role ?? "ENGINEER", data.passwordHash ?? null, data.mustChangePassword ?? 0,
+      data.role ?? "ENGINEER", data.moduleAccessJson ?? null, data.passwordHash ?? null, data.mustChangePassword ?? 0,
       now, now,
     )
     return this.findUnique(data.id)!
@@ -65,6 +65,7 @@ export const userDb = {
     }
     if (data.role               !== undefined) { fields.push('"role" = ?');               params.push(data.role) }
     if (data.active             !== undefined) { fields.push('"active" = ?');             params.push(data.active) }
+    if (data.moduleAccessJson   !== undefined) { fields.push('"moduleAccessJson" = ?');   params.push(data.moduleAccessJson) }
     if (data.passwordHash       !== undefined) { fields.push('"passwordHash" = ?');       params.push(data.passwordHash) }
     if (data.mustChangePassword !== undefined) { fields.push('"mustChangePassword" = ?'); params.push(data.mustChangePassword) }
     if (!fields.length) return existing
@@ -82,12 +83,12 @@ export const userDb = {
   rawInsertOrIgnore(user: import("@/lib/db/user-types").UserRow): void {
     const email = user.email?.trim() || null
     db.prepare(`
-      INSERT OR IGNORE INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?)
+      INSERT OR IGNORE INTO User (id,name,email,emailLower,role,active,moduleAccessJson,passwordHash,mustChangePassword,createdAt,updatedAt)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       user.id, user.name, email, email?.toLowerCase() ?? null,
       user.role ?? "ENGINEER", user.active ?? 1,
-      user.passwordHash ?? null, user.mustChangePassword ?? 0,
+      user.moduleAccessJson ?? null, user.passwordHash ?? null, user.mustChangePassword ?? 0,
       user.createdAt, user.updatedAt,
     )
   },

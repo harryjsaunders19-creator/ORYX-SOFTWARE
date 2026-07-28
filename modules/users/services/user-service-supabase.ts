@@ -16,6 +16,7 @@ function buildUser(data: CreateUserData): UserRow {
     emailLower: email?.toLowerCase() ?? null,
     role: data.role ?? "ENGINEER",
     active: 1,
+    moduleAccessJson: data.moduleAccessJson ?? null,
     passwordHash: data.passwordHash ?? null,
     mustChangePassword: data.mustChangePassword ?? 0,
     createdAt: now,
@@ -68,6 +69,7 @@ export const userService = {
       emailLower: email?.toLowerCase() ?? null,
       role: data.role ?? existing.role,
       active: data.active ?? existing.active,
+      moduleAccessJson: data.moduleAccessJson !== undefined ? data.moduleAccessJson : existing.moduleAccessJson,
       passwordHash: data.passwordHash !== undefined ? data.passwordHash : existing.passwordHash,
       mustChangePassword:
         data.mustChangePassword !== undefined
