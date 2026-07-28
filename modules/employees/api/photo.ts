@@ -15,8 +15,8 @@ import {
   canViewEmployeePhoto,
   canEditEmployeeField,
 } from "@/modules/employees"
-import { userService } from "@/lib/services/user-service"
-import { useSupabaseEmployees as employeesUseSupabase } from "@/lib/supabase/feature-flags"
+import { userService } from "@/modules/users"
+import { useSupabaseEmployees as employeesUseSupabase } from "@/shared/supabase/feature-flags"
 import { supabaseEmployeeRepo } from "@/modules/employees/supabase/repository"
 import type { EmployeeProfileRow } from "@/modules/employees/types/employee-types"
 import { nowIso } from "@/lib/db/helpers"

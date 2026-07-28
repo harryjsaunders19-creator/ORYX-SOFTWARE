@@ -1,6 +1,6 @@
 import { nowIso } from "@/lib/db/helpers"
 import { clientContactDb } from "@/lib/db/stores/client-contact"
-import { useSupabaseClients, isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { useSupabaseClients, isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import type { ClientContactInput, ClientContactRow } from "../types/client-contact-types"
 import { normalizeContactInputs } from "../types/client-contact-types"
 import { supabaseClientContactRepo } from "../supabase/client-contact-repository"

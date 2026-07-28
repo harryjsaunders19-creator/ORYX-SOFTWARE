@@ -1,4 +1,4 @@
-import type { UserRow } from "@/lib/db/user-types"
+import type { UserRow } from "@/modules/users/types"
 
 export type SearchEntityType =
   | "job"

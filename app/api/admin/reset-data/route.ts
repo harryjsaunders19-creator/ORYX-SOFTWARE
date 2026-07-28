@@ -5,10 +5,11 @@
  * Preserves user accounts. Requires ADMIN role + password confirmation.
  * When Supabase is linked, clears Supabase first then the local SQLite mirror.
  */
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/lib/auth"
-import { verifyPassword } from "@/lib/password"
+import { requireRole } from "@/shared/auth/auth"
+import { verifyPassword } from "@/shared/auth/password"
 import { resetSystemData } from "@/lib/services/reset-data-service"
 
 export async function POST(req: NextRequest) {

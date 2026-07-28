@@ -10,12 +10,12 @@ import type {
 } from "../types/billing-types"
 import type { AccountsHandoverSnapshot } from "@/lib/db/stores"
 import { supabaseBillingRepo } from "../supabase/repository"
-import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
+import { supabaseJobRepo } from "@/modules/jobs/supabase/repository"
 import { buildAccountsHandoverSnapshotsBatch } from "./billing-snapshot-builder"
 import { nextRefNumberAsync } from "@/shared/supabase/sequence-service"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { nowIso } from "@/lib/db/helpers"
-import { totalJobCommercialValue } from "@/lib/utils"
+import { totalJobCommercialValue } from "@/shared/utils"
 
 /** Serialize exports within one serverless instance to reduce overlapping clears. */
 let exportChain: Promise<unknown> = Promise.resolve()

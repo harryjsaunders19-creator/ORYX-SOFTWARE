@@ -8,8 +8,8 @@
  */
 import fs from "fs"
 import path from "path"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
+import { createAdminClient } from "@/shared/supabase/admin"
+import { isSupabaseAdminConfigured } from "@/shared/supabase/config"
 
 export const EMPLOYEE_FILES_BUCKET = "employee-files"
 /** Prefix stored in DB for objects in EMPLOYEE_FILES_BUCKET. */

@@ -8,7 +8,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { defaultRequiredByDate } from "@/shared/utils/utils"
 import { apiInternalError } from "@/shared/api-errors"
-import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { parentJobService, workItemService } from "../services/parent-work-item-service"
 import { resolveDirectoryDesigner } from "../services/designer-directory"
 

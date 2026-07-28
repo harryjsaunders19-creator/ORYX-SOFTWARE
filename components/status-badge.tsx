@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils"
+import { cn } from "@/shared/utils"
 import { getJobStatus } from "@/lib/constants"
 import { Typography } from "@/shared/design/typography"
 

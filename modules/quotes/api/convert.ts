@@ -11,9 +11,9 @@ import { createId } from "@paralleldrive/cuid2"
 import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
-import { isSupabaseOnly, isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
-import { ensureSequencesSeeded } from "@/lib/supabase/seed-sequences"
-import { ensureClientInSqlite } from "@/lib/services/client-service"
+import { isSupabaseOnly, isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
+import { ensureSequencesSeeded } from "@/shared/supabase/seed-sequences"
+import { ensureClientInSqlite } from "@/modules/clients"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { resolveWorksFromQuote } from "../convert-works"
 import { validateQuoteForConvert, quoteConvertHoldResponse } from "../convert-validate"
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
       // Best-effort: also set parent_job_id on the quote when column exists
       try {
-        const { createAdminClient } = await import("@/lib/supabase/admin")
+        const { createAdminClient } = await import("@/shared/supabase/admin")
         await createAdminClient()
           .from("quotes")
           .update({ parent_job_id: dashboard.parent.id })

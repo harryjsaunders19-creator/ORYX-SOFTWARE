@@ -7,7 +7,7 @@
  */
 import type { StatusHistoryRow } from "../types/history-types"
 import { historyDb } from "@/lib/db/stores"
-import { useSupabaseStatusHistory, isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { useSupabaseStatusHistory, isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { supabaseStatusHistoryRepo } from "../supabase/status-history-repository"
 import { supabaseJobRepo } from "../supabase/repository"
 import { createId as nanoid } from "@paralleldrive/cuid2"

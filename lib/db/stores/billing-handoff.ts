@@ -1,7 +1,7 @@
 /** BillingHandoff (Ready For Invoicing queue) table access. */
 import { db } from "../connection"
 import { nowIso } from "../helpers"
-import { totalJobCommercialValue } from "@/lib/utils"
+import { totalJobCommercialValue } from "@/shared/utils"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { jobDb } from "./job"
 import { clientDb } from "./client"

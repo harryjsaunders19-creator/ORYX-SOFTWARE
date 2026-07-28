@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { SESSION_COOKIE, REAL_SESSION_COOKIE, getRealUser } from "@/lib/auth"
+import { SESSION_COOKIE, REAL_SESSION_COOKIE, getRealUser } from "@/shared/auth/auth"
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
-import { clearSessionCookies } from "@/lib/auth-cookies"
-import { verifySessionTokenDetailed } from "@/lib/session-cookie"
+import { clearSessionCookies } from "@/shared/auth/auth-cookies"
+import { verifySessionTokenDetailed } from "@/shared/auth/session-cookie"
 import { sessionRevocationService } from "@/lib/services/session-revocation-service"
 import { logError } from "@/shared/logger"
 

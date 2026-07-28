@@ -2,8 +2,8 @@
  * Wipes operational Supabase tables (jobs, clients, quotes, billing, etc.).
  * Preserves app_users and seeded event_categories.
  */
-import { createAdminClient } from "@/lib/supabase/admin"
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
+import { createAdminClient } from "@/shared/supabase/admin"
+import { isSupabaseAdminConfigured } from "@/shared/supabase/config"
 
 function isMissingTableError(error: { code?: string; message?: string }): boolean {
   if (error.code === "42P01") return true

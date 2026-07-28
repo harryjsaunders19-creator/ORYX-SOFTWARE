@@ -1,5 +1,5 @@
 import { createId } from "@paralleldrive/cuid2"
-import type { UserRow } from "@/lib/db/user-types"
+import type { UserRow } from "@/modules/users/types"
 import type {
   EmployeeProfileRow,
   EmployeeSkillRow,
@@ -17,8 +17,8 @@ import {
   employeeNoteDb,
   employeeActivityDb,
 } from "@/lib/db/stores"
-import { userService } from "@/lib/services/user-service"
-import { useSupabaseEmployees } from "@/lib/supabase/feature-flags"
+import { userService } from "@/modules/users"
+import { useSupabaseEmployees } from "@/shared/supabase/feature-flags"
 import { supabaseEmployeeRepo } from "@/modules/employees/supabase/repository"
 import {
   resolveEmployeeAccess,

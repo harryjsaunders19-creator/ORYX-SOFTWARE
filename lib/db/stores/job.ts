@@ -1,7 +1,7 @@
 /** Job table access. */
 import { db } from "../connection"
 import { nowIso, buildWhere, safeOrder, type WhereClause, type FindManyOptions } from "../helpers"
-import { totalJobCommercialValue, todayIsoDate } from "@/lib/utils"
+import { totalJobCommercialValue, todayIsoDate } from "@/shared/utils"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { billingHandoffDb } from "./billing-handoff"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
@@ -307,7 +307,7 @@ export const jobDb = {
    * Supabase so FK constraints and subsequent SQLite writes work on Vercel,
    * where the ephemeral /tmp SQLite starts empty on cold boot.
    */
-  rawInsertOrIgnore(job: import("@/lib/db/job-types").JobRow): void {
+  rawInsertOrIgnore(job: import("@/modules/jobs/types/job-types").JobRow): void {
     db.prepare(`
       INSERT OR IGNORE INTO Job
         (id,drawingNumber,itemType,address,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,

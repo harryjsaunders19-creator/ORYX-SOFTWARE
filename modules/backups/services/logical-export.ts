@@ -6,11 +6,11 @@
  * JSON pack an admin can download and later re-import.
  */
 import { format } from "date-fns"
-import { jobService } from "@/lib/services/job-service"
-import { clientService } from "@/lib/services/client-service"
-import { quoteService } from "@/lib/services/quote-service"
-import { userService } from "@/lib/services/user-service"
-import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { jobService } from "@/modules/jobs"
+import { clientService } from "@/modules/clients"
+import { quoteService } from "@/modules/quotes"
+import { userService } from "@/modules/users"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { MAX_GLOBAL_EXPORT_ROWS } from "@/modules/import-export/constants"
 
 export const LOGICAL_BACKUP_VERSION = 1 as const

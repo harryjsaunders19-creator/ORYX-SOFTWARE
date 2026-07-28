@@ -14,10 +14,10 @@ import { jobDb } from "@/lib/db/stores/job"
 
 import { jobService } from "@/modules/jobs/services/job-service"
 
-import { useSupabaseJobs } from "@/lib/supabase/feature-flags"
+import { useSupabaseJobs } from "@/shared/supabase/feature-flags"
 
-import { createAdminClient } from "@/lib/supabase/admin"
-import { isMissingColumnError } from "@/lib/supabase/archived-filter"
+import { createAdminClient } from "@/shared/supabase/admin"
+import { isMissingColumnError } from "@/shared/supabase/archived-filter"
 
 import { geocodeAddress, geocodedAddressKey, searchLocations } from "./geocode-service"
 

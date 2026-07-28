@@ -4,11 +4,11 @@
  */
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { nowIso } from "@/lib/db/helpers"
-import { totalJobCommercialValue } from "@/lib/utils"
+import { totalJobCommercialValue } from "@/shared/utils"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import type { BillingHandoffRow } from "@/modules/billing/types/billing-types"
 import { supabaseBillingRepo } from "@/modules/billing/supabase/repository"
-import { useSupabaseBilling } from "@/lib/supabase/feature-flags"
+import { useSupabaseBilling } from "@/shared/supabase/feature-flags"
 import type { CreateJobData, JobRow, UpdateJobData } from "../types/job-types"
 import type { StatusHistoryRow } from "../types/history-types"
 import { supabaseJobRepo, isDuplicateDrawingNumberError } from "../supabase/repository"

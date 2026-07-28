@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import { nowIso } from "@/lib/db/helpers"
 
 type TokenSig = string

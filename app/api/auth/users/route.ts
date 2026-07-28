@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { userService } from "@/lib/services/user-service"
-import { requireSignIn } from "@/lib/auth"
+import { userService } from "@/modules/users"
+import { requireSignIn } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 
 /** Minimal public shape for account pickers — never expose email or password metadata. */

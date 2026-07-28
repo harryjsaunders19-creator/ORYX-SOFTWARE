@@ -1,422 +1,38 @@
 "use client"
-import { useState, useEffect, useCallback, memo, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { format }    from "date-fns"
 import {
   Search, Plus, Download, Upload, SlidersHorizontal,
-  Pencil, Trash2,
-  X, FolderOpen, ArrowUp, ArrowDown, ArrowUpDown, GitBranch, AlertTriangle, Clock,
-  MoreHorizontal, Building2, FileText, UserCircle2, PenTool, ClipboardCheck,
+  X, ClipboardCheck,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
 import { Textarea } from "@/shared/ui/textarea"
 import {
-  Select, SelectContent, SelectItem,
-  SelectTrigger, SelectValue,
-} from "@/shared/ui/select"
-import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuSeparator,
-} from "@/shared/ui/dropdown-menu"
-import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogDescription, DialogBody,
 } from "@/shared/ui/dialog"
-import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/components/status-badge"
-import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
-import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
 import dynamic from "next/dynamic"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
-import { InlineStatusSelect, InlineDesignerSelect } from "@/components/inline-edit-selects"
 
 // Lazy-load heavy dialog components — only downloaded when the user first
 // opens a create/edit dialog, not on every initial page load.
 const JobForm            = dynamic(() => import("./job-form").then(m => m.JobForm), { ssr: false })
 import { useToast }      from "@/shared/ui/toast"
 import { useUser }       from "@/shared/providers/user-context"
-import { JOB_STATUSES, WORK_ITEM_TYPES, WORKS_TYPES, getJobStatus } from "@/lib/constants"
-import { cn, formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue } from "@/shared/utils/utils"
-import { buildCsv, downloadCsv } from "@/shared/utils/download-csv"
-import { ToolbarCard, EmptyPanel, DataPanel, TablePagination } from "@/shared/layouts/page-layout"
+import { cn } from "@/shared/utils/utils"
+import { ToolbarCard, DataPanel, TablePagination } from "@/shared/layouts/page-layout"
 import { notifyRevisionsChanged } from "@/lib/revision-events"
 import { revisionParentId } from "@/lib/revision-chain"
-import { RevisionFamilyBadge } from "@/components/revision-family-badge"
 import type { Job, JobFormData, JobsResponse, SortField, SortDir } from "@/lib/types"
-
-const LIMIT = 25
-
-// Column visibility by breakpoint — mirrors the required mobile priority
-// order (Drawing No. → Address → Completion Status → Type of Works →
-// Client). Drawing No./Address/Completion Status have no hidden-* class
-// below, since they must always be visible. Requested By, Quotation, and
-// Designer are the least critical on a narrow screen, so they appear latest.
-const COL_TYPE_OF_WORKS = "hidden sm:table-cell"
-const COL_CLIENT        = "hidden sm:table-cell"
-const COL_REQUESTED_BY  = "hidden md:table-cell"
-const COL_QUOTATION     = "hidden lg:table-cell"
-const COL_DESIGNER      = "hidden lg:table-cell"
-
-function SkeletonRows() {
-  return (
-    <>
-      {Array.from({ length: 8 }).map((_, i) => (
-        <tr key={i} className="border-b border-bd">
-          {[110, 200, 130, 130, 120, 90, 130, 110].map((w, j) => (
-            <td key={j} className="px-4 py-3.5">
-              <div className="skeleton h-4" style={{ width: w }} />
-            </td>
-          ))}
-          <td className="px-4 py-3.5 w-16" />
-        </tr>
-      ))}
-    </>
-  )
-}
-
-function EmptyState({ hasFilters, onCreate, onClear }: {
-  hasFilters: boolean; onCreate: () => void; onClear: () => void
-}) {
-  return (
-    <tr>
-      <td colSpan={9} className="p-0">
-        <EmptyPanel
-          icon={FolderOpen}
-          title={hasFilters ? "No jobs match" : "No jobs yet"}
-          description={hasFilters ? "Try clearing your filters" : "Create your first job to get started"}
-          action={hasFilters
-            ? <Button variant="outline" size="sm" onClick={onClear}>Clear filters</Button>
-            : <Button variant="primary" size="sm" onClick={onCreate}><Plus className="h-3.5 w-3.5" />New job</Button>
-          }
-        />
-      </td>
-    </tr>
-  )
-}
-
-function SortTh({ field, label, current, dir, onSort, className }: {
-  field: SortField; label: string; current: SortField; dir: SortDir
-  onSort: (f: SortField) => void; className?: string
-}) {
-  const active = current === field
-  return (
-    <th
-      onClick={() => onSort(field)}
-      className={cn(
-        "px-4 py-2.5 text-left type-label text-t3 cursor-pointer select-none whitespace-nowrap",
-        className,
-      )}
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        {active
-          ? dir === "asc" ? <ArrowUp className="h-3.5 w-3.5 text-t2" /> : <ArrowDown className="h-3.5 w-3.5 text-t2" />
-          : <ArrowUpDown className="h-3.5 w-3.5 text-t4" />}
-      </span>
-    </th>
-  )
-}
-
-const JobMobileCard = memo(function JobMobileCard({
-  job,
-  isOnHold,
-  showTags,
-  onOpen,
-  onStatusChange,
-}: {
-  job: Job
-  isOnHold: boolean
-  /** Tags clutter the default list — only show while searching. */
-  showTags: boolean
-  // Perf: stable callbacks from parent so memo skips re-render when filters change.
-  onOpen: (jobId: string) => void
-  onStatusChange: (job: Job, status: string) => void
-}) {
-  const dl = getJobDeadlineInfo(job)
-  const showDeadline = dl.severity !== "none"
-  const total = totalJobCommercialValue(job)
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(job.id)}
-      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onOpen(job.id) }}
-      className={cn(
-        "rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5 cursor-pointer active:scale-[0.99] transition-transform",
-        JOB_ROW_BG[job.status] ?? "",
-        JOB_ROW_BORDER[job.status] ?? "",
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <RevisionFamilyBadge job={job} />
-            <span className="font-mono type-badge text-ac">{job.drawingNumber}</span>
-            {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
-              <WorkItemTypeBadge itemType={job.itemType} size="sm" />
-            )}
-            {showTags && (job.tags ?? []).slice(0, 2).map(tag => (
-              <span key={tag} className="type-helper px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
-                {tag}
-              </span>
-            ))}
-            {showTags && (job.tags ?? []).length > 2 && (
-              <span className="type-helper text-t4">+{(job.tags ?? []).length - 2}</span>
-            )}
-          </div>
-          <p className="text-sm font-medium text-t1 mt-1 line-clamp-2">{job.address}</p>
-          <p className="text-xs text-t3 mt-0.5 truncate">{job.clientCompany}</p>
-        </div>
-        {isOnHold && (
-          <AlertTriangle className="h-4 w-4 text-dn shrink-0" aria-label="Client on hold" />
-        )}
-      </div>
-
-      <div className="flex items-center justify-between gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
-        <InlineStatusSelect status={job.status} onChange={value => onStatusChange(job, value)} size="lg" />
-        {showDeadline && (
-          <span className={cn(
-            "inline-flex items-center gap-1 type-badge px-2 py-1 rounded-full border",
-            dl.severity === "overdue" ? "bg-dn-bg text-dn-tx border-dn-bd"
-              : dl.severity === "today" ? "bg-wn-bg text-wn-tx border-wn-bd"
-              : "bg-wn-bg/60 text-wn-tx border-wn-bd/60",
-          )}>
-            <Clock className="h-3.5 w-3.5 shrink-0" />
-            {dl.label}
-          </span>
-        )}
-      </div>
-
-      {(total != null || job.designer) && (
-        <div className="flex items-center justify-between gap-2 text-xs text-t3 pt-0.5 border-t border-bd/60">
-          {total != null && (
-            <span className="tabular-nums font-medium text-t2">{formatGBP(total)}</span>
-          )}
-          {job.designer && (
-            <span className="truncate">{job.designer}</span>
-          )}
-        </div>
-      )}
-    </div>
-  )
-})
-
-type JobWithRevision = Job & { canAddRevision?: boolean }
-
-interface JobTableRowProps {
-  job:                  JobWithRevision
-  isOnHold:             boolean
-  designers:            string[]
-  isAdmin:              boolean
-  creatingRevisionFor:  string | null
-  /** Tags clutter the default list — only show while searching. */
-  showTags:             boolean
-  onPatchField:         (job: JobWithRevision, field: "status" | "designer", value: string) => void
-  onEdit:               (job: JobWithRevision) => void
-  onDelete:             (job: JobWithRevision) => void
-  onQuickRevision:      (job: JobWithRevision) => void
-  onNavigate:           (path: string) => void
-}
-
-// Memoized desktop table row. Re-renders only when the job data itself changes
-// (e.g. after an inline status/designer edit), not when parent state like
-// search filters or page number changes.
-const JobTableRow = memo(
-  function JobTableRow({
-    job, isOnHold, designers, isAdmin, creatingRevisionFor, showTags,
-    onPatchField, onEdit, onDelete, onQuickRevision, onNavigate,
-  }: JobTableRowProps) {
-    const dl = getJobDeadlineInfo(job)
-    const showDeadlineFlag = dl.severity === "overdue" || dl.severity === "today" || dl.severity === "soon"
-
-    return (
-      <tr
-        onClick={() => onNavigate(`/jobs/${job.id}`)}
-        className={cn(
-          "border-b border-bd last:border-0 cursor-pointer group",
-          JOB_ROW_BG[job.status] ?? "",
-          JOB_ROW_BORDER[job.status] ?? "",
-          "hover:brightness-[0.98]",
-        )}
-      >
-        <td className="px-4 py-3.5 whitespace-nowrap">
-          <span className="flex items-center gap-1.5 flex-wrap">
-            <RevisionFamilyBadge job={job} />
-            <span className="font-mono type-badge text-ac">{job.drawingNumber}</span>
-            {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
-              <WorkItemTypeBadge itemType={job.itemType} size="sm" />
-            )}
-            {showTags && (job.tags ?? []).slice(0, 2).map(tag => (
-              <span key={tag} className="type-helper px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
-                {tag}
-              </span>
-            ))}
-            {showTags && (job.tags ?? []).length > 2 && (
-              <span className="type-helper text-t4">+{(job.tags ?? []).length - 2}</span>
-            )}
-          </span>
-        </td>
-
-        <td className="px-4 py-3.5 max-w-[220px]">
-          <p className="text-sm font-medium text-t1 truncate" title={job.address}>{job.address}</p>
-        </td>
-
-        <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
-          <TypeOfWorksBadge typeOfWorks={job.typeOfWorks} customTypeDescription={job.customTypeDescription} size="sm" />
-        </td>
-
-        <td className={cn("px-4 py-3.5 max-w-[170px]", COL_CLIENT)}>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {isOnHold && (
-              <span title="Client on hold"><AlertTriangle className="h-3.5 w-3.5 text-dn shrink-0" /></span>
-            )}
-            <p className="text-xs font-medium text-t1 truncate">{job.clientCompany}</p>
-            {isOnHold && (
-              <span className="type-badge px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx whitespace-nowrap">
-                On Hold
-              </span>
-            )}
-          </div>
-        </td>
-
-        <td className={cn("px-4 py-3.5 max-w-[150px]", COL_REQUESTED_BY)}>
-          <p className="text-xs text-t3 truncate flex items-center gap-1.5">
-            <UserCircle2 className="h-3.5 w-3.5 text-t4 shrink-0" />
-            {job.requestedBy || <span className="italic text-t4">—</span>}
-          </p>
-        </td>
-
-        <td className={cn("px-4 py-3.5 whitespace-nowrap text-right", COL_QUOTATION)}>
-          <p className="text-xs tabular-nums font-medium text-t2">
-            {totalJobCommercialValue(job) != null
-              ? formatGBP(totalJobCommercialValue(job))
-              : job.quoteValue != null
-                ? formatGBP(job.quoteValue)
-                : <span className="text-t4">—</span>}
-          </p>
-          {(job.variationFees != null || job.additionalCharges != null) && job.quoteValue != null && (
-            <p className="type-helper text-t4 tabular-nums">incl. extras</p>
-          )}
-          {job.quoteReference && (
-            <p className="type-helper font-mono text-t4 tabular-nums">{job.quoteReference}</p>
-          )}
-        </td>
-
-        <td className="px-4 py-3.5 whitespace-nowrap min-w-[148px]" onClick={e => e.stopPropagation()}>
-          <InlineStatusSelect
-            status={job.status}
-            onChange={value => onPatchField(job, "status", value)}
-            size="lg"
-          />
-          {showDeadlineFlag && (
-            <p className={cn(
-              "mt-1 inline-flex items-center gap-1 type-badge",
-              dl.severity === "overdue" ? "text-dn-tx" : "text-wn-tx",
-            )}>
-              {dl.severity === "overdue" && <Clock className="h-2.5 w-2.5 shrink-0" />}
-              {dl.label}
-            </p>
-          )}
-        </td>
-
-        <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_DESIGNER)} onClick={e => e.stopPropagation()}>
-          <div className="flex items-center gap-1.5">
-            <PenTool className="h-3.5 w-3.5 text-t4 shrink-0" />
-            <InlineDesignerSelect
-              designer={job.designer}
-              designers={designers}
-              onChange={value => onPatchField(job, "designer", value)}
-            />
-          </div>
-        </td>
-
-        <td className="px-3 py-3.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center justify-end gap-1.5">
-            {job.canAddRevision && (
-              <Button
-                variant="outline"
-                size="sm"
-                loading={creatingRevisionFor === job.id}
-                onClick={() => onQuickRevision(job)}
-                title="Create the next revision in this chain"
-                className="shrink-0"
-              >
-                <GitBranch className="h-3.5 w-3.5" />
-                Add revision
-              </Button>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={cn(
-                    "h-7 w-7 rounded flex items-center justify-center text-t4 hover:text-t2 hover:bg-pg",
-                    "invisible group-hover:visible data-[state=open]:visible data-[state=open]:bg-pg data-[state=open]:text-t2",
-                  )}
-                  title="Quick actions"
-                >
-                  <MoreHorizontal className="h-3.5 w-3.5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => onEdit(job)}>
-                  <Pencil className="h-3.5 w-3.5 text-t4" /> Edit job
-                </DropdownMenuItem>
-                {job.clientId && (
-                  <DropdownMenuItem onSelect={() => onNavigate(`/clients/${job.clientId}`)}>
-                    <Building2 className="h-3.5 w-3.5 text-t4" /> View client
-                  </DropdownMenuItem>
-                )}
-                {job.quoteReference && (
-                  <DropdownMenuItem onSelect={() => onNavigate(`/quotes?search=${encodeURIComponent(job.quoteReference!)}`)}>
-                    <FileText className="h-3.5 w-3.5 text-t4" /> Open quote
-                  </DropdownMenuItem>
-                )}
-                {isAdmin && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem danger onSelect={() => onDelete(job)}>
-                      <Trash2 className="h-3.5 w-3.5" /> Cancel job
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </td>
-      </tr>
-    )
-  },
-  // Custom comparator: skip re-render unless the job data or display-critical
-  // props change. Callbacks are intentionally excluded — they can be stale
-  // without causing data corruption because patchJobField uses functional state
-  // updates and refresh is idempotent.
-  (prev, next) =>
-    prev.job === next.job &&
-    prev.isOnHold === next.isOnHold &&
-    prev.creatingRevisionFor === next.creatingRevisionFor &&
-    prev.designers === next.designers &&
-    prev.isAdmin === next.isAdmin &&
-    prev.showTags === next.showTags,
-)
-
-function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
-  return (
-    <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full border border-ac/30 bg-ac-bg type-badge text-ac">
-      {label}
-      <button
-        type="button"
-        onClick={onRemove}
-        className="rounded-full p-0.5 hover:bg-ac/15 text-ac"
-        aria-label={`Remove ${label} filter`}
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
-    </span>
-  )
-}
+import { LIMIT, COL_TYPE_OF_WORKS, COL_CLIENT, COL_REQUESTED_BY, COL_QUOTATION, COL_DESIGNER } from "./jobs-table-columns"
+import {
+  SkeletonRows, EmptyState, SortTh, JobMobileCard, JobTableRow,
+} from "./jobs-table-row"
+import { JobsActiveFilterChips, JobsFilterBar } from "./jobs-filter-bar"
+import { exportJobsToCsv } from "./job-csv-export"
 
 export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" }) {
   const isCheckingQueue = mode === "checking"
@@ -678,43 +294,18 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   }, [mutate, router, toast])
 
   const handleExport = async () => {
-    const qs = new URLSearchParams({
-      export: "true",
-      ...(search                  && { search }),
-      ...(statusFilter !== "ALL"  && { status: statusFilter }),
-      ...(itemTypeFilter && itemTypeFilter !== "ALL" && { itemType: itemTypeFilter }),
-      ...(typeOfWorksFilter && typeOfWorksFilter !== "ALL" && { typeOfWorks: typeOfWorksFilter }),
-      ...(deadlineFilter === "overdue"   && { overdue: "true" }),
-      ...(deadlineFilter === "today"     && { dueToday: "true" }),
-      ...(deadlineFilter === "this_week" && { dueThisWeek: "true" }),
-      ...(onlyOriginals && { onlyOriginals: "true" }),
-      ...(onlyRevisions && { onlyRevisions: "true" }),
-    })
-    try {
-      const { jobs, truncated, total } = await fetch(`/api/jobs?${qs}`).then(r => r.json()) as {
-        jobs: Job[]
-        truncated?: boolean
-        total?: number
-      }
-      const headers = ["Drawing No.","Address","Type of Works","Custom Type Description","Client","Requested By","Item Type","Status","Designer","Quote Value","Quote Ref","Date Created","Date Completed","Originally Entered As","Notes"]
-      const rows = jobs.map(j => [
-        j.drawingNumber, j.address, j.typeOfWorks, j.customTypeDescription ?? "", j.clientCompany, j.requestedBy,
-        j.itemType ?? "DESIGN", getJobStatus(j.status).label, j.designer,
-        j.quoteValue != null ? j.quoteValue.toString() : "",
-        j.quoteReference ?? "",
-        format(new Date(j.dateCreated), "dd/MM/yyyy"),
-        j.dateCompleted ? format(parseLocalDate(j.dateCompleted), "dd/MM/yyyy") : "",
-        j.legacyTypeOfWorks ?? "",
-        j.notes ?? "",
-      ])
-      downloadCsv(`oryx-jobs-${format(new Date(), "yyyy-MM-dd")}.csv`, buildCsv(headers, rows))
-      toast(
-        truncated && total != null
-          ? `Exported ${jobs.length} of ${total} jobs (limit reached — narrow filters for a full export)`
-          : `Exported ${jobs.length} job${jobs.length !== 1 ? "s" : ""}`,
-        truncated ? "info" : "success",
-      )
-    } catch { toast("Export failed", "error") }
+    await exportJobsToCsv(
+      {
+        search,
+        statusFilter,
+        itemTypeFilter,
+        typeOfWorksFilter,
+        deadlineFilter,
+        onlyOriginals,
+        onlyRevisions,
+      },
+      toast,
+    )
   }
 
   const hasFilters = !!search || (!isCheckingQueue && statusFilter !== "ALL") || itemTypeFilter !== "ALL" || typeOfWorksFilter !== "ALL" || deadlineFilter !== "ALL" || onlyOriginals || onlyRevisions
@@ -793,132 +384,43 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       </ToolbarCard>
 
       {/* Active filters — always visible so status/deadline chips can be cleared without opening the panel */}
-      {(isCheckingQueue || hasFilters || !!search) && (
-        <div className="flex items-center gap-2 flex-wrap mb-3">
-          {(isCheckingQueue || statusFilter !== "ALL") && (
-            <ActiveFilterChip
-              label={getJobStatus(isCheckingQueue ? "CHECKING" : statusFilter).label}
-              onRemove={clearStatusFilter}
-            />
-          )}
-          {deadlineFilter === "overdue" && (
-            <ActiveFilterChip label="Overdue" onRemove={() => { setDeadlineFilter("ALL"); setPage(1) }} />
-          )}
-          {deadlineFilter === "today" && (
-            <ActiveFilterChip label="Due today" onRemove={() => { setDeadlineFilter("ALL"); setPage(1) }} />
-          )}
-          {deadlineFilter === "this_week" && (
-            <ActiveFilterChip label="Due this week" onRemove={() => { setDeadlineFilter("ALL"); setPage(1) }} />
-          )}
-          {itemTypeFilter !== "ALL" && (
-            <ActiveFilterChip
-              label={WORK_ITEM_TYPES.find(t => t.value === itemTypeFilter)?.label ?? itemTypeFilter}
-              onRemove={() => { setItemTypeFilter("ALL"); setPage(1) }}
-            />
-          )}
-          {typeOfWorksFilter !== "ALL" && (
-            <ActiveFilterChip label={typeOfWorksFilter} onRemove={() => { setTypeOfWorksFilter("ALL"); setPage(1) }} />
-          )}
-          {onlyOriginals && (
-            <ActiveFilterChip label="Originals only" onRemove={() => { setOnlyOriginals(false); setPage(1) }} />
-          )}
-          {onlyRevisions && (
-            <ActiveFilterChip label="Revisions only" onRemove={() => { setOnlyRevisions(false); setPage(1) }} />
-          )}
-          {search && (
-            <ActiveFilterChip label={`Search: ${search}`} onRemove={() => setSearch("")} />
-          )}
-          {(hasFilters || !!search) && !isCheckingQueue && (
-            <button
-              type="button"
-              onClick={clearAllFilters}
-              className="text-xs text-t3 hover:text-t2 underline underline-offset-2"
-            >
-              Clear all
-            </button>
-          )}
-          {isCheckingQueue && (
-            <button
-              type="button"
-              onClick={clearAllFilters}
-              className="text-xs text-t3 hover:text-t2 underline underline-offset-2"
-            >
-              View all jobs
-            </button>
-          )}
-        </div>
-      )}
+      <JobsActiveFilterChips
+        isCheckingQueue={isCheckingQueue}
+        hasFilters={hasFilters}
+        search={search}
+        statusFilter={statusFilter}
+        deadlineFilter={deadlineFilter}
+        itemTypeFilter={itemTypeFilter}
+        typeOfWorksFilter={typeOfWorksFilter}
+        onlyOriginals={onlyOriginals}
+        onlyRevisions={onlyRevisions}
+        clearStatusFilter={clearStatusFilter}
+        setDeadlineFilter={setDeadlineFilter}
+        setItemTypeFilter={setItemTypeFilter}
+        setTypeOfWorksFilter={setTypeOfWorksFilter}
+        setOnlyOriginals={setOnlyOriginals}
+        setOnlyRevisions={setOnlyRevisions}
+        setSearch={setSearch}
+        setPage={setPage}
+        clearAllFilters={clearAllFilters}
+      />
 
       {/* Filter bar */}
       {showFilters && (
-        <div className="flex items-center gap-3 mb-4 px-4 py-3 bg-sr border border-bd rounded-xl shadow-card flex-wrap">
-          <span className="text-xs font-medium text-t2">Status</span>
-          <div className="w-44">
-            <Select value={statusFilter} onValueChange={applyStatusFilter}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All statuses</SelectItem>
-                {JOB_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Type of Works — a Select rather than pills, unlike item type below:
-              18 controlled values would overwhelm a pill row at this width. */}
-          <div className="h-4 w-px bg-bd" />
-          <span className="text-xs font-medium text-t2">Type of Works</span>
-          <div className="w-48">
-            <Select value={typeOfWorksFilter} onValueChange={v => { setTypeOfWorksFilter(v); setPage(1) }}>
-              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All types of works</SelectItem>
-                {WORKS_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Work item type */}
-          <div className="h-4 w-px bg-bd" />
-          <span className="text-xs font-medium text-t2">Type</span>
-          <div className="flex items-center gap-1 flex-wrap">
-            <button onClick={() => { setItemTypeFilter("ALL"); setPage(1) }}
-              className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === "ALL" ? "bg-ac text-on-ac" : "border border-bd text-t3 hover:text-t2"}`}>
-              All
-            </button>
-            {WORK_ITEM_TYPES.map(t => (
-              <button key={t.value} onClick={() => { setItemTypeFilter(t.value); setPage(1) }}
-                className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === t.value ? `${t.color}` : "border border-bd text-t3 hover:text-t2"}`}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Deadline filter */}
-          <div className="h-4 w-px bg-bd" />
-          <span className="text-xs font-medium text-t2">Deadline</span>
-          <div className="flex items-center gap-1">
-            {[
-              { v: "ALL",       l: "All" },
-              { v: "overdue",   l: "Overdue",   cls: "text-dn-tx bg-dn-bg" },
-              { v: "today",     l: "Due today",  cls: "text-wn-tx bg-wn-bg" },
-              { v: "this_week", l: "This week",  cls: "text-wn-tx bg-wn-bg/60" },
-            ].map(({ v, l, cls }) => (
-              <button key={v} onClick={() => { setDeadlineFilter(v); setPage(1) }}
-                className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${
-                  deadlineFilter === v
-                    ? (v === "ALL" ? "bg-ac text-on-ac" : (cls ?? "bg-ac text-on-ac"))
-                    : "border border-bd text-t3 hover:text-t2"
-                }`}>
-                {l}
-              </button>
-            ))}
-          </div>
-
-          {(hasFilters || isCheckingQueue) && (
-            <button onClick={clearAllFilters}
-              className="text-xs text-t3 hover:text-t2 underline underline-offset-2">
-              {isCheckingQueue ? "View all jobs" : "Clear all"}
-            </button>
-          )}
-        </div>
+        <JobsFilterBar
+          statusFilter={statusFilter}
+          applyStatusFilter={applyStatusFilter}
+          typeOfWorksFilter={typeOfWorksFilter}
+          setTypeOfWorksFilter={setTypeOfWorksFilter}
+          itemTypeFilter={itemTypeFilter}
+          setItemTypeFilter={setItemTypeFilter}
+          deadlineFilter={deadlineFilter}
+          setDeadlineFilter={setDeadlineFilter}
+          hasFilters={hasFilters}
+          isCheckingQueue={isCheckingQueue}
+          clearAllFilters={clearAllFilters}
+          setPage={setPage}
+        />
       )}
 
       {isCheckingQueue && (

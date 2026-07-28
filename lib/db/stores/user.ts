@@ -80,7 +80,7 @@ export const userDb = {
 
   /** Insert a user row from an external source (e.g. Supabase) without triggering side-effects.
    *  Uses INSERT OR IGNORE so it is safe to call even when the row already exists. */
-  rawInsertOrIgnore(user: import("@/lib/db/user-types").UserRow): void {
+  rawInsertOrIgnore(user: import("@/modules/users/types").UserRow): void {
     const email = user.email?.trim() || null
     db.prepare(`
       INSERT OR IGNORE INTO User (id,name,email,emailLower,role,active,moduleAccessJson,passwordHash,mustChangePassword,createdAt,updatedAt)

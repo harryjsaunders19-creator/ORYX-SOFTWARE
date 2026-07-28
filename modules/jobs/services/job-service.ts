@@ -3,7 +3,7 @@
  * Uses createRequire so the hybrid module is never evaluated when isSupabaseOnly().
  */
 import { createRequire } from "node:module"
-import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 
 const require = createRequire(import.meta.url)
 

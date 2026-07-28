@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { jobService } from "@/lib/services/job-service"
+import { jobService } from "@/modules/jobs"
 import { requireRole } from "@/shared/auth/auth"
-import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { DRAWING_SEQUENCE_KEY } from "@/lib/drawing-number"
 
 export async function GET() {
@@ -12,7 +12,7 @@ export async function GET() {
 
   if (isSupabaseOnly()) {
     try {
-      const { createAdminClient } = await import("@/lib/supabase/admin")
+      const { createAdminClient } = await import("@/shared/supabase/admin")
       const { count, error } = await createAdminClient()
         .from("jobs")
         .select("id", { count: "exact", head: true })
@@ -39,7 +39,7 @@ export async function GET() {
     }
 
     try {
-      const { createAdminClient } = await import("@/lib/supabase/admin")
+      const { createAdminClient } = await import("@/shared/supabase/admin")
       const { data, error } = await createAdminClient()
         .from("app_sequences")
         .select("value")
@@ -68,7 +68,7 @@ export async function GET() {
     }
 
     try {
-      const { createAdminClient } = await import("@/lib/supabase/admin")
+      const { createAdminClient } = await import("@/shared/supabase/admin")
       const { error } = await createAdminClient()
         .from("jobs")
         .select("list_sort_key")
@@ -89,7 +89,7 @@ export async function GET() {
     }
 
     try {
-      const { createAdminClient } = await import("@/lib/supabase/admin")
+      const { createAdminClient } = await import("@/shared/supabase/admin")
       const { error } = await createAdminClient().rpc("job_dashboard_counts")
       if (error && /job_dashboard_counts|function|does not exist|PGRST202/i.test(error.message)) {
         checks.jobDashboardCounts = {
@@ -111,7 +111,7 @@ export async function GET() {
     }
 
     try {
-      const { createAdminClient } = await import("@/lib/supabase/admin")
+      const { createAdminClient } = await import("@/shared/supabase/admin")
       const { count, error } = await createAdminClient()
         .from("status_history")
         .select("id", { count: "exact", head: true })

@@ -1,7 +1,7 @@
 /**
  * Revision family — one optimised read path for the full drawing history.
  */
-import type { JobRow } from "@/lib/db/job-types"
+import type { JobRow } from "@/modules/jobs/types/job-types"
 import {
   baseDrawingNumber,
   buildRevisionFamilyIndex,

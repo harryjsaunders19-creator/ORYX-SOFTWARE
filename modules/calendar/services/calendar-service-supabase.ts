@@ -12,11 +12,11 @@ import type {
   EventCategoryRow,
   UpdateCalendarEventData,
 } from "../types/calendar-types"
-import { userService } from "@/lib/services/user-service"
-import { clientService } from "@/lib/services/client-service"
+import { userService } from "@/modules/users"
+import { clientService } from "@/modules/clients"
 import { supabaseJobRepo } from "@/modules/jobs/supabase/repository"
 import { supabaseCalendarRepo } from "../supabase/repository"
-import { enrichEventsWithLeave } from "@/lib/leave/enrichment"
+import { enrichEventsWithLeave } from "@/modules/leave/enrichment"
 
 async function categoryMap(): Promise<Map<string, EventCategoryRow>> {
   const cats = await supabaseCalendarRepo.listCategories()

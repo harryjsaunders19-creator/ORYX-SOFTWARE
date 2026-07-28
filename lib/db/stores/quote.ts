@@ -1,7 +1,7 @@
 /** Quote and QuoteLineItem table access. */
 import { db } from "../connection"
 import { nowIso } from "../helpers"
-import { todayIsoDate, addDaysToIsoDate } from "@/lib/utils"
+import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { sequenceDb } from "./sequence"
 
@@ -159,7 +159,7 @@ export const quoteDb = {
 
   /** Insert a quote row from an external source (e.g. Supabase) without side-effects.
    *  Uses INSERT OR IGNORE so it is safe to call even when the row already exists. */
-  rawInsertOrIgnore(quote: import("@/lib/db/quote-types").QuoteRow): void {
+  rawInsertOrIgnore(quote: import("@/modules/quotes/types").QuoteRow): void {
     db.prepare(`
       INSERT OR IGNORE INTO Quote
         (id,quoteNumber,clientId,clientCompany,contactName,address,description,

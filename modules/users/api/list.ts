@@ -6,7 +6,7 @@ import { toPublicUser } from "../types/user-types"
 import { createId } from "@paralleldrive/cuid2"
 import { requireRole } from "@/shared/auth/auth"
 import { isValidRole, DEFAULT_ROLE, normalizeModuleAccess, serializeModuleAccess } from "@/shared/auth/permissions"
-import { generateTempPassword, hashPassword } from "@/lib/password"
+import { generateTempPassword, hashPassword } from "@/shared/auth/password"
 
 export async function GET() {
   const auth = await requireRole(["ADMIN"])

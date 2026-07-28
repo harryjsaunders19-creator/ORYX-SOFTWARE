@@ -4,12 +4,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { SESSION_COOKIE, REAL_SESSION_COOKIE, getCurrentUser, getRealUser } from "@/lib/auth"
-import { setSessionCookies } from "@/lib/auth-cookies"
-import { verifySessionTokenDetailed } from "@/lib/session-cookie"
+import { SESSION_COOKIE, REAL_SESSION_COOKIE, getCurrentUser, getRealUser } from "@/shared/auth/auth"
+import { setSessionCookies } from "@/shared/auth/auth-cookies"
+import { verifySessionTokenDetailed } from "@/shared/auth/session-cookie"
 import { sessionRevocationService } from "@/lib/services/session-revocation-service"
-import { userService } from "@/lib/services/user-service"
-import { hashPassword, validatePasswordStrength } from "@/lib/password"
+import { userService } from "@/modules/users"
+import { hashPassword, validatePasswordStrength } from "@/shared/auth/password"
 
 export async function POST(req: NextRequest) {
   try {

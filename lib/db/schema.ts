@@ -1318,7 +1318,7 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
     return
   }
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { hashPassword } = require("@/lib/password") as typeof import("@/lib/password")
+  const { hashPassword } = require("@/shared/auth/password") as typeof import("@/shared/auth/password")
   const now = nowIso()
 
   // Pre-computed bcrypt hashes (cost=12) for the bootstrap passwords.

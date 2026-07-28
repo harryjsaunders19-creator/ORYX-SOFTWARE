@@ -5,10 +5,10 @@
 import { sequenceDb } from "@/lib/db"
 import { DRAWING_SEQUENCE_KEY } from "@/lib/drawing-number"
 import { db } from "@/lib/db/connection"
-import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
-import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
-import { supabaseBillingRepo } from "@/lib/supabase/repositories/billing"
-import { useSupabaseBilling, useSupabaseJobs, useSupabaseQuotes } from "@/lib/supabase/feature-flags"
+import { supabaseJobRepo } from "@/modules/jobs/supabase/repository"
+import { supabaseQuoteRepo } from "@/modules/quotes/supabase/repository"
+import { supabaseBillingRepo } from "@/modules/billing/supabase/repository"
+import { useSupabaseBilling, useSupabaseJobs, useSupabaseQuotes } from "@/shared/supabase/feature-flags"
 
 export function seedBatchRefSequenceFromSqlite(year: number): void {
   try {

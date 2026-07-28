@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
-import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { VALID_STATUSES } from "@/lib/constants"

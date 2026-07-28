@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import type { SiteVisitCalculationRow } from "@/lib/db/site-visit-types"
 
 interface SupabaseSiteVisitRow {

@@ -3,7 +3,7 @@
  * Managers are engineers who appear as managerId on direct reports.
  */
 import type { Role } from "@/shared/types/role"
-import type { UserRow } from "@/lib/db/user-types"
+import type { UserRow } from "@/modules/users/types"
 
 export type EmployeeAccess = "admin" | "manager" | "self" | "none"
 

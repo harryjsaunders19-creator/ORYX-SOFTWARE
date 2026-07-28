@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { requireRole } from "@/shared/auth/auth"
-import { jobService } from "@/lib/services/job-service"
-import { quoteService } from "@/lib/services/quote-service"
-import { clientService } from "@/lib/services/client-service"
+import { jobService } from "@/modules/jobs"
+import { quoteService } from "@/modules/quotes"
+import { clientService } from "@/modules/clients"
 import { attachCancelRecords } from "../cancel-record"
-import { probeArchivedColumns, jobsArchivedAtAvailable, quotesArchivedAtAvailable } from "@/lib/supabase/archived-filter"
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
+import { probeArchivedColumns, jobsArchivedAtAvailable, quotesArchivedAtAvailable } from "@/shared/supabase/archived-filter"
+import { isSupabaseAdminConfigured } from "@/shared/supabase/config"
 
 export async function GET() {
   try {

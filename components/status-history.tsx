@@ -7,7 +7,7 @@ import { STATUS_DOT }    from "@/components/status-badge"
 import { Button }        from "@/components/ui/button"
 import { Textarea }      from "@/components/ui/textarea"
 import { useToast }      from "@/components/ui/toast"
-import { cn }            from "@/lib/utils"
+import { cn }            from "@/shared/utils"
 import type { StatusHistoryEntry } from "@/lib/types"
 
 export function StatusHistory({ jobId, onUpdate }: {

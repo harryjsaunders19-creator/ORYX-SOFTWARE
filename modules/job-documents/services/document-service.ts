@@ -1,5 +1,5 @@
 import { createId } from "@paralleldrive/cuid2"
-import { useSupabaseJobDocuments, isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { useSupabaseJobDocuments, isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { historyService } from "@/modules/jobs/services/history-service"
 import {
   fileExt,

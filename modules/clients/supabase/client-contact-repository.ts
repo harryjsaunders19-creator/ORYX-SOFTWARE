@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import { createId } from "@paralleldrive/cuid2"
 import type { ClientContactInput, ClientContactRow } from "../types/client-contact-types"
 

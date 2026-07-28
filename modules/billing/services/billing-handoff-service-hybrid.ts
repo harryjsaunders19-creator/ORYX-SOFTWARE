@@ -13,11 +13,11 @@ import type {
   BillingHandoffRow,
 } from "../types/billing-types"
 import { billingHandoffDb, jobDb, type AccountsHandoverSnapshot } from "@/lib/db/stores"
-import { useSupabaseBilling, useSupabaseJobs } from "@/lib/supabase/feature-flags"
+import { useSupabaseBilling, useSupabaseJobs } from "@/shared/supabase/feature-flags"
 import { supabaseBillingRepo } from "../supabase/repository"
-import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
-import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
-import { ensureBatchSequenceSeeded } from "@/lib/supabase/seed-sequences"
+import { supabaseJobRepo } from "@/modules/jobs/supabase/repository"
+import { ensureJobInSqliteForBilling } from "@/modules/jobs"
+import { ensureBatchSequenceSeeded } from "@/shared/supabase/seed-sequences"
 import { buildAccountsHandoverSnapshotsBatch } from "./billing-snapshot-builder"
 
 const SYNC_CHUNK = 25

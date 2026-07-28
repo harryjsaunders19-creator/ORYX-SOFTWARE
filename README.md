@@ -150,7 +150,7 @@ Health dashboard: http://localhost:3000/health
 
 ## Environment variables
 
-Copy `.env.example` to `.env.local`. See `synology.env` for Synology/Docker reference.
+Copy `.env.example` to `.env.local`. See `docs/synology.env.example` for Synology/Docker reference.
 
 ## Stack
 

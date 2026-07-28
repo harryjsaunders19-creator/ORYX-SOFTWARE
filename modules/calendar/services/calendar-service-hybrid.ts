@@ -15,15 +15,15 @@ import type {
   UpdateCalendarEventData,
 } from "../types/calendar-types"
 import { calendarDb } from "@/lib/db/stores"
-import { userService } from "@/lib/services/user-service"
-import { jobService } from "@/lib/services/job-service"
-import { clientService } from "@/lib/services/client-service"
-import { useSupabaseCalendar } from "@/lib/supabase/feature-flags"
+import { userService } from "@/modules/users"
+import { jobService } from "@/modules/jobs"
+import { clientService } from "@/modules/clients"
+import { useSupabaseCalendar } from "@/shared/supabase/feature-flags"
 import { supabaseCalendarRepo } from "../supabase/repository"
-import { ensureClientInSqlite } from "@/lib/services/client-service"
-import { ensureJobInSqliteForBilling } from "@/lib/services/job-service"
-import { ensureUsersInSqlite } from "@/lib/services/user-service"
-import { enrichEventsWithLeave } from "@/lib/leave/enrichment"
+import { ensureClientInSqlite } from "@/modules/clients"
+import { ensureJobInSqliteForBilling } from "@/modules/jobs"
+import { ensureUsersInSqlite } from "@/modules/users"
+import { enrichEventsWithLeave } from "@/modules/leave/enrichment"
 
 async function ensureCalendarEventInSqlite(id: string): Promise<void> {
   if (!useSupabaseCalendar()) return

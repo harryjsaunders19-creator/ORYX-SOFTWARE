@@ -1,7 +1,7 @@
 import { createId } from "@paralleldrive/cuid2"
 import { siteVisitCalculationDb } from "@/lib/db/stores/site-visit-calculation"
 import type { SiteVisitCalculationRow } from "@/lib/db/site-visit-types"
-import { useSupabaseSiteVisitCalculations, isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { useSupabaseSiteVisitCalculations, isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { supabaseSiteVisitCalcRepo } from "../supabase/repository"
 import type { SavedSiteVisitCalculation, SaveSiteVisitInput } from "../types"
 

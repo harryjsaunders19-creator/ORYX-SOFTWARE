@@ -1,7 +1,7 @@
 /** LeaveRequest table access. */
 import { db } from "../connection"
 import { nowIso } from "../helpers"
-import type { LeaveRequestStatus } from "@/lib/leave/constants"
+import type { LeaveRequestStatus } from "@/modules/leave/constants"
 
 export type {
   LeaveRequestRow,

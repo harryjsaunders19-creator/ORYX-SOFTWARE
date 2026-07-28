@@ -12,8 +12,8 @@ import type {
   CreateIdentitySwitchLogData,
   IdentitySwitchLogRow,
 } from "@/lib/db/identity-switch-types"
-import { useSupabaseIdentityLog } from "@/lib/supabase/feature-flags"
-import { supabaseIdentitySwitchRepo } from "@/lib/supabase/repositories/identity-switch"
+import { useSupabaseIdentityLog } from "@/shared/supabase/feature-flags"
+import { supabaseIdentitySwitchRepo } from "@/modules/users/supabase/identity-switch-repository"
 
 function buildRow(data: CreateIdentitySwitchLogData): IdentitySwitchLogRow {
   return {

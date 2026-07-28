@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import type { PasswordVaultEntryRow } from "@/lib/db/vault-types"
 import type { VaultSortOrder } from "@/lib/db/stores/vault"
 import { postgrestOrIlike } from "@/shared/supabase/postgrest-filter"

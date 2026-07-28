@@ -1,6 +1,6 @@
-import type { UserRow } from "@/lib/db/user-types"
+import type { UserRow } from "@/modules/users/types"
 import type { Role } from "@/shared/types/role"
-import type { CalendarEventWithDetails } from "@/lib/db/calendar-types"
+import type { CalendarEventWithDetails } from "@/modules/calendar/types"
 import { ANNUAL_LEAVE_CATEGORY_ID } from "./constants"
 import { employeeProfileDb } from "@/lib/db/stores"
 

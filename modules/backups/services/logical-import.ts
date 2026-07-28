@@ -4,11 +4,11 @@
  * and performance attribution (Users + designer) is restored.
  */
 import { createId } from "@paralleldrive/cuid2"
-import { hashPassword, generateTempPassword } from "@/lib/password"
-import { userService } from "@/lib/services/user-service"
-import { clientService } from "@/lib/services/client-service"
-import { jobService } from "@/lib/services/job-service"
-import { quoteService } from "@/lib/services/quote-service"
+import { hashPassword, generateTempPassword } from "@/shared/auth/password"
+import { userService } from "@/modules/users"
+import { clientService } from "@/modules/clients"
+import { jobService } from "@/modules/jobs"
+import { quoteService } from "@/modules/quotes"
 import {
   buildClientRowFromImport,
   buildJobRowFromImport,
@@ -22,7 +22,7 @@ import {
   useSupabaseClients,
   useSupabaseJobs,
   useSupabaseQuotes,
-} from "@/lib/supabase/feature-flags"
+} from "@/shared/supabase/feature-flags"
 import { MAX_IMPORT_LOOKUP_ROWS } from "@/modules/import-export/constants"
 import {
   LOGICAL_BACKUP_VERSION,

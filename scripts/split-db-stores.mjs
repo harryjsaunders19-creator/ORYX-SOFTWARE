@@ -30,7 +30,7 @@ import { nowIso } from "../helpers"
     header: `/** Job table access. */
 import { db } from "../connection"
 import { nowIso, buildWhere, safeOrder, type WhereClause, type FindManyOptions } from "../helpers"
-import { totalJobCommercialValue } from "@/lib/utils"
+import { totalJobCommercialValue } from "@/shared/utils"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { billingHandoffDb } from "./billing-handoff"
 
@@ -80,7 +80,7 @@ import { createId as nanoid } from "@paralleldrive/cuid2"
     header: `/** BillingHandoff (Ready For Invoicing queue) table access. */
 import { db } from "../connection"
 import { nowIso } from "../helpers"
-import { totalJobCommercialValue } from "@/lib/utils"
+import { totalJobCommercialValue } from "@/shared/utils"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { jobDb } from "./job"
 import { clientDb } from "./client"
@@ -164,7 +164,7 @@ import { db, DB_PATH } from "../connection"
     header: `/** Quote and QuoteLineItem table access. */
 import { db } from "../connection"
 import { nowIso } from "../helpers"
-import { todayIsoDate, addDaysToIsoDate } from "@/lib/utils"
+import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { sequenceDb } from "./sequence"
 
@@ -257,7 +257,7 @@ import type { CreateBackupAuditLogData, CreateBackupJobData, BackupAuditLogRow, 
 import { db } from "../connection"
 import { nowIso } from "../helpers"
 import { createId as nanoid } from "@paralleldrive/cuid2"
-import type { LeaveRequestStatus } from "@/lib/leave/constants"
+import type { LeaveRequestStatus } from "@/modules/leave/constants"
 
 export type {
   LeaveRequestRow,

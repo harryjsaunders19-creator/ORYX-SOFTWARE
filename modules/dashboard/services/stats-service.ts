@@ -5,12 +5,12 @@
  * aggregates and recent-jobs lists are omitted (not shown on the page).
  * Quote status counts / conversion rate are included for KPI cards.
  */
-import { jobService } from "@/lib/services/job-service"
-import { holdService } from "@/lib/services/hold-service"
-import { billingHandoffService } from "@/lib/services/billing-handoff-service"
-import { calendarService } from "@/lib/services/calendar-service"
-import { quoteService } from "@/lib/services/quote-service"
-import { errorMessage } from "@/lib/error-message"
+import { jobService } from "@/modules/jobs"
+import { holdService } from "@/modules/clients/hold"
+import { billingHandoffService } from "@/modules/billing"
+import { calendarService } from "@/modules/calendar"
+import { quoteService } from "@/modules/quotes"
+import { errorMessage } from "@/shared/utils/error-message"
 import type { JobRow } from "@/modules/jobs/types/job-types"
 import type { CalendarEventWithDetails } from "@/modules/calendar/types/calendar-types"
 

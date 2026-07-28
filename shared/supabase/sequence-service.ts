@@ -10,9 +10,9 @@ import {
   parseOryxDrawingSequence,
 } from "@/lib/drawing-number"
 import { isSupabaseOnly } from "./feature-flags"
-import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
-import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
-import { supabaseBillingRepo } from "@/lib/supabase/repositories/billing"
+import { supabaseJobRepo } from "@/modules/jobs/supabase/repository"
+import { supabaseQuoteRepo } from "@/modules/quotes/supabase/repository"
+import { supabaseBillingRepo } from "@/modules/billing/supabase/repository"
 
 const drawingInit = { promise: null as Promise<void> | null }
 const refInits = new Map<string, Promise<void>>()

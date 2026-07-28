@@ -5,7 +5,7 @@ import { canViewCommercialValues, canViewClientAnalytics } from "@/shared/auth/p
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { apiInternalError } from "@/shared/api-errors"
 import { parseContactsFromBody } from "./parse-contacts"
-import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 
 type Ctx = { params: Promise<{ id: string }> }
 

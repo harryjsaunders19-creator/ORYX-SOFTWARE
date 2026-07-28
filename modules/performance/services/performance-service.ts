@@ -1,7 +1,7 @@
 import { JOB_STATUSES, WORK_ITEM_TYPES } from "@/lib/constants"
 import { jobService } from "@/modules/jobs"
-import { clientService } from "@/lib/services/client-service"
-import { userService } from "@/lib/services/user-service"
+import { clientService } from "@/modules/clients"
+import { userService } from "@/modules/users"
 import type {
   ChartPoint,
   FilterOptions,
