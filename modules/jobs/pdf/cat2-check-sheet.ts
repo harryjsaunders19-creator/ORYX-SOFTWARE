@@ -8,11 +8,20 @@ const PAGE_W = 595.32
 const PAGE_H = 841.92
 const MARGIN_X = 48
 const CONTENT_W = PAGE_W - MARGIN_X * 2
+const CONTENT_RIGHT = MARGIN_X + CONTENT_W
 const INK = rgb(0, 0, 0)
 const MUTED = rgb(0.38, 0.38, 0.38)
-const HAIRLINE = 0.45
+const RULE = rgb(0.72, 0.72, 0.72)
+const HAIRLINE = 0.5
 const BODY = 10.5
 const LINE = 13.5
+const PAD = 8
+const SECTION_INDENT = 20
+const BULLET_X = MARGIN_X + 32
+const BULLET_TEXT_X = MARGIN_X + 48
+const META_LABEL_W = 148
+const CHECK_DATE_LABEL_X = MARGIN_X + 318
+const CHECK_DATE_VALUE_X = MARGIN_X + 356
 
 const DEFAULT_STANDARDS = [
   "TG4:25 Anchoring systems for scaffolding.",
@@ -108,39 +117,70 @@ function drawText(
   page.drawText(text, { x, y, size, font, color })
 }
 
-function drawFooter(page: PDFPage, font: PDFFont) {
+function drawHRule(page: PDFPage, y: number, fromX = MARGIN_X, toX = CONTENT_RIGHT, color = INK) {
   page.drawLine({
-    start: { x: MARGIN_X, y: 42 },
-    end: { x: MARGIN_X + CONTENT_W, y: 42 },
+    start: { x: fromX, y },
+    end: { x: toX, y },
     thickness: HAIRLINE,
-    color: rgb(0.75, 0.75, 0.75),
+    color,
   })
-  drawText(page, "Oryx Scaffold Design Ltd.", MARGIN_X, 28, font, 9, MUTED)
-  drawText(page, "Temporary Works Design Certificate", MARGIN_X + 170, 28, font, 9, MUTED)
-  drawText(
-    page,
-    "-- 1 of 1 --",
-    PAGE_W / 2 - font.widthOfTextAtSize("-- 1 of 1 --", 8) / 2,
-    14,
-    font,
-    8,
-    MUTED,
-  )
 }
 
-async function drawLogo(doc: PDFDocument, page: PDFPage): Promise<{ bottom: number; left: number }> {
-  const fallback = { bottom: PAGE_H - 70, left: PAGE_W - 150 }
+function drawBox(page: PDFPage, bottom: number, height: number) {
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: bottom,
+    width: CONTENT_W,
+    height,
+    borderColor: INK,
+    borderWidth: HAIRLINE,
+  })
+}
+
+/** Optical centre of Helvetica text relative to baseline. */
+function textOpticalCenterOffset(size: number): number {
+  return size * 0.35
+}
+
+type LogoBox = {
+  x: number
+  y: number
+  width: number
+  height: number
+  centerY: number
+  left: number
+  bottom: number
+}
+
+async function drawLogo(doc: PDFDocument, page: PDFPage): Promise<LogoBox> {
+  const fallback: LogoBox = {
+    x: PAGE_W - 146,
+    y: PAGE_H - 90,
+    width: 118,
+    height: 72,
+    centerY: PAGE_H - 54,
+    left: PAGE_W - 158,
+    bottom: PAGE_H - 100,
+  }
   try {
     const logoBytes = await fs.readFile(path.join(process.cwd(), BRAND_LOGO_DOCUMENT_PATH))
     const logo = await doc.embedJpg(logoBytes)
     const insetX = 28
-    const insetY = 18
-    const logoW = 118
-    const logoH = logoW * (logo.height / logo.width)
-    const x = PAGE_W - insetX - logoW
-    const y = PAGE_H - insetY - logoH
-    page.drawImage(logo, { x, y, width: logoW, height: logoH })
-    return { bottom: y - 10, left: x - 12 }
+    const insetY = 20
+    const width = 118
+    const height = width * (logo.height / logo.width)
+    const x = PAGE_W - insetX - width
+    const y = PAGE_H - insetY - height
+    page.drawImage(logo, { x, y, width, height })
+    return {
+      x,
+      y,
+      width,
+      height,
+      centerY: y + height / 2,
+      left: x - 14,
+      bottom: y - 12,
+    }
   } catch {
     return fallback
   }
@@ -153,33 +193,23 @@ function drawMetaTable(
   top: number,
   rows: [string, string][],
 ): number {
-  const labelW = 148
-  const valueW = CONTENT_W - labelW - 16
-  const rowPad = 7
-  const bottoms: number[] = []
+  const valueW = CONTENT_W - META_LABEL_W - PAD * 2
+  const rowPadY = 6
   let cursor = top
 
-  // Measure each row for wrapped values
   const measured = rows.map(([label, value]) => {
     const valueLines = wrapText(value, valueW, fontBold, BODY)
-    const h = Math.max(22, valueLines.length * LINE + rowPad * 2)
+    const h = Math.max(22, valueLines.length * LINE + rowPadY * 2)
     return { label, valueLines, h }
   })
 
   const boxH = measured.reduce((sum, r) => sum + r.h, 0)
   const bottom = top - boxH
+  drawBox(page, bottom, boxH)
 
-  page.drawRectangle({
-    x: MARGIN_X,
-    y: bottom,
-    width: CONTENT_W,
-    height: boxH,
-    borderColor: INK,
-    borderWidth: HAIRLINE,
-  })
   page.drawLine({
-    start: { x: MARGIN_X + labelW, y: top },
-    end: { x: MARGIN_X + labelW, y: bottom },
+    start: { x: MARGIN_X + META_LABEL_W, y: top },
+    end: { x: MARGIN_X + META_LABEL_W, y: bottom },
     thickness: HAIRLINE,
     color: INK,
   })
@@ -187,25 +217,48 @@ function drawMetaTable(
   for (const row of measured) {
     const rowTop = cursor
     const rowBottom = rowTop - row.h
-    if (rowTop !== top) {
-      page.drawLine({
-        start: { x: MARGIN_X, y: rowTop },
-        end: { x: MARGIN_X + CONTENT_W, y: rowTop },
-        thickness: HAIRLINE,
-        color: INK,
-      })
-    }
-    drawText(page, row.label, MARGIN_X + 8, rowTop - 15, font, BODY)
-    let vy = rowTop - 15
+    if (rowTop !== top) drawHRule(page, rowTop)
+
+    // Vertically centre single-line rows; top-align multi-line
+    const firstBaseline = row.valueLines.length === 1
+      ? rowTop - row.h / 2 - textOpticalCenterOffset(BODY) + BODY * 0.12
+      : rowTop - rowPadY - BODY + 2
+
+    drawText(page, row.label, MARGIN_X + PAD, firstBaseline, font, BODY)
+    let vy = firstBaseline
     for (const line of row.valueLines) {
-      drawText(page, line, MARGIN_X + labelW + 8, vy, fontBold, BODY)
+      drawText(page, line, MARGIN_X + META_LABEL_W + PAD, vy, fontBold, BODY)
       vy -= LINE
     }
-    bottoms.push(rowBottom)
     cursor = rowBottom
   }
 
   return bottom
+}
+
+function drawFooter(page: PDFPage, font: PDFFont) {
+  drawHRule(page, 40, MARGIN_X, CONTENT_RIGHT, RULE)
+  drawText(page, "Oryx Scaffold Design Ltd.", MARGIN_X, 26, font, 9, MUTED)
+  const centre = "Temporary Works Design Certificate"
+  drawText(
+    page,
+    centre,
+    PAGE_W / 2 - font.widthOfTextAtSize(centre, 9) / 2,
+    26,
+    font,
+    9,
+    MUTED,
+  )
+  const pageMark = "-- 1 of 1 --"
+  drawText(
+    page,
+    pageMark,
+    CONTENT_RIGHT - font.widthOfTextAtSize(pageMark, 8),
+    26,
+    font,
+    8,
+    MUTED,
+  )
 }
 
 export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
@@ -225,124 +278,116 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   const dateStr = completedAt.toLocaleDateString("en-GB")
   const documents = [`${job.drawingNumber} — Scaffold design`]
 
-  const logoBox = await drawLogo(doc, page)
+  const logo = await drawLogo(doc, page)
 
-  // Single-line title kept clear of the logo on the right
+  // Title baseline aligned to the optical centre of the logo
   const title = "Temporary Works Design Certificate"
   const titleSize = 15
-  const titleY = PAGE_H - 46
-  drawText(page, title, MARGIN_X, titleY, fontBold, titleSize)
-  const underlineEnd = Math.min(MARGIN_X + fontBold.widthOfTextAtSize(title, titleSize) + 8, logoBox.left)
+  const titleBaseline = logo.centerY - textOpticalCenterOffset(titleSize)
+  drawText(page, title, MARGIN_X, titleBaseline, fontBold, titleSize)
+
+  const underlineY = Math.min(titleBaseline - 9, logo.y - 6)
+  const underlineEnd = Math.min(
+    MARGIN_X + fontBold.widthOfTextAtSize(title, titleSize) + 6,
+    logo.left,
+  )
   page.drawLine({
-    start: { x: MARGIN_X, y: titleY - 8 },
-    end: { x: underlineEnd, y: titleY - 8 },
+    start: { x: MARGIN_X, y: underlineY },
+    end: { x: underlineEnd, y: underlineY },
     thickness: 1,
     color: INK,
   })
 
-  // Meta table starts below both title underline and logo
-  let y = Math.min(titleY - 22, logoBox.bottom)
+  // Meta table starts a consistent gap below header band (logo + title)
+  let y = Math.min(underlineY, logo.y) - 14
   y = drawMetaTable(page, font, fontBold, y, [
     ["Project:", project.toUpperCase()],
     ["Type of Works:", works.toUpperCase()],
     ["Design Org. Originator:", "ORYX SCAFFOLD DESIGN LTD."],
     ["Document Ref:", filename],
-  ]) - 20
+  ]) - 18
 
   // §1 Certification + standards + documents
   drawText(page, "1.", MARGIN_X, y, fontBold, BODY)
-  for (const line of wrapText(CERT_INTRO, CONTENT_W - 24, font, BODY)) {
-    drawText(page, line, MARGIN_X + 20, y, font, BODY)
+  for (const line of wrapText(CERT_INTRO, CONTENT_W - SECTION_INDENT - 4, font, BODY)) {
+    drawText(page, line, MARGIN_X + SECTION_INDENT, y, font, BODY)
     y -= LINE
   }
-  y -= 8
+  y -= 7
 
-  for (const line of wrapText(CERT_STANDARDS_LEAD, CONTENT_W - 20, font, BODY)) {
-    drawText(page, line, MARGIN_X + 20, y, font, BODY)
+  for (const line of wrapText(CERT_STANDARDS_LEAD, CONTENT_W - SECTION_INDENT, font, BODY)) {
+    drawText(page, line, MARGIN_X + SECTION_INDENT, y, font, BODY)
     y -= LINE
   }
-  y -= 4
+  y -= 3
 
   for (const standard of standards) {
-    const wrapped = wrapText(standard, CONTENT_W - 44, font, BODY)
+    const wrapped = wrapText(standard, CONTENT_W - (BULLET_TEXT_X - MARGIN_X), font, BODY)
     wrapped.forEach((line, i) => {
-      if (i === 0) drawText(page, "•", MARGIN_X + 32, y, font, BODY)
-      drawText(page, line, MARGIN_X + 48, y, font, BODY)
-      y -= LINE - 1.2
+      if (i === 0) drawText(page, "•", BULLET_X, y, font, BODY)
+      drawText(page, line, BULLET_TEXT_X, y, font, BODY)
+      y -= LINE - 1.1
     })
   }
 
-  y -= 6
-  drawText(page, CERT_DOCS_LEAD, MARGIN_X + 20, y, font, BODY)
-  y -= LINE + 1
+  y -= 5
+  drawText(page, CERT_DOCS_LEAD, MARGIN_X + SECTION_INDENT, y, font, BODY)
+  y -= LINE
   for (const docLine of documents) {
-    drawText(page, "•", MARGIN_X + 32, y, font, BODY)
-    drawText(page, docLine, MARGIN_X + 48, y, font, BODY)
+    drawText(page, "•", BULLET_X, y, font, BODY)
+    drawText(page, docLine, BULLET_TEXT_X, y, font, BODY)
     y -= LINE
   }
 
   // §2 Comments
-  y -= 14
+  y -= 12
   drawText(page, "2.", MARGIN_X, y, fontBold, BODY)
-  drawText(page, "Comments are as follows:", MARGIN_X + 20, y, font, BODY)
-  y -= 20
+  drawText(page, "Comments are as follows:", MARGIN_X + SECTION_INDENT, y, font, BODY)
+  y -= 16
 
   const commentsTop = y
-  const commentsH = 42
+  const headerH = 18
+  const bodyH = 22
+  const commentsH = headerH + bodyH
   const commentsBottom = commentsTop - commentsH
   const colSplit = MARGIN_X + 110
-  page.drawRectangle({
-    x: MARGIN_X,
-    y: commentsBottom,
-    width: CONTENT_W,
-    height: commentsH,
-    borderColor: INK,
-    borderWidth: HAIRLINE,
-  })
+  drawBox(page, commentsBottom, commentsH)
   page.drawLine({
     start: { x: colSplit, y: commentsTop },
     end: { x: colSplit, y: commentsBottom },
     thickness: HAIRLINE,
     color: INK,
   })
-  page.drawLine({
-    start: { x: MARGIN_X, y: commentsTop - 18 },
-    end: { x: MARGIN_X + CONTENT_W, y: commentsTop - 18 },
-    thickness: HAIRLINE,
-    color: INK,
-  })
-  drawText(page, "Section", MARGIN_X + 8, commentsTop - 13, fontBold, BODY)
-  drawText(page, "Comment", colSplit + 8, commentsTop - 13, fontBold, BODY)
-  drawText(page, "General", MARGIN_X + 8, commentsTop - 33, font, BODY)
-  drawText(page, "Approved with no comments.", colSplit + 8, commentsTop - 33, font, BODY)
+  drawHRule(page, commentsTop - headerH)
+  const commentsHeaderY = commentsTop - headerH / 2 - textOpticalCenterOffset(BODY) + 1
+  const commentsBodyY = commentsTop - headerH - bodyH / 2 - textOpticalCenterOffset(BODY) + 1
+  drawText(page, "Section", MARGIN_X + PAD, commentsHeaderY, fontBold, BODY)
+  drawText(page, "Comment", colSplit + PAD, commentsHeaderY, fontBold, BODY)
+  drawText(page, "General", MARGIN_X + PAD, commentsBodyY, font, BODY)
+  drawText(page, "Approved with no comments.", colSplit + PAD, commentsBodyY, font, BODY)
 
   // §3 Liability
-  y = commentsBottom - 18
+  y = commentsBottom - 16
   drawText(page, "3.", MARGIN_X, y, fontBold, BODY)
-  for (const line of wrapText(LIABILITY, CONTENT_W - 24, font, BODY)) {
-    drawText(page, line, MARGIN_X + 20, y, font, BODY)
+  for (const line of wrapText(LIABILITY, CONTENT_W - SECTION_INDENT - 4, font, BODY)) {
+    drawText(page, line, MARGIN_X + SECTION_INDENT, y, font, BODY)
     y -= LINE
   }
 
-  // Checked by only — signature sits on its own band under Signed/Date
-  y -= 16
-  drawText(page, "Checked by:", MARGIN_X, y, fontBold, BODY)
+  // Checked by
   y -= 14
+  drawText(page, "Checked by:", MARGIN_X, y, fontBold, BODY)
+  y -= 12
 
   const checkTop = y
-  const checkBottom = checkTop - 96
-  page.drawRectangle({
-    x: MARGIN_X,
-    y: checkBottom,
-    width: CONTENT_W,
-    height: checkTop - checkBottom,
-    borderColor: INK,
-    borderWidth: HAIRLINE,
-  })
+  const checkH = 94
+  const checkBottom = checkTop - checkH
+  drawBox(page, checkBottom, checkH)
 
-  drawText(page, "Signed:", MARGIN_X + 10, checkTop - 18, font, BODY)
-  drawText(page, "Date:", MARGIN_X + 320, checkTop - 18, font, BODY)
-  drawText(page, dateStr, MARGIN_X + 358, checkTop - 18, font, BODY)
+  const signedRowY = checkTop - 16
+  drawText(page, "Signed:", MARGIN_X + PAD, signedRowY, font, BODY)
+  drawText(page, "Date:", CHECK_DATE_LABEL_X, signedRowY, font, BODY)
+  drawText(page, dateStr, CHECK_DATE_VALUE_X, signedRowY, font, BODY)
 
   const signatureAsset = await loadSignatureAsset()
   if (signatureAsset) {
@@ -359,23 +404,26 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
         sigH = maxH
         sigW = sigH * ratio
       }
-      // Place under the Signed label, clear of Date and Name rows
-      page.drawImage(image, {
-        x: MARGIN_X + 10,
-        y: checkTop - 22 - sigH - 4,
-        width: sigW,
-        height: sigH,
-      })
+      // Signature band directly under Signed:, left-aligned with pad, clear of Date column
+      const sigX = MARGIN_X + PAD
+      const sigY = signedRowY - 6 - sigH
+      const maxSigRight = CHECK_DATE_LABEL_X - 12
+      if (sigX + sigW > maxSigRight) {
+        sigW = maxSigRight - sigX
+        sigH = sigW / ratio
+      }
+      page.drawImage(image, { x: sigX, y: sigY, width: sigW, height: sigH })
     } catch {
       // leave blank
     }
   }
 
-  drawText(page, "Checker", MARGIN_X + 10, checkTop - 62, font, BODY)
-  drawText(page, "Name:", MARGIN_X + 10, checkTop - 82, font, BODY)
-  drawText(page, CHECKER.name, MARGIN_X + 54, checkTop - 82, fontBold, 11)
-  drawText(page, "Title:", MARGIN_X + 320, checkTop - 82, font, BODY)
-  drawText(page, CHECKER.title, MARGIN_X + 358, checkTop - 82, font, BODY)
+  const nameRowY = checkTop - 76
+  drawText(page, "Checker", MARGIN_X + PAD, checkTop - 58, font, BODY)
+  drawText(page, "Name:", MARGIN_X + PAD, nameRowY, font, BODY)
+  drawText(page, CHECKER.name, MARGIN_X + 52, nameRowY, fontBold, 11)
+  drawText(page, "Title:", CHECK_DATE_LABEL_X, nameRowY, font, BODY)
+  drawText(page, CHECKER.title, CHECK_DATE_VALUE_X, nameRowY, font, BODY)
 
   drawFooter(page, font)
 
