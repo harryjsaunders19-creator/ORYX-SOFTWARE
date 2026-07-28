@@ -159,7 +159,9 @@ export default function CalendarPage() {
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
             <div className="w-full sm:w-40">
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 text-xs" aria-label="Filter by category">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All categories</SelectItem>
                   {categories.map(c => (
@@ -176,7 +178,9 @@ export default function CalendarPage() {
             {canFilterStaff && users.length > 0 && (
               <div className="w-full sm:w-36">
                 <Select value={filterUser} onValueChange={setFilterUser}>
-                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 text-xs" aria-label="Filter by staff">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All staff</SelectItem>
                     {users.map(u => (
@@ -189,7 +193,9 @@ export default function CalendarPage() {
             {LEAVE_ENABLED && departments.length > 0 && (isAdmin || user) && (
               <div className="w-full sm:w-36">
                 <Select value={filterDepartment} onValueChange={setFilterDepartment}>
-                  <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Department" /></SelectTrigger>
+                  <SelectTrigger className="h-8 w-32 text-xs" aria-label="Filter by department">
+                    <SelectValue placeholder="Department" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All departments</SelectItem>
                     {departments.map(d => (
@@ -208,13 +214,23 @@ export default function CalendarPage() {
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon-sm" onClick={() => setCurrentDate(d => subMonths(d, 1))}>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Previous month"
+            onClick={() => setCurrentDate(d => subMonths(d, 1))}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
             Today
           </Button>
-          <Button variant="outline" size="icon-sm" onClick={() => setCurrentDate(d => addMonths(d, 1))}>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Next month"
+            onClick={() => setCurrentDate(d => addMonths(d, 1))}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
           <p className="text-lg font-semibold text-t1 ml-1 tracking-tight">
@@ -236,7 +252,9 @@ export default function CalendarPage() {
           {showLeave && (
             <>
               <Select value={leaveStatus} onValueChange={setLeaveStatus}>
-                <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 w-32 text-xs" aria-label="Filter leave by status">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All statuses</SelectItem>
                   <SelectItem value="APPROVED">Approved</SelectItem>

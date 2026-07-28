@@ -192,6 +192,7 @@ function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved }: {
           <input
             type="checkbox"
             className="h-4 w-4 accent-ac mt-1 shrink-0"
+            aria-label={`Select ${item.drawingNumber}`}
             checked={selected}
             onChange={() => onToggle(item.id)}
           />
@@ -279,7 +280,13 @@ function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
     <tr className="hover:bg-pg">
       {view === "awaiting" && (
         <td className="px-3 py-3 w-8">
-          <input type="checkbox" className="h-4 w-4 accent-ac" checked={selected} onChange={() => onToggle(item.id)} />
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-ac"
+            aria-label={`Select ${item.drawingNumber}`}
+            checked={selected}
+            onChange={() => onToggle(item.id)}
+          />
         </td>
       )}
       <td className="px-4 py-3 font-mono text-ac whitespace-nowrap font-semibold">{item.drawingNumber}</td>
@@ -513,7 +520,13 @@ function BillingPageInner() {
         <div className="space-y-2.5">
           {view === "awaiting" && items && items.length > 0 && (
             <label className="flex items-center gap-2 text-xs text-t3 px-1 min-h-11">
-              <input type="checkbox" className="h-4 w-4 accent-ac" checked={selected.size === items.length} onChange={toggleAll} />
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-ac"
+                aria-label="Select all on this page"
+                checked={selected.size === items.length}
+                onChange={toggleAll}
+              />
               Select all on this page
             </label>
           )}
@@ -545,7 +558,13 @@ function BillingPageInner() {
               <tr className="bg-pg border-b border-bd">
                 {view === "awaiting" && (
                   <th className="px-3 py-2 w-8">
-                    <input type="checkbox" className="h-4 w-4 accent-ac" checked={!!items && items.length > 0 && selected.size === items.length} onChange={toggleAll} />
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-ac"
+                      aria-label="Select all on this page"
+                      checked={!!items && items.length > 0 && selected.size === items.length}
+                      onChange={toggleAll}
+                    />
                   </th>
                 )}
                 <th className="px-4 py-2 text-left font-semibold text-t3">Job Number</th>
