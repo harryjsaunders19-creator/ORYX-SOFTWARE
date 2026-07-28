@@ -341,17 +341,6 @@ export default function ParentJobDashboardPage({
               <Pill tone={pTone}>{priorityLabel(current.priority)}</Pill>
             )}
           </div>
-          {canExportCat2 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void handleCat2Export()}
-              loading={cat2Exporting}
-            >
-              <Download className="h-3.5 w-3.5" />
-              Export CAT II Check Sheet
-            </Button>
-          )}
           {data.canAddRevision && (
             <Button variant="primary" size="sm" onClick={() => setRevOpen(true)}>
               <Plus className="h-3.5 w-3.5" />
@@ -361,6 +350,24 @@ export default function ParentJobDashboardPage({
           )}
         </div>
       </header>
+
+      {/* Actions — CAT II and related job actions */}
+      {canExportCat2 && (
+        <section className="rounded-xl border border-bd bg-sr p-5 mb-6">
+          <h2 className="text-base font-semibold text-t1 mb-4">Actions</h2>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleCat2Export()}
+              loading={cat2Exporting}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CAT II Check Sheet
+            </Button>
+          </div>
+        </section>
+      )}
 
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">

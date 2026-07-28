@@ -3,7 +3,7 @@ import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { jobDocumentService } from "@/modules/job-documents/services/document-service"
-import { resolveDocumentFamily } from "@/modules/job-documents/services/resolve-family"
+import { documentBelongsToFamily, resolveDocumentFamily } from "@/modules/job-documents/services/resolve-family"
 import { isValidDocumentCategory } from "@/modules/job-documents/constants"
 
 type Ctx = { params: Promise<{ id: string; docId: string }> }
@@ -12,7 +12,7 @@ async function loadOwnedDoc(jobRouteId: string, docId: string) {
   const family = await resolveDocumentFamily(jobRouteId)
   if (!family) return { error: NextResponse.json({ error: "Job not found" }, { status: 404 }) }
   const doc = await jobDocumentService.findUnique(docId)
-  if (!doc || doc.deletedAt || doc.rootJobId !== family.rootJobId) {
+  if (!doc || doc.deletedAt || !documentBelongsToFamily(doc, family)) {
     return { error: NextResponse.json({ error: "Document not found" }, { status: 404 }) }
   }
   return { family, doc }

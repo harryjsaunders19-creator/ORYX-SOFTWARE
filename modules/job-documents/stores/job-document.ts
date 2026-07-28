@@ -56,8 +56,21 @@ export const jobDocumentDb = {
   list(opts: JobDocumentListOptions): JobDocumentListResult {
     const page = Math.max(1, opts.page ?? 1)
     const limit = Math.min(Math.max(opts.limit ?? 24, 1), 100)
-    const clauses: string[] = ["rootJobId = ?"]
-    const params: unknown[] = [opts.rootJobId]
+    const rootIds = [...new Set([opts.rootJobId, ...(opts.rootJobIds ?? [])].filter(Boolean))]
+    const clauses: string[] = []
+    const params: unknown[] = []
+    if (opts.parentJobId && rootIds.length > 1) {
+      const placeholders = rootIds.map(() => "?").join(",")
+      clauses.push(`(rootJobId IN (${placeholders}) OR parentJobId = ?)`)
+      params.push(...rootIds, opts.parentJobId)
+    } else if (rootIds.length > 1) {
+      const placeholders = rootIds.map(() => "?").join(",")
+      clauses.push(`rootJobId IN (${placeholders})`)
+      params.push(...rootIds)
+    } else {
+      clauses.push("rootJobId = ?")
+      params.push(opts.rootJobId)
+    }
     if (!opts.includeDeleted) clauses.push("deletedAt IS NULL")
     if (opts.category) {
       clauses.push("category = ?")

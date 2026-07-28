@@ -245,7 +245,11 @@ export function JobDocumentsPanel({
   const handleDelete = async () => {
     if (!deleteDoc) return
     const res = await fetch(`/api/jobs/${jobId}/documents/${deleteDoc.id}`, { method: "DELETE" })
-    if (!res.ok) { toast("Delete failed", "error"); return }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string }
+      toast(body.error ?? "Delete failed", "error")
+      return
+    }
     toast("Document deleted", "success")
     setDeleteDoc(null)
     onTimelineChange?.()

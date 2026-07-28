@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireSignIn } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { jobDocumentService } from "@/modules/job-documents/services/document-service"
-import { resolveDocumentFamily } from "@/modules/job-documents/services/resolve-family"
+import { documentBelongsToFamily, resolveDocumentFamily } from "@/modules/job-documents/services/resolve-family"
 import { IMAGE_MIME, PDF_MIME } from "@/modules/job-documents/constants"
 
 type Ctx = { params: Promise<{ id: string; docId: string }> }
@@ -11,7 +11,7 @@ async function loadBytes(jobRouteId: string, docId: string) {
   const family = await resolveDocumentFamily(jobRouteId)
   if (!family) return { error: NextResponse.json({ error: "Job not found" }, { status: 404 }) }
   const packed = await jobDocumentService.download(docId)
-  if (!packed || packed.row.rootJobId !== family.rootJobId || packed.row.deletedAt) {
+  if (!packed || packed.row.deletedAt || !documentBelongsToFamily(packed.row, family)) {
     return { error: NextResponse.json({ error: "Document not found" }, { status: 404 }) }
   }
   return { packed }
