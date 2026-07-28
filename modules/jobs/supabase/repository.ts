@@ -42,6 +42,7 @@ const JOB_OVERDUE_PREVIEW_SELECT = "id,drawing_number,address,required_by_date,s
 const JOB_LIST_SELECT = [
   "id", "drawing_number", "item_type", "address", "type_of_works", "custom_type_description",
   "legacy_type_of_works", "client_company", "client_id", "requested_by", "status", "designer",
+  "design_standards",
   "date_created", "date_completed", "quote_value", "quote_reference", "quote_date",
   "variation_fees", "additional_charges", "invoice_id", "billing_status", "billing_batch_id",
   "requested_date", "required_by_date", "parent_job_id", "revision_letter", "billable",
@@ -76,6 +77,7 @@ function missingColumnFromError(error: { code?: string; message?: string } | nul
     "site_name", "site_address", "location_status", "location_source",
     "latitude", "longitude", "geocoded_at", "geocoded_address",
     "variation_fees", "additional_charges",
+    "design_standards",
     "list_sort_key",
     "tags",
   ]) {

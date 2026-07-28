@@ -213,6 +213,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       designer:       "",
       dateCompleted:  null,
       notes:          body.notes ? String(body.notes).trim() : null,
+      designStandards: parent.designStandards ?? null,
       parentJobId:    parent.id,
       revisionLetter: letter,
       billable:       false,

@@ -18,6 +18,7 @@ export interface JobRow {
   dateCreated: string
   dateCompleted: string | null
   notes: string | null
+  designStandards: string | null
   /** Controlled multi-select labels from JOB_TAGS. */
   tags: string[]
   quoteValue: number | null
@@ -62,6 +63,7 @@ export interface CreateJobData {
   designer: string
   dateCompleted: string | null
   notes: string | null
+  designStandards?: string | null
   tags?: string[]
   quoteValue?: number | null
   quoteReference?: string | null
@@ -90,6 +92,7 @@ export interface UpdateJobData {
   designer?: string
   dateCompleted?: string | null
   notes?: string | null
+  designStandards?: string | null
   tags?: string[]
   quoteValue?: number | null
   quoteReference?: string | null

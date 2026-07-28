@@ -23,6 +23,7 @@ db.exec(`
     dateCreated     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     dateCompleted   TEXT,
     notes           TEXT,
+    designStandards TEXT,
     parentJobId     TEXT REFERENCES Job(id) ON DELETE SET NULL,
     revisionLetter  TEXT,
     quoteValue      REAL,
@@ -761,6 +762,7 @@ try {
   add("siteAddress",      "TEXT")
   add("locationStatus",   "TEXT")
   add("locationSource",   "TEXT")
+  add("designStandards",  "TEXT")
   // Chargeable flag — revisions default false; originals true. Governs Ready for Invoicing.
   add("billable",         "INTEGER NOT NULL DEFAULT 1")
   // Multi-select job tags — JSON array of JOB_TAGS values (see lib/constants.ts).

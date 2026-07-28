@@ -104,16 +104,16 @@ export const jobDb = {
     db.transaction(() => {
       db.prepare(`
         INSERT INTO Job (id,drawingNumber,itemType,address,siteName,siteAddress,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
-          status,designer,dateCompleted,notes,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
+          status,designer,dateCompleted,notes,designStandards,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
           variationFees,additionalCharges,
           parentJobId,revisionLetter,billable,requestedDate,requiredByDate,dateCreated,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `).run(data.id, data.drawingNumber, data.itemType ?? "DESIGN", data.address,
              data.siteName ?? null, data.siteAddress ?? null,
              data.typeOfWorks,
              data.customTypeDescription ?? null,
              data.clientCompany, data.clientId ?? null, data.requestedBy, data.status, data.designer ?? "",
-             data.dateCompleted ?? null, data.notes ?? null, tagsJson,
+             data.dateCompleted ?? null, data.notes ?? null, data.designStandards ?? null, tagsJson,
              data.quoteValue ?? null, data.quoteReference ?? null,
              data.quoteDate ?? null, data.commercialNotes ?? null,
              data.variationFees ?? null, data.additionalCharges ?? null,
@@ -151,7 +151,7 @@ export const jobDb = {
     }
     const allowedColumns = new Set([
       "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
-      "requestedBy", "status", "designer", "dateCompleted", "notes", "tags", "quoteValue",
+      "requestedBy", "status", "designer", "dateCompleted", "notes", "designStandards", "tags", "quoteValue",
       "quoteReference", "quoteDate", "commercialNotes", "variationFees", "additionalCharges",
       "requestedDate", "requiredByDate", "billable",
     ])
@@ -306,14 +306,14 @@ export const jobDb = {
     db.prepare(`
       INSERT OR IGNORE INTO Job
         (id,drawingNumber,itemType,address,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
-         status,designer,dateCompleted,notes,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
+         status,designer,dateCompleted,notes,designStandards,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
          variationFees,additionalCharges,parentJobId,revisionLetter,requestedDate,requiredByDate,
          dateCreated,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       job.id, job.drawingNumber, job.itemType, job.address, job.typeOfWorks,
       job.customTypeDescription ?? null, job.clientCompany, job.clientId ?? null, job.requestedBy,
-      job.status, job.designer ?? "", job.dateCompleted ?? null, job.notes ?? null,
+      job.status, job.designer ?? "", job.dateCompleted ?? null, job.notes ?? null, job.designStandards ?? null,
       serializeJobTags(job.tags),
       job.quoteValue ?? null, job.quoteReference ?? null, job.quoteDate ?? null,
       job.commercialNotes ?? null, job.variationFees ?? null, job.additionalCharges ?? null,

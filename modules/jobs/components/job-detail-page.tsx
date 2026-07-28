@@ -4,7 +4,7 @@ import { useRouter, useParams } from "next/navigation"
 import { format } from "date-fns"
 import dynamic from "next/dynamic"
 import {
-  Pencil, Trash2, FileText, UserPlus, Clock, AlertOctagon, RotateCcw,
+  Pencil, Trash2, FileText, UserPlus, Clock, AlertOctagon, RotateCcw, Download,
   MapPin, ChevronRight,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
@@ -182,6 +182,7 @@ export default function JobDetailPage({
   const [dnEditOpen,   setDnEditOpen]   = useState(false)
   const [dnEditValue,  setDnEditValue]  = useState("")
   const [dnEditSaving, setDnEditSaving] = useState(false)
+  const [cat2Exporting, setCat2Exporting] = useState(false)
 
   useEffect(() => {
     if (jobError && !/404|Not found/i.test(jobError.message)) {
@@ -272,6 +273,34 @@ export default function JobDetailPage({
       load()
     } catch { toast("Network error", "error") }
     finally { setRestoring(false) }
+  }
+
+  const handleCat2Export = async () => {
+    setCat2Exporting(true)
+    try {
+      const res = await fetch(`/api/jobs/${id}/cat2-check-sheet`, { method: "POST" })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "CAT II export failed", "error")
+        return
+      }
+      const blob = await res.blob()
+      const cd = res.headers.get("Content-Disposition") ?? ""
+      const match = cd.match(/filename="([^"]+)"/i)
+      const filename = match?.[1] || "CATII Check Certificate.pdf"
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toast("CAT II Check Sheet exported", "success")
+      setHistoryKey(k => k + 1)
+    } catch {
+      toast("CAT II export failed", "error")
+    } finally {
+      setCat2Exporting(false)
+    }
   }
 
   if (loading) return <PageShell wide><Skeleton /></PageShell>
@@ -531,6 +560,9 @@ export default function JobDetailPage({
                       <InfoField label="Required by" value={format(parseLocalDate(job.requiredByDate), "d MMMM yyyy")} />
                     )}
                     {job.notes && <InfoField label="Notes" value={job.notes} />}
+                    {job.designStandards && (
+                      <InfoField label="Design standards & codes" value={job.designStandards} />
+                    )}
                     {(job.tags ?? []).length > 0 && (
                       <InfoField label="Tags" value={(job.tags ?? []).join(", ")} />
                     )}
@@ -727,6 +759,17 @@ export default function JobDetailPage({
                 <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-3.5 w-3.5" /> Edit details
                 </Button>
+                {job.status === "ISSUED" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => void handleCat2Export()}
+                    loading={cat2Exporting}
+                  >
+                    <Download className="h-3.5 w-3.5" /> Export CAT II Check Sheet
+                  </Button>
+                )}
                 {isAdmin && (
                   <Button
                     variant="ghost"

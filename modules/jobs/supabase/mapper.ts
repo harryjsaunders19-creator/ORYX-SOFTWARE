@@ -21,6 +21,7 @@ export interface SupabaseJobRow {
   date_created: string
   date_completed: string | null
   notes: string | null
+  design_standards: string | null
   tags: string[] | null
   quote_value: number | null
   quote_reference: string | null
@@ -73,6 +74,7 @@ export function toJobRow(row: SupabaseJobRow): JobRow {
     dateCreated: row.date_created,
     dateCompleted: row.date_completed,
     notes: row.notes,
+    designStandards: row.design_standards ?? null,
     tags: parseJobTags(row.tags),
     quoteValue: row.quote_value != null ? Number(row.quote_value) : null,
     quoteReference: row.quote_reference,
@@ -121,6 +123,7 @@ export function toSupabaseRow(job: JobRow): SupabaseJobRow & { list_sort_key: st
     date_created: job.dateCreated,
     date_completed: dateOnly(job.dateCompleted),
     notes: job.notes,
+    design_standards: job.designStandards ?? null,
     tags: job.tags ?? [],
     quote_value: job.quoteValue,
     quote_reference: job.quoteReference,

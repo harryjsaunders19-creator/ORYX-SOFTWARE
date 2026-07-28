@@ -25,6 +25,7 @@ const patchJobBodySchema = z.object({
   status: z.string().optional(),
   designer: z.union([z.string(), z.null()]).optional(),
   notes: z.union([z.string(), z.null()]).optional(),
+  designStandards: z.union([z.string(), z.null()]).optional(),
   requestedDate: z.union([z.string(), z.null()]).optional(),
   requiredByDate: z.union([z.string(), z.null()]).optional(),
   quoteReference: z.union([z.string(), z.null()]).optional(),
@@ -82,6 +83,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
         result.dateCompleted = latest.dateCompleted
         result.updatedAt = latest.updatedAt
         result.notes = latest.notes
+        result.designStandards = latest.designStandards
         result.billable = latest.billable
       }
     }
@@ -124,7 +126,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     const allowed = [
-      "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "requestedBy", "status", "designer", "notes",
+      "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "requestedBy", "status", "designer", "notes", "designStandards",
       "requestedDate","requiredByDate","quoteReference","quoteDate","commercialNotes", "billable", "tags",
     ]
 

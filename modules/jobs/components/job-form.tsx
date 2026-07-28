@@ -23,6 +23,7 @@ function emptyJobForm(): JobFormData {
     siteName: "", siteAddress: "", address: "",
     typeOfWorks: "", customTypeDescription: "", clientCompany: "", clientId: "", requestedBy: "",
     status: "NEW_REQUEST", designer: "", dateCompleted: "", notes: "",
+    designStandards: "",
     tags: [],
     quoteValue: "", quoteReference: "", quoteDate: "", commercialNotes: "",
     variationFees: "", additionalCharges: "",
@@ -95,6 +96,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       designer:        job.designer,
       dateCompleted:   job.dateCompleted ? new Date(job.dateCompleted).toISOString().split("T")[0] : "",
       notes:           job.notes ?? "",
+      designStandards: job.designStandards ?? "",
       tags:            Array.isArray(job.tags) ? [...job.tags] : [],
       quoteValue:      job.quoteValue != null ? String(job.quoteValue) : "",
       quoteReference:  job.quoteReference ?? "",
@@ -321,6 +323,15 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
             <SH>Notes</SH>
             <Textarea value={form.notes} onChange={setF("notes")}
               placeholder="Additional requirements or context…" rows={3} />
+          </div>
+          <div>
+            <SH>Design Standards & Codes</SH>
+            <Textarea
+              value={form.designStandards}
+              onChange={setF("designStandards")}
+              placeholder={"List each standard/code on a new line (e.g. BS EN 12811-1)\nTG20:21\nBS 5975"}
+              rows={3}
+            />
           </div>
           <div>
             <SH>Tags</SH>
