@@ -39,7 +39,19 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const user = await userService.findByEmail(email)
+    let user
+    try {
+      user = await userService.findByEmail(email)
+    } catch (err) {
+      logError("auth.login.user_lookup", err, { email })
+      return NextResponse.json(
+        {
+          error:
+            "Database unavailable. Check that Vercel has the correct Supabase URL and service-role key for this project.",
+        },
+        { status: 503 },
+      )
+    }
     if (!user || !user.active) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
@@ -48,7 +60,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
 
-    if (!verifyPassword(password, user.passwordHash)) {
+    let passwordOk = false
+    try {
+      passwordOk = verifyPassword(password, user.passwordHash)
+    } catch (err) {
+      logError("auth.login.verify_password", err, { userId: user.id })
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
+    }
+    if (!passwordOk) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
 

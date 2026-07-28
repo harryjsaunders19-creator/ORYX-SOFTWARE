@@ -8,6 +8,15 @@ import { Field, FormAlert } from "@/components/ui/field"
 import { AuthLayout, AuthBrand } from "@/components/page-layout"
 import { ArrowRight } from "lucide-react"
 
+function formatLoginError(error: unknown): string {
+  if (typeof error === "string") return error
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === "string" && message.trim()) return message
+  }
+  return ""
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const { user, loading: sessionLoading } = useUser()
@@ -32,10 +41,29 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       })
-      const data = await res.json() as { error?: string; mustChangePassword?: boolean }
+
+      let data: { error?: unknown; mustChangePassword?: boolean; protection?: unknown } = {}
+      try {
+        data = await res.json() as typeof data
+      } catch {
+        setError(
+          res.status >= 500
+            ? "Internal server error — the app could not complete sign-in. Confirm you are on https://oryx-software.vercel.app (not a protected preview link)."
+            : "Login failed",
+        )
+        return
+      }
 
       if (!res.ok) {
-        setError(data.error ?? "Login failed")
+        // Vercel Deployment Protection returns { error: { message, code }, protection: {...} }
+        if (data.protection || (typeof data.error === "object" && data.error && "message" in data.error
+          && String((data.error as { message?: string }).message).toLowerCase().includes("protected"))) {
+          setError(
+            "This preview deployment is protected. Open production at https://oryx-software.vercel.app, or sign in to Vercel SSO first, then retry.",
+          )
+          return
+        }
+        setError(formatLoginError(data.error) || "Login failed")
         return
       }
 
