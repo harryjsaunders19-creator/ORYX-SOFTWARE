@@ -25,7 +25,20 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "CAT II export is only available for completed jobs." }, { status: 409 })
     }
 
-    const pdfBytes = await buildCat2CheckSheetPdf(job)
+    // Revisions may not always carry copied design standards; fall back to the
+    // family default/root record so the CAT II standards section stays populated.
+    let standardsFallback = job.designStandards
+    if (!standardsFallback) {
+      const fallbackId = family.defaultJobId || family.rootJobId
+      if (fallbackId && fallbackId !== job.id) {
+        const source = await jobService.findUnique(fallbackId)
+        standardsFallback = source?.designStandards ?? null
+      }
+    }
+    const pdfBytes = await buildCat2CheckSheetPdf({
+      ...job,
+      designStandards: standardsFallback ?? null,
+    })
     const filename = cat2ExportFilename(job.drawingNumber)
     const actor = actorName(auth.user)
 

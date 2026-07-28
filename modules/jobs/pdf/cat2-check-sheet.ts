@@ -67,71 +67,96 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   }
 
   let y = PAGE_H - MARGIN
+  const CONTENT_W = PAGE_W - (MARGIN * 2)
 
-  const drawLine = (text: string, size = 10, bold = false, x = MARGIN) => {
-    page.drawText(text, { x, y, size, font: bold ? fontBold : font, color: INK })
-    y -= size + 5
+  const drawText = (text: string, x: number, lineY: number, size = 10, bold = false) => {
+    page.drawText(text, { x, y: lineY, size, font: bold ? fontBold : font, color: INK })
   }
 
-  drawLine("Oryx Scaffold Design Ltd.", 11, false)
-  drawLine("TEMPORARY WORKS DESIGN & CHECK SHEET CAT II:", 13, true)
-  y -= 4
+  const drawLabeledValue = (label: string, value: string, lineY: number) => {
+    drawText(label, MARGIN + 8, lineY, 10, true)
+    drawText(value, MARGIN + 150, lineY, 10, false)
+  }
 
-  drawLine("Design Company: Oryx Scaffold Design Ltd.", 10, false)
-  y -= 3
-
-  const projectRaw = job.siteAddress?.trim() || job.address
-  const project = projectRaw.endsWith(".") ? projectRaw : `${projectRaw}.`
-  drawLine(`Project: ${project}`, 10, false)
-  y -= 3
+  drawText("Oryx Scaffold Design Ltd.", MARGIN, y, 11, false)
+  y -= 18
+  drawText("TEMPORARY WORKS DESIGN & CHECK SHEET CAT II:", MARGIN, y, 13, true)
+  y -= 20
 
   const works = job.typeOfWorks === "Other" && job.customTypeDescription
     ? `Other - ${job.customTypeDescription}`
     : job.typeOfWorks
-  drawLine(`Description of Works: ${works || "Not specified"}`, 10, false)
-  y -= 6
+  const projectRaw = job.siteAddress?.trim() || job.address
+  const project = projectRaw.endsWith(".") ? projectRaw : `${projectRaw}.`
 
-  drawLine("Design Standards / Codes of Practise used:", 10, false)
+  // Header information block
+  const headerTop = y + 8
+  const headerBottom = y - 78
+  page.drawRectangle({ x: MARGIN, y: headerBottom, width: CONTENT_W, height: headerTop - headerBottom, borderColor: INK, borderWidth: 1 })
+  drawLabeledValue("Design Company:", "Oryx Scaffold Design Ltd.", y - 8)
+  drawLabeledValue("Project:", project, y - 28)
+  drawLabeledValue("Description of Works:", works || "Not specified", y - 48)
+  y = headerBottom - 16
+
+  // Design standards block
   const standards = splitStandards(job.designStandards)
-  if (!standards.length) {
-    drawLine("Not specified in job record.", 10, false)
-  } else {
-    for (const standard of standards) {
-      const wrapped = wrapText(standard, PAGE_W - MARGIN * 2, font, 10)
-      for (const line of wrapped) drawLine(line, 10, false)
-    }
+  const standardsLines = standards.length
+    ? standards.flatMap((standard) => wrapText(standard, CONTENT_W - 18, font, 10))
+    : ["Not specified in job record."]
+  const standardsHeight = Math.max(56, 24 + (standardsLines.length * 13))
+  const standardsBottom = y - standardsHeight
+  page.drawRectangle({ x: MARGIN, y: standardsBottom, width: CONTENT_W, height: standardsHeight, borderColor: INK, borderWidth: 1 })
+  drawText("Design Standards / Codes of Practise used:", MARGIN + 8, y - 16, 10, true)
+  let standardsY = y - 34
+  for (const line of standardsLines) {
+    drawText(line, MARGIN + 8, standardsY, 10, false)
+    standardsY -= 13
   }
-  y -= 6
+  y = standardsBottom - 14
 
-  drawLine("Documents Checked:", 10, false)
-  drawLine(job.drawingNumber, 10, false)
-  y -= 6
+  // Documents checked block
+  const documentsBottom = y - 42
+  page.drawRectangle({ x: MARGIN, y: documentsBottom, width: CONTENT_W, height: 42, borderColor: INK, borderWidth: 1 })
+  drawText("Documents Checked:", MARGIN + 8, y - 16, 10, true)
+  drawText(job.drawingNumber, MARGIN + 150, y - 16, 10, false)
+  y = documentsBottom - 16
 
-  const certLines = wrapText(CERT_STATEMENT, PAGE_W - MARGIN * 2, font, 10)
-  for (const line of certLines) drawLine(line, 10, false)
-  y -= 6
+  // Certification statement block
+  const certLines = wrapText(CERT_STATEMENT, CONTENT_W - 16, font, 10)
+  const certHeight = 24 + (certLines.length * 13)
+  const certBottom = y - certHeight
+  page.drawRectangle({ x: MARGIN, y: certBottom, width: CONTENT_W, height: certHeight, borderColor: INK, borderWidth: 1 })
+  let certY = y - 16
+  for (const line of certLines) {
+    drawText(line, MARGIN + 8, certY, 10, false)
+    certY -= 13
+  }
+  y = certBottom - 14
 
-  drawLine(`Name: ${CHECKER.name}`, 10, false)
-  drawLine("Signature:", 10, false)
+  // Sign-off block
+  const signOffBottom = y - 110
+  page.drawRectangle({ x: MARGIN, y: signOffBottom, width: CONTENT_W, height: 110, borderColor: INK, borderWidth: 1 })
+  drawLabeledValue("Name:", CHECKER.name, y - 16)
+  drawText("Signature:", MARGIN + 8, y - 36, 10, true)
 
-  const signatureY = y - 8
+  const signatureY = y - 44
   try {
     const bytes = await fs.readFile(CHECKER.signaturePath)
     const image = CHECKER.signaturePath.toLowerCase().endsWith(".png")
       ? await doc.embedPng(bytes)
       : await doc.embedJpg(bytes)
-    page.drawImage(image, { x: MARGIN + 85, y: signatureY - 16, width: 140, height: 40 })
+    page.drawImage(image, { x: MARGIN + 150, y: signatureY - 8, width: 160, height: 46 })
   } catch {
     // If the fixed signature asset isn't provisioned yet, keep the signature
     // area blank (so the PDF still matches the template structure).
   }
 
-  y = signatureY - 28
-  drawLine(`Position held: ${CHECKER.positionHeld}`, 10, false)
-  drawLine("Name of Design Consultants: Oryx Scaffold Designs Ltd", 10, false)
+  drawLabeledValue("Position held:", CHECKER.positionHeld, y - 70)
+  drawLabeledValue("Name of Design Consultants:", "Oryx Scaffold Designs Ltd", y - 90)
+  y = signOffBottom - 16
 
   const completedAt = job.dateCompleted ? new Date(job.dateCompleted) : new Date()
-  drawLine(`Date: ${completedAt.toLocaleDateString("en-GB")}`, 10, false)
+  drawText(`Date: ${completedAt.toLocaleDateString("en-GB")}`, MARGIN, y, 10, false)
 
   page.drawText("-- 1 of 1 --", {
     x: PAGE_W / 2 - 24,
