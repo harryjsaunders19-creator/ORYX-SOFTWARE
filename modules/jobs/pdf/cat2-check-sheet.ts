@@ -12,8 +12,7 @@ const CERT_STATEMENT = "I certify that the Temporary Works Design has been check
 
 const CHECKER = {
   name: "Lee Saunders",
-  // Update this to the exact title from the client reference sheet if needed.
-  positionHeld: "Temporary Works Design Checker",
+  positionHeld: "Principle Engineer",
   signaturePath: process.env.CAT2_CHECK_SIGNATURE_PATH || path.join(process.cwd(), "private-assets", "cat2-signature.png"),
 }
 
@@ -59,49 +58,45 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
     y -= size + 5
   }
 
-  drawLine("CAT II TEMPORARY WORKS DESIGN CHECK SHEET", 14, true)
+  drawLine("Oryx Scaffold Design Ltd.", 11, false)
+  drawLine("TEMPORARY WORKS DESIGN & CHECK SHEET CAT II:", 13, true)
   y -= 4
 
-  drawLine("Design Company:", 10, true)
-  drawLine("ORYX Scaffold Design Ltd", 10, false, MARGIN + 12)
+  drawLine("Design Company: ORYX Scaffold Design Ltd", 10, false)
   y -= 3
 
-  drawLine("Project:", 10, true)
-  drawLine(job.siteAddress?.trim() || job.address, 10, false, MARGIN + 12)
+  drawLine(`Project: ${job.siteAddress?.trim() || job.address}`, 10, false)
   y -= 3
 
   const works = job.typeOfWorks === "Other" && job.customTypeDescription
     ? `Other - ${job.customTypeDescription}`
     : job.typeOfWorks
-  drawLine("Description of Works:", 10, true)
-  drawLine(works || "Not specified", 10, false, MARGIN + 12)
+  drawLine(`Description of Works: ${works || "Not specified"}`, 10, false)
   y -= 6
 
-  drawLine("Design Standards and Codes of Practice:", 10, true)
+  drawLine("Design Standards / Codes of Practise used:", 10, false)
   const standards = splitStandards(job.designStandards)
   if (!standards.length) {
-    drawLine("- Not specified in job record", 10, false, MARGIN + 12)
+    drawLine("Not specified in job record.", 10, false)
   } else {
     for (const standard of standards) {
-      const wrapped = wrapText(`- ${standard}`, PAGE_W - (MARGIN + 24) - MARGIN, font, 10)
-      for (const line of wrapped) drawLine(line, 10, false, MARGIN + 12)
+      const wrapped = wrapText(standard, PAGE_W - MARGIN * 2, font, 10)
+      for (const line of wrapped) drawLine(line, 10, false)
     }
   }
   y -= 6
 
-  drawLine("Documents Checked:", 10, true)
-  drawLine(job.drawingNumber, 10, false, MARGIN + 12)
-  y -= 8
+  drawLine("Documents Checked:", 10, false)
+  drawLine("List of drawings & documents used to check the design:", 10, false)
+  drawLine(job.drawingNumber, 10, false)
+  y -= 6
 
-  drawLine("Certification Statement:", 10, true)
-  const certLines = wrapText(CERT_STATEMENT, PAGE_W - (MARGIN + 12) - MARGIN, font, 10)
-  for (const line of certLines) drawLine(line, 10, false, MARGIN + 12)
-  y -= 8
+  const certLines = wrapText(CERT_STATEMENT, PAGE_W - MARGIN * 2, font, 10)
+  for (const line of certLines) drawLine(line, 10, false)
+  y -= 6
 
-  drawLine("Checker Details:", 10, true)
-  drawLine(`Name: ${CHECKER.name}`, 10, false, MARGIN + 12)
-  drawLine(`Position Held: ${CHECKER.positionHeld}`, 10, false, MARGIN + 12)
-  drawLine("Signature:", 10, false, MARGIN + 12)
+  drawLine(`Name: ${CHECKER.name}`, 10, false)
+  drawLine("Signature:", 10, false)
 
   const signatureY = y - 8
   let signaturePlaced = false
@@ -125,13 +120,17 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
     })
   }
 
-  const generatedAt = new Date().toISOString()
-  page.drawText(`Generated: ${generatedAt}`, {
-    x: MARGIN,
-    y: MARGIN - 6,
+  y = signatureY - 28
+  drawLine(`Position held: ${CHECKER.positionHeld}`, 10, false)
+  drawLine("Name of Design Consultants: ORYX Scaffold Design Ltd", 10, false)
+  drawLine(`Date: ${new Date().toLocaleDateString("en-GB")}`, 10, false)
+
+  page.drawText("-- 1 of 1 --", {
+    x: PAGE_W / 2 - 24,
+    y: 22,
     size: 8,
     font,
-    color: rgb(0.35, 0.35, 0.35),
+    color: rgb(0.45, 0.45, 0.45),
   })
 
   return doc.save()
