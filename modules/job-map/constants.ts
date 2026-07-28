@@ -1,3 +1,5 @@
+import { worksTypeDisplayLabel } from "@/lib/constants"
+
 /** Normalise an address for geocode cache comparison. */
 export function normalizeMapAddress(address: string): string {
   return address.trim().toLowerCase().replace(/\s+/g, " ")
@@ -7,8 +9,7 @@ export function jobDescriptionFromRow(row: {
   typeOfWorks: string
   customTypeDescription: string | null
 }): string {
-  if (row.typeOfWorks === "Other" && row.customTypeDescription) return row.customTypeDescription
-  return row.typeOfWorks
+  return worksTypeDisplayLabel(row.typeOfWorks, row.customTypeDescription) || row.typeOfWorks
 }
 
 export function getMapMarkerIconKey(typeOfWorks: string): string {
