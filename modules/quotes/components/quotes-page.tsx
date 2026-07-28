@@ -1,36 +1,22 @@
 "use client"
-import { Suspense, memo, useCallback, useEffect, useState } from "react"
-import dynamic from "next/dynamic"
-import Link from "next/link"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { format } from "date-fns"
-import {
-  Plus, FileText, Download, CheckCircle2, XCircle,
-  Loader2, Clock, FileDown, Trash2, Archive,
-} from "lucide-react"
-import { Button }   from "@/shared/ui/button"
-import {
-  Dialog, DialogContent, DialogHeader, DialogFooter,
-  DialogTitle, DialogBody,
-} from "@/shared/ui/dialog"
+import { Plus, FileText, Trash2 } from "lucide-react"
+import { Button } from "@/shared/ui/button"
 import { useToast } from "@/shared/ui/toast"
-import { formatGBP, cn, parseLocalDate, getQuoteExpiryInfo, quoteExpiryBadgeClass } from "@/shared/utils/utils"
-import { quoteWorksDisplayLabel, inferQuoteWorksFromDescription } from "../quote-works"
-import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel, TablePagination } from "@/shared/layouts/page-layout"
+import { cn } from "@/shared/utils/utils"
+import { inferQuoteWorksFromDescription } from "../quote-works"
+import { PageHeader, PageShell, DataPanel, EmptyPanel, TablePagination } from "@/shared/layouts/page-layout"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
-import { QUOTE_STATUSES } from "@/lib/types"
 import type { Quote } from "@/lib/types"
-import { resolveQuotePdfUrl } from "../pdf/urls"
-import { EMPTY_FORM, type QuoteFormData } from "./quote-form"
-
-// Perf: code-split form + convert modal (same pattern as jobs JobForm).
-const QuoteForm = dynamic(() => import("./quote-form").then(m => m.QuoteForm), { ssr: false })
-const CreateJobFromQuoteModal = dynamic(
-  () => import("./create-job-from-quote-modal").then(m => m.CreateJobFromQuoteModal),
-  { ssr: false },
-)
+import { type QuoteFormData } from "./quote-form"
+import { statusMeta } from "./quote-status-badge"
+import { MemoQuoteTableRow } from "./quotes-table-row"
+import { QuoteMobileCard } from "./quotes-mobile-card"
+import { QuotesFilterBar } from "./quotes-filter-bar"
+import { QuotesDialogs } from "./quotes-dialogs"
 
 type QuotesData = {
   quotes: Quote[]
@@ -42,44 +28,6 @@ type QuotesData = {
 }
 
 const QUOTE_PAGE_LIMIT = 25
-
-function statusMeta(status: string) {
-  return QUOTE_STATUSES.find(s => s.value === status) ?? QUOTE_STATUSES[0]
-}
-
-function QuoteStatusBadge({ status }: { status: string }) {
-  const s = statusMeta(status)
-  return (
-    <span className={cn(
-      "inline-flex items-center rounded-full px-2.5 py-0.5 type-badge whitespace-nowrap",
-      s.color,
-    )}>
-      {s.label}
-    </span>
-  )
-}
-
-function QuoteExpiryCell({ quote }: { quote: Quote }) {
-  const info = getQuoteExpiryInfo(quote.expiryDate, quote.status)
-  if (!quote.expiryDate) {
-    return <span className="text-xs text-t4">—</span>
-  }
-  return (
-    <div className="space-y-1">
-      <p className="text-xs text-t3 tabular-nums">
-        {format(parseLocalDate(quote.expiryDate), "d MMM yyyy")}
-      </p>
-      {info.severity !== "none" && (
-        <span className={cn(
-          "inline-flex type-badge px-1.5 py-0.5 rounded-full",
-          quoteExpiryBadgeClass(info.severity),
-        )}>
-          {info.label}
-        </span>
-      )}
-    </div>
-  )
-}
 
 export default function QuotesPage() {
   return (
@@ -102,178 +50,6 @@ export default function QuotesPage() {
     </Suspense>
   )
 }
-
-function QuoteRowActions({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
-  quote: Quote
-  isPdfBusy: boolean
-  onGeneratePdf: (q: Quote) => void
-  onEdit: (q: Quote) => void
-  onSetStatus: (q: Quote, status: string) => void
-  onConvert: (q: Quote) => void
-  onArchive: (q: Quote) => void
-}) {
-  return (
-    <div className="flex items-center gap-1 justify-end flex-wrap">
-      {q.pdfPath ? (
-        <a href={resolveQuotePdfUrl(q.id, q.pdfPath) ?? "#"} target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg" title="Open PDF">
-          <FileDown className="h-3.5 w-3.5" />
-        </a>
-      ) : (
-        <button onClick={() => onGeneratePdf(q)} disabled={isPdfBusy}
-          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg disabled:opacity-50"
-          title="Generate PDF">
-          {isPdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-        </button>
-      )}
-      <Button variant="ghost" size="sm" onClick={() => onEdit(q)}>Edit</Button>
-      {q.status === "DRAFT" && (
-        <Button variant="ghost" size="sm" onClick={() => onSetStatus(q, "SENT")}>
-          <Clock className="h-3.5 w-3.5" /> Sent
-        </Button>
-      )}
-      {(q.status === "DRAFT" || q.status === "SENT")
-        && getQuoteExpiryInfo(q.expiryDate, q.status).severity !== "expired" && (
-        <>
-          <Button variant="ghost" size="sm" className="text-ok-tx hover:bg-ok-bg" onClick={() => onSetStatus(q, "ACCEPTED")}>
-            <CheckCircle2 className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="sm" className="text-dn hover:bg-dn-bg" onClick={() => onSetStatus(q, "REJECTED")}>
-            <XCircle className="h-3.5 w-3.5" />
-          </Button>
-        </>
-      )}
-      {q.status === "ACCEPTED" && !q.jobId && (
-        <Button variant="primary" size="sm" onClick={() => onConvert(q)}>Create Job</Button>
-      )}
-      {!q.jobId && (
-        <Button variant="ghost" size="sm" className="text-t4 hover:text-wn-tx hover:bg-wn-bg" title="Archive quote" onClick={() => onArchive(q)}>
-          <Archive className="h-3.5 w-3.5" />
-        </Button>
-      )}
-    </div>
-  )
-}
-
-const QuoteMobileCard = memo(function QuoteMobileCard({
-  quote: q,
-  isPdfBusy,
-  onGeneratePdf,
-  onEdit,
-  onSetStatus,
-  onConvert,
-  onArchive,
-}: {
-  quote: Quote
-  isPdfBusy: boolean
-  onGeneratePdf: (q: Quote) => void
-  onEdit: (q: Quote) => void
-  onSetStatus: (q: Quote, status: string) => void
-  onConvert: (q: Quote) => void
-  onArchive: (q: Quote) => void
-}) {
-  return (
-    <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <span className="font-mono type-badge text-ac">{q.quoteNumber}</span>
-          <p className="text-sm font-medium text-t1 mt-1 truncate">{q.clientCompany}</p>
-          {q.contactName && <p className="text-xs text-t3 truncate">{q.contactName}</p>}
-          <p className="text-xs text-t2 mt-1 line-clamp-2">
-            {quoteWorksDisplayLabel(q.typeOfWorks, q.customTypeDescription, q.description)}
-          </p>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-sm font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
-          {q.vatRate != null && <p className="type-helper text-t4">+{q.vatRate}% VAT</p>}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-t3">
-        <span className="tabular-nums">{format(parseLocalDate(q.quoteDate), "d MMM yyyy")}</span>
-        <QuoteExpiryCell quote={q} />
-      </div>
-
-      <div className="flex items-center gap-2 flex-wrap">
-        <QuoteStatusBadge status={q.status} />
-        {q.jobId && (
-          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="type-helper text-ac hover:underline">
-            View job →
-          </Link>
-        )}
-      </div>
-
-      <div className="pt-2 border-t border-bd/60">
-        <QuoteRowActions
-          quote={q}
-          isPdfBusy={isPdfBusy}
-          onGeneratePdf={onGeneratePdf}
-          onEdit={onEdit}
-          onSetStatus={onSetStatus}
-          onConvert={onConvert}
-          onArchive={onArchive}
-        />
-      </div>
-    </div>
-  )
-})
-
-function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
-  quote: Quote
-  isPdfBusy: boolean
-  onGeneratePdf: (q: Quote) => void
-  onEdit: (q: Quote) => void
-  onSetStatus: (q: Quote, status: string) => void
-  onConvert: (q: Quote) => void
-  onArchive: (q: Quote) => void
-}) {
-  return (
-    <tr className="border-b border-bd last:border-0 hover:bg-pg">
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className="font-mono type-badge text-ac">{q.quoteNumber}</span>
-      </td>
-      <td className="px-4 py-3 max-w-[140px]">
-        <p className="text-xs font-medium text-t1 truncate">{q.clientCompany}</p>
-        {q.contactName && <p className="text-xs text-t3 truncate">{q.contactName}</p>}
-      </td>
-      <td className="px-4 py-3 max-w-[220px]">
-        <p className="text-xs text-t2 truncate">
-          {quoteWorksDisplayLabel(q.typeOfWorks, q.customTypeDescription, q.description)}
-        </p>
-      </td>
-      <td className="px-4 py-3 text-right whitespace-nowrap">
-        <p className="text-xs font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
-        {q.vatRate != null && <p className="type-helper text-t4">+{q.vatRate}% VAT</p>}
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <p className="text-xs text-t3 tabular-nums">{format(parseLocalDate(q.quoteDate), "d MMM yyyy")}</p>
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <QuoteExpiryCell quote={q} />
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <QuoteStatusBadge status={q.status} />
-        {q.jobId && (
-          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="block type-helper text-ac hover:underline mt-0.5">
-            View job →
-          </Link>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        <QuoteRowActions
-          quote={q}
-          isPdfBusy={isPdfBusy}
-          onGeneratePdf={onGeneratePdf}
-          onEdit={onEdit}
-          onSetStatus={onSetStatus}
-          onConvert={onConvert}
-          onArchive={onArchive}
-        />
-      </td>
-    </tr>
-  )
-}
-const MemoQuoteTableRow = memo(QuoteTableRow)
 
 function QuotesInner() {
   const { toast }    = useToast()
@@ -434,6 +210,7 @@ function QuotesInner() {
 
   const expiredClearableCount = data?.expiredClearableCount ?? 0
   const total      = data?.total ?? 0
+
   const quoteToForm = (q: Quote): QuoteFormData => {
     const works = q.typeOfWorks
       ? { typeOfWorks: q.typeOfWorks, customTypeDescription: q.customTypeDescription ?? "" }
@@ -469,41 +246,14 @@ function QuotesInner() {
         }
       />
 
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <SearchField value={search} onChange={setSearch} placeholder="Search quotes…" className="max-w-xs" />
-        <div className="flex items-center gap-1 flex-wrap">
-          <button onClick={() => setStatusFilter("ALL")}
-            className={cn("type-helper px-2 py-0.5 rounded border font-medium",
-              statusFilter === "ALL" ? "bg-ac text-on-ac border-ac" : "border-bd text-t3 hover:text-t2")}>
-            All
-          </button>
-          {QUOTE_STATUSES.map(s => (
-            <button key={s.value} onClick={() => setStatusFilter(s.value)}
-              className={cn("type-helper px-2 py-0.5 rounded border font-medium",
-                statusFilter === s.value ? s.color : "border-bd text-t3 hover:text-t2")}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {(data?.expiringSoonCount ?? 0) > 0 && statusFilter !== "EXPIRED" && (
-        <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl border border-wn-bd bg-wn-bg text-sm text-wn-tx">
-          <Clock className="h-4 w-4 shrink-0" />
-          <p>
-            <span className="font-semibold">{data!.expiringSoonCount}</span>
-            {" "}sent quote{data!.expiringSoonCount !== 1 ? "s" : ""} expiring within 7 days —
-            {" "}
-            <button
-              type="button"
-              className="text-ac hover:text-ach font-medium underline"
-              onClick={() => setStatusFilter("SENT")}
-            >
-              view sent quotes
-            </button>
-          </p>
-        </div>
-      )}
+      <QuotesFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        expiringSoonCount={data?.expiringSoonCount ?? 0}
+        onViewSentQuotes={() => setStatusFilter("SENT")}
+      />
 
       {/* Table */}
       {loading || !mediaReady ? (
@@ -584,95 +334,28 @@ function QuotesInner() {
         pageSize={QUOTE_PAGE_LIMIT}
       />
 
-      {/* Create dialog */}
-      <Dialog open={createOpen} onOpenChange={o => { if (!o) setCreateOpen(false) }}>
-        <DialogContent size="md">
-          <DialogHeader><DialogTitle>New quote</DialogTitle></DialogHeader>
-          <DialogBody>
-            <QuoteForm formId="create-quote-form" initial={EMPTY_FORM} onSubmit={doCreate} />
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>Cancel</Button>
-            <Button type="submit" form="create-quote-form" variant="primary" loading={saving}>Create quote</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit dialog */}
-      <Dialog open={!!editQuote} onOpenChange={o => { if (!o) setEditQuote(null) }}>
-        <DialogContent size="md">
-          <DialogHeader><DialogTitle>Edit {editQuote?.quoteNumber}</DialogTitle></DialogHeader>
-          <DialogBody>
-            {editQuote && (
-              <QuoteForm formId="edit-quote-form" initial={quoteToForm(editQuote)} quoteId={editQuote.id} onSubmit={doEdit} />
-            )}
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditQuote(null)} disabled={saving}>Cancel</Button>
-            <Button type="submit" form="edit-quote-form" variant="primary" loading={saving}>Save changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create job from quote */}
-      {convertQuote && (
-        <CreateJobFromQuoteModal
-          quote={convertQuote}
-          onClose={() => setConvertQuote(null)}
-          onConverted={() => { setConvertQuote(null); mutate() }}
-        />
-      )}
-
-      {/* Archive single quote */}
-      <Dialog open={!!archiveQuote} onOpenChange={o => { if (!o && !archiving) setArchiveQuote(null) }}>
-        <DialogContent size="sm">
-          <DialogHeader><DialogTitle>Archive quote?</DialogTitle></DialogHeader>
-          <DialogBody>
-            <p className="text-sm text-t2">
-              <span className="font-semibold text-t1">{archiveQuote?.quoteNumber}</span>
-              {" "}will be moved to the archive and hidden from the quotes list.
-            </p>
-            <p className="text-xs text-t3 mt-2">
-              You can restore it from the{" "}
-              <span className="font-medium text-t2">Archived Items</span>{" "}page.
-            </p>
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setArchiveQuote(null)} disabled={archiving}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={doArchive} loading={archiving} className="bg-wn hover:bg-wn/90">
-              <Archive className="h-3.5 w-3.5" /> Archive
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Clear all expired */}
-      <Dialog open={clearConfirmOpen} onOpenChange={o => { if (!o && !clearing) setClearConfirmOpen(false) }}>
-        <DialogContent size="sm">
-          <DialogHeader><DialogTitle>Archive expired quotes?</DialogTitle></DialogHeader>
-          <DialogBody>
-            <p className="text-sm text-t2">
-              <span className="font-semibold text-t1">{expiredClearableCount}</span>
-              {" "}expired quote{expiredClearableCount !== 1 ? "s" : ""} that{" "}
-              {expiredClearableCount === 1 ? "was" : "were"} never converted to a job will be archived.
-            </p>
-            <p className="text-xs text-t3 mt-2">
-              They can be restored from the{" "}
-              <span className="font-medium text-t2">Archived Items</span>{" "}page.
-            </p>
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setClearConfirmOpen(false)} disabled={clearing}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={clearExpired} loading={clearing} className="bg-wn hover:bg-wn/90">
-              <Archive className="h-3.5 w-3.5" /> Archive expired
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <QuotesDialogs
+        createOpen={createOpen}
+        onCreateClose={() => setCreateOpen(false)}
+        saving={saving}
+        onCreateSubmit={doCreate}
+        editQuote={editQuote}
+        onEditClose={() => setEditQuote(null)}
+        editInitial={editQuote ? quoteToForm(editQuote) : null}
+        onEditSubmit={doEdit}
+        convertQuote={convertQuote}
+        onConvertClose={() => setConvertQuote(null)}
+        onConverted={() => { setConvertQuote(null); mutate() }}
+        archiveQuote={archiveQuote}
+        archiving={archiving}
+        onArchiveClose={() => setArchiveQuote(null)}
+        onArchiveConfirm={doArchive}
+        clearConfirmOpen={clearConfirmOpen}
+        clearing={clearing}
+        expiredClearableCount={expiredClearableCount}
+        onClearClose={() => setClearConfirmOpen(false)}
+        onClearConfirm={clearExpired}
+      />
     </PageShell>
   )
 }
