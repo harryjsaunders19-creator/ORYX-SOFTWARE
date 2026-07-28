@@ -102,23 +102,23 @@ function PerformancePageInner() {
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
           <Input type="date" value={from} onChange={e => setFrom(e.target.value)} />
           <Input type="date" value={to} onChange={e => setTo(e.target.value)} />
-          <select className="h-10 rounded border border-bd bg-sr px-3 text-sm text-t2" value={engineer} onChange={e => setEngineer(e.target.value)}>
+          <select className="h-9 rounded-lg border border-bd bg-sr px-3 text-sm text-t2" value={engineer} onChange={e => setEngineer(e.target.value)}>
             <option value="all">All engineers</option>
             {data?.filterOptions.engineers.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
           </select>
-          <select className="h-10 rounded border border-bd bg-sr px-3 text-sm text-t2" value={clientId} onChange={e => setClientId(e.target.value)}>
+          <select className="h-9 rounded-lg border border-bd bg-sr px-3 text-sm text-t2" value={clientId} onChange={e => setClientId(e.target.value)}>
             <option value="all">All clients</option>
             {data?.filterOptions.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <select className="h-10 rounded border border-bd bg-sr px-3 text-sm text-t2" value={jobType} onChange={e => setJobType(e.target.value)}>
+          <select className="h-9 rounded-lg border border-bd bg-sr px-3 text-sm text-t2" value={jobType} onChange={e => setJobType(e.target.value)}>
             <option value="all">All job types</option>
             {data?.filterOptions.jobTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
-          <select className="h-10 rounded border border-bd bg-sr px-3 text-sm text-t2" value={tag} onChange={e => setTag(e.target.value)}>
+          <select className="h-9 rounded-lg border border-bd bg-sr px-3 text-sm text-t2" value={tag} onChange={e => setTag(e.target.value)}>
             <option value="all">All tags</option>
             {data?.filterOptions.tags.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          <select className="h-10 rounded border border-bd bg-sr px-3 text-sm text-t2" value={status} onChange={e => setStatus(e.target.value)}>
+          <select className="h-9 rounded-lg border border-bd bg-sr px-3 text-sm text-t2" value={status} onChange={e => setStatus(e.target.value)}>
             <option value="all">All status</option>
             {data?.filterOptions.statuses.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>

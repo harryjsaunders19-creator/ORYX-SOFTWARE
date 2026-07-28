@@ -20,6 +20,24 @@ export function PageShell({ children, className, wide }: {
   )
 }
 
+/** Vertical stack on the 8px grid — default page section rhythm. */
+export function PageStack({ children, className, gap = "lg" }: {
+  children: React.ReactNode
+  className?: string
+  gap?: "sm" | "md" | "lg"
+}) {
+  return (
+    <div className={cn(
+      gap === "sm" && "space-y-4",
+      gap === "md" && "space-y-6",
+      gap === "lg" && "space-y-8",
+      className,
+    )}>
+      {children}
+    </div>
+  )
+}
+
 export function PageHeader({ title, description, actions }: {
   title: string
   description?: React.ReactNode
@@ -30,7 +48,7 @@ export function PageHeader({ title, description, actions }: {
       <div className="min-w-0">
         <h1 className="oryx-page-title text-t1">{title}</h1>
         {description != null && (
-          <p className="mt-1 text-sm text-t3">{description}</p>
+          <p className="mt-2 text-sm text-t3">{description}</p>
         )}
       </div>
       {actions && (
@@ -53,8 +71,8 @@ export function SearchField({ value, onChange, placeholder, className }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? "Search…"}
-        className="pl-10 bg-surface-low border border-bd shadow-none h-10 rounded focus-visible:ring-2 focus-visible:ring-t1/20"
-        style={{ paddingLeft: "40px" }}
+        className="pl-10 bg-surface-low border border-bd shadow-none h-9 rounded-lg focus-visible:ring-2 focus-visible:ring-t1/20"
+        style={{ paddingLeft: "40px", height: "36px" }}
       />
     </div>
   )
@@ -153,7 +171,7 @@ export function KpiTile({ label, value, sub, accent = "var(--color-ac)", valueCl
   className?: string
 }) {
   return (
-    <div className={cn("relative overflow-hidden rounded-lg border border-[#E5E7EB] bg-sr p-6 shadow-sm transition-shadow hover:shadow-md", className)}>
+    <div className={cn("oryx-surface-card relative overflow-hidden rounded-xl border border-bd bg-sr p-6 transition-shadow hover:shadow-md", className)}>
       <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
       <p className={cn("mb-2 text-[48px] font-semibold tabular-nums leading-none tracking-tight max-md:text-3xl", valueClassName ?? "text-t1")}>{value}</p>
       <p className="font-mono text-xs uppercase tracking-widest text-t3">{label}</p>

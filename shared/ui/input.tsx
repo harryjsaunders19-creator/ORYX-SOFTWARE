@@ -19,7 +19,7 @@ const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLI
         style={{
           height: "36px",
           width: "100%",
-          borderRadius: className?.includes("rounded-full") ? "9999px" : "10px",
+          borderRadius: className?.includes("rounded-full") ? "9999px" : "var(--radius-lg)",
           border: "1px solid var(--color-bd)",
           backgroundColor: "var(--color-sr)",
           ...(!hasCustomPl && { paddingLeft: "14px" }),

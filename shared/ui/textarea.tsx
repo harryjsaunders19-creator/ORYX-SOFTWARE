@@ -14,7 +14,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttribu
       )}
       style={{
         width: "100%",
-        borderRadius: "8px",
+        borderRadius: "var(--radius-lg)",
         border: "1px solid var(--color-bd)",
         backgroundColor: "var(--color-sr)",
         padding: "10px 14px",

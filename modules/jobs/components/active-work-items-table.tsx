@@ -141,7 +141,8 @@ export function ActiveWorkItemsTable({
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-t4" />
             <Input
-              className="pl-9"
+              className="pl-9 bg-surface-low border border-bd shadow-none h-9 rounded-lg"
+              style={{ paddingLeft: "36px", height: "36px" }}
               placeholder="Search drawing, client, site…"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}

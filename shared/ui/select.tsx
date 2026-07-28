@@ -28,7 +28,7 @@ export const SelectTrigger = React.forwardRef<
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      borderRadius: "8px",
+      borderRadius: "var(--radius-lg)",
       border: "1px solid var(--color-bd)",
       backgroundColor: "var(--color-sr)",
       paddingLeft: "14px",
@@ -66,10 +66,10 @@ export const SelectContent = React.forwardRef<
         zIndex: 200,
         maxHeight: "288px",
         overflow: "hidden",
-        borderRadius: "14px",
+        borderRadius: "var(--radius-xl)",
         border: "1px solid var(--color-bd)",
         backgroundColor: "var(--color-sr)",
-        boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.03), 0 8px 24px -8px rgb(0 0 0 / 0.08)",
+        boxShadow: "var(--shadow-modal)",
       }}
       {...props}
     >
@@ -100,7 +100,7 @@ export const SelectItem = React.forwardRef<
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}
-    style={{ padding: "8px 10px 8px 28px", fontSize: "14px", color: "var(--color-t1)", borderRadius: "6px", position: "relative", cursor: "default" }}
+    style={{ padding: "8px 10px 8px 28px", fontSize: "14px", color: "var(--color-t1)", borderRadius: "var(--radius-md)", position: "relative", cursor: "default" }}
     {...props}
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center" style={{ position: "absolute", left: "8px", display: "flex", alignItems: "center" }}>

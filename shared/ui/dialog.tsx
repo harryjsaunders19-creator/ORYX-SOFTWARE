@@ -70,16 +70,13 @@ export const DialogContent = React.forwardRef<
         size === "md" && "max-w-[640px]",
         size === "lg" && "max-w-[900px]",
         // Appearance — bg-sr provides the Tailwind class; inline style is the fallback.
-        // rounded-xl picks up --radius-xl (20px) from the v3 theme — this was
-        // previously the literal string "rounded-md-xl", not a real Tailwind
-        // class at all, so the modal got zero radius from it; fixed here
-        // alongside the v3 value, not left as a separate undocumented bug.
+        // rounded-xl → --radius-xl (12px) for cards / modals.
         "bg-sr border border-bd rounded-xl shadow-modal",
         // Layout: flex column so header/footer are sticky and body scrolls
         "flex flex-col overflow-hidden",
         className,
       )}
-      style={{ background: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "20px" }}
+      style={{ background: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "var(--radius-xl)" }}
       {...props}
     >
       {children}

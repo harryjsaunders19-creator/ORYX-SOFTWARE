@@ -383,10 +383,10 @@ function BackupsInner() {
                 : "Never")
               : "Use JSON / Supabase"
           }
-          accent="#4640DE"
+          accent="var(--color-ac)"
         />
-        <KpiTile label="Size" value={formatBytes(latestCompleted?.sizeBytes ?? null)} accent="#0E7A6E" />
-        <KpiTile label="Rows backed up" value={totalRows?.toLocaleString() ?? "—"} accent="#B45309" />
+        <KpiTile label="Size" value={formatBytes(latestCompleted?.sizeBytes ?? null)} accent="var(--color-ac2)" />
+        <KpiTile label="Rows backed up" value={totalRows?.toLocaleString() ?? "—"} accent="var(--color-wn)" />
         <KpiTile
           label="Storage location"
           value={
@@ -394,7 +394,7 @@ function BackupsInner() {
               {localBackupSupported ? (backupsDir || "—") : "Supabase + downloads"}
             </span>
           }
-          accent="#71717A"
+          accent="var(--color-gy)"
         />
       </div>
 

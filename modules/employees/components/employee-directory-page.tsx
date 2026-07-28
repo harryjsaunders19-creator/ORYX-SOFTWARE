@@ -84,7 +84,7 @@ function EmployeesInner() {
         <select
           value={department}
           onChange={e => setDepartment(e.target.value)}
-          className="h-10 rounded border border-bd bg-sr px-3 text-sm text-t1"
+          className="h-9 rounded-lg border border-bd bg-sr px-3 text-sm text-t1"
         >
           <option value="">All departments</option>
           {(data?.departments ?? []).map(d => (
@@ -94,7 +94,7 @@ function EmployeesInner() {
         <select
           value={status}
           onChange={e => setStatus(e.target.value)}
-          className="h-10 rounded border border-bd bg-sr px-3 text-sm text-t1"
+          className="h-9 rounded-lg border border-bd bg-sr px-3 text-sm text-t1"
         >
           <option value="">All statuses</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => (

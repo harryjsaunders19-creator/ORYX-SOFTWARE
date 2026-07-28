@@ -4,31 +4,19 @@
 
 /*
  * ================================================================
- *  ORYX DESIGN SYSTEM  —  v3 (Apple-inspired refresh)
+ *  ORYX DESIGN SYSTEM — Stitch Engineering OS
  *
- *  This project uses Tailwind CSS v4.
- *  In v4, design tokens are defined here with @theme, NOT in
- *  tailwind.config.ts. The @theme block generates Tailwind
- *  utility classes automatically:
- *    --color-sr   → bg-sr, text-sr, border-sr, etc.
- *    --color-pg   → bg-pg, text-pg, etc.
- *    --shadow-modal → shadow-modal
+ *  Tailwind CSS v4: tokens live here in @theme (not tailwind.config).
+ *    --color-sr → bg-sr · --color-pg → bg-pg · --shadow-modal → shadow-modal
  *
- *  v3 changes (visual-only, same token names throughout — nothing
- *  that references a token by name needed to change):
- *    - Radius scale roughly doubled (control 6→8px, card 8→14px,
- *      modal 12→20px) — generous corner rounding is the single
- *      most recognisable "premium/Apple" tell, more so than any
- *      individual colour choice.
- *    - Shadows softened and enlarged (lower opacity, bigger blur,
- *      more vertical offset) — depth from diffusion rather than a
- *      hard-edged drop shadow.
- *    - Default border lightened from a visible #E7E5E4 to a
- *      barely-there #EDEBE9 — cards now lean on shadow + whitespace
- *      for separation, with the border as a secondary cue rather
- *      than the primary one.
- *    - Colours, accent, and semantic palette are UNCHANGED — those
- *      were never the gap; scale and depth were.
+ *  Radius (raw px — html font-size is 14px, so rem radii drift):
+ *    control  --radius-lg  8px   buttons, inputs, selects
+ *    card     --radius-xl 12px   panels, dialogs, menus, toasts
+ *    dense    --radius-md  8px   chips, nested controls
+ *
+ *  Spacing rhythm: 8px grid (Tailwind 2 = 8px). Prefer gap-2/4/6/8.
+ *  Colour: restrained — charcoal primary, teal secondary, semantic
+ *  status only. No decorative indigo/purple accents in product UI.
  * ================================================================
  */
 
@@ -120,9 +108,9 @@
   --color-rs-row: #BAE6FD;
   --color-ok-row: #DCFCE7;
 
-  /* Data visualisation — same family as everything above, no separate rainbow */
+  /* Data visualisation — restrained engineering palette (no indigo) */
   --color-chart-1: #18181B;  /* ink — primary series */
-  --color-chart-2: #4640DE;  /* indigo — secondary series / target */
+  --color-chart-2: #52525B;  /* slate — secondary series / target */
   --color-chart-3: #0E7A6E;  /* teal — tertiary series */
   --color-chart-4: #B45309;  /* amber — attention */
   --color-chart-5: #A1A1AA;  /* muted — comparison / previous period */
@@ -151,24 +139,21 @@
   --color-tag-catiii-bg:     #E6F4F5;
 
   /* ── Radius ────────────────────────────────────────── */
-  /* v3: roughly doubled across the board — generous rounding reads as
-     "considered" rather than "default Tailwind." Still a three-tier scale
-     (control / card / modal), still overriding Tailwind's built-in
-     md/lg/xl stops so existing rounded-md / rounded-lg / rounded-xl class
-     names pick the new values up automatically with no renaming anywhere.
-     Specified in raw px, not rem: this app's html element is explicitly
-     set to font-size: 14px (not the browser default 16px — see the @layer
-     base block below), so a rem-based radius here would silently resolve
-     smaller than its comment claims (0.875rem would render as 12.25px, not
-     14px) — the exact ambiguity the original v1/v2 tokens already had at a
-     smaller, easy-to-miss margin (0.5rem documented as "8px" actually
-     rendered as 7px). Fixed here rather than carried forward. */
-  --radius-md: 6px;    /* Cards, panels — Stitch border style */
-  --radius-lg: 8px;
-  --radius-xl: 12px;   /* Modals */
+  --radius-md: 8px;    /* Dense controls, nested chips */
+  --radius-lg: 8px;    /* Buttons, inputs, selects */
+  --radius-xl: 12px;   /* Cards, panels, dialogs, menus, toasts */
+
+  /* ── Spacing (8px grid reference) ──────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
 
   /* ── Shadows ───────────────────────────────────────── */
-  --shadow-card:  none;
+  --shadow-card:  0 4px 6px -1px rgb(0 0 0 / 0.05);
   --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.12), 0 4px 12px 0 rgb(0 0 0 / 0.04);
   --shadow-sidebar: none;
 }
@@ -191,10 +176,11 @@ html.dark {
   --color-t2:     #D4D4D8;
   --color-t3:     #A1A1AA;
   --color-t4:     #71717A;
-  --color-ac:     #6C63FF;
-  --color-ach:    #8B83FF;
-  --color-ac-bg:  rgba(108, 99, 255, 0.15);
-  --color-on-ac:  #ffffff;
+  /* Monochrome accent — matches stitch-layout.dark (no purple) */
+  --color-ac:     #f4f4f5;
+  --color-ach:    #ffffff;
+  --color-ac-bg:  rgba(255, 255, 255, 0.08);
+  --color-on-ac:  #111827;
   --color-ac2:    #2DD4BF;
   --color-ac2h:   #5EEAD4;
   --color-ac2-bg: rgba(45, 212, 191, 0.12);
@@ -231,7 +217,7 @@ html.dark {
   --color-rs-row: rgba(56, 189, 248, 0.18);
   --color-ok-row: rgba(34, 197, 94, 0.20);
   --color-chart-1: #FAFAFA;
-  --color-chart-2: #6C63FF;
+  --color-chart-2: #A1A1AA;
   --color-chart-3: #2DD4BF;
   --color-chart-4: #F59E0B;
   --color-chart-5: #71717A;
@@ -387,8 +373,8 @@ html.stitch-layout .oryx-page-title {
 }
 
 html.stitch-layout .oryx-surface-card {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
-  border-radius: 0.75rem;
+  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-xl);
   border-color: var(--color-bd);
 }
 

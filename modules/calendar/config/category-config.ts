@@ -15,9 +15,9 @@ export type CalendarUserCategoryId = (typeof CALENDAR_USER_CATEGORY_IDS)[number]
 export const LEAVE_CATEGORY_IDS = ["cat_leave", ANNUAL_LEAVE_CATEGORY_ID] as const
 
 const DEFAULTS: Record<string, { name: string; color: string }> = {
-  cat_site_visit:    { name: "Site Visit",    color: "#3B82F6" },
-  cat_teams_meeting: { name: "Teams Meeting", color: "#A855F7" },
-  cat_leave:         { name: "Leave",         color: "#6B7280" },
+  cat_site_visit:    { name: "Site Visit",    color: "#1E5A96" }, // tag-design cobalt
+  cat_teams_meeting: { name: "Teams Meeting", color: "#0E7A6E" }, // ac2 teal
+  cat_leave:         { name: "Leave",         color: "#71717A" }, // gy
 }
 
 export function isUserSelectableCategory(id: string): boolean {

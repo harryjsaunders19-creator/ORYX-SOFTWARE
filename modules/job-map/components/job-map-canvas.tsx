@@ -80,7 +80,7 @@ function popupHtml(marker: JobMapMarker): string {
       <dt style="color:#9ca3af">Created</dt><dd style="margin:0">${escHtml(formatMarkerDate(marker.dateCreated))}</dd>
     </dl>
     <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:4px">
-      <a href="/jobs/${escHtml(marker.id)}" style="font-size:12px;padding:4px 10px;background:#2563eb;color:#fff;border-radius:4px;text-decoration:none">Open Job</a>
+      <a href="/jobs/${escHtml(marker.id)}" style="font-size:12px;padding:4px 10px;background:var(--color-ac,#111827);color:var(--color-on-ac,#fff);border-radius:8px;text-decoration:none">Open Job</a>
       <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="font-size:12px;padding:4px 10px;border:1px solid #d1d5db;border-radius:4px;text-decoration:none;color:inherit">Google Maps</a>
     </div>
   </div>`
@@ -234,7 +234,7 @@ const HeatmapLayer = memo(function HeatmapLayer({ markers }: { markers: JobMapMa
       radius: 28,
       blur: 22,
       maxZoom: 14,
-      gradient: { 0.2: "#2563eb", 0.5: "#ea580c", 0.8: "#16a34a", 1: "#dc2626" },
+      gradient: { 0.2: "#0369A1", 0.5: "#B45309", 0.8: "#15803D", 1: "#C0362C" },
     })
     layer.addTo(map)
     return () => { map.removeLayer(layer) }

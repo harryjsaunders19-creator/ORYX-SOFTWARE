@@ -219,8 +219,8 @@ function ImportJobsInner() {
               padding: "48px",
               textAlign: "center",
               cursor: "pointer",
-              borderColor: dragOver ? "#4640DE" : undefined,
-              backgroundColor: dragOver ? "#EEEDFC" : undefined,
+              borderColor: dragOver ? "var(--color-ac)" : undefined,
+              backgroundColor: dragOver ? "var(--color-ac-bg)" : undefined,
             }}
           >
             <input

@@ -113,15 +113,15 @@ export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, c
           placeholder="Search or type client name…"
           autoComplete="off"
           className={cn(
-            "flex h-8 w-full rounded border border-bd bg-sr pl-8 pr-8 text-sm text-t1",
+            "flex h-9 w-full rounded-lg border border-bd bg-sr pl-8 pr-8 text-sm text-t1",
             "placeholder:text-t4",
-            "focus:outline-none focus:ring-2 focus:ring-ac focus:border-bds",
+            "focus:outline-none focus:ring-2 focus:ring-ac/20 focus:border-ac",
             "disabled:cursor-not-allowed disabled:opacity-50",
             selected && "border-bds",
           )}
           style={{
-            height: "32px", width: "100%", borderRadius: "6px",
-            border: selected ? "1px solid #D6D3D1" : "1px solid #E7E5E4",
+            height: "36px", width: "100%", borderRadius: "var(--radius-lg)",
+            border: selected ? "1px solid var(--color-bds)" : "1px solid var(--color-bd)",
             backgroundColor: "var(--color-sr)", paddingLeft: "32px", paddingRight: "32px",
             fontSize: "14px", color: "var(--color-t1)", outline: "none",
           }}

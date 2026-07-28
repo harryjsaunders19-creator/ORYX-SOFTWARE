@@ -299,7 +299,7 @@ export default function JobMapPage() {
             </span>
             {(filters.locationFilter ?? "completed") === "manual" && (
               <span className="inline-flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#2563eb]" /> Manually placed pins
+                <span className="w-2.5 h-2.5 rounded-full bg-ac" /> Manually placed pins
               </span>
             )}
           </div>

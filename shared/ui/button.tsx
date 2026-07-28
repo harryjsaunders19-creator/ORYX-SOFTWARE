@@ -53,7 +53,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: className?.includes("rounded-full") ? "9999px" : "6px",
+          borderRadius: className?.includes("rounded-full") ? "9999px" : "var(--radius-lg)",
           fontWeight: 500,
           userSelect: "none",
           whiteSpace: "nowrap",

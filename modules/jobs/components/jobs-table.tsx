@@ -39,7 +39,7 @@ import { useToast }      from "@/shared/ui/toast"
 import { useUser }       from "@/shared/providers/user-context"
 import { JOB_STATUSES, WORK_ITEM_TYPES, WORKS_TYPES, getJobStatus } from "@/lib/constants"
 import { cn, formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue } from "@/shared/utils/utils"
-import { ToolbarCard } from "@/shared/layouts/page-layout"
+import { ToolbarCard, EmptyPanel } from "@/shared/layouts/page-layout"
 import { notifyRevisionsChanged } from "@/lib/revision-events"
 import { revisionParentId } from "@/lib/revision-chain"
 import { RevisionFamilyBadge } from "@/components/revision-family-badge"
@@ -80,22 +80,16 @@ function EmptyState({ hasFilters, onCreate, onClear }: {
 }) {
   return (
     <tr>
-      <td colSpan={9} className="py-16 text-center">
-        <div className="inline-flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded border border-bd flex items-center justify-center bg-pg">
-            <FolderOpen className="h-5 w-5 text-t4" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-t1">{hasFilters ? "No jobs match" : "No jobs yet"}</p>
-            <p className="text-xs text-t3 mt-0.5">
-              {hasFilters ? "Try clearing your filters" : "Create your first job to get started"}
-            </p>
-          </div>
-          {hasFilters
+      <td colSpan={9} className="p-0">
+        <EmptyPanel
+          icon={FolderOpen}
+          title={hasFilters ? "No jobs match" : "No jobs yet"}
+          description={hasFilters ? "Try clearing your filters" : "Create your first job to get started"}
+          action={hasFilters
             ? <Button variant="outline" size="sm" onClick={onClear}>Clear filters</Button>
             : <Button variant="primary" size="sm" onClick={onCreate}><Plus className="h-3.5 w-3.5" />New job</Button>
           }
-        </div>
+        />
       </td>
     </tr>
   )
@@ -733,13 +727,14 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     <>
       {/* Toolbar */}
       <ToolbarCard>
-        <div className="relative flex-1 min-w-48 max-w-72">
+        <div className="relative flex-1 min-w-48 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-t4 pointer-events-none" />
           <Input
             id="jobs-search"
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search jobs…"
-            className="pl-10 pr-8 h-10 rounded-full bg-pg border-none shadow-none"
+            className="pl-10 pr-8 h-9 rounded-lg bg-surface-low border border-bd shadow-none"
+            style={{ paddingLeft: "40px", height: "36px" }}
           />
           {search && (
             <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-t4 hover:text-t2">

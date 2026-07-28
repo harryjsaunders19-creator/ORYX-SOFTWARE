@@ -27,14 +27,14 @@ export default function GlobalError({
             justifyContent: "center",
             padding: "1.5rem",
             textAlign: "center",
-            background: "var(--pg, #f5f5f4)",
-            color: "var(--t1, #1c1917)",
+            background: "var(--color-pg, #f8f9fa)",
+            color: "var(--color-t1, #191c1d)",
           }}
         >
           <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>
             Something went wrong
           </h1>
-          <p style={{ marginTop: "0.5rem", maxWidth: "28rem", color: "var(--t3, #78716c)", fontSize: "0.875rem" }}>
+          <p style={{ marginTop: "0.5rem", maxWidth: "28rem", color: "var(--color-t3, #76777d)", fontSize: "0.875rem" }}>
             A critical error occurred. Try again or go back to the home page.
           </p>
           <div style={{ marginTop: "1.5rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
@@ -43,10 +43,10 @@ export default function GlobalError({
               onClick={() => reset()}
               style={{
                 padding: "0.5rem 1rem",
-                borderRadius: "0.375rem",
+                borderRadius: "8px",
                 border: "none",
-                background: "var(--ac, #1c1917)",
-                color: "#fff",
+                background: "var(--color-ac, #111827)",
+                color: "var(--color-on-ac, #fff)",
                 cursor: "pointer",
                 fontSize: "0.875rem",
                 fontWeight: 500,
@@ -61,9 +61,9 @@ export default function GlobalError({
               }}
               style={{
                 padding: "0.5rem 1rem",
-                borderRadius: "0.375rem",
-                border: "1px solid var(--bd, #d6d3d1)",
-                background: "var(--sr, #fff)",
+                borderRadius: "8px",
+                border: "1px solid var(--color-bd, #c6c6cd)",
+                background: "var(--color-sr, #fff)",
                 color: "inherit",
                 cursor: "pointer",
                 fontSize: "0.875rem",

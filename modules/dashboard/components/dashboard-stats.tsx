@@ -30,7 +30,7 @@ function StatCard({ icon: Icon, label, value, href, accent, iconTint }: {
   iconTint: string
 }) {
   const inner = (
-    <div className="oryx-surface-card group relative h-full overflow-hidden rounded-lg border border-bd bg-sr p-6 transition-shadow hover:shadow-md max-md:p-4">
+    <div className="oryx-surface-card group relative h-full overflow-hidden rounded-xl border border-bd bg-sr p-6 transition-shadow hover:shadow-md max-md:p-4">
       <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
       <div className="mb-2 flex items-start justify-between gap-3">
         <p className="text-[48px] font-semibold tabular-nums leading-none tracking-tight text-t1 max-md:text-3xl">{value}</p>

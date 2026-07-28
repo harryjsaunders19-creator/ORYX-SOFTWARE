@@ -36,7 +36,7 @@ interface ClientAnalytics {
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
-  return <KpiTile label={label} value={value} accent="#4640DE" />
+  return <KpiTile label={label} value={value} accent="var(--color-ac)" />
 }
 
 export default function ClientDetailPage() {
