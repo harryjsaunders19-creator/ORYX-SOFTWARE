@@ -48,6 +48,18 @@ export {
 } from "./import/import-jobs"
 
 export { JobsTable } from "./components/jobs-table"
+
+export {
+  StatusBadge,
+  TypeOfWorksBadge,
+  WorkItemTypeBadge,
+  RevisionFamilyBadge,
+  JOB_BADGE_CLASSES,
+  JOB_ROW_BG,
+  JOB_ROW_BORDER,
+  STATUS_DOT,
+} from "./components/badges"
+
 export { ActiveWorkItemsTable } from "./components/active-work-items-table"
 export { JobForm } from "./components/job-form"
 

@@ -33,6 +33,11 @@ const eslintConfig = defineConfig([
           { name: "@/lib/services/client-service", message: "Import from @/modules/clients" },
           { name: "@/lib/services/quote-service", message: "Import from @/modules/quotes" },
           { name: "@/lib/services/user-service", message: "Import from @/modules/users" },
+          { name: "@/components/status-badge", message: "Import from @/modules/jobs/components/badges/status-badge" },
+          { name: "@/components/type-of-works-badge", message: "Import from @/modules/jobs/components/badges/type-of-works-badge" },
+          { name: "@/components/work-item-type-badge", message: "Import from @/modules/jobs/components/badges/work-item-type-badge" },
+          { name: "@/components/revision-family-badge", message: "Import from @/modules/jobs/components/badges/revision-family-badge" },
+          { name: "@/components/inline-edit-selects", message: "Import from @/modules/jobs/components/inline-edit-selects" },
         ],
         patterns: [
           {

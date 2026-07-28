@@ -67,12 +67,15 @@ function listFromCache(current: unknown, listKey: ListKey): { id: string }[] | n
 }
 
 /** Drop a row from a paginated list cache immediately, then revalidate in background. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function optimisticListRemove(mutate: KeyedMutator<any>, listKey: ListKey, id: string) {
+export function optimisticListRemove<Data>(
+  mutate: KeyedMutator<Data>,
+  listKey: ListKey,
+  id: string,
+) {
   return mutate(
-    (current: unknown) => {
+    (current) => {
       const list = listFromCache(current, listKey)
-      if (!list) return current
+      if (!list || current == null || typeof current !== "object") return current
       const next = list.filter(item => item.id !== id)
       if (next.length === list.length) return current
       const total = (current as { total?: number }).total
@@ -80,30 +83,29 @@ export function optimisticListRemove(mutate: KeyedMutator<any>, listKey: ListKey
         ...(current as object),
         [listKey]: next,
         total: total != null ? Math.max(0, total - 1) : total,
-      }
+      } as Data
     },
     { revalidate: true },
   )
 }
 
 /** Prepend a row to a paginated list cache, then revalidate in background. */
-export function optimisticListPrepend<T extends { id: string }>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mutate: KeyedMutator<any>,
+export function optimisticListPrepend<Data, T extends { id: string }>(
+  mutate: KeyedMutator<Data>,
   listKey: ListKey,
   item: T,
 ) {
   return mutate(
-    (current: unknown) => {
+    (current) => {
       const list = listFromCache(current, listKey)
-      if (!list) return current
+      if (!list || current == null || typeof current !== "object") return current
       if (list.some(row => row.id === item.id)) return current
       const total = (current as { total?: number }).total
       return {
         ...(current as object),
         [listKey]: [item, ...list],
         total: (total ?? list.length) + 1,
-      }
+      } as Data
     },
     { revalidate: true },
   )

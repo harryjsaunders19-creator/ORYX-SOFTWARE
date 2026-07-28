@@ -14,8 +14,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogDescription, DialogBody,
 } from "@/shared/ui/dialog"
-import { StatusBadge }        from "@/components/status-badge"
-import { WorkItemTypeBadge }  from "@/components/work-item-type-badge"
+import { StatusBadge }        from "@/modules/jobs/components/badges/status-badge"
+import { WorkItemTypeBadge }  from "@/modules/jobs/components/badges/work-item-type-badge"
 import { StatusWorkflow }     from "@/components/status-workflow"
 import { DesignerCombobox }   from "@/components/designer-combobox"
 import { useToast }            from "@/shared/ui/toast"

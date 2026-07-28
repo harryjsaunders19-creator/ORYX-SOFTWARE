@@ -11,8 +11,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogDescription, DialogBody,
 } from "@/shared/ui/dialog"
-import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
-import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
+import { WorkItemTypeBadge } from "@/modules/jobs/components/badges/work-item-type-badge"
+import { TypeOfWorksBadge } from "@/modules/jobs/components/badges/type-of-works-badge"
 import { useToast } from "@/shared/ui/toast"
 import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, DataPanel, KpiTile, TabBar, TablePagination } from "@/shared/layouts/page-layout"

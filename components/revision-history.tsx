@@ -5,7 +5,7 @@ import { GitBranch, ChevronDown, ChevronUp, Plus, UserCircle2, PenTool, Receipt,
 import { Button } from "@/shared/ui/button"
 import { Textarea } from "@/shared/ui/textarea"
 import { Label } from "@/shared/ui/label"
-import { StatusBadge } from "@/components/status-badge"
+import { StatusBadge } from "@/modules/jobs/components/badges/status-badge"
 import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
 import { revisionParentId } from "@/lib/revision-chain"

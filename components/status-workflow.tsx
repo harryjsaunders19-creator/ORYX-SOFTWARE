@@ -3,7 +3,7 @@ import { useState } from "react"
 import { Check, Loader2 } from "lucide-react"
 import { cn } from "@/shared/utils"
 import { JOB_STATUSES } from "@/lib/constants"
-import { StatusBadge } from "@/components/status-badge"
+import { StatusBadge } from "@/modules/jobs/components/badges/status-badge"
 import { useToast }    from "@/components/ui/toast"
 
 export function StatusWorkflow({ jobId, currentStatus, onStatusChange, patchUrl }: {

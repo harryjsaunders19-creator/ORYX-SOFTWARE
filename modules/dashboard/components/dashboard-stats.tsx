@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { format, startOfWeek, endOfWeek } from "date-fns"
-import { RevisionFamilyBadge } from "@/components/revision-family-badge"
+import { RevisionFamilyBadge } from "@/modules/jobs/components/badges/revision-family-badge"
 import {
   MapPin, Video, Receipt, Briefcase, Plus,
   ClipboardCheck, AlertTriangle, Clock, RefreshCw, ChevronRight,

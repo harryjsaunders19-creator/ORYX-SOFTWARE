@@ -2,7 +2,7 @@
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { ChevronDown } from "lucide-react"
 import { SelectContent, SelectItem } from "@/components/ui/select"
-import { StatusBadge } from "@/components/status-badge"
+import { StatusBadge } from "@/modules/jobs/components/badges/status-badge"
 import { JOB_STATUSES } from "@/lib/constants"
 import { cn } from "@/shared/utils"
 
