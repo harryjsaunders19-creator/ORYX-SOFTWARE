@@ -1,6 +1,7 @@
 import type { User } from "@/lib/types"
 import type { UserRow } from "@/lib/db/user-types"
 import { getCurrentUser, getRealUser } from "@/shared/auth/auth"
+import { parseModuleAccessJson } from "@/shared/auth/permissions"
 
 export type SessionPayload = {
   user: User | null
@@ -17,6 +18,7 @@ function toPublicUser(raw: UserRow | null): User | null {
     email: raw.email,
     role: raw.role,
     active: raw.active,
+    moduleAccess: parseModuleAccessJson(raw.moduleAccessJson),
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   }

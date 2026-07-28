@@ -35,6 +35,11 @@ console.log(`Syncing ${rows.length} user(s)...`)
 
 let failed = 0
 for (const u of rows) {
+  let moduleAccessJson = null
+  if (u.moduleAccessJson) {
+    try { moduleAccessJson = JSON.parse(u.moduleAccessJson) }
+    catch { moduleAccessJson = null }
+  }
   const { error } = await supabase.from("app_users").upsert({
     id: u.id,
     name: u.name,
@@ -42,6 +47,7 @@ for (const u of rows) {
     email_lower: u.emailLower,
     role: u.role,
     active: u.active === 1,
+    module_access_json: moduleAccessJson,
     password_hash: u.passwordHash,
     must_change_password: u.mustChangePassword === 1,
     created_at: u.createdAt,

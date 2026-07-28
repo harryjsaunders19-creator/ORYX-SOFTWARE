@@ -17,10 +17,11 @@ import { useUser }  from "@/shared/providers/user-context"
 import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, DataPanel } from "@/shared/layouts/page-layout"
 import { cn } from "@/shared/utils/utils"
-import { ROLES } from "@/shared/auth/permissions"
+import { MODULES, ROLES } from "@/shared/auth/permissions"
 import type { User, Role } from "@/lib/types"
 
 type UsersData = { users: User[]; total: number }
+const ENGINEER_MODULES = MODULES.filter(m => m.roles.includes("ENGINEER"))
 
 function RoleBadge({ role }: { role: string }) {
   return (
@@ -36,15 +37,16 @@ function RoleBadge({ role }: { role: string }) {
 
 function UserForm({ formId, initial, onSubmit }: {
   formId: string
-  initial: { name: string; email: string; role: Role }
-  onSubmit: (data: { name: string; email: string; role: Role }) => void
+  initial: { name: string; email: string; role: Role; moduleAccess: string[] | null }
+  onSubmit: (data: { name: string; email: string; role: Role; moduleAccess: string[] | null }) => void
 }) {
   const [name,  setName]  = useState(initial.name)
   const [email, setEmail] = useState(initial.email)
   const [role,  setRole]  = useState<Role>(initial.role)
+  const [moduleAccess, setModuleAccess] = useState<string[] | null>(initial.moduleAccess)
 
   return (
-    <form id={formId} onSubmit={e => { e.preventDefault(); onSubmit({ name: name.trim(), email: email.trim(), role }) }} className="space-y-3">
+    <form id={formId} onSubmit={e => { e.preventDefault(); onSubmit({ name: name.trim(), email: email.trim(), role, moduleAccess }) }} className="space-y-3">
       <div className="flex flex-col gap-1.5">
         <Label>Name *</Label>
         <Input value={name} onChange={e => setName(e.target.value)} autoFocus required placeholder="Jane Smith" />
@@ -62,6 +64,43 @@ function UserForm({ formId, initial, onSubmit }: {
           </SelectContent>
         </Select>
         <p className="text-xs text-t4">New users default to Engineer — promote to Admin deliberately.</p>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label>Module access</Label>
+        {role === "ADMIN" ? (
+          <p className="text-xs text-t4">Admins always have full module access.</p>
+        ) : (
+          <>
+            <p className="text-xs text-t4">Toggle what this engineer can see in the sidebar and open directly.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {ENGINEER_MODULES.map(module => {
+                const enabled = moduleAccess == null || moduleAccess.includes(module.key)
+                return (
+                  <button
+                    key={module.key}
+                    type="button"
+                    aria-pressed={enabled}
+                    onClick={() => {
+                      const current = moduleAccess ?? ENGINEER_MODULES.map(m => m.key)
+                      const next = enabled
+                        ? current.filter(k => k !== module.key)
+                        : [...current, module.key]
+                      setModuleAccess(next)
+                    }}
+                    className={cn(
+                      "rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors",
+                      enabled
+                        ? "border-ac/30 bg-ac-bg text-ac"
+                        : "border-bd bg-transparent text-t3 hover:border-ac/30",
+                    )}
+                  >
+                    {module.label}
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
     </form>
   )
@@ -92,12 +131,12 @@ function UsersPageInner() {
 
   useEffect(() => { load() }, [load])
 
-  const doCreate = async (d: { name: string; email: string; role: Role }) => {
+  const doCreate = async (d: { name: string; email: string; role: Role; moduleAccess: string[] | null }) => {
     setSaving(true)
     try {
       const res = await fetch("/api/users", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: d.name, email: d.email, role: d.role }),
+        body: JSON.stringify({ name: d.name, email: d.email, role: d.role, moduleAccess: d.role === "ADMIN" ? null : d.moduleAccess }),
       })
       const body = await res.json() as { user?: User; tempPassword?: string; error?: string }
       if (!res.ok) { toast(body.error ?? "Failed to create user", "error"); return }
@@ -119,13 +158,18 @@ function UsersPageInner() {
     finally { setResetting(null) }
   }
 
-  const doEdit = async (d: { name: string; email: string; role: Role }) => {
+  const doEdit = async (d: { name: string; email: string; role: Role; moduleAccess: string[] | null }) => {
     if (!editUser) return
     setSaving(true)
     try {
       const res = await fetch(`/api/users/${editUser.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: d.name, email: d.email || null, role: d.role }),
+        body: JSON.stringify({
+          name: d.name,
+          email: d.email || null,
+          role: d.role,
+          moduleAccess: d.role === "ADMIN" ? null : d.moduleAccess,
+        }),
       })
       const body = await res.json() as User & { error?: string }
       if (!res.ok) { toast(body.error ?? "Failed to save", "error"); return }
@@ -233,7 +277,7 @@ function UsersPageInner() {
         <DialogContent size="sm">
           <DialogHeader><DialogTitle>New user</DialogTitle></DialogHeader>
           <DialogBody>
-            <UserForm formId="create-user-form" initial={{ name: "", email: "", role: "ENGINEER" }} onSubmit={doCreate} />
+            <UserForm formId="create-user-form" initial={{ name: "", email: "", role: "ENGINEER", moduleAccess: null }} onSubmit={doCreate} />
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>Cancel</Button>
@@ -250,7 +294,12 @@ function UsersPageInner() {
             {editUser && (
               <UserForm
                 formId="edit-user-form"
-                initial={{ name: editUser.name, email: editUser.email ?? "", role: editUser.role }}
+                initial={{
+                  name: editUser.name,
+                  email: editUser.email ?? "",
+                  role: editUser.role,
+                  moduleAccess: editUser.moduleAccess,
+                }}
                 onSubmit={doEdit}
               />
             )}

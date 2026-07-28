@@ -5,9 +5,10 @@ import { usePathname, useRouter } from "next/navigation"
 import { useUser } from "@/shared/providers/user-context"
 import { StitchSideNav } from "@/shared/layouts/stitch-side-nav"
 import { StitchTopBar } from "@/shared/layouts/stitch-top-bar"
+import { moduleKeyForPath } from "@/shared/layouts/nav-utils"
 
 export function StitchAppShell({ children }: { children: React.ReactNode }) {
-  const { user, loading, mustChangePassword } = useUser()
+  const { user, loading, mustChangePassword, canAccess } = useUser()
   const pathname = usePathname()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -18,7 +19,11 @@ export function StitchAppShell({ children }: { children: React.ReactNode }) {
     if (loading) return
     if (!user && !isAuthPage) router.replace("/login")
     if (user && mustChangePassword && pathname !== "/set-password") router.replace("/set-password")
-  }, [user, loading, mustChangePassword, isAuthPage, pathname, router])
+    if (user) {
+      const moduleKey = moduleKeyForPath(pathname)
+      if (moduleKey && !canAccess(moduleKey)) router.replace("/")
+    }
+  }, [user, loading, mustChangePassword, isAuthPage, pathname, canAccess, router])
 
   useEffect(() => {
     setSidebarOpen(false)

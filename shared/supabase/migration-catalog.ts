@@ -25,7 +25,7 @@ export const SUPABASE_MIGRATION_MODULES: SupabaseModuleSpec[] = [
     label: "Users",
     flagKey: "users",
     envVar: "SUPABASE_USERS",
-    migration: "008_users.sql",
+    migration: "008_users.sql (+ 038_user_module_access.sql)",
     syncScript: "npm run supabase:sync-users",
     verifyScript: "npm run supabase:verify-users",
     tables: ["app_users"],

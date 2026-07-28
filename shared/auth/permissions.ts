@@ -60,9 +60,58 @@ export function getModule(key: string): ModuleDef | undefined {
   return MODULES.find(m => m.key === key)
 }
 
-export function canAccessModule(role: Role, key: string): boolean {
+export type ModuleKey = typeof MODULES[number]["key"]
+
+export function isValidModuleKey(value: unknown): value is ModuleKey {
+  return typeof value === "string" && MODULES.some(m => m.key === value)
+}
+
+function engineerAssignableModuleSet(): Set<string> {
+  return new Set(MODULES.filter(m => m.roles.includes("ENGINEER")).map(m => m.key))
+}
+
+/**
+ * Canonicalize admin-managed module access config:
+ * - invalid keys are dropped
+ * - duplicate keys are removed
+ * - admin-only keys are stripped (engineers can never be granted those)
+ * - null/undefined means "use role defaults"
+ */
+export function normalizeModuleAccess(value: unknown): ModuleKey[] | null {
+  if (value == null) return null
+  if (!Array.isArray(value)) return null
+  const allowedForEngineers = engineerAssignableModuleSet()
+  const out: ModuleKey[] = []
+  for (const item of value) {
+    if (!isValidModuleKey(item)) continue
+    if (!allowedForEngineers.has(item)) continue
+    if (out.includes(item)) continue
+    out.push(item)
+  }
+  return out
+}
+
+export function serializeModuleAccess(value: ModuleKey[] | null): string | null {
+  if (value == null) return null
+  return JSON.stringify(value)
+}
+
+export function parseModuleAccessJson(value: string | null | undefined): ModuleKey[] | null {
+  if (!value) return null
+  try {
+    return normalizeModuleAccess(JSON.parse(value))
+  } catch {
+    return null
+  }
+}
+
+export function canAccessModule(role: Role, key: string, moduleAccess?: ModuleKey[] | null): boolean {
   const m = getModule(key)
-  return m ? m.roles.includes(role) : true   // unknown modules default open — fail-open on nav, never on the API
+  if (!m) return true // unknown modules default open — fail-open on nav, never on the API
+  if (!m.roles.includes(role)) return false
+  if (role === "ADMIN") return true
+  if (moduleAccess == null) return true
+  return moduleAccess.includes(m.key)
 }
 
 export function modulesForRole(role: Role): ModuleDef[] {
@@ -71,6 +120,12 @@ export function modulesForRole(role: Role): ModuleDef[] {
     if (m.key === "job-map" && !isExperimentalEnabled("jobMap")) return false
     return m.roles.includes(role)
   })
+}
+
+export function modulesForUser(role: Role, moduleAccess?: ModuleKey[] | null): ModuleDef[] {
+  const base = modulesForRole(role)
+  if (role === "ADMIN" || moduleAccess == null) return base
+  return base.filter(m => moduleAccess.includes(m.key))
 }
 
 // ── Capability checks ────────────────────────────────────────────────

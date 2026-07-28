@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/shared/utils"
 import { useUser } from "@/shared/providers/user-context"
-import { modulesForRole, type ModuleDef } from "@/shared/auth/permissions"
+import { modulesForUser, type ModuleDef } from "@/shared/auth/permissions"
 import { OryxLogo } from "@/shared/branding/oryx-logo"
 import { STITCH_SIDEBAR_W } from "@/shared/branding/stitch-layout"
 import { isNavItemActive } from "@/shared/layouts/nav-utils"
@@ -45,8 +45,8 @@ type SideNavContentProps = {
 
 function SideNavContent({ onNavigate }: SideNavContentProps) {
   const path = usePathname()
-  const { role, loading } = useUser()
-  const nav = modulesForRole(role)
+  const { role, loading, user } = useUser()
+  const nav = modulesForUser(role, user?.moduleAccess ?? null)
   const mainNav = nav.filter(m => !ADMIN_KEYS.has(m.key))
   const adminNav = nav.filter(m => ADMIN_KEYS.has(m.key))
   const isActive = (key: string, href: string) => isNavItemActive(path, key, href)
