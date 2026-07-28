@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { jobService } from "../services/job-service"
 import { historyService } from "../services/history-service"
-import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -13,7 +13,7 @@ const addHistoryNoteBodySchema = z.object({
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
     const { id } = await params
     const job = await jobService.findUnique(id)
@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 // POST lets the client add a freeform note to the history without changing status
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
     const { id } = await params
     const job = await jobService.findUnique(id)

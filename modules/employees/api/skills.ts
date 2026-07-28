@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
 import { SKILL_CATEGORIES, type SkillCategory } from "@/modules/employees"
 
@@ -8,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
     let body: { name?: string; level?: string; yearsExperience?: number; category?: string }

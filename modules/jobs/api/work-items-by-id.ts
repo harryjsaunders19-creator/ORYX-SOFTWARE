@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { VALID_STATUSES } from "@/lib/constants"
@@ -39,7 +39,7 @@ export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireSignIn()
+  const auth = await requireModuleAccess("jobs")
   if (auth instanceof NextResponse) return auth
   if (!isWorkItemsModelEnabled()) return modelDisabled()
 
@@ -59,7 +59,7 @@ export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireRole(["ADMIN", "ENGINEER"])
+  const auth = await requireModuleAccess("jobs")
   if (auth instanceof NextResponse) return auth
   if (!isWorkItemsModelEnabled()) return modelDisabled()
 

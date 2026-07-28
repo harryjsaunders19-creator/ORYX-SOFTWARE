@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { listResponse } from "@/shared/utils/api-cache"
-import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
 import { ensureSequencesSeeded } from "@/shared/supabase/seed-sequences"
@@ -49,7 +49,7 @@ const createParentJobBodySchema = z.object({
 
 /** GET — search parent jobs (always findable, including idle projects). */
 export async function GET(req: NextRequest) {
-  const auth = await requireSignIn()
+  const auth = await requireModuleAccess("jobs")
   if (auth instanceof NextResponse) return auth
   if (!isWorkItemsModelEnabled()) return modelDisabled()
 
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 
 /** POST — create Parent Job + Original Issue work item. */
 export async function POST(req: NextRequest) {
-  const auth = await requireRole(["ADMIN", "ENGINEER"])
+  const auth = await requireModuleAccess("jobs")
   if (auth instanceof NextResponse) return auth
   if (!isWorkItemsModelEnabled()) return modelDisabled()
 

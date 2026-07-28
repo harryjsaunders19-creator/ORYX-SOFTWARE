@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { parentJobService } from "@/modules/jobs/services/parent-work-item-service"
@@ -16,7 +16,7 @@ export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireSignIn()
+  const auth = await requireModuleAccess("jobs")
   if (auth instanceof NextResponse) return auth
   if (!isWorkItemsModelEnabled()) return modelDisabled()
 

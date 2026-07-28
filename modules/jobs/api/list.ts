@@ -8,7 +8,7 @@ import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { createId } from "@paralleldrive/cuid2"
 import { CREATABLE_ITEM_TYPE_VALUES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE, sanitizeJobTags } from "@/lib/constants"
-import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, requireRole, actorName } from "@/shared/auth/auth"
 import { MAX_JOB_LIST_EXPORT_ROWS } from "@/modules/import-export/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
@@ -121,7 +121,7 @@ const createJobBodySchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
     const sp             = req.nextUrl.searchParams
@@ -221,7 +221,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
     let bodyRaw: unknown

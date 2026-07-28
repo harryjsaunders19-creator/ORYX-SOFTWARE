@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { listResponse } from "@/shared/utils/api-cache"
@@ -21,7 +21,7 @@ const PERIOD_VALUES = new Set(["all", "today", "week", "month"])
 
 export async function GET(req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await ctx.params
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireRole(["ADMIN", "ENGINEER"])
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await ctx.params

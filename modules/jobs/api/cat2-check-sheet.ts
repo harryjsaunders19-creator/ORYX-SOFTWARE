@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { jobService } from "../services/job-service"
 import { parentJobService } from "../services/parent-work-item-service"
@@ -82,7 +82,7 @@ function jobFromParentAndWorkItem(
 
 export async function POST(_req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await ctx.params

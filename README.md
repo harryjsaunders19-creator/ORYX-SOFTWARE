@@ -32,7 +32,7 @@ CI runs typecheck, unit tests, lint, build, and e2e on every push to `main`.
 Run **in order** on a fresh project (or after a deliberate wipe):
 
 1. `supabase/00-drop-all.sql` — drops all ORYX tables
-2. `supabase/01-bootstrap.sql` — full schema (migrations 001–026)
+2. `supabase/01-bootstrap.sql` — full schema (migrations 001–039)
 
 Regenerate `01-bootstrap.sql` after editing migrations:
 

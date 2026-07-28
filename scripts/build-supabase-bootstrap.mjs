@@ -53,6 +53,18 @@ const MIGRATION_ORDER = [
   "025_site_visit_calculations.sql",
   "026_login_rate_limits.sql",
   "027_security_sequences_aggregates.sql",
+  "028_employee_files_storage.sql",
+  "029_job_billable.sql",
+  "030_parent_jobs_work_items.sql",
+  "031_work_item_fk_nullable.sql",
+  "032_audit_rpc_rate_limit_billing_export.sql",
+  "033_convert_quote_to_job.sql",
+  "034_session_revocations.sql",
+  "035_perf_hot_path_indexes.sql",
+  "036_job_tags.sql",
+  "037_job_documents.sql",
+  "038_user_module_access.sql",
+  "039_job_design_standards.sql",
 ]
 
 const header = `-- =============================================================================

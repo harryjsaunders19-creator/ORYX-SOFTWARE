@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { requireRole, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
@@ -30,7 +30,7 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireRole(["ADMIN", "ENGINEER"])
+  const auth = await requireModuleAccess("jobs")
   if (auth instanceof NextResponse) return auth
   if (!isWorkItemsModelEnabled()) return modelDisabled()
 

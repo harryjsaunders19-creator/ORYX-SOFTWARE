@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clientService } from "../services/client-service"
-import { requireSignIn, requireRole } from "@/shared/auth/auth"
+import { requireModuleAccess, requireRole } from "@/shared/auth/auth"
 import { canViewCommercialValues, canViewClientAnalytics } from "@/shared/auth/permissions"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { apiInternalError } from "@/shared/api-errors"
@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("clients")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
@@ -110,7 +110,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("clients")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

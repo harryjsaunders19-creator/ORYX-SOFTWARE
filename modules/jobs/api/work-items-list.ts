@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
@@ -18,7 +18,7 @@ function modelDisabled() {
  * GET — active design work items + standalone non-design jobs (site visits, etc.).
  */
 export async function GET(req: NextRequest) {
-  const auth = await requireSignIn()
+  const auth = await requireModuleAccess("jobs")
   if (auth instanceof NextResponse) return auth
   if (!isWorkItemsModelEnabled()) return modelDisabled()
 

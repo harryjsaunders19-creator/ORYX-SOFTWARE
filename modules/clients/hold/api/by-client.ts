@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { holdService } from "../services/hold-service"
 import { clientService } from "../../services/client-service"
-import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> }
 /** GET: current hold status for a client */
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("hold-list")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 /** POST: put client on hold */
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("hold-list")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 /** DELETE: remove client from hold */
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("hold-list")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

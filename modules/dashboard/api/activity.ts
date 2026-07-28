@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { parseLimitParam } from "@/shared/utils/pagination"
 import { listResponse } from "@/shared/utils/api-cache"
@@ -17,7 +17,7 @@ function statusLabel(status: string | null | undefined): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("dashboard")
     if (auth instanceof NextResponse) return auth
 
     const limit = parseLimitParam(req.nextUrl.searchParams.get("limit"), 20, 50)

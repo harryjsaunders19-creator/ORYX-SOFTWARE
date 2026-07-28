@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { calendarService } from "../services/calendar-service"
 import { filterUserCategories } from "../config/category-config"
 
 export async function GET() {
-  const auth = await requireSignIn()
+  const auth = await requireModuleAccess("calendar")
   if (auth instanceof NextResponse) return auth
 
   try {

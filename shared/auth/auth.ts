@@ -14,6 +14,11 @@ import type { UserRow } from "@/modules/users/types"
 import type { Role } from "@/shared/types/role"
 import { userService } from "@/modules/users"
 import {
+  canAccessModule,
+  getModule,
+  parseModuleAccessJson,
+} from "@/shared/auth/permissions"
+import {
   verifySessionTokenDetailed,
   SESSION_COOKIE,
   REAL_SESSION_COOKIE,
@@ -97,6 +102,25 @@ export async function requireSignIn(): Promise<RoleCheckResult> {
     return passwordChangeRequiredResponse()
   }
   return { user }
+}
+
+/**
+ * Sign-in + per-user module access (admin toggles on Users).
+ * Fail-closed for unknown module keys — unlike nav helpers.
+ */
+export async function requireModuleAccess(moduleKey: string): Promise<RoleCheckResult> {
+  const auth = await requireSignIn()
+  if (auth instanceof NextResponse) return auth
+
+  if (!getModule(moduleKey)) {
+    return NextResponse.json({ error: "You don't have permission to access this." }, { status: 403 })
+  }
+
+  const moduleAccess = parseModuleAccessJson(auth.user.moduleAccessJson)
+  if (!canAccessModule(auth.user.role as Role, moduleKey, moduleAccess)) {
+    return NextResponse.json({ error: "You don't have permission to access this." }, { status: 403 })
+  }
+  return auth
 }
 
 /** Display name for audit fields — never trust client-supplied changedBy. */
