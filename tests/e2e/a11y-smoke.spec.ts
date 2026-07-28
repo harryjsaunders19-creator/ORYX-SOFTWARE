@@ -47,4 +47,25 @@ test.describe("Accessibility smoke", () => {
     await expect(page.locator("h1").filter({ hasText: /quote/i })).toBeVisible({ timeout: 15_000 })
     await expectNoCriticalAxe(page)
   })
+
+  test("calendar has no critical axe violations", async ({ page }) => {
+    await loginAsAdmin(page)
+    await page.goto("/calendar")
+    await expect(page.locator("h1").filter({ hasText: /calendar/i })).toBeVisible({ timeout: 15_000 })
+    await expectNoCriticalAxe(page)
+  })
+
+  test("billing has no critical axe violations", async ({ page }) => {
+    await loginAsAdmin(page)
+    await page.goto("/billing")
+    await expect(page.locator("h1").filter({ hasText: /invoicing|billing/i })).toBeVisible({ timeout: 15_000 })
+    await expectNoCriticalAxe(page)
+  })
+
+  test("users has no critical axe violations", async ({ page }) => {
+    await loginAsAdmin(page)
+    await page.goto("/users")
+    await expect(page.locator("h1").filter({ hasText: /^users$/i })).toBeVisible({ timeout: 15_000 })
+    await expectNoCriticalAxe(page)
+  })
 })
