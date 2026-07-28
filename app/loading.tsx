@@ -1,19 +1,21 @@
 import { PageShell } from "@/components/page-layout"
 
-/** Root loading — matches dashboard command-centre skeleton. */
+/** Root loading — matches Figma dashboard layout. */
 export default function Loading() {
   return (
     <PageShell>
       <div className="space-y-8">
-        <div className="space-y-3 max-w-3xl">
-          <div className="skeleton h-8 w-64 rounded-lg" />
-          <div className="skeleton h-4 w-48 rounded-lg" />
-          <div className="skeleton h-4 w-80 rounded-lg" />
-          <div className="skeleton h-14 w-full rounded-xl" />
+        <div className="flex justify-between gap-4">
+          <div className="space-y-2">
+            <div className="skeleton h-8 w-64 rounded-lg" />
+            <div className="skeleton h-4 w-48 rounded-lg" />
+          </div>
+          <div className="skeleton h-9 w-20 rounded-lg" />
         </div>
+        <div className="skeleton h-14 w-full rounded-xl" />
         <div className="grid grid-cols-12 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="col-span-6 skeleton h-32 rounded-xl lg:col-span-3" />
+            <div key={i} className="col-span-6 skeleton h-36 rounded-xl lg:col-span-3" />
           ))}
         </div>
         <div className="grid grid-cols-12 gap-4">

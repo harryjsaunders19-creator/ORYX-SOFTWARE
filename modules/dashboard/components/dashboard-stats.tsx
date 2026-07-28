@@ -3,12 +3,12 @@
 import { useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { format, formatDistanceToNow, startOfWeek, endOfWeek } from "date-fns"
+import { format, startOfWeek, endOfWeek } from "date-fns"
 import { RevisionFamilyBadge } from "@/components/revision-family-badge"
 import {
-  MapPin, Video, Receipt, Briefcase, Activity, Plus,
-  AlertOctagon, ClipboardCheck, AlertTriangle, Clock, RefreshCw, ChevronRight,
-  CheckCircle2, BarChart3, PoundSterling,
+  MapPin, Video, Receipt, Briefcase, Plus,
+  ClipboardCheck, AlertTriangle, Clock, RefreshCw, ChevronRight,
+  CheckCircle2, ExternalLink, AlertCircle,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import {
@@ -16,55 +16,55 @@ import {
   DropdownMenuItem, DropdownMenuSeparator,
 } from "@/shared/ui/dropdown-menu"
 import { useUser } from "@/shared/providers/user-context"
-import { cn, formatGBP, getDeadlineInfo } from "@/shared/utils/utils"
+import { cn, getDeadlineInfo } from "@/shared/utils/utils"
 import { useApi } from "@/shared/hooks/use-api"
-import { JOB_STATUSES } from "@/lib/constants"
 import type { StatsData, DashboardWeekEvent } from "../types/stats-types"
-import type { ActivityResponse } from "../types/activity-types"
 import type { Job, ClientHoldWithClient } from "@/lib/types"
 
 const SITE_VISIT_ID = "cat_site_visit"
 const TEAMS_MEETING_ID = "cat_teams_meeting"
 
+/** KPI / legend colours — aligned with job-list status tokens. */
+const TONE = {
+  active: {
+    accent: "var(--color-rs-ic)",
+    icon: "text-rs-ic bg-rs-bg",
+    badge: "bg-rs-bg text-rs-tx",
+    dot: "bg-rs-ic",
+  },
+  due: {
+    accent: "var(--color-wn-ic)",
+    icon: "text-wn-ic bg-wn-bg",
+    badge: "bg-wn-bg text-wn-tx",
+    dot: "bg-wn-ic",
+  },
+  checking: {
+    // Job-list CHECKING status
+    accent: "var(--color-wn)",
+    icon: "text-wn bg-wn-bg",
+    badge: "bg-wn-bg text-wn-tx",
+    dot: "bg-wn",
+  },
+  invoicing: {
+    accent: "var(--color-ok-ic)",
+    icon: "text-ok-ic bg-ok-bg",
+    badge: "bg-ok-bg text-ok-tx",
+    dot: "bg-ok-ic",
+  },
+  overdue: {
+    accent: "var(--color-dn)",
+    icon: "text-dn bg-dn-bg",
+    badge: "bg-dn-bg text-dn-tx",
+    dot: "bg-dn",
+  },
+} as const
+
+type ToneKey = keyof typeof TONE
+
 function greetingForHour(hour: number): string {
   if (hour < 12) return "Good morning"
   if (hour < 18) return "Good afternoon"
   return "Good evening"
-}
-
-function buildOperationalSummary(stats: StatsData, isAdmin: boolean): string {
-  const active = stats.totalActiveJobs
-  const attention =
-    (stats.overdueCount ?? 0)
-    + (stats.dueTodayCount ?? 0)
-    + (stats.checking ?? 0)
-    + (stats.clientsOnHold ?? 0)
-  const invoicing = isAdmin ? (stats.readyForInvoicingCount ?? 0) : 0
-  const overdue = stats.overdueCount ?? 0
-
-  if (overdue > 0) {
-    const parts = [
-      `${overdue} overdue job${overdue === 1 ? "" : "s"} need${overdue === 1 ? "s" : ""} attention`,
-      `${active} active`,
-    ]
-    if (isAdmin && invoicing > 0) parts.push(`${invoicing} ready for invoicing`)
-    return `Attention required. ${parts.join(", ")}.`
-  }
-
-  if (attention > 0) {
-    const parts = [
-      `${active} job${active === 1 ? "" : "s"} active`,
-      `${attention} require${attention === 1 ? "s" : ""} attention`,
-    ]
-    if (isAdmin && invoicing > 0) parts.push(`${invoicing} ready for invoicing`)
-    return `Oryx is operating with items to review. ${parts.join(", ")}.`
-  }
-
-  if (isAdmin && invoicing > 0) {
-    return `Oryx is operating normally. ${active} jobs are active and ${invoicing} ${invoicing === 1 ? "is" : "are"} ready for invoicing.`
-  }
-
-  return `Oryx is operating normally. ${active} job${active === 1 ? " is" : "s are"} active with nothing overdue.`
 }
 
 function StatCard({
@@ -73,41 +73,42 @@ function StatCard({
   value,
   href,
   sub,
-  tone = "neutral",
-  suffix,
+  tone,
 }: {
   icon: React.ElementType
   label: string
   value: number
   href?: string
   sub?: string
-  tone?: "neutral" | "attention" | "danger" | "success"
-  suffix?: string
+  tone: ToneKey
 }) {
-  const iconClass = {
-    neutral: "text-t3 bg-pg",
-    attention: "text-wn bg-wn-bg",
-    danger: "text-dn bg-dn-bg",
-    success: "text-ok-ic bg-ok-bg",
-  }[tone]
-
+  const t = TONE[tone]
   const inner = (
-    <div className="group h-full rounded-xl border border-bd bg-sr p-5 transition-all duration-150 hover:border-bds hover:bg-surface-low/40 max-md:p-4">
+    <div className="group relative h-full overflow-hidden rounded-xl border border-bd bg-sr p-5 transition-all duration-150 hover:border-bds hover:shadow-sm max-md:p-4">
+      <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: t.accent }} />
       <div className="mb-4 flex items-start justify-between gap-3">
-        <div className={cn("rounded-lg p-2", iconClass)}>
+        <div className={cn("rounded-full p-2.5", t.icon)}>
           <Icon className="h-4 w-4" aria-hidden />
         </div>
-        <ChevronRight className="h-4 w-4 text-t4 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+        <span className={cn(
+          "inline-flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
+          t.badge,
+        )}>
+          {value}
+        </span>
       </div>
       <p className="text-3xl font-semibold tabular-nums tracking-tight text-t1 max-md:text-2xl">
-        {value}{suffix ? <span className="ml-0.5 text-lg font-medium text-t3">{suffix}</span> : null}
+        {value}
       </p>
       <p className="mt-2 text-sm font-medium text-t1">{label}</p>
       {sub && <p className="mt-1 text-xs text-t3">{sub}</p>}
     </div>
   )
   return href ? (
-    <Link href={href} className="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-t1/20 rounded-xl">
+    <Link
+      href={href}
+      className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-t1/20"
+    >
       {inner}
     </Link>
   ) : inner
@@ -116,25 +117,29 @@ function StatCard({
 function Panel({
   title,
   count,
+  countTone,
   viewAllHref,
   viewAllLabel,
   children,
-  className,
 }: {
   title: string
   count?: number
+  countTone?: ToneKey
   viewAllHref?: string
   viewAllLabel?: string
   children: React.ReactNode
-  className?: string
 }) {
+  const badgeClass = countTone ? TONE[countTone].badge : "bg-pg text-t2"
   return (
-    <section className={cn("flex min-h-56 flex-col overflow-hidden rounded-xl border border-bd bg-sr", className)}>
+    <section className="flex min-h-56 flex-col overflow-hidden rounded-xl border border-bd bg-sr shadow-sm">
       <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-4">
         <div className="flex min-w-0 items-center gap-2">
           <h2 className="text-sm font-semibold text-t1">{title}</h2>
           {count != null && count > 0 && (
-            <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-md bg-pg px-1.5 text-[11px] font-semibold tabular-nums text-t2">
+            <span className={cn(
+              "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
+              badgeClass,
+            )}>
               {count}
             </span>
           )}
@@ -179,7 +184,7 @@ function QuickCreateMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" className="gap-1.5">
+        <Button size="sm" variant="primary" className="gap-1.5">
           <Plus className="h-4 w-4" />
           New
         </Button>
@@ -195,6 +200,16 @@ function QuickCreateMenu() {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+function LegendDot({ tone, label, value }: { tone: ToneKey; label: string; value: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-t2">
+      <span className={cn("h-2 w-2 rounded-full", TONE[tone].dot)} aria-hidden />
+      <span className="text-t3">{label}</span>
+      <span className="font-semibold tabular-nums text-t1">{value}</span>
+    </span>
   )
 }
 
@@ -227,26 +242,23 @@ export function DashboardStats({
     ...(fallbackStats ? { revalidateIfStale: false, revalidateOnMount: false } : {}),
   })
 
-  const { data: activityData } = useApi<ActivityResponse>("/api/activity?limit=12")
-
   const events: DashboardWeekEvent[] = stats?.weekEvents ?? []
   const overdueJobs: Job[] = stats?.overdueJobs ?? []
   const holds: ClientHoldWithClient[] = (stats?.holds ?? []).slice(0, 5)
-  const activity = activityData?.items ?? []
   const error = swrError ? (swrError instanceof Error ? swrError.message : "Failed to load dashboard data") : null
 
   const siteVisits = events.filter(e => e.categoryId === SITE_VISIT_ID)
   const teamsMeetings = events.filter(e => e.categoryId === TEAMS_MEETING_ID)
 
-  const statusTotal = (stats?.byStatus ?? []).reduce((a, b) => a + b.count, 0)
-  const progressRows = JOB_STATUSES.map(s => ({
-    ...s,
-    count: stats?.byStatus?.find(x => x.status === s.value)?.count ?? 0,
-  }))
-
   const now = new Date()
-  const todayLabel = format(now, "EEEE d MMMM yyyy")
-  const summary = stats ? buildOperationalSummary(stats, isAdmin) : null
+  const todayLabel = format(now, "EEEE, d MMMM yyyy")
+
+  const overdueCount = stats?.overdueCount ?? 0
+  const dueWeek = stats?.dueThisWeekCount ?? 0
+  const checking = stats?.checking ?? 0
+  const invoicing = stats?.readyForInvoicingCount ?? 0
+  const active = stats?.totalActiveJobs ?? 0
+  const needsAttention = overdueCount > 0 || checking > 0 || (stats?.clientsOnHold ?? 0) > 0
 
   if (error) {
     return (
@@ -264,9 +276,10 @@ export function DashboardStats({
     return (
       <div className="space-y-8">
         <div className="h-24 rounded-xl skeleton" />
+        <div className="skeleton h-14 w-full rounded-xl" />
         <div className="grid grid-cols-12 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="col-span-6 h-32 rounded-xl skeleton lg:col-span-3" />
+            <div key={i} className="col-span-6 h-36 rounded-xl skeleton lg:col-span-3" />
           ))}
         </div>
         <div className="grid grid-cols-12 gap-4">
@@ -277,44 +290,72 @@ export function DashboardStats({
     )
   }
 
-  const dueWeek = stats?.dueThisWeekCount ?? 0
-  const checking = stats?.checking ?? 0
-  const invoicing = stats?.readyForInvoicingCount ?? 0
-  const overdueCount = stats?.overdueCount ?? 0
-
   return (
     <div className="space-y-8">
-      {/* Operational overview */}
-      <header className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 max-w-3xl space-y-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-t1 max-md:text-xl">
-              {greetingForHour(now.getHours())}, {displayName}
-            </h1>
-            <p className="mt-1 text-sm text-t3">{todayLabel}</p>
-          </div>
-          <p className="text-sm text-t2">Here&apos;s what&apos;s happening across Oryx today.</p>
-          {summary && (
-            <p className="rounded-lg border border-bd bg-sr px-4 py-3 text-sm leading-relaxed text-t2">
-              {summary}
-            </p>
-          )}
+      {/* Greeting + New */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight text-t1 max-md:text-xl">
+            {greetingForHour(now.getHours())}, {displayName}
+          </h1>
+          <p className="mt-1 text-sm text-t3">{todayLabel}</p>
         </div>
         <div className="shrink-0">
           <QuickCreateMenu />
         </div>
       </header>
 
-      {/* KPIs */}
+      {/* Attention / status strip */}
+      {needsAttention ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-dn-bd bg-dn-bg px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2.5 text-sm text-dn-tx">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-dn" aria-hidden />
+            <p className="font-medium">
+              {overdueCount > 0
+                ? `Attention required — ${overdueCount} overdue job${overdueCount === 1 ? "" : "s"} need${overdueCount === 1 ? "s" : ""} action.`
+                : checking > 0
+                  ? `Attention required — ${checking} job${checking === 1 ? "" : "s"} require${checking === 1 ? "s" : ""} checking.`
+                  : "Attention required — clients on hold need review."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end">
+            <LegendDot tone="active" label="Active jobs" value={active} />
+            <LegendDot tone="overdue" label="Overdue" value={overdueCount} />
+            <LegendDot tone="checking" label="Requires checking" value={checking} />
+            {isAdmin && (
+              <LegendDot tone="invoicing" label="Ready for invoicing" value={invoicing} />
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 rounded-xl border border-ok-bd bg-ok-bg px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2.5 text-sm text-ok-tx">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-ok-ic" aria-hidden />
+            <p className="font-medium">
+              Oryx is operating normally — {active} active job{active === 1 ? "" : "s"}, nothing overdue.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end">
+            <LegendDot tone="active" label="Active jobs" value={active} />
+            <LegendDot tone="due" label="Due this week" value={dueWeek} />
+            <LegendDot tone="checking" label="Requires checking" value={checking} />
+            {isAdmin && (
+              <LegendDot tone="invoicing" label="Ready for invoicing" value={invoicing} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* KPI row — Figma four-up */}
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-6 lg:col-span-3">
           <StatCard
             icon={Briefcase}
             label="Active jobs"
-            value={stats?.totalActiveJobs ?? 0}
+            value={active}
             href="/jobs"
             sub={`${stats?.totalRevisions ?? 0} revisions in flight`}
-            tone="neutral"
+            tone="active"
           />
         </div>
         <div className="col-span-6 lg:col-span-3">
@@ -324,7 +365,7 @@ export function DashboardStats({
             value={dueWeek}
             href="/jobs?deadline=this_week"
             sub={stats?.dueTodayCount ? `${stats.dueTodayCount} due today` : "Nothing due today"}
-            tone={dueWeek > 0 ? "attention" : "neutral"}
+            tone="due"
           />
         </div>
         <div className="col-span-6 lg:col-span-3">
@@ -334,7 +375,7 @@ export function DashboardStats({
             value={checking}
             href="/jobs/checking"
             sub={checking > 0 ? "Waiting for review" : "Checking queue clear"}
-            tone={checking > 0 ? "attention" : "neutral"}
+            tone="checking"
           />
         </div>
         <div className="col-span-6 lg:col-span-3">
@@ -345,25 +386,30 @@ export function DashboardStats({
               value={invoicing}
               href="/billing"
               sub={invoicing > 0 ? "Awaiting accounts handoff" : "Nothing queued"}
-              tone={invoicing > 0 ? "success" : "neutral"}
+              tone="invoicing"
             />
           ) : (
             <StatCard
-              icon={AlertOctagon}
+              icon={AlertTriangle}
               label="Overdue"
               value={overdueCount}
               href="/jobs?deadline=overdue"
               sub={overdueCount > 0 ? "Needs immediate attention" : "Nothing overdue"}
-              tone={overdueCount > 0 ? "danger" : "neutral"}
+              tone="overdue"
             />
           )}
         </div>
       </div>
 
-      {/* Needs attention */}
+      {/* Attention panels */}
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-12 lg:col-span-6">
-          <Panel title="Overdue jobs" count={stats?.overdueCount} viewAllHref="/jobs?deadline=overdue">
+          <Panel
+            title="Overdue jobs"
+            count={overdueCount}
+            countTone="overdue"
+            viewAllHref="/jobs?deadline=overdue"
+          >
             {overdueJobs.length === 0 ? (
               <PanelEmpty icon={CheckCircle2} message="Nothing overdue — operations are on track." />
             ) : (
@@ -372,15 +418,27 @@ export function DashboardStats({
                   const dl = getDeadlineInfo(job.requiredByDate)
                   return (
                     <li key={job.id}>
-                      <Link href={`/jobs/${job.id}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-low">
+                      <Link
+                        href={`/jobs/${job.id}`}
+                        className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-low"
+                      >
+                        <span className={cn("h-2 w-2 shrink-0 rounded-full", TONE.overdue.dot)} aria-hidden />
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <RevisionFamilyBadge job={job} size="xs" />
                             <span className="font-mono text-xs font-semibold text-t1">{job.drawingNumber}</span>
                           </div>
-                          <p className="mt-0.5 truncate text-xs text-t3">{job.address}</p>
+                          <p className="mt-0.5 truncate text-xs text-t3">
+                            {[job.clientCompany, job.address].filter(Boolean).join(" · ")}
+                          </p>
                         </div>
-                        <span className="shrink-0 text-[11px] font-medium text-dn">{dl.label}</span>
+                        <span className={cn(
+                          "shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium",
+                          TONE.overdue.badge,
+                        )}>
+                          {dl.label}
+                        </span>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-t4" aria-hidden />
                       </Link>
                     </li>
                   )
@@ -391,22 +449,36 @@ export function DashboardStats({
         </div>
 
         <div className="col-span-12 lg:col-span-6">
-          <Panel title="Clients on hold" count={stats?.clientsOnHold} viewAllHref="/clients/hold-list">
+          <Panel
+            title="Clients on hold"
+            count={stats?.clientsOnHold}
+            countTone="due"
+            viewAllHref="/clients/hold-list"
+          >
             {holds.length === 0 ? (
               <PanelEmpty icon={CheckCircle2} message="No clients are currently on hold." />
             ) : (
               <ul className="divide-y divide-bd">
-                {holds.map(hold => (
-                  <li key={hold.id}>
-                    <Link href={`/clients/${hold.clientId}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-low">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-t1">{hold.clientName}</p>
-                        <p className="mt-0.5 truncate text-xs text-t3">{hold.reason}</p>
-                      </div>
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-wn" aria-hidden />
-                    </Link>
-                  </li>
-                ))}
+                {holds.map(hold => {
+                  const initial = (hold.clientName?.trim()?.[0] ?? "?").toUpperCase()
+                  return (
+                    <li key={hold.id}>
+                      <Link
+                        href={`/clients/${hold.clientId}`}
+                        className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-low"
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pg text-xs font-semibold text-t2">
+                          {initial}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-t1">{hold.clientName}</p>
+                          <p className="mt-0.5 truncate text-xs text-t3">{hold.reason}</p>
+                        </div>
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-wn-ic" aria-hidden />
+                      </Link>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </Panel>
@@ -416,15 +488,22 @@ export function DashboardStats({
       {/* Upcoming */}
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-12 lg:col-span-6">
-          <Panel title="Upcoming site visits" count={siteVisits.length} viewAllHref="/calendar" viewAllLabel="View calendar">
+          <Panel
+            title="Upcoming site visits"
+            count={siteVisits.length || undefined}
+            viewAllHref="/calendar"
+            viewAllLabel="View calendar"
+          >
             {siteVisits.length === 0 ? (
               <PanelEmpty icon={MapPin} message="No site visits scheduled this week." />
             ) : (
               <ul className="divide-y divide-bd">
                 {siteVisits.slice(0, 5).map(e => (
-                  <li key={e.id} className="px-5 py-3">
+                  <li key={e.id} className="px-5 py-3.5">
                     <div className="mb-1 flex items-center gap-2">
-                      <span className="text-xs tabular-nums text-t3">{format(new Date(e.startDate), "EEE d MMM")}</span>
+                      <span className="text-xs tabular-nums text-t3">
+                        {format(new Date(e.startDate), "EEE d MMM")}
+                      </span>
                       {!e.allDay && (
                         <span className="text-xs tabular-nums text-t3">{e.startDate.slice(11, 16)}</span>
                       )}
@@ -433,7 +512,10 @@ export function DashboardStats({
                     <div className="mt-1 flex flex-wrap items-center gap-3">
                       {e.assignees[0] && <span className="text-xs text-t3">{e.assignees[0].userName}</span>}
                       {e.jobDrawingNumber && e.jobId && (
-                        <Link href={`/jobs/${e.jobId}`} className="font-mono text-xs font-medium text-t2 hover:text-t1 hover:underline">
+                        <Link
+                          href={`/jobs/${e.jobId}`}
+                          className="font-mono text-xs font-medium text-t2 hover:text-t1 hover:underline"
+                        >
                           {e.jobDrawingNumber}
                         </Link>
                       )}
@@ -451,15 +533,22 @@ export function DashboardStats({
         </div>
 
         <div className="col-span-12 lg:col-span-6">
-          <Panel title="Upcoming meetings" count={teamsMeetings.length} viewAllHref="/calendar" viewAllLabel="View calendar">
+          <Panel
+            title="Upcoming meetings"
+            count={teamsMeetings.length || undefined}
+            viewAllHref="/calendar"
+            viewAllLabel="View calendar"
+          >
             {teamsMeetings.length === 0 ? (
               <PanelEmpty icon={Video} message="No meetings scheduled this week." />
             ) : (
               <ul className="divide-y divide-bd">
                 {teamsMeetings.slice(0, 5).map(e => (
-                  <li key={e.id} className="px-5 py-3">
+                  <li key={e.id} className="px-5 py-3.5">
                     <div className="mb-1 flex items-center gap-2">
-                      <span className="text-xs tabular-nums text-t3">{format(new Date(e.startDate), "EEE d MMM")}</span>
+                      <span className="text-xs tabular-nums text-t3">
+                        {format(new Date(e.startDate), "EEE d MMM")}
+                      </span>
                       {!e.allDay && (
                         <span className="text-xs tabular-nums text-t3">
                           {e.startDate.slice(11, 16)} – {e.endDate.slice(11, 16)}
@@ -468,7 +557,9 @@ export function DashboardStats({
                     </div>
                     <p className="truncate text-sm font-medium text-t1">{e.title}</p>
                     {e.assignees.length > 0 && (
-                      <p className="mt-1 text-xs text-t3">{e.assignees.map(a => a.userName).join(", ")}</p>
+                      <p className="mt-1 text-xs text-t3">
+                        {e.assignees.map(a => a.userName).join(", ")}
+                      </p>
                     )}
                   </li>
                 ))}
@@ -476,111 +567,6 @@ export function DashboardStats({
             )}
           </Panel>
         </div>
-      </div>
-
-      {/* Activity + progress (+ finance for admin) */}
-      <div className="grid grid-cols-12 gap-4">
-        <div className={cn("col-span-12", isAdmin ? "lg:col-span-5" : "lg:col-span-7")}>
-          <Panel title="Recent activity" count={activity.length} viewAllHref="/jobs" viewAllLabel="View jobs">
-            {activity.length === 0 ? (
-              <PanelEmpty icon={Activity} message="No recent status changes to show." />
-            ) : (
-              <ul className="divide-y divide-bd">
-                {activity.map(item => {
-                  let when = item.changedAt.slice(0, 10)
-                  try {
-                    when = formatDistanceToNow(new Date(item.changedAt), { addSuffix: true })
-                  } catch { /* keep fallback */ }
-                  const summary = item.fromLabel
-                    ? `${item.fromLabel} → ${item.toLabel}`
-                    : item.toLabel
-                  const row = (
-                    <div className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-low">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-t1">
-                          {item.drawingNumber && (
-                            <span className="mr-1.5 font-mono text-xs font-semibold">{item.drawingNumber}</span>
-                          )}
-                          {summary}
-                        </p>
-                        <p className="mt-0.5 truncate text-xs text-t3">
-                          {[item.changedBy, item.note].filter(Boolean).join(" · ")}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-[11px] tabular-nums text-t4">{when}</span>
-                    </div>
-                  )
-                  return (
-                    <li key={item.id}>
-                      {item.href ? <Link href={item.href}>{row}</Link> : row}
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </Panel>
-        </div>
-
-        <div className={cn("col-span-12", isAdmin ? "lg:col-span-4" : "lg:col-span-5")}>
-          <Panel title="Job progress" viewAllHref="/jobs">
-            {statusTotal === 0 ? (
-              <PanelEmpty icon={BarChart3} message="No active jobs to chart yet." />
-            ) : (
-              <div className="space-y-4 px-5 py-5">
-                {progressRows.map(row => {
-                  const pct = statusTotal > 0 ? Math.round((row.count / statusTotal) * 100) : 0
-                  return (
-                    <div key={row.value}>
-                      <div className="mb-1.5 flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium text-t2">{row.label}</span>
-                        <span className="text-xs tabular-nums text-t3">{row.count}</span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-pg" role="presentation">
-                        <div
-                          className="h-full rounded-full bg-t2/50 transition-[width] duration-300"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </Panel>
-        </div>
-
-        {isAdmin && (
-          <div className="col-span-12 lg:col-span-3">
-            <Panel title="Financial snapshot" viewAllHref="/billing" viewAllLabel="Billing">
-              <div className="space-y-4 px-5 py-5">
-                <div>
-                  <p className="text-xs text-t3">Ready for invoicing</p>
-                  <p className="mt-1 text-2xl font-semibold tabular-nums text-t1">{invoicing}</p>
-                  <p className="mt-0.5 text-xs text-t3">
-                    {stats?.readyForInvoicingValue != null
-                      ? formatGBP(stats.readyForInvoicingValue)
-                      : "Queue value pending"}
-                  </p>
-                </div>
-                <div className="h-px bg-bd" />
-                <div>
-                  <p className="text-xs text-t3">Quotes won</p>
-                  <p className="mt-1 text-lg font-semibold tabular-nums text-t1">
-                    {stats?.quotesWonValue != null ? formatGBP(stats.quotesWonValue) : "—"}
-                  </p>
-                  <p className="mt-0.5 text-xs text-t3">
-                    {Math.round((stats?.quotesConversionRate ?? 0) * 100)}% win rate · {stats?.quotesAccepted ?? 0} accepted
-                  </p>
-                </div>
-                <div className="h-px bg-bd" />
-                <div className="flex items-center gap-2 text-xs text-t3">
-                  <PoundSterling className="h-3.5 w-3.5" aria-hidden />
-                  Admin-only commercial view
-                </div>
-              </div>
-            </Panel>
-          </div>
-        )}
       </div>
     </div>
   )
