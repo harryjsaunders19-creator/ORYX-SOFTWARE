@@ -3,11 +3,13 @@
  *
  * Perf: only load what the home dashboard renders. Commercial quote/job value
  * aggregates and recent-jobs lists are omitted (not shown on the page).
+ * Quote status counts / conversion rate are included for KPI cards.
  */
 import { jobService } from "@/lib/services/job-service"
 import { holdService } from "@/lib/services/hold-service"
 import { billingHandoffService } from "@/lib/services/billing-handoff-service"
 import { calendarService } from "@/lib/services/calendar-service"
+import { quoteService } from "@/lib/services/quote-service"
 import { errorMessage } from "@/lib/error-message"
 import type { JobRow } from "@/modules/jobs/types/job-types"
 import type { CalendarEventWithDetails } from "@/modules/calendar/types/calendar-types"
@@ -50,7 +52,7 @@ export const statsService = {
     const includeBilling = opts.includeBilling === true
 
     // dashboardCounts() — one slim Supabase scan / RPC instead of many head counts.
-    const [counts, handoffStats, holdsPreview, holdsCount, overdueJobs, weekEvents] = await Promise.all([
+    const [counts, handoffStats, holdsPreview, holdsCount, overdueJobs, weekEvents, qStats] = await Promise.all([
       jobService.dashboardCounts(),
       includeBilling
         ? tryStat("billingAwaitingCount", async () => {
@@ -70,6 +72,7 @@ export const statsService = {
             categoryIds: DASHBOARD_CALENDAR_CATEGORIES,
           }), [] as CalendarEventWithDetails[])
         : Promise.resolve([] as CalendarEventWithDetails[]),
+      tryStat("quoteStats", () => quoteService.stats(), EMPTY_QUOTE_STATS),
     ])
 
     return {
@@ -92,7 +95,7 @@ export const statsService = {
         dueTodayCount:    counts.dueTodayCount,
         dueThisWeekCount: counts.dueThisWeekCount,
       },
-      qStats: EMPTY_QUOTE_STATS,
+      qStats,
     }
   },
 }

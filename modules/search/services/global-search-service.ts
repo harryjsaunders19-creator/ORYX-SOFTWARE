@@ -1,8 +1,11 @@
+import { format, subYears, addYears } from "date-fns"
 import { jobService } from "@/modules/jobs"
 import { clientService } from "@/modules/clients"
 import { quoteService } from "@/modules/quotes"
 import { billingHandoffService } from "@/modules/billing"
 import { userService } from "@/modules/users"
+import { calendarService } from "@/modules/calendar"
+import { employeeService } from "@/modules/employees"
 import { canAccessModule } from "@/shared/auth/permissions"
 import { formatGBP } from "@/shared/utils/utils"
 import { bestScore, SEARCH_WEIGHTS } from "../rank"
@@ -21,6 +24,8 @@ const PER_TYPE = {
   quote: 6,
   invoice: 5,
   user: 5,
+  calendar: 5,
+  employee: 5,
 } as const
 
 const GROUP_ORDER: SearchEntityType[] = [
@@ -29,6 +34,8 @@ const GROUP_ORDER: SearchEntityType[] = [
   "client",
   "quote",
   "invoice",
+  "calendar",
+  "employee",
   "user",
 ]
 
@@ -38,6 +45,8 @@ const GROUP_LABEL: Record<SearchEntityType, string> = {
   client: "Clients",
   quote: "Quotes",
   invoice: "Invoices",
+  calendar: "Calendar",
+  employee: "Employees",
   user: "Users",
 }
 
@@ -245,6 +254,67 @@ async function searchUsers(query: string): Promise<SearchHit[]> {
   )
 }
 
+async function searchCalendar(query: string): Promise<SearchHit[]> {
+  const now = new Date()
+  const from = format(subYears(now, 1), "yyyy-MM-dd")
+  const to = format(addYears(now, 1), "yyyy-MM-dd")
+  const rows = await calendarService.findMany({ from, to })
+  return takeTop(
+    rows.map(row => {
+      const score = bestScore(query, [
+        { value: row.title, weight: SEARCH_WEIGHTS.project },
+        { value: row.location, weight: SEARCH_WEIGHTS.address },
+        { value: row.description, weight: SEARCH_WEIGHTS.other },
+        { value: row.jobDrawingNumber, weight: SEARCH_WEIGHTS.number },
+        { value: row.clientName, weight: SEARCH_WEIGHTS.clientName },
+        { value: row.categoryName, weight: SEARCH_WEIGHTS.other },
+      ])
+      const when = row.startDate.slice(0, 10)
+      return {
+        id: row.id,
+        type: "calendar" as const,
+        title: row.title,
+        subtitle: [when, row.location, row.jobDrawingNumber].filter(Boolean).join(" · "),
+        href: `/calendar`,
+        meta: row.categoryName || undefined,
+        score,
+      }
+    }),
+    PER_TYPE.calendar,
+  )
+}
+
+async function searchEmployees(
+  query: string,
+  viewer: NonNullable<GlobalSearchOptions["viewer"]>,
+): Promise<SearchHit[]> {
+  const { employees } = await employeeService.findMany(viewer, {
+    search: query,
+    limit: PER_TYPE.employee * 2,
+  })
+  return takeTop(
+    employees.map(row => {
+      const score = bestScore(query, [
+        { value: row.name, weight: SEARCH_WEIGHTS.person },
+        { value: row.email, weight: SEARCH_WEIGHTS.other },
+        { value: row.jobTitle, weight: SEARCH_WEIGHTS.project },
+        { value: row.department, weight: SEARCH_WEIGHTS.other },
+        { value: row.employeeId, weight: SEARCH_WEIGHTS.exactId },
+      ])
+      return {
+        id: row.userId,
+        type: "employee" as const,
+        title: row.name,
+        subtitle: [row.jobTitle, row.department, row.email].filter(Boolean).join(" · "),
+        href: `/employees/${row.userId}`,
+        meta: row.employmentStatus || undefined,
+        score,
+      }
+    }),
+    PER_TYPE.employee,
+  )
+}
+
 export async function runGlobalSearch(opts: GlobalSearchOptions): Promise<GlobalSearchResult> {
   const started = Date.now()
   const query = opts.query.trim()
@@ -266,6 +336,12 @@ export async function runGlobalSearch(opts: GlobalSearchOptions): Promise<Global
   }
   if (canAccessModule(opts.role, "billing")) {
     tasks.push(searchInvoices(query))
+  }
+  if (canAccessModule(opts.role, "calendar")) {
+    tasks.push(searchCalendar(query))
+  }
+  if (canAccessModule(opts.role, "employees") && opts.viewer) {
+    tasks.push(searchEmployees(query, opts.viewer))
   }
   if (canAccessModule(opts.role, "users")) {
     tasks.push(searchUsers(query))

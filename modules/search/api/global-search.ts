@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       query: q,
       role: auth.user.role,
       limit,
+      viewer: auth.user,
     })
     return NextResponse.json(result)
   } catch (err) {

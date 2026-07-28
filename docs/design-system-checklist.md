@@ -1,6 +1,7 @@
 # Oryx Design System Refinement Checklist
 
-Feature-complete refinement plan. **Do not expand product scope** (no new global search, activity feed, or BI dashboards in this pass). Prioritise consistency, polish, and shared primitives.
+Feature-complete refinement plan. Phases 1–4 prioritise consistency and shared primitives.
+Phase 5 productizes existing search, dashboard BI, activity, and CSV export — without greenfield platforms.
 
 Status: `P0` = foundation this PR · `P1` = next pass · `P2` = later · `Defer` = expansion (out of scope)
 
@@ -72,13 +73,13 @@ Status: `P0` = foundation this PR · `P1` = next pass · `P2` = later · `Defer`
 - [x] Icon size scale: 14 / 16 / 20 only
 - [x] 8px spacing audit on job detail / parent dashboard sections
 
-## Phase 5 — Expansion (explicitly deferred)
+## Phase 5 — Expansion (productize existing APIs)
 
-- [ ] Dashboard BI expansion
-- [ ] Unified global search
-- [ ] Global activity timeline
-- [ ] Table column resize / universal export
-- [ ] Broad automation of manual processes
+- [x] Dashboard BI: wire quote conversion stats; Due Today / Ready to Send / win-rate KPIs
+- [x] Unified global search: calendar (+ employees when experimental is on)
+- [x] Global activity timeline: `GET /api/activity` + dashboard Recent Activity panel
+- [x] Shared CSV download helper (`buildCsv` / `downloadCsv`); jobs + job-map export
+- [x] Skip table column-resize (no shared table lib) and broad new automation platforms
 
 ---
 

@@ -6,6 +6,7 @@
 export { statsService } from "./services/stats-service"
 
 export type { StatsData } from "./types/stats-types"
+export type { ActivityItem, ActivityResponse } from "./types/activity-types"
 
 export { DashboardStats } from "./components/dashboard-stats"
 

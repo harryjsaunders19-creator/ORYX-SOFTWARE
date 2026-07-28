@@ -1,10 +1,10 @@
 "use client"
 import { useMemo } from "react"
 import Link from "next/link"
-import { format, startOfWeek, endOfWeek } from "date-fns"
+import { format, formatDistanceToNow, startOfWeek, endOfWeek } from "date-fns"
 import { RevisionFamilyBadge } from "@/components/revision-family-badge"
 import {
-  MapPin, Video, Receipt, Briefcase,
+  MapPin, Video, Receipt, Briefcase, Send, Percent, Activity,
   AlertOctagon, ClipboardCheck, AlertTriangle, Clock, RefreshCw, ChevronRight,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
@@ -13,6 +13,7 @@ import { cn, getDeadlineInfo } from "@/shared/utils/utils"
 // Perf: SWR via useApi dedupes/caches /api/stats across revisits (2s dedupe window).
 import { useApi } from "@/shared/hooks/use-api"
 import type { StatsData, DashboardWeekEvent } from "../types/stats-types"
+import type { ActivityResponse } from "../types/activity-types"
 import type { Job, ClientHoldWithClient } from "@/lib/types"
 
 const SITE_VISIT_ID = "cat_site_visit"
@@ -21,19 +22,22 @@ const TEAMS_MEETING_ID = "cat_teams_meeting"
 // ── Reusable pieces ─────────────────────────────────────────────────
 
 /** Stitch dashboard KPI — accent top bar, large value, icon badge (ORYX semantic colours). */
-function StatCard({ icon: Icon, label, value, href, accent, iconTint }: {
+function StatCard({ icon: Icon, label, value, href, accent, iconTint, suffix }: {
   icon: React.ElementType
   label: string
   value: number
   href?: string
   accent: string
   iconTint: string
+  suffix?: string
 }) {
   const inner = (
     <div className="oryx-surface-card group relative h-full overflow-hidden rounded-xl border border-bd bg-sr p-6 transition-shadow hover:shadow-md max-md:p-4">
       <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
       <div className="mb-2 flex items-start justify-between gap-3">
-        <p className="text-[48px] font-semibold tabular-nums leading-none tracking-tight text-t1 max-md:text-3xl">{value}</p>
+        <p className="text-[48px] font-semibold tabular-nums leading-none tracking-tight text-t1 max-md:text-3xl">
+          {value}{suffix ? <span className="text-2xl text-t3 max-md:text-lg">{suffix}</span> : null}
+        </p>
         <div className="rounded-lg p-2 shrink-0" style={{ backgroundColor: `${iconTint}18` }}>
           <Icon className="h-5 w-5" style={{ color: iconTint }} />
         </div>
@@ -102,10 +106,14 @@ export function DashboardStats({
     ...(fallbackStats ? { revalidateIfStale: false, revalidateOnMount: false } : {}),
   })
 
+  const { data: activityData } = useApi<ActivityResponse>("/api/activity?limit=12")
+
   const events: DashboardWeekEvent[] = stats?.weekEvents ?? []
   const overdueJobs: Job[] = stats?.overdueJobs ?? []
   const holds: ClientHoldWithClient[] = (stats?.holds ?? []).slice(0, 5)
+  const activity = activityData?.items ?? []
   const error = swrError ? (swrError instanceof Error ? swrError.message : "Failed to load dashboard data") : null
+  const conversionPct = Math.round((stats?.quotesConversionRate ?? 0) * 100)
 
   const siteVisits    = events.filter(e => e.categoryId === SITE_VISIT_ID)
   const teamsMeetings = events.filter(e => e.categoryId === TEAMS_MEETING_ID)
@@ -135,19 +143,36 @@ export function DashboardStats({
           <StatCard icon={Briefcase} label="Active Jobs" value={stats?.totalActiveJobs ?? 0} href="/jobs" accent="var(--color-rs)" iconTint="var(--color-rs)" />
         </div>
         <div className="col-span-6 lg:col-span-3">
-          <StatCard icon={Clock} label="Due This Week" value={stats?.dueThisWeekCount ?? 0} href="/jobs?deadline=this_week" accent="var(--color-dn)" iconTint="var(--color-dn)" />
+          <StatCard icon={Clock} label="Due Today" value={stats?.dueTodayCount ?? 0} href="/jobs?deadline=today" accent="var(--color-dn)" iconTint="var(--color-dn)" />
         </div>
         <div className="col-span-6 lg:col-span-3">
-          <StatCard icon={ClipboardCheck} label="Requires Checking" value={stats?.checking ?? 0} href="/jobs/checking" accent="var(--color-wn)" iconTint="var(--color-wn)" />
+          <StatCard icon={Send} label="Ready To Send" value={stats?.readyToSend ?? 0} href="/jobs?status=READY_TO_SEND" accent="var(--color-wn)" iconTint="var(--color-wn)" />
         </div>
         {isAdmin ? (
           <div className="col-span-6 lg:col-span-3">
             <StatCard icon={Receipt} label="Ready For Invoicing" value={stats?.readyForInvoicingCount ?? 0} href="/billing" accent="var(--color-ok-ic)" iconTint="var(--color-ok-ic)" />
           </div>
         ) : (
-          <div className="col-span-6 lg:col-span-3 hidden lg:block" aria-hidden />
+          <div className="col-span-6 lg:col-span-3">
+            <StatCard icon={Percent} label="Quote Win Rate" value={conversionPct} suffix="%" href="/quotes" accent="var(--color-ac2)" iconTint="var(--color-ac2)" />
+          </div>
         )}
       </div>
+
+      {isAdmin && (
+        <div className="grid grid-cols-12 gap-6">
+          <div className="col-span-6 lg:col-span-3">
+            <StatCard icon={ClipboardCheck} label="Requires Checking" value={stats?.checking ?? 0} href="/jobs/checking" accent="var(--color-wn)" iconTint="var(--color-wn)" />
+          </div>
+          <div className="col-span-6 lg:col-span-3">
+            <StatCard icon={Percent} label="Quote Win Rate" value={conversionPct} suffix="%" href="/quotes" accent="var(--color-ac2)" iconTint="var(--color-ac2)" />
+          </div>
+          <div className="col-span-6 lg:col-span-3">
+            <StatCard icon={Clock} label="Due This Week" value={stats?.dueThisWeekCount ?? 0} href="/jobs?deadline=this_week" accent="var(--color-rs)" iconTint="var(--color-rs)" />
+          </div>
+          <div className="col-span-6 lg:col-span-3 hidden lg:block" aria-hidden />
+        </div>
+      )}
 
       {/* ── Needs Attention ───────────────────────────────────── */}
       <div className="grid grid-cols-12 gap-6">
@@ -244,6 +269,57 @@ export function DashboardStats({
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Recent Activity ───────────────────────────────────── */}
+      <div className="oryx-surface-card flex min-h-64 flex-col overflow-hidden rounded-lg border border-bd bg-sr">
+        <SectionHeader
+          icon={Activity}
+          accent="text-t2"
+          title="Recent Activity"
+          count={activity.length}
+          viewAllHref="/jobs"
+          viewAllLabel="View jobs"
+        />
+        {activity.length === 0 ? (
+          <EmptyPanel>No recent status changes.</EmptyPanel>
+        ) : (
+          <div className="divide-y divide-bd">
+            {activity.map(item => {
+              const when = (() => {
+                try {
+                  return formatDistanceToNow(new Date(item.changedAt), { addSuffix: true })
+                } catch {
+                  return item.changedAt.slice(0, 10)
+                }
+              })()
+              const summary = item.fromLabel
+                ? `${item.fromLabel} → ${item.toLabel}`
+                : item.toLabel
+              const body = (
+                <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-low">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {item.drawingNumber && (
+                        <span className="font-mono text-[11px] font-semibold text-ac">{item.drawingNumber}</span>
+                      )}
+                      <span className="text-xs text-t1 truncate">{summary}</span>
+                    </div>
+                    <p className="text-[11px] text-t3 truncate mt-0.5">
+                      {[item.changedBy, item.note].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-t4 shrink-0 tabular-nums">{when}</span>
+                </div>
+              )
+              return item.href ? (
+                <Link key={item.id} href={item.href}>{body}</Link>
+              ) : (
+                <div key={item.id}>{body}</div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

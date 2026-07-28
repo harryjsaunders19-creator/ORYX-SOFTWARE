@@ -39,6 +39,7 @@ import { useToast }      from "@/shared/ui/toast"
 import { useUser }       from "@/shared/providers/user-context"
 import { JOB_STATUSES, WORK_ITEM_TYPES, WORKS_TYPES, getJobStatus } from "@/lib/constants"
 import { cn, formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue } from "@/shared/utils/utils"
+import { buildCsv, downloadCsv } from "@/shared/utils/download-csv"
 import { ToolbarCard, EmptyPanel, DataPanel, TablePagination } from "@/shared/layouts/page-layout"
 import { notifyRevisionsChanged } from "@/lib/revision-events"
 import { revisionParentId } from "@/lib/revision-chain"
@@ -696,12 +697,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         j.dateCompleted ? format(parseLocalDate(j.dateCompleted), "dd/MM/yyyy") : "",
         j.legacyTypeOfWorks ?? "",
         j.notes ?? "",
-      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(","))
-      const csv = [headers.join(","), ...rows].join("\n")
-      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }))
-      const a = document.createElement("a")
-      a.href = url; a.download = `oryx-jobs-${format(new Date(), "yyyy-MM-dd")}.csv`; a.click()
-      URL.revokeObjectURL(url)
+      ])
+      downloadCsv(`oryx-jobs-${format(new Date(), "yyyy-MM-dd")}.csv`, buildCsv(headers, rows))
       toast(
         truncated && total != null
           ? `Exported ${jobs.length} of ${total} jobs (limit reached — narrow filters for a full export)`

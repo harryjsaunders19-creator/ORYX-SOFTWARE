@@ -1,4 +1,5 @@
 import type { JobMapMarker } from "./types/job-map-types"
+import { buildCsv } from "@/shared/utils/download-csv"
 
 export function markersToCsv(markers: JobMapMarker[]): string {
   const headers = [
@@ -15,6 +16,5 @@ export function markersToCsv(markers: JobMapMarker[]): string {
     String(m.lat),
     String(m.lng),
   ])
-  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
-  return [headers, ...rows].map(r => r.map(escape).join(",")).join("\n")
+  return buildCsv(headers, rows)
 }

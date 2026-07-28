@@ -12,7 +12,7 @@ import {
 import { useRouter } from "next/navigation"
 import {
   Search, X, Loader2, Briefcase, GitBranch, Building2,
-  FileText, Receipt, Users, Clock,
+  FileText, Receipt, Users, Clock, CalendarDays, IdCard,
 } from "lucide-react"
 import {
   Dialog, DialogContent, DialogTitle, DialogDescription,
@@ -34,6 +34,8 @@ const TYPE_ICON: Record<SearchEntityType, React.ElementType> = {
   client: Building2,
   quote: FileText,
   invoice: Receipt,
+  calendar: CalendarDays,
+  employee: IdCard,
   user: Users,
 }
 
@@ -43,6 +45,8 @@ const TYPE_LABEL: Record<SearchEntityType, string> = {
   client: "Client",
   quote: "Quote",
   invoice: "Invoice",
+  calendar: "Event",
+  employee: "Employee",
   user: "User",
 }
 
