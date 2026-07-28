@@ -9,7 +9,8 @@ test.describe("Authentication", () => {
   test("admin can log in and reach the dashboard", async ({ page }) => {
     await loginAsAdmin(page)
     await expect(page).toHaveURL("/")
-    await expect(page.locator("h1").filter({ hasText: "Dashboard" })).toBeVisible()
+    // Dashboard greeting is time-based ("Good morning/afternoon/evening, …")
+    await expect(page.locator("h1").filter({ hasText: /Good (morning|afternoon|evening)/i })).toBeVisible()
   })
 
   test("wrong password shows an error", async ({ page }) => {
