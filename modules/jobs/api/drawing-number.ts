@@ -5,6 +5,7 @@
  * Vercel) and floors the global drawing sequence so auto-allocation stays ahead.
  */
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { requireRole } from "@/shared/auth/auth"
@@ -16,6 +17,10 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 type Ctx = { params: Promise<{ id: string }> }
 
+const setDrawingNumberBodySchema = z.object({
+  drawingNumber: z.string().optional(),
+}).passthrough()
+
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   const auth = await requireRole(["ADMIN"])
   if (auth instanceof NextResponse) return auth
@@ -25,9 +30,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    let body: { drawingNumber?: string }
-    try { body = await req.json() }
+    let bodyRaw: unknown
+    try { bodyRaw = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
+    const parsedBody = setDrawingNumberBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data
 
     const newNumber = typeof body.drawingNumber === "string" ? body.drawingNumber.trim() : ""
     if (!newNumber) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
 import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
@@ -22,6 +23,29 @@ function modelDisabled() {
     { status: 503 },
   )
 }
+
+const createParentJobBodySchema = z.object({
+  siteName: z.string().optional(),
+  siteAddress: z.string().optional(),
+  address: z.string().optional(),
+  typeOfWorks: z.string().optional(),
+  customTypeDescription: z.string().nullable().optional(),
+  clientCompany: z.string().optional(),
+  clientId: z.string().nullable().optional(),
+  requestedBy: z.string().optional(),
+  proceedDespiteHold: z.boolean().optional(),
+  quoteValue: z.union([z.string(), z.number(), z.null()]).optional(),
+  variationFees: z.union([z.string(), z.number(), z.null()]).optional(),
+  additionalCharges: z.union([z.string(), z.number(), z.null()]).optional(),
+  tags: z.unknown().optional(),
+  designer: z.string().optional(),
+  notes: z.string().nullable().optional(),
+  quoteReference: z.string().nullable().optional(),
+  quoteDate: z.string().nullable().optional(),
+  commercialNotes: z.string().nullable().optional(),
+  requestedDate: z.string().nullable().optional(),
+  requiredByDate: z.union([z.string(), z.null()]).optional(),
+}).passthrough()
 
 /** GET — search parent jobs (always findable, including idle projects). */
 export async function GET(req: NextRequest) {
@@ -63,7 +87,12 @@ export async function POST(req: NextRequest) {
 
   try {
     await ensureSequencesSeeded()
-    const body = await req.json()
+    const bodyRaw = await req.json()
+    const parsedBody = createParentJobBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data
 
     const siteName = typeof body.siteName === "string" ? body.siteName.trim() : ""
     const siteAddress = typeof body.siteAddress === "string" ? body.siteAddress.trim() : ""

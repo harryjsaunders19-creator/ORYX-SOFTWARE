@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { jobService } from "../services/job-service"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { resolveDirectoryDesigner } from "../services/designer-directory"
 
 type Ctx = { params: Promise<{ id: string }> }
+
+const assignDesignerBodySchema = z.object({
+  designer: z.string().optional(),
+  changedBy: z.string().optional(),
+}).passthrough()
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
@@ -14,9 +20,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const { id } = await params
     if (!(await jobService.findUnique(id))) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    let body: { designer?: string; changedBy?: string }
-    try { body = await req.json() }
+    let bodyRaw: unknown
+    try { bodyRaw = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
+    const parsedBody = assignDesignerBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data
 
     const resolved = await resolveDirectoryDesigner(
       typeof body.designer === "string" ? body.designer : "",

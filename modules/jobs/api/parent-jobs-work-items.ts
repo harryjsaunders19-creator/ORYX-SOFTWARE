@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { requireRole, actorName } from "@/shared/auth/auth"
 import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
@@ -14,6 +15,16 @@ function modelDisabled() {
   )
 }
 
+const createParentWorkItemBodySchema = z.object({
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  quoteValue: z.union([z.string(), z.number(), z.null()]).optional(),
+  billable: z.union([z.boolean(), z.string()]).optional(),
+  designer: z.string().optional(),
+  priority: z.string().nullable().optional(),
+  requiredByDate: z.union([z.string(), z.null()]).optional(),
+}).passthrough()
+
 /** POST — create Revision work item on a parent job. */
 export async function POST(
   req: NextRequest,
@@ -25,7 +36,12 @@ export async function POST(
 
   try {
     const { id } = await ctx.params
-    const body = await req.json().catch(() => ({}))
+    const bodyRaw = await req.json().catch(() => ({}))
+    const parsedBody = createParentWorkItemBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data as Record<string, unknown>
 
     const money: { quoteValue?: number | null } = {}
     const moneyErr = applyOptionalMoneyField(body, "quoteValue", money)
@@ -56,7 +72,9 @@ export async function POST(
       designer: designerResolved.designer,
       priority: typeof body.priority === "string" ? body.priority : null,
       quoteValue: money.quoteValue ?? null,
-      requiredByDate: resolveRequiredByDate(body.requiredByDate) ?? null,
+      requiredByDate: resolveRequiredByDate(
+        typeof body.requiredByDate === "string" ? body.requiredByDate : null,
+      ) ?? null,
       notes: description,
       changedBy: actorName(auth.user),
     })

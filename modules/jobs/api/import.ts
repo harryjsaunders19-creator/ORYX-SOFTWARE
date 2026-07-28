@@ -14,6 +14,7 @@
  * Auth: requires sign-in (any role).
  */
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 import { logError } from "@/shared/logger"
 
@@ -37,6 +38,40 @@ const MAX_ROWS = 5000
 
 const REF_PREFIXES = REF_PREFIX_BY_ITEM_TYPE
 
+const spreadsheetUploadSchema = z.custom<File>(
+  (value) => {
+    if (!value || typeof value !== "object") return false
+    const v = value as Record<string, unknown>
+    return typeof v.name === "string" && typeof v.arrayBuffer === "function" && typeof v.size === "number"
+  },
+  "No file provided",
+)
+
+const commitImportBodySchema = z.object({
+  mode: z.literal("commit"),
+  rows: z.array(z.object({
+    rowIndex: z.number().int().optional(),
+    itemType: z.string().optional(),
+    address: z.string().optional(),
+    clientCompany: z.string().optional(),
+    requestedBy: z.string().optional(),
+    typeOfWorks: z.string().optional(),
+    customTypeDescription: z.string().optional(),
+    status: z.string().optional(),
+    designer: z.string().optional(),
+    dateCompleted: z.union([z.string(), z.null()]).optional(),
+    notes: z.string().optional(),
+    quoteValue: z.number().nullable().optional(),
+    quoteReference: z.string().optional(),
+    quoteDate: z.union([z.string(), z.null()]).optional(),
+    commercialNotes: z.string().optional(),
+    requestedDate: z.union([z.string(), z.null()]).optional(),
+    requiredByDate: z.union([z.string(), z.null()]).optional(),
+    errors: z.array(z.string()).optional(),
+    warnings: z.array(z.string()).optional(),
+  }).passthrough()),
+}).passthrough()
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireRole(["ADMIN"])
@@ -53,10 +88,11 @@ export async function POST(req: NextRequest) {
     // ── Mode 1: File upload → parse & preview ──────────────────────
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData()
-      const file = formData.get("file")
-      if (!file || !(file instanceof File)) {
-        return NextResponse.json({ error: "No file provided" }, { status: 400 })
+      const fileParsed = spreadsheetUploadSchema.safeParse(formData.get("file"))
+      if (!fileParsed.success) {
+        return NextResponse.json({ error: fileParsed.error.issues[0]?.message ?? "No file provided" }, { status: 400 })
       }
+      const file = fileParsed.data
 
       const ext = file.name.toLowerCase().split(".").pop()
       if (!ext || !["csv", "xlsx", "xls"].includes(ext)) {
@@ -123,15 +159,14 @@ export async function POST(req: NextRequest) {
 
     // ── Mode 2: Commit parsed rows to database ─────────────────────
     if (contentType.includes("application/json")) {
-      let body: { rows?: ParsedImportRow[]; mode?: string }
-      try { body = await req.json() }
+      let bodyRaw: unknown
+      try { bodyRaw = await req.json() }
       catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
-
-      if (body.mode !== "commit" || !Array.isArray(body.rows)) {
+      const parsedBody = commitImportBodySchema.safeParse(bodyRaw)
+      if (!parsedBody.success) {
         return NextResponse.json({ error: "Expected { mode: 'commit', rows: [...] }" }, { status: 400 })
       }
-
-      const rows = body.rows
+      const rows = parsedBody.data.rows as ParsedImportRow[]
       if (rows.length > MAX_ROWS) {
         return NextResponse.json({ error: `Too many rows (${rows.length})` }, { status: 422 })
       }

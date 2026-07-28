@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { quoteService } from "../services/quote-service"
 import { requireSignIn, requireRole } from "@/shared/auth/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "../quote-works"
@@ -8,6 +9,27 @@ import { logBackgroundError } from "@/shared/logger"
 import type { UpdateQuoteData } from "../types/quote-types"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
+
+const patchQuoteBodySchema = z.object({
+  clientId: z.union([z.string(), z.null()]).optional(),
+  clientCompany: z.string().optional(),
+  contactName: z.union([z.string(), z.null()]).optional(),
+  address: z.string().optional(),
+  description: z.string().optional(),
+  typeOfWorks: z.union([z.string(), z.null()]).optional(),
+  customTypeDescription: z.union([z.string(), z.null()]).optional(),
+  quoteValue: z.union([z.string(), z.number(), z.null()]).optional(),
+  quoteDate: z.union([z.string(), z.null()]).optional(),
+  expiryDate: z.union([z.string(), z.null()]).optional(),
+  status: z.string().optional(),
+  notes: z.union([z.string(), z.null()]).optional(),
+  vatRate: z.union([z.string(), z.number(), z.null()]).optional(),
+  lineItems: z.array(z.object({
+    description: z.string().optional(),
+    amount: z.union([z.string(), z.number(), z.null()]).optional(),
+    vatApplicable: z.boolean().optional(),
+  }).passthrough()).optional(),
+}).passthrough()
 
 function parseLineItems(raw: unknown): { description: string; amount: number; vatApplicable: boolean }[] {
   if (!Array.isArray(raw)) return []
@@ -46,9 +68,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
-    let body: Record<string, unknown>
-    try { body = await req.json() }
+    let bodyRaw: unknown
+    try { bodyRaw = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
+    const parsedBody = patchQuoteBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data as Record<string, unknown>
 
     const existing = await quoteService.findUnique(id)
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })

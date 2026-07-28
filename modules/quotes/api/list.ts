@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { listResponse } from "@/shared/utils/api-cache"
 import { quoteService } from "../services/quote-service"
 import { clientService } from "@/lib/services/client-service"
@@ -9,6 +10,27 @@ import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 
 interface LineItemInput { description?: unknown; amount?: unknown; vatApplicable?: unknown }
+
+const createQuoteBodySchema = z.object({
+  clientId: z.union([z.string(), z.null()]).optional(),
+  clientCompany: z.string().optional(),
+  contactName: z.union([z.string(), z.null()]).optional(),
+  address: z.string().optional(),
+  description: z.string().optional(),
+  typeOfWorks: z.string().optional(),
+  customTypeDescription: z.union([z.string(), z.null()]).optional(),
+  quoteValue: z.union([z.string(), z.number(), z.null()]).optional(),
+  quoteDate: z.union([z.string(), z.null()]).optional(),
+  expiryDate: z.union([z.string(), z.null()]).optional(),
+  status: z.string().optional(),
+  notes: z.union([z.string(), z.null()]).optional(),
+  vatRate: z.union([z.string(), z.number(), z.null()]).optional(),
+  lineItems: z.array(z.object({
+    description: z.string().optional(),
+    amount: z.union([z.string(), z.number(), z.null()]).optional(),
+    vatApplicable: z.boolean().optional(),
+  }).passthrough()).optional(),
+}).passthrough()
 
 function parseLineItems(raw: unknown): { description: string; amount: number; vatApplicable: boolean }[] {
   if (!Array.isArray(raw)) return []
@@ -51,9 +73,14 @@ export async function POST(req: NextRequest) {
 
     await ensureSequencesSeeded()
 
-    let body: Record<string, unknown>
-    try { body = await req.json() }
+    let bodyRaw: unknown
+    try { bodyRaw = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
+    const parsedBody = createQuoteBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data as Record<string, unknown>
 
     if (!body.clientCompany || String(body.clientCompany).trim() === "")
       return NextResponse.json({ error: "Client company is required" }, { status: 422 })

@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { billingHandoffService } from "../services/billing-handoff-service"
 import { requireRole } from "@/shared/auth/auth"
@@ -6,19 +8,24 @@ import { parseOptionalMoney } from "@/shared/utils/utils"
 
 type Ctx = { params: Promise<{ id: string }> }
 
+const updateBillingValueBodySchema = z.object({
+  quoteValue: z.union([z.string(), z.number(), z.null()]),
+}).passthrough()
+
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   const auth = await requireRole(["ADMIN"])
   if (auth instanceof NextResponse) return auth
 
   try {
     const { id } = await params
-    let body: Record<string, unknown>
-    try { body = await req.json() }
+    let bodyRaw: unknown
+    try { bodyRaw = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
-
-    if (body.quoteValue === undefined) {
-      return NextResponse.json({ error: "quoteValue is required" }, { status: 400 })
+    const parsedBody = updateBillingValueBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
     }
+    const body = parsedBody.data as { quoteValue: unknown }
 
     const parsed = parseOptionalMoney(body.quoteValue)
     if (parsed == null) {

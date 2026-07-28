@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { jobService } from "../services/job-service"
 import { nextRevisionLetter, REVISION_LETTERS } from "@/lib/constants"
 import { canAddRevisionFrom, buildRevisionFamilyIndex } from "@/lib/revision-chain"
@@ -12,6 +13,15 @@ import { parentJobService, workItemService } from "../services/parent-work-item-
 import { resolveDirectoryDesigner } from "../services/designer-directory"
 
 type Ctx = { params: Promise<{ id: string }> }
+
+const createRevisionBodySchema = z.object({
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  designer: z.string().optional(),
+  billable: z.union([z.boolean(), z.string()]).optional(),
+  priority: z.string().nullable().optional(),
+  letter: z.string().optional(),
+}).passthrough()
 
 async function resolveParentIdForWorkItems(id: string): Promise<string | null> {
   const dash = await parentJobService.getDashboard(id)
@@ -83,8 +93,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
-    let body: Record<string, unknown> = {}
-    try { body = await req.json() } catch { /* body is optional */ }
+    let bodyRaw: unknown = {}
+    try { bodyRaw = await req.json() } catch { /* body is optional */ }
+    const parsedBody = createRevisionBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data as Record<string, unknown>
 
     if (isWorkItemsModelEnabled()) {
       const parentId = await resolveParentIdForWorkItems(id)

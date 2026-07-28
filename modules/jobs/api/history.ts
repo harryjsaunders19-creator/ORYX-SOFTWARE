@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { jobService } from "../services/job-service"
 import { historyService } from "../services/history-service"
 import { requireSignIn, actorName } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 
 type Ctx = { params: Promise<{ id: string }> }
+
+const addHistoryNoteBodySchema = z.object({
+  note: z.string().optional(),
+}).passthrough()
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
@@ -29,9 +34,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const job = await jobService.findUnique(id)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    let body: { note?: string }
-    try { body = await req.json() }
+    let bodyRaw: unknown
+    try { bodyRaw = await req.json() }
     catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
+    const parsedBody = addHistoryNoteBodySchema.safeParse(bodyRaw)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request body", field: parsedBody.error.issues[0]?.path?.[0] }, { status: 422 })
+    }
+    const body = parsedBody.data
 
     const note      = body.note?.trim()
     const changedBy = actorName(auth.user)
