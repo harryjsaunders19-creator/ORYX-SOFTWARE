@@ -6,10 +6,14 @@ import { BRAND_LOGO_DOCUMENT_PATH } from "@/shared/branding/branding"
 
 const PAGE_W = 595.28
 const PAGE_H = 841.89
-const MARGIN = 48
+const MARGIN = 42
 const INK = rgb(0, 0, 0)
+const MUTED = rgb(0.42, 0.42, 0.42)
+const HAIRLINE = 0.4
 
-const CERT_STATEMENT = "I certify that the Temporary Works Design has been checked with the independence specified for design category II and that the loads stated are deemed acceptable by inspection."
+const CERT_STATEMENT =
+  "I certify that the Temporary Works Design has been checked with the independence specified for design category II and that the loads stated are deemed acceptable by inspection."
+
 const DEFAULT_STANDARDS = [
   "TG4:25 Anchoring systems for scaffolding.",
   "BS EN:12811-1:2003 Temporary works equipment. Scaffolds. Performance requirements and general design.",
@@ -24,6 +28,7 @@ const DEFAULT_STANDARDS = [
 const CHECKER = {
   name: "Lee Saunders",
   positionHeld: "Principle Engineer",
+  consultants: "Oryx Scaffold Designs Ltd",
 }
 
 function wrapText(text: string, width: number, font: import("pdf-lib").PDFFont, size: number): string[] {
@@ -67,11 +72,10 @@ async function loadSignatureAsset(): Promise<{ bytes: Uint8Array; isPng: boolean
   for (const filePath of candidates) {
     try {
       const bytes = await fs.readFile(filePath)
-      // Ignore placeholders/empty files (e.g. 1-byte marker file).
       if (bytes.byteLength < 256) continue
       return { bytes, isPng: filePath.toLowerCase().endsWith(".png") }
     } catch {
-      // Try next candidate
+      // try next candidate
     }
   }
   return null
@@ -83,130 +87,212 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   const font = await doc.embedFont(StandardFonts.Helvetica)
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold)
 
-  // Top-right ORYX wordmark (fixed asset bundled with the app).
+  const CONTENT_W = PAGE_W - MARGIN * 2
+  const LABEL_W = 148
+  const VALUE_X = MARGIN + LABEL_W
+  const PAD = 10
+  const BODY = 9.5
+  const LINE = 13
+
+  // Logo flush to the top-right page corner (outside body margin).
   try {
     const logoBytes = await fs.readFile(path.join(process.cwd(), BRAND_LOGO_DOCUMENT_PATH))
     const logo = await doc.embedJpg(logoBytes)
-    const logoW = 92.8
-    const logoH = 56.9
-    const logoX = PAGE_W - MARGIN - logoW
-    const logoY = PAGE_H - MARGIN - logoH
-    page.drawImage(logo, { x: logoX, y: logoY, width: logoW, height: logoH })
+    const logoInset = 18
+    const logoW = 78
+    const logoH = logoW * (logo.height / logo.width)
+    page.drawImage(logo, {
+      x: PAGE_W - logoInset - logoW,
+      y: PAGE_H - logoInset - logoH,
+      width: logoW,
+      height: logoH,
+    })
   } catch {
-    // Non-fatal: allow export even if the logo asset isn't present in dev.
+    // Non-fatal if logo asset is missing in local/dev.
   }
 
-  let y = PAGE_H - MARGIN
-  const CONTENT_W = PAGE_W - (MARGIN * 2)
-  const BORDER = 1.1
-  const TITLE_BG = rgb(0.95, 0.95, 0.95)
+  let y = PAGE_H - 28
 
-  const drawText = (text: string, x: number, lineY: number, size = 10, bold = false) => {
-    page.drawText(text, { x, y: lineY, size, font: bold ? fontBold : font, color: INK })
+  const drawText = (text: string, x: number, lineY: number, size = BODY, bold = false, color = INK) => {
+    page.drawText(text, { x, y: lineY, size, font: bold ? fontBold : font, color })
   }
 
-  const drawLabeledValue = (label: string, value: string, lineY: number) => {
-    drawText(label, MARGIN + 8, lineY, 10, true)
-    drawText(value, MARGIN + 150, lineY, 10, false)
+  const drawBox = (bottom: number, height: number) => {
+    page.drawRectangle({
+      x: MARGIN,
+      y: bottom,
+      width: CONTENT_W,
+      height,
+      borderColor: INK,
+      borderWidth: HAIRLINE,
+    })
   }
 
-  const drawSectionHeader = (text: string, topY: number) => {
-    page.drawRectangle({ x: MARGIN, y: topY - 18, width: CONTENT_W, height: 18, color: TITLE_BG, borderColor: INK, borderWidth: BORDER })
-    drawText(text, MARGIN + 8, topY - 13, 10, true)
+  const drawHRule = (atY: number) => {
+    page.drawLine({
+      start: { x: MARGIN, y: atY },
+      end: { x: MARGIN + CONTENT_W, y: atY },
+      thickness: HAIRLINE,
+      color: INK,
+    })
   }
 
-  drawText("Oryx Scaffold Design Ltd.", MARGIN, y, 11, false)
+  const drawSectionTitle = (title: string, topY: number) => {
+    const h = 16
+    // Fill only — outer section box already provides the border.
+    page.drawRectangle({
+      x: MARGIN + HAIRLINE / 2,
+      y: topY - h,
+      width: CONTENT_W - HAIRLINE,
+      height: h,
+      color: rgb(0.97, 0.97, 0.97),
+    })
+    page.drawLine({
+      start: { x: MARGIN, y: topY - h },
+      end: { x: MARGIN + CONTENT_W, y: topY - h },
+      thickness: HAIRLINE,
+      color: INK,
+    })
+    drawText(title, MARGIN + PAD, topY - 11.5, 9, true)
+    return h
+  }
+
+  const drawLabeledRow = (label: string, value: string, rowY: number, valueWidth = CONTENT_W - LABEL_W - PAD * 2) => {
+    drawText(label, MARGIN + PAD, rowY, BODY, true)
+    const wrapped = wrapText(value, valueWidth, font, BODY)
+    let vy = rowY
+    for (const line of wrapped) {
+      drawText(line, VALUE_X, vy, BODY, false)
+      vy -= LINE
+    }
+    return Math.max(1, wrapped.length)
+  }
+
+  // Title (leave room for logo on the right)
+  drawText("Oryx Scaffold Design Ltd.", MARGIN, y, 10.5, false)
+  y -= 16
+  drawText("TEMPORARY WORKS DESIGN & CHECK SHEET CAT II:", MARGIN, y, 12, true)
   y -= 18
-  drawText("TEMPORARY WORKS DESIGN & CHECK SHEET CAT II:", MARGIN, y, 13, true)
-  y -= 20
 
   const works = job.typeOfWorks === "Other" && job.customTypeDescription
     ? `Other - ${job.customTypeDescription}`
-    : job.typeOfWorks
+    : (job.typeOfWorks || "Not specified")
   const projectRaw = job.siteAddress?.trim() || job.address
   const project = projectRaw.endsWith(".") ? projectRaw : `${projectRaw}.`
 
-  // Header information block
-  const headerTop = y + 8
-  const headerBottom = y - 78
-  page.drawRectangle({ x: MARGIN, y: headerBottom, width: CONTENT_W, height: headerTop - headerBottom, borderColor: INK, borderWidth: BORDER })
-  page.drawLine({ start: { x: MARGIN, y: y - 18 }, end: { x: MARGIN + CONTENT_W, y: y - 18 }, thickness: BORDER, color: INK })
-  page.drawLine({ start: { x: MARGIN, y: y - 38 }, end: { x: MARGIN + CONTENT_W, y: y - 38 }, thickness: BORDER, color: INK })
-  drawLabeledValue("Design Company:", "Oryx Scaffold Design Ltd.", y - 8)
-  drawLabeledValue("Project:", project, y - 28)
-  drawLabeledValue("Description of Works:", works || "Not specified", y - 48)
-  y = headerBottom - 16
+  // Project info panel
+  const infoTop = y
+  const infoRows = [
+    ["Design Company:", "Oryx Scaffold Design Ltd."],
+    ["Project:", project],
+    ["Description of Works:", works],
+  ] as const
+  let infoCursor = infoTop - 14
+  const infoRowHeights: number[] = []
+  for (const [label, value] of infoRows) {
+    const lines = drawLabeledRow(label, value, infoCursor)
+    infoRowHeights.push(lines)
+    infoCursor -= lines * LINE + 4
+  }
+  const infoBottom = infoCursor + 6
+  drawBox(infoBottom, infoTop - infoBottom)
+  // Internal dividers between the three rows
+  let dividerY = infoTop - (infoRowHeights[0]! * LINE + 8)
+  drawHRule(dividerY)
+  dividerY -= infoRowHeights[1]! * LINE + 8
+  drawHRule(dividerY)
+  y = infoBottom - 12
 
-  // Design standards block
+  // Standards panel
   const standards = splitStandards(job.designStandards)
-  const standardsLines = standards.length
-    ? standards.flatMap((standard) => wrapText(standard, CONTENT_W - 18, font, 10))
-    : DEFAULT_STANDARDS
-  const standardsHeight = Math.max(70, 26 + (standardsLines.length * 13))
-  const standardsBottom = y - standardsHeight
-  page.drawRectangle({ x: MARGIN, y: standardsBottom, width: CONTENT_W, height: standardsHeight, borderColor: INK, borderWidth: BORDER })
-  drawSectionHeader("Design Standards / Codes of Practise used:", y)
-  let standardsY = y - 30
+  const standardsLines = standards.flatMap(s => wrapText(s, CONTENT_W - PAD * 2, font, BODY))
+  const titleH = 16
+  const standardsBodyH = 10 + standardsLines.length * LINE
+  const standardsH = titleH + standardsBodyH
+  const standardsBottom = y - standardsH
+  drawBox(standardsBottom, standardsH)
+  drawSectionTitle("Design Standards / Codes of Practise used:", y)
+  let sy = y - titleH - 12
   for (const line of standardsLines) {
-    drawText(line, MARGIN + 8, standardsY, 10, false)
-    standardsY -= 13
+    drawText(line, MARGIN + PAD, sy, BODY, false)
+    sy -= LINE
   }
-  y = standardsBottom - 14
+  y = standardsBottom - 12
 
-  // Documents checked block
-  const documentsBottom = y - 42
-  page.drawRectangle({ x: MARGIN, y: documentsBottom, width: CONTENT_W, height: 42, borderColor: INK, borderWidth: BORDER })
-  drawSectionHeader("Documents Checked:", y)
-  drawText(job.drawingNumber, MARGIN + 8, y - 34, 10, false)
-  y = documentsBottom - 16
+  // Documents checked
+  const docsH = titleH + 22
+  const docsBottom = y - docsH
+  drawBox(docsBottom, docsH)
+  drawSectionTitle("Documents Checked:", y)
+  drawText(job.drawingNumber, MARGIN + PAD, y - titleH - 14, BODY, false)
+  y = docsBottom - 12
 
-  // Certification statement block
-  const certLines = wrapText(CERT_STATEMENT, CONTENT_W - 16, font, 10)
-  const certHeight = 26 + (certLines.length * 13)
-  const certBottom = y - certHeight
-  page.drawRectangle({ x: MARGIN, y: certBottom, width: CONTENT_W, height: certHeight, borderColor: INK, borderWidth: BORDER })
-  drawSectionHeader("Certification:", y)
-  let certY = y - 30
+  // Certification
+  const certLines = wrapText(CERT_STATEMENT, CONTENT_W - PAD * 2, font, BODY)
+  const certH = titleH + 10 + certLines.length * LINE
+  const certBottom = y - certH
+  drawBox(certBottom, certH)
+  drawSectionTitle("Certification:", y)
+  let cy = y - titleH - 12
   for (const line of certLines) {
-    drawText(line, MARGIN + 8, certY, 10, false)
-    certY -= 13
+    drawText(line, MARGIN + PAD, cy, BODY, false)
+    cy -= LINE
   }
-  y = certBottom - 14
+  y = certBottom - 12
 
-  // Sign-off block
-  const signOffBottom = y - 124
-  page.drawRectangle({ x: MARGIN, y: signOffBottom, width: CONTENT_W, height: 124, borderColor: INK, borderWidth: BORDER })
-  drawSectionHeader("Checked By:", y)
-  drawLabeledValue("Name:", CHECKER.name, y - 30)
-  drawText("Signature:", MARGIN + 8, y - 50, 10, true)
-  page.drawRectangle({ x: MARGIN + 150, y: y - 66, width: 170, height: 40, borderColor: INK, borderWidth: 0.8 })
+  // Checked-by / signature panel
+  const signTop = y
+  const signH = titleH + 118
+  const signBottom = signTop - signH
+  drawBox(signBottom, signH)
+  drawSectionTitle("Checked By:", signTop)
 
-  const signatureY = y - 44
+  const nameY = signTop - titleH - 14
+  drawLabeledRow("Name:", CHECKER.name, nameY)
+
+  // Signature row — image sits on the value column, no outline box
+  const sigLabelY = nameY - 26
+  drawText("Signature:", MARGIN + PAD, sigLabelY, BODY, true)
+
   const signatureAsset = await loadSignatureAsset()
   if (signatureAsset) {
     try {
       const image = signatureAsset.isPng
         ? await doc.embedPng(signatureAsset.bytes)
         : await doc.embedJpg(signatureAsset.bytes)
-      page.drawImage(image, { x: MARGIN + 154, y: signatureY - 6, width: 162, height: 34 })
+      const maxW = 170
+      const maxH = 34
+      const ratio = image.width / image.height
+      let sigW = maxW
+      let sigH = sigW / ratio
+      if (sigH > maxH) {
+        sigH = maxH
+        sigW = sigH * ratio
+      }
+      // Center the glyph on the Signature label baseline (no border).
+      const sigX = VALUE_X
+      const sigY = sigLabelY - sigH * 0.42
+      page.drawImage(image, { x: sigX, y: sigY, width: sigW, height: sigH })
     } catch {
-      // Keep blank signature box if image parse fails.
+      // Leave blank if parse fails.
     }
   }
 
-  drawLabeledValue("Position held:", CHECKER.positionHeld, y - 70)
-  drawLabeledValue("Name of Design Consultants:", "Oryx Scaffold Designs Ltd", y - 90)
-  y = signOffBottom - 16
+  const posY = sigLabelY - 40
+  drawLabeledRow("Position held:", CHECKER.positionHeld, posY)
+  const consY = posY - 18
+  drawLabeledRow("Name of Design Consultants:", CHECKER.consultants, consY)
 
   const completedAt = job.dateCompleted ? new Date(job.dateCompleted) : new Date()
-  drawText(`Date: ${completedAt.toLocaleDateString("en-GB")}`, MARGIN, y, 10, false)
+  const dateY = consY - 18
+  drawLabeledRow("Date:", completedAt.toLocaleDateString("en-GB"), dateY)
 
   page.drawText("-- 1 of 1 --", {
-    x: PAGE_W / 2 - 24,
-    y: 22,
+    x: PAGE_W / 2 - font.widthOfTextAtSize("-- 1 of 1 --", 8) / 2,
+    y: 18,
     size: 8,
     font,
-    color: rgb(0.45, 0.45, 0.45),
+    color: MUTED,
   })
 
   return doc.save()
