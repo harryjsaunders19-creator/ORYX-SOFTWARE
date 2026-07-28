@@ -2,6 +2,7 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
 import fs from "node:fs/promises"
 import path from "node:path"
 import type { JobRow } from "../types/job-types"
+import { BRAND_LOGO_DOCUMENT_PATH } from "@/shared/branding/branding"
 
 const PAGE_W = 595.28
 const PAGE_H = 841.89
@@ -51,6 +52,20 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   const page = doc.addPage([PAGE_W, PAGE_H])
   const font = await doc.embedFont(StandardFonts.Helvetica)
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold)
+
+  // Top-right ORYX wordmark (fixed asset bundled with the app).
+  try {
+    const logoBytes = await fs.readFile(path.join(process.cwd(), BRAND_LOGO_DOCUMENT_PATH))
+    const logo = await doc.embedJpg(logoBytes)
+    const logoW = 92.8
+    const logoH = 56.9
+    const logoX = PAGE_W - MARGIN - logoW
+    const logoY = PAGE_H - MARGIN - logoH
+    page.drawImage(logo, { x: logoX, y: logoY, width: logoW, height: logoH })
+  } catch {
+    // Non-fatal: allow export even if the logo asset isn't present in dev.
+  }
+
   let y = PAGE_H - MARGIN
 
   const drawLine = (text: string, size = 10, bold = false, x = MARGIN) => {
