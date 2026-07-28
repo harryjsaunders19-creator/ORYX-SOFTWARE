@@ -1,4 +1,5 @@
-import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib"
+import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib"
+import fontkit from "@pdf-lib/fontkit"
 import fs from "node:fs/promises"
 import path from "node:path"
 import type { JobRow } from "../types/job-types"
@@ -9,20 +10,23 @@ const PAGE_H = 841.92
 const MARGIN_X = 48
 const CONTENT_W = PAGE_W - MARGIN_X * 2
 const CONTENT_RIGHT = MARGIN_X + CONTENT_W
-const INK = rgb(0, 0, 0)
-const MUTED = rgb(0.38, 0.38, 0.38)
-const RULE = rgb(0.72, 0.72, 0.72)
-const HAIRLINE = 0.5
-const BODY = 10.5
-const LINE = 13.5
-const PAD = 8
-const SECTION_INDENT = 20
-const BULLET_X = MARGIN_X + 32
-const BULLET_TEXT_X = MARGIN_X + 48
-const META_LABEL_W = 148
-const CHECK_DATE_LABEL_X = MARGIN_X + 318
-const CHECK_DATE_VALUE_X = MARGIN_X + 356
 
+const INK = rgb(0.08, 0.09, 0.1)
+const LABEL = rgb(0.42, 0.44, 0.46)
+const MUTED = rgb(0.38, 0.4, 0.42)
+const RULE = rgb(0.82, 0.83, 0.84)
+const RULE_STRONG = rgb(0.55, 0.57, 0.59)
+const PANEL = rgb(0.965, 0.968, 0.972)
+const ACCENT = rgb(0.12, 0.14, 0.16)
+
+const TITLE_SIZE = 20
+const SECTION_SIZE = 12
+const BODY = 10.5
+const LABEL_SIZE = 9
+const FOOTER_SIZE = 8
+const LINE = 13.2
+
+/** Existing certificate content — wording preserved. */
 const DEFAULT_STANDARDS = [
   "TG4:25 Anchoring systems for scaffolding.",
   "BS EN:12811-1:2003 Temporary works equipment. Scaffolds. Performance requirements and general design.",
@@ -49,6 +53,9 @@ const CERT_DOCS_LEAD = "The following documents describe and detail the design:"
 
 const LIABILITY =
   "Nothing in this certificate shall impose upon us any greater liability than the exercise of reasonable professional skill, care and diligence."
+
+const UNCONTROLLED_COPY =
+  "This certificate is only valid when viewed at the latest revision in the Oryx Document Management System. Printed or downloaded copies may become uncontrolled if subsequent revisions are issued."
 
 export function cat2ExportFilename(drawingNumber: string): string {
   const safeDrawing = drawingNumber.replace(/[\\/:*?"<>|]/g, "-").trim() || "drawing"
@@ -105,289 +112,262 @@ async function loadSignatureAsset(): Promise<{ bytes: Uint8Array; isPng: boolean
   return null
 }
 
+type Fonts = {
+  regular: PDFFont
+  bold: PDFFont
+  italic: PDFFont
+}
+
 function drawText(
   page: PDFPage,
   text: string,
   x: number,
   y: number,
   font: PDFFont,
-  size = BODY,
+  size: number,
   color = INK,
 ) {
   page.drawText(text, { x, y, size, font, color })
 }
 
-function drawHRule(page: PDFPage, y: number, fromX = MARGIN_X, toX = CONTENT_RIGHT, color = INK) {
+function drawRule(page: PDFPage, y: number, color = RULE, fromX = MARGIN_X, toX = CONTENT_RIGHT) {
   page.drawLine({
     start: { x: fromX, y },
     end: { x: toX, y },
-    thickness: HAIRLINE,
+    thickness: 0.6,
     color,
   })
 }
 
-function drawBox(page: PDFPage, bottom: number, height: number) {
+function drawSectionHeading(page: PDFPage, title: string, y: number, fonts: Fonts): number {
+  // Accent tick + heading
   page.drawRectangle({
     x: MARGIN_X,
-    y: bottom,
-    width: CONTENT_W,
-    height,
-    borderColor: INK,
-    borderWidth: HAIRLINE,
+    y: y - 1,
+    width: 2.2,
+    height: 11,
+    color: ACCENT,
   })
+  drawText(page, title, MARGIN_X + 10, y, fonts.bold, SECTION_SIZE, INK)
+  return y - 16
 }
 
-/** Optical centre of Helvetica text relative to baseline. */
-function textOpticalCenterOffset(size: number): number {
-  return size * 0.35
-}
-
-type LogoBox = {
-  x: number
-  y: number
-  width: number
-  height: number
-  centerY: number
-  left: number
-  bottom: number
-}
-
-async function drawLogo(doc: PDFDocument, page: PDFPage): Promise<LogoBox> {
-  const fallback: LogoBox = {
-    x: PAGE_W - 146,
-    y: PAGE_H - 90,
-    width: 118,
-    height: 72,
-    centerY: PAGE_H - 54,
-    left: PAGE_W - 158,
-    bottom: PAGE_H - 100,
-  }
-  try {
-    const logoBytes = await fs.readFile(path.join(process.cwd(), BRAND_LOGO_DOCUMENT_PATH))
-    const logo = await doc.embedJpg(logoBytes)
-    const insetX = 28
-    const insetY = 20
-    const width = 118
-    const height = width * (logo.height / logo.width)
-    const x = PAGE_W - insetX - width
-    const y = PAGE_H - insetY - height
-    page.drawImage(logo, { x, y, width, height })
-    return {
-      x,
-      y,
-      width,
-      height,
-      centerY: y + height / 2,
-      left: x - 14,
-      bottom: y - 12,
-    }
-  } catch {
-    return fallback
-  }
-}
-
-function drawMetaTable(
+function drawParagraph(
   page: PDFPage,
-  font: PDFFont,
-  fontBold: PDFFont,
-  top: number,
-  rows: [string, string][],
+  text: string,
+  y: number,
+  fonts: Fonts,
+  opts?: { size?: number; color?: ReturnType<typeof rgb>; width?: number },
 ): number {
-  const valueW = CONTENT_W - META_LABEL_W - PAD * 2
-  const rowPadY = 6
-  let cursor = top
-
-  const measured = rows.map(([label, value]) => {
-    const valueLines = wrapText(value, valueW, fontBold, BODY)
-    const h = Math.max(22, valueLines.length * LINE + rowPadY * 2)
-    return { label, valueLines, h }
-  })
-
-  const boxH = measured.reduce((sum, r) => sum + r.h, 0)
-  const bottom = top - boxH
-  drawBox(page, bottom, boxH)
-
-  page.drawLine({
-    start: { x: MARGIN_X + META_LABEL_W, y: top },
-    end: { x: MARGIN_X + META_LABEL_W, y: bottom },
-    thickness: HAIRLINE,
-    color: INK,
-  })
-
-  for (const row of measured) {
-    const rowTop = cursor
-    const rowBottom = rowTop - row.h
-    if (rowTop !== top) drawHRule(page, rowTop)
-
-    // Vertically centre single-line rows; top-align multi-line
-    const firstBaseline = row.valueLines.length === 1
-      ? rowTop - row.h / 2 - textOpticalCenterOffset(BODY) + BODY * 0.12
-      : rowTop - rowPadY - BODY + 2
-
-    drawText(page, row.label, MARGIN_X + PAD, firstBaseline, font, BODY)
-    let vy = firstBaseline
-    for (const line of row.valueLines) {
-      drawText(page, line, MARGIN_X + META_LABEL_W + PAD, vy, fontBold, BODY)
-      vy -= LINE
-    }
-    cursor = rowBottom
+  const size = opts?.size ?? BODY
+  const color = opts?.color ?? INK
+  const width = opts?.width ?? CONTENT_W
+  const lines = wrapText(text, width, fonts.regular, size)
+  for (const line of lines) {
+    drawText(page, line, MARGIN_X, y, fonts.regular, size, color)
+    y -= LINE
   }
-
-  return bottom
+  return y
 }
 
-function drawFooter(page: PDFPage, font: PDFFont) {
-  drawHRule(page, 40, MARGIN_X, CONTENT_RIGHT, RULE)
-  drawText(page, "Oryx Scaffold Design Ltd.", MARGIN_X, 26, font, 9, MUTED)
-  const centre = "Temporary Works Design Certificate"
-  drawText(
-    page,
-    centre,
-    PAGE_W / 2 - font.widthOfTextAtSize(centre, 9) / 2,
-    26,
-    font,
-    9,
-    MUTED,
-  )
-  const pageMark = "-- 1 of 1 --"
-  drawText(
-    page,
-    pageMark,
-    CONTENT_RIGHT - font.widthOfTextAtSize(pageMark, 8),
-    26,
-    font,
-    8,
-    MUTED,
-  )
+function drawMetaItem(
+  page: PDFPage,
+  label: string,
+  value: string,
+  x: number,
+  y: number,
+  fonts: Fonts,
+  valueWidth: number,
+): number {
+  drawText(page, label.toUpperCase(), x, y, fonts.regular, LABEL_SIZE, LABEL)
+  y -= 12
+  const lines = wrapText(value, valueWidth, fonts.bold, BODY)
+  for (const line of lines) {
+    drawText(page, line, x, y, fonts.bold, BODY, INK)
+    y -= LINE
+  }
+  return y
 }
 
 export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
+  doc.registerFontkit(fontkit)
+
+  const [regularBytes, boldBytes] = await Promise.all([
+    fs.readFile(path.join(process.cwd(), "public", "fonts", "LiberationSans-Regular.ttf")),
+    fs.readFile(path.join(process.cwd(), "public", "fonts", "LiberationSans-Bold.ttf")),
+  ])
+  const fonts: Fonts = {
+    regular: await doc.embedFont(regularBytes),
+    bold: await doc.embedFont(boldBytes),
+    italic: await doc.embedFont(StandardFonts.HelveticaOblique),
+  }
+
   const page = doc.addPage([PAGE_W, PAGE_H])
-  const font = await doc.embedFont(StandardFonts.Helvetica)
-  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold)
 
   const works = job.typeOfWorks === "Other" && job.customTypeDescription
     ? `Other - ${job.customTypeDescription}`
     : (job.typeOfWorks || "Scaffold")
   const project = (job.siteName?.trim() || job.siteAddress?.trim() || job.address || "Not specified")
     .replace(/\.$/, "")
-  const filename = cat2ExportFilename(job.drawingNumber)
+  const documentRef = cat2ExportFilename(job.drawingNumber)
+  const revision = (job.revisionLetter ?? "").trim() || "—"
   const standards = splitStandards(job.designStandards)
   const completedAt = job.dateCompleted ? new Date(job.dateCompleted) : new Date()
-  const dateStr = completedAt.toLocaleDateString("en-GB")
+  const issueDate = completedAt.toLocaleDateString("en-GB")
   const documents = [`${job.drawingNumber} — Scaffold design`]
 
-  const logo = await drawLogo(doc, page)
-
-  // Title baseline aligned to the optical centre of the logo
-  const title = "Temporary Works Design Certificate"
-  const titleSize = 15
-  const titleBaseline = logo.centerY - textOpticalCenterOffset(titleSize)
-  drawText(page, title, MARGIN_X, titleBaseline, fontBold, titleSize)
-
-  const underlineY = Math.min(titleBaseline - 9, logo.y - 6)
-  const underlineEnd = Math.min(
-    MARGIN_X + fontBold.widthOfTextAtSize(title, titleSize) + 6,
-    logo.left,
-  )
-  page.drawLine({
-    start: { x: MARGIN_X, y: underlineY },
-    end: { x: underlineEnd, y: underlineY },
-    thickness: 1,
-    color: INK,
-  })
-
-  // Meta table starts a consistent gap below header band (logo + title)
-  let y = Math.min(underlineY, logo.y) - 14
-  y = drawMetaTable(page, font, fontBold, y, [
-    ["Project:", project.toUpperCase()],
-    ["Type of Works:", works.toUpperCase()],
-    ["Design Org. Originator:", "ORYX SCAFFOLD DESIGN LTD."],
-    ["Document Ref:", filename],
-  ]) - 18
-
-  // §1 Certification + standards + documents
-  drawText(page, "1.", MARGIN_X, y, fontBold, BODY)
-  for (const line of wrapText(CERT_INTRO, CONTENT_W - SECTION_INDENT - 4, font, BODY)) {
-    drawText(page, line, MARGIN_X + SECTION_INDENT, y, font, BODY)
-    y -= LINE
-  }
-  y -= 7
-
-  for (const line of wrapText(CERT_STANDARDS_LEAD, CONTENT_W - SECTION_INDENT, font, BODY)) {
-    drawText(page, line, MARGIN_X + SECTION_INDENT, y, font, BODY)
-    y -= LINE
-  }
-  y -= 3
-
-  for (const standard of standards) {
-    const wrapped = wrapText(standard, CONTENT_W - (BULLET_TEXT_X - MARGIN_X), font, BODY)
-    wrapped.forEach((line, i) => {
-      if (i === 0) drawText(page, "•", BULLET_X, y, font, BODY)
-      drawText(page, line, BULLET_TEXT_X, y, font, BODY)
-      y -= LINE - 1.1
+  // ── Header ──────────────────────────────────────────────────────────────
+  let logo: PDFImage | null = null
+  let logoW = 0
+  let logoH = 0
+  try {
+    const logoBytes = await fs.readFile(path.join(process.cwd(), BRAND_LOGO_DOCUMENT_PATH))
+    logo = await doc.embedJpg(logoBytes)
+    logoW = 108
+    logoH = logoW * (logo.height / logo.width)
+    page.drawImage(logo, {
+      x: CONTENT_RIGHT - logoW,
+      y: PAGE_H - 26 - logoH,
+      width: logoW,
+      height: logoH,
     })
+  } catch {
+    // non-fatal
   }
 
-  y -= 5
-  drawText(page, CERT_DOCS_LEAD, MARGIN_X + SECTION_INDENT, y, font, BODY)
-  y -= LINE
+  const headerCenterY = logo
+    ? PAGE_H - 26 - logoH / 2
+    : PAGE_H - 58
+  const title = "Temporary Works Design Certificate"
+  const titleBaseline = headerCenterY - TITLE_SIZE * 0.32
+  drawText(page, title, MARGIN_X, titleBaseline, fonts.bold, TITLE_SIZE, INK)
+
+  // Document control row under title
+  let y = Math.min(titleBaseline - 22, (logo ? PAGE_H - 26 - logoH : PAGE_H - 70) - 10)
+  const controlGap = 18
+  const controlItems: [string, string][] = [
+    ["Document Reference", documentRef],
+    ["Revision", revision],
+    ["Issue Date", issueDate],
+  ]
+  let cx = MARGIN_X
+  for (const [label, value] of controlItems) {
+    drawText(page, label.toUpperCase(), cx, y, fonts.regular, 7.5, LABEL)
+    const valueSize = 9
+    drawText(page, value, cx, y - 12, fonts.bold, valueSize, INK)
+    const colW = Math.max(
+      fonts.regular.widthOfTextAtSize(label.toUpperCase(), 7.5),
+      fonts.bold.widthOfTextAtSize(value, valueSize),
+    ) + controlGap
+    cx += Math.min(colW + 28, 210)
+  }
+
+  y -= 26
+  drawRule(page, y, RULE_STRONG)
+  y -= 22
+
+  // ── Project information (two-column metadata) ───────────────────────────
+  const colW = (CONTENT_W - 28) / 2
+  const leftX = MARGIN_X
+  const rightX = MARGIN_X + colW + 28
+  const metaTop = y
+  const leftBottom = drawMetaItem(page, "Project", project.toUpperCase(), leftX, metaTop, fonts, colW)
+  drawMetaItem(page, "Type of Works", works.toUpperCase(), leftX, leftBottom - 8, fonts, colW)
+  const rightBottom = drawMetaItem(page, "Design Org. Originator", "ORYX SCAFFOLD DESIGN LTD.", rightX, metaTop, fonts, colW)
+  drawMetaItem(page, "Document Ref", documentRef, rightX, rightBottom - 8, fonts, colW)
+
+  y = Math.min(leftBottom, rightBottom) - 40
+  drawRule(page, y + 18)
+
+  // ── Certification Statement ─────────────────────────────────────────────
+  y = drawSectionHeading(page, "Certification Statement", y, fonts)
+  y = drawParagraph(page, CERT_INTRO, y, fonts)
+  y -= 14
+
+  // ── Applicable Standards ────────────────────────────────────────────────
+  y = drawSectionHeading(page, "Applicable Standards", y, fonts)
+  y = drawParagraph(page, CERT_STANDARDS_LEAD, y, fonts)
+  y -= 4
+  const stdWidth = CONTENT_W - 14
+  for (const standard of standards) {
+    drawText(page, "–", MARGIN_X, y, fonts.regular, BODY, MUTED)
+    const wrapped = wrapText(standard, stdWidth, fonts.regular, BODY)
+    for (const line of wrapped) {
+      drawText(page, line, MARGIN_X + 14, y, fonts.regular, BODY, INK)
+      y -= LINE - 0.8
+    }
+  }
+  y -= 12
+
+  // ── Referenced Documents ────────────────────────────────────────────────
+  y = drawSectionHeading(page, "Referenced Documents", y, fonts)
+  y = drawParagraph(page, CERT_DOCS_LEAD, y, fonts)
+  y -= 3
   for (const docLine of documents) {
-    drawText(page, "•", BULLET_X, y, font, BODY)
-    drawText(page, docLine, BULLET_TEXT_X, y, font, BODY)
+    drawText(page, "–", MARGIN_X, y, fonts.regular, BODY, MUTED)
+    drawText(page, docLine, MARGIN_X + 14, y, fonts.regular, BODY, INK)
     y -= LINE
   }
-
-  // §2 Comments
   y -= 12
-  drawText(page, "2.", MARGIN_X, y, fontBold, BODY)
-  drawText(page, "Comments are as follows:", MARGIN_X + SECTION_INDENT, y, font, BODY)
+
+  // ── Comments ────────────────────────────────────────────────────────────
+  y = drawSectionHeading(page, "Comments", y, fonts)
+  drawText(page, "Comments are as follows:", MARGIN_X, y, fonts.regular, BODY, INK)
   y -= 16
 
-  const commentsTop = y
-  const headerH = 18
-  const bodyH = 22
-  const commentsH = headerH + bodyH
-  const commentsBottom = commentsTop - commentsH
-  const colSplit = MARGIN_X + 110
-  drawBox(page, commentsBottom, commentsH)
-  page.drawLine({
-    start: { x: colSplit, y: commentsTop },
-    end: { x: colSplit, y: commentsBottom },
-    thickness: HAIRLINE,
-    color: INK,
+  const panelH = 44
+  const panelBottom = y - panelH
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: panelBottom,
+    width: CONTENT_W,
+    height: panelH,
+    color: PANEL,
   })
-  drawHRule(page, commentsTop - headerH)
-  const commentsHeaderY = commentsTop - headerH / 2 - textOpticalCenterOffset(BODY) + 1
-  const commentsBodyY = commentsTop - headerH - bodyH / 2 - textOpticalCenterOffset(BODY) + 1
-  drawText(page, "Section", MARGIN_X + PAD, commentsHeaderY, fontBold, BODY)
-  drawText(page, "Comment", colSplit + PAD, commentsHeaderY, fontBold, BODY)
-  drawText(page, "General", MARGIN_X + PAD, commentsBodyY, font, BODY)
-  drawText(page, "Approved with no comments.", colSplit + PAD, commentsBodyY, font, BODY)
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: panelBottom,
+    width: 2.5,
+    height: panelH,
+    color: ACCENT,
+  })
+  drawText(page, "SECTION", MARGIN_X + 14, y - 14, fonts.regular, 7.5, LABEL)
+  drawText(page, "General", MARGIN_X + 14, y - 28, fonts.bold, BODY, INK)
+  drawText(page, "COMMENT", MARGIN_X + 150, y - 14, fonts.regular, 7.5, LABEL)
+  drawText(page, "Approved with no comments.", MARGIN_X + 150, y - 28, fonts.bold, BODY, INK)
+  y = panelBottom - 14
 
-  // §3 Liability
-  y = commentsBottom - 16
-  drawText(page, "3.", MARGIN_X, y, fontBold, BODY)
-  for (const line of wrapText(LIABILITY, CONTENT_W - SECTION_INDENT - 4, font, BODY)) {
-    drawText(page, line, MARGIN_X + SECTION_INDENT, y, font, BODY)
-    y -= LINE
-  }
-
-  // Checked by
+  // Existing liability wording (unchanged)
+  y = drawParagraph(page, LIABILITY, y, fonts, { color: MUTED, size: 10 })
   y -= 14
-  drawText(page, "Checked by:", MARGIN_X, y, fontBold, BODY)
-  y -= 12
 
-  const checkTop = y
-  const checkH = 94
-  const checkBottom = checkTop - checkH
-  drawBox(page, checkBottom, checkH)
+  // ── Approval ────────────────────────────────────────────────────────────
+  y = drawSectionHeading(page, "Approval", y, fonts)
+  drawText(page, "Checked by", MARGIN_X, y, fonts.regular, LABEL_SIZE, LABEL)
+  y -= 14
 
-  const signedRowY = checkTop - 16
-  drawText(page, "Signed:", MARGIN_X + PAD, signedRowY, font, BODY)
-  drawText(page, "Date:", CHECK_DATE_LABEL_X, signedRowY, font, BODY)
-  drawText(page, dateStr, CHECK_DATE_VALUE_X, signedRowY, font, BODY)
+  // Clean approval grid — subtle rules only
+  const approvalTop = y + 4
+  const approvalBottom = approvalTop - 88
+  drawRule(page, approvalTop, RULE)
+  drawRule(page, approvalBottom, RULE)
+
+  // Column guides
+  const col1 = MARGIN_X
+  const col2 = MARGIN_X + 210
+  const col3 = MARGIN_X + 380
+
+  drawText(page, "NAME", col1, approvalTop - 14, fonts.regular, 7.5, LABEL)
+  drawText(page, CHECKER.name, col1, approvalTop - 28, fonts.bold, 11, INK)
+
+  drawText(page, "POSITION", col2, approvalTop - 14, fonts.regular, 7.5, LABEL)
+  drawText(page, CHECKER.title, col2, approvalTop - 28, fonts.bold, 11, INK)
+
+  drawText(page, "DATE", col3, approvalTop - 14, fonts.regular, 7.5, LABEL)
+  drawText(page, issueDate, col3, approvalTop - 28, fonts.bold, 11, INK)
+
+  drawText(page, "SIGNATURE", col1, approvalTop - 48, fonts.regular, 7.5, LABEL)
 
   const signatureAsset = await loadSignatureAsset()
   if (signatureAsset) {
@@ -395,8 +375,8 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
       const image = signatureAsset.isPng
         ? await doc.embedPng(signatureAsset.bytes)
         : await doc.embedJpg(signatureAsset.bytes)
-      const maxW = 148
-      const maxH = 28
+      const maxW = 160
+      const maxH = 30
       const ratio = image.width / image.height
       let sigW = maxW
       let sigH = sigW / ratio
@@ -404,28 +384,32 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
         sigH = maxH
         sigW = sigH * ratio
       }
-      // Signature band directly under Signed:, left-aligned with pad, clear of Date column
-      const sigX = MARGIN_X + PAD
-      const sigY = signedRowY - 6 - sigH
-      const maxSigRight = CHECK_DATE_LABEL_X - 12
-      if (sigX + sigW > maxSigRight) {
-        sigW = maxSigRight - sigX
-        sigH = sigW / ratio
-      }
-      page.drawImage(image, { x: sigX, y: sigY, width: sigW, height: sigH })
+      page.drawImage(image, {
+        x: col1,
+        y: approvalBottom + 8,
+        width: sigW,
+        height: sigH,
+      })
     } catch {
-      // leave blank
+      // leave blank signature space
     }
   }
 
-  const nameRowY = checkTop - 76
-  drawText(page, "Checker", MARGIN_X + PAD, checkTop - 58, font, BODY)
-  drawText(page, "Name:", MARGIN_X + PAD, nameRowY, font, BODY)
-  drawText(page, CHECKER.name, MARGIN_X + 52, nameRowY, fontBold, 11)
-  drawText(page, "Title:", CHECK_DATE_LABEL_X, nameRowY, font, BODY)
-  drawText(page, CHECKER.title, CHECK_DATE_VALUE_X, nameRowY, font, BODY)
+  // ── Footer ──────────────────────────────────────────────────────────────
+  const footerTop = 62
+  drawRule(page, footerTop, RULE_STRONG)
 
-  drawFooter(page, font)
+  drawText(page, "Oryx Scaffold Design Ltd", MARGIN_X, footerTop - 14, fonts.regular, FOOTER_SIZE, MUTED)
+  drawText(page, documentRef, MARGIN_X, footerTop - 26, fonts.regular, FOOTER_SIZE, MUTED)
+  drawText(page, `Revision ${revision}`, MARGIN_X + 280, footerTop - 14, fonts.regular, FOOTER_SIZE, MUTED)
+  drawText(page, "Page 1 of 1", CONTENT_RIGHT - fonts.regular.widthOfTextAtSize("Page 1 of 1", FOOTER_SIZE), footerTop - 14, fonts.regular, FOOTER_SIZE, MUTED)
+
+  const disclaimerLines = wrapText(UNCONTROLLED_COPY, CONTENT_W, fonts.italic, 7)
+  let dy = footerTop - 40
+  for (const line of disclaimerLines) {
+    drawText(page, line, MARGIN_X, dy, fonts.italic, 7, LABEL)
+    dy -= 9
+  }
 
   return doc.save()
 }
