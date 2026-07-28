@@ -199,7 +199,7 @@ export function QuoteForm({ formId, initial, quoteId, onSubmit }: {
           <Label>Individual jobs / work items (optional)</Label>
           <button type="button" onClick={addLineItem} className="text-xs text-ac hover:text-ach font-medium">+ Add job / item</button>
         </div>
-        <p className="text-[11px] text-t4">
+        <p className="type-helper text-t4">
           Leave empty for a single-line quote using the description and value above. For a quote covering several jobs at the same site, add one entry per job here — each gets its own detailed description and price on the PDF, and the quote value becomes the sum of all of them.
         </p>
         {form.lineItems.length > 0 && (
@@ -207,7 +207,7 @@ export function QuoteForm({ formId, initial, quoteId, onSubmit }: {
             {form.lineItems.map((li, i) => (
               <div key={i} className="p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-t3">Item {i + 1}</span>
+                  <span className="type-label text-t3">Item {i + 1}</span>
                   <button type="button" onClick={() => removeLineItem(i)} className="text-t4 hover:text-dn text-xs px-1">Remove ✕</button>
                 </div>
                 <Textarea

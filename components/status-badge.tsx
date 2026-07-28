@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
 import { getJobStatus } from "@/lib/constants"
+import { Typography } from "@/shared/design/typography"
 
 /**
  * Status colour communicates workflow meaning only (ISO / ops scanning).
@@ -37,9 +38,15 @@ export const STATUS_DOT: Record<string, string> = {
   ISSUED:        "bg-ok-ic",
 }
 
-const pill = "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium whitespace-nowrap border"
+const pill = cn(
+  "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 whitespace-nowrap border",
+  Typography.Badge,
+)
 
-const pillLg = "inline-flex items-center gap-2 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap border"
+const pillLg = cn(
+  "inline-flex items-center gap-2 rounded-md px-2.5 py-1 whitespace-nowrap border",
+  Typography.Badge,
+)
 
 export function StatusBadge({ status, size = "md" }: { status: string; size?: "md" | "lg" }) {
   const s = getJobStatus(status)

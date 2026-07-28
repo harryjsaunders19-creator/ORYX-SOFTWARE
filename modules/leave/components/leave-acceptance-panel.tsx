@@ -74,7 +74,7 @@ export function LeaveAcceptancePanel({ onAccepted }: LeaveAcceptancePanelProps) 
     <div className="rounded-lg border border-bd bg-surface mb-4 overflow-hidden">
       <div className="border-b border-bd px-4 py-2.5 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-t1">Pending leave — admin acceptance</h2>
-        <span className="text-xs font-medium text-t3 tabular-nums">{pending.length} awaiting</span>
+        <span className="type-label text-t3 tabular-nums">{pending.length} awaiting</span>
       </div>
       <ul className="divide-y divide-bd">
         {pending.map(r => (

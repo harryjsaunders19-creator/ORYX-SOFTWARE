@@ -104,7 +104,7 @@ function Section({
   return (
     <section className="space-y-4">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-pg text-[11px] font-semibold tabular-nums text-t2">
+        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-pg type-badge tabular-nums text-t2">
           {step}
         </span>
         <div className="min-w-0">
@@ -366,7 +366,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                       <p className={cn("text-sm font-semibold", selected ? "text-rs-tx" : "text-t1")}>
                         {meta.title}
                       </p>
-                      <p className="mt-1 font-mono text-[10px] text-t3">
+                      <p className="mt-1 font-mono type-helper text-t3">
                         {getWorkItemRefHint(t.value)}
                       </p>
                       <p className="mt-2 text-xs leading-relaxed text-t3">
@@ -508,7 +508,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                   <button
                     type="button"
                     onClick={() => setShowMoreTypes(v => !v)}
-                    className="text-xs font-medium text-t3 hover:text-t1"
+                    className="type-label text-t3 hover:text-t1"
                   >
                     {showMoreTypes ? "Hide more types" : "Show more types"}
                   </button>

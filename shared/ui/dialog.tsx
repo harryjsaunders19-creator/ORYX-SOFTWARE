@@ -16,6 +16,7 @@ import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 import { cn } from "@/shared/utils"
+import { Typography } from "@/shared/design/typography"
 
 export const Dialog        = DialogPrimitive.Root
 export const DialogTrigger = DialogPrimitive.Trigger
@@ -157,8 +158,15 @@ export const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-base font-semibold text-t1", className)}
-    style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-t1)", margin: 0, letterSpacing: "-0.01em" }}
+    className={cn(Typography.CardTitle, "text-t1", className)}
+    style={{
+      fontSize: "var(--type-card-title-size)",
+      fontWeight: "var(--type-card-title-weight)" as unknown as number,
+      lineHeight: "var(--type-card-title-leading)",
+      letterSpacing: "var(--type-card-title-tracking)",
+      color: "var(--color-t1)",
+      margin: 0,
+    }}
     {...props}
   />
 ))
@@ -170,8 +178,14 @@ export const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-t3 mt-0.5", className)}
-    style={{ fontSize: "14px", color: "var(--color-t3)", marginTop: "3px" }}
+    className={cn(Typography.Small, "text-t3 mt-0.5", className)}
+    style={{
+      fontSize: "var(--type-small-size)",
+      fontWeight: "var(--type-small-weight)" as unknown as number,
+      lineHeight: "var(--type-small-leading)",
+      color: "var(--color-t3)",
+      marginTop: "3px",
+    }}
     {...props}
   />
 ))

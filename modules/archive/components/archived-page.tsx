@@ -152,7 +152,7 @@ function ArchivedInner() {
                         <p className="font-mono text-sm font-semibold text-t3 line-through truncate">
                           {job.drawingNumber}
                         </p>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx border border-dn-bd shrink-0">
+                        <span className="type-badge px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx border border-dn-bd shrink-0">
                           Cancelled
                         </span>
                       </div>

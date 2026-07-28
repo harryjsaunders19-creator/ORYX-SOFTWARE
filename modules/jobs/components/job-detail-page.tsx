@@ -77,7 +77,7 @@ function InfoField({ label, value }: { label: string; value?: string | null }) {
 function KpiCard({ label, value, badge }: { label: string; value: string; badge?: string | null }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-t3">{label}</p>
+      <p className="type-label text-t3">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
         <p className="text-lg font-semibold text-t1 truncate font-mono tabular-nums">{value}</p>
         {badge ? (
@@ -341,7 +341,7 @@ export default function JobDetailPage({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-dn-tx flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-dn-bg border border-dn-bd">
+                <span className="type-badge px-2 py-0.5 rounded-full bg-dn-bg border border-dn-bd">
                   Cancelled
                 </span>
                 <span className="font-mono line-through opacity-80">{job.drawingNumber}</span>
@@ -528,7 +528,7 @@ export default function JobDetailPage({
                     />
                     <InfoField label="Requested by" value={job.requestedBy} />
                     <div>
-                      <p className="text-xs font-medium text-t3 mb-2">
+                      <p className="type-label text-t3 mb-2">
                         Engineer Assigned
                       </p>
                       {isCancelled ? (
@@ -628,7 +628,7 @@ export default function JobDetailPage({
                       {commercialTotal != null && (
                         <div className="flex justify-between gap-2 pt-3 border-t border-bd">
                           <span className="text-t3 font-medium">Total agreed</span>
-                          <span className="font-bold tabular-nums text-t1">{formatGBP(commercialTotal)}</span>
+                          <span className="font-semibold tabular-nums text-t1">{formatGBP(commercialTotal)}</span>
                         </div>
                       )}
                       {job.quoteReference && (
@@ -716,7 +716,7 @@ export default function JobDetailPage({
                 {dl.severity === "overdue"
                   ? <AlertOctagon className="h-4 w-4 text-dn shrink-0" />
                   : <Clock className="h-4 w-4 text-t4 shrink-0" />}
-                <p className="text-xs font-semibold text-t3">Deadline</p>
+                <p className="type-label text-t3">Deadline</p>
               </div>
               <p className={cn(
                 "text-sm font-semibold tabular-nums",

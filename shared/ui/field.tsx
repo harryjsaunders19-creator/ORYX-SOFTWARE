@@ -1,6 +1,7 @@
 import * as React from "react"
 import { cn } from "@/shared/utils"
 import { Label } from "@/shared/ui/label"
+import { Typography } from "@/shared/design/typography"
 
 /** Standard form field — label, control, error or hint on the 8px grid. */
 export function Field({
@@ -28,7 +29,7 @@ export function Field({
       </Label>
       {children}
       {error ? <FieldError>{error}</FieldError> : hint ? (
-        <p className="text-xs text-t4">{hint}</p>
+        <p className={cn(Typography.Helper, "text-t4")}>{hint}</p>
       ) : null}
     </div>
   )
@@ -38,7 +39,7 @@ export function FieldError({ children, className }: {
   children: React.ReactNode
   className?: string
 }) {
-  return <p className={cn("text-xs text-dn", className)}>{children}</p>
+  return <p className={cn(Typography.Helper, "text-dn", className)}>{children}</p>
 }
 
 /** Form-level error / alert banner. */
@@ -48,7 +49,8 @@ export function FormAlert({ children, className }: {
 }) {
   return (
     <div className={cn(
-      "rounded-md border border-dn-bd bg-dn-bg p-3 text-sm font-medium text-dn-tx",
+      Typography.Small,
+      "rounded-md border border-dn-bd bg-dn-bg p-3 font-medium text-dn-tx",
       className,
     )}>
       {children}

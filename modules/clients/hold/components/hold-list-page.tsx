@@ -178,7 +178,7 @@ export default function HoldListPage() {
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-xs text-dn-tx font-medium">{hold.reason}</p>
-                    <p className="text-[11px] text-t4 mt-0.5">by {hold.addedBy}</p>
+                    <p className="type-helper text-t4 mt-0.5">by {hold.addedBy}</p>
                   </td>
                   <td className="px-4 py-3 text-xs text-t3 whitespace-nowrap tabular-nums">
                     {format(new Date(hold.addedAt), "d MMM yyyy")}

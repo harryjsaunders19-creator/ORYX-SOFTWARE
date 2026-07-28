@@ -48,8 +48,8 @@ const ClientTableRow = memo(function ClientTableRow({
       <td className="px-4 py-3">
         <Link href={`/clients/${c.id}`} prefetch={false} className="font-medium text-t1 hover:text-ac flex items-center gap-1.5">
           {c.name}
-          {!c.active && <span className="text-[10px] bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>}
-          {c.onHold && <span className="text-[10px] bg-dn-bg text-dn rounded-full px-2 font-medium whitespace-nowrap">On Hold</span>}
+          {!c.active && <span className="type-helper bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>}
+          {c.onHold && <span className="type-helper bg-dn-bg text-dn rounded-full px-2 font-medium whitespace-nowrap">On Hold</span>}
           <ChevronRight className="h-3.5 w-3.5 text-t4" />
         </Link>
       </td>
@@ -106,10 +106,10 @@ const ClientMobileCard = memo(function ClientMobileCard({
             <div className="flex items-center gap-1.5 flex-wrap">
               <p className="text-sm font-semibold text-t1">{c.name}</p>
               {!c.active && (
-                <span className="text-[10px] bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>
+                <span className="type-helper bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>
               )}
               {c.onHold && (
-                <span className="text-[10px] bg-dn-bg text-dn rounded-full px-2 font-medium">On Hold</span>
+                <span className="type-helper bg-dn-bg text-dn rounded-full px-2 font-medium">On Hold</span>
               )}
             </div>
             {c.contactName && <p className="text-xs text-t3 mt-0.5">{c.contactName}</p>}

@@ -167,7 +167,7 @@ export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, c
                     <Building2 className={cn("h-3.5 w-3.5 shrink-0", c.onHold ? "text-dn" : "text-t4")} />
                     <div className="flex-1 min-w-0">
                       <span className={cn("font-medium truncate block", c.onHold ? "text-dn-tx" : "text-t1")}>{c.name}</span>
-                      {c.onHold && <span className="text-[10px] text-dn font-medium">⚠ ON HOLD</span>}
+                      {c.onHold && <span className="type-helper text-dn font-medium">⚠ ON HOLD</span>}
                     </div>
                     {c.contactName && !c.onHold && (
                       <span className="text-t4 text-xs truncate ml-auto shrink-0">{c.contactName}</span>

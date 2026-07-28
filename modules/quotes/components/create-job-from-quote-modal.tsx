@@ -70,7 +70,7 @@ export function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
         <DialogHeader><DialogTitle>Create job from {quote.quoteNumber}</DialogTitle></DialogHeader>
         <DialogBody className="space-y-4">
           <div className="bg-pg border border-bd rounded-md p-3 space-y-1.5">
-            <p className="text-[11px] font-semibold text-t3 mb-1">Will be copied to the new job</p>
+            <p className="type-label text-t3 mb-1">Will be copied to the new job</p>
             <p className="text-xs text-t2"><span className="text-t4">Client:</span> {quote.clientCompany}</p>
             <p className="text-xs text-t2"><span className="text-t4">Address:</span> {quote.address}</p>
             <p className="text-xs text-t2"><span className="text-t4">Quote value:</span> {formatGBP(quote.quoteValue)}</p>

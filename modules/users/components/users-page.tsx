@@ -26,7 +26,7 @@ const ENGINEER_MODULES = MODULES.filter(m => m.roles.includes("ENGINEER"))
 function RoleBadge({ role }: { role: string }) {
   return (
     <span className={cn(
-      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
+      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 type-badge whitespace-nowrap",
       role === "ADMIN" ? "bg-ac-bg text-ac" : "bg-t1/[0.06] text-t2",
     )}>
       {role === "ADMIN" && <ShieldCheck className="h-3.5 w-3.5" />}
@@ -227,15 +227,15 @@ function UsersPageInner() {
                 <tr key={u.id} className={cn("border-b border-bd last:border-0 hover:bg-pg", !u.active && "opacity-60")}>
                   <td className="px-4 py-3">
                     <span className="font-medium text-t1">{u.name}</span>
-                    {me?.id === u.id && <span className="text-[10px] text-t4 ml-1.5">(you)</span>}
+                    {me?.id === u.id && <span className="type-helper text-t4 ml-1.5">(you)</span>}
                   </td>
                   <td className="px-4 py-3 text-xs text-t3">{u.email ?? "—"}</td>
                   <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
                   <td className="px-4 py-3">
                     {u.active ? (
-                      <span className="text-[11px] font-medium text-ok-tx">Active</span>
+                      <span className="type-badge text-ok-tx">Active</span>
                     ) : (
-                      <span className="text-[11px] font-medium text-t4">Disabled</span>
+                      <span className="type-badge text-t4">Disabled</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-t4 tabular-nums whitespace-nowrap">{format(new Date(u.createdAt), "d MMM yyyy")}</td>
@@ -363,11 +363,11 @@ function UsersPageInner() {
             </p>
             <div className="bg-pg border border-bd rounded-md p-3 flex items-center justify-between gap-2">
               <div>
-                <p className="text-[11px] text-t4 mb-0.5">Email</p>
+                <p className="type-helper text-t4 mb-0.5">Email</p>
                 <p className="text-sm font-medium text-t1">{tempPasswordInfo?.email}</p>
               </div>
               <div>
-                <p className="text-[11px] text-t4 mb-0.5">Temporary password</p>
+                <p className="type-helper text-t4 mb-0.5">Temporary password</p>
                 <p className="text-sm font-mono font-semibold text-ac">{tempPasswordInfo?.password}</p>
               </div>
               <button

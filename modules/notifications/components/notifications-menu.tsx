@@ -112,7 +112,7 @@ export function NotificationsMenu() {
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
             <span
-              className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-dn text-white text-[10px] font-bold flex items-center justify-center leading-none"
+              className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-dn text-white type-badge flex items-center justify-center leading-none"
               aria-hidden
             >
               {unreadCount > 9 ? "9+" : unreadCount}
@@ -130,7 +130,7 @@ export function NotificationsMenu() {
           <div className="flex items-center gap-3">
             <p className="text-sm font-semibold text-t1">Notifications</p>
             {unreadCount > 0 && (
-              <span className="text-[11px] font-medium text-t3 tabular-nums">{unreadCount} active</span>
+              <span className="type-badge text-t3 tabular-nums">{unreadCount} active</span>
             )}
           </div>
           {unreadCount > 0 && (
@@ -183,8 +183,8 @@ export function NotificationsMenu() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-t1 truncate">{n.title}</p>
-                        <p className="text-[11px] text-t3 mt-0.5 line-clamp-2">{n.message}</p>
-                        <p className="text-[10px] text-t4 mt-1">{formatWhen(n.at)}</p>
+                        <p className="type-helper text-t3 mt-0.5 line-clamp-2">{n.message}</p>
+                        <p className="type-helper text-t4 mt-1">{formatWhen(n.at)}</p>
                       </div>
                     </Link>
                   </li>

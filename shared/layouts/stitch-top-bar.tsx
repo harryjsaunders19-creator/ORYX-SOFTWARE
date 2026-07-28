@@ -109,7 +109,7 @@ export function StitchTopBar({ onMenuClick }: Props) {
           >
             <Search className="h-4 w-4 shrink-0 text-t4" />
             <span className="w-44 truncate text-sm text-t4">Search jobs, clients and documents…</span>
-            <kbd className="rounded border border-bd bg-sr px-1.5 py-0.5 text-[10px] font-medium text-t4">
+            <kbd className="rounded border border-bd bg-sr px-1.5 py-0.5 type-badge text-t4">
               Ctrl K
             </kbd>
           </button>

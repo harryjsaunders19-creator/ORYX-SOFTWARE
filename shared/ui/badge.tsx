@@ -1,4 +1,5 @@
 import { cn } from "@/shared/utils"
+import { Typography } from "@/shared/design/typography"
 
 /** Payment status — colour only for paid success / sent attention. */
 const PAYMENT_BADGE: Record<string, string> = {
@@ -7,7 +8,10 @@ const PAYMENT_BADGE: Record<string, string> = {
   PAID:  "bg-ok-bg text-ok-tx border border-ok-bd",
 }
 
-const pill = "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
+const pill = cn(
+  "inline-flex items-center rounded-md px-2 py-0.5 whitespace-nowrap",
+  Typography.Badge,
+)
 
 export function PaymentBadge({ status }: { status: string }) {
   return (

@@ -23,7 +23,7 @@ export function DocumentEmailCard({
             <p className="text-xs text-t3 truncate">From {doc.emailFrom}</p>
           )}
           {doc.emailDate && (
-            <p className="text-[11px] text-t4">
+            <p className="type-helper text-t4">
               {format(new Date(doc.emailDate), "d MMM yyyy HH:mm")}
             </p>
           )}
@@ -33,7 +33,7 @@ export function DocumentEmailCard({
         <p className="text-xs text-t3 line-clamp-3">{doc.emailPreview}</p>
       )}
       {doc.parseStatus === "failed" && (
-        <p className="text-[11px] text-wn-tx">
+        <p className="type-helper text-wn-tx">
           Email metadata could not be extracted — original file still available.
         </p>
       )}

@@ -255,7 +255,7 @@ export default function CalendarPage() {
               </label>
             </>
           )}
-          <div className="flex items-center gap-3 text-[10px] text-t3">
+          <div className="flex items-center gap-3 type-helper text-t3">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-sm bg-ok-ic" /> Approved
             </span>

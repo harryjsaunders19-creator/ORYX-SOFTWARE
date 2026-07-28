@@ -133,7 +133,7 @@ export function JobMapMissingLocations({ isAdmin, onLocated }: Props) {
               type="button"
               onClick={() => setQueueFilter(filter.id)}
               className={cn(
-                "rounded-full px-2.5 py-1 text-[11px] font-medium border transition-colors",
+                "rounded-full px-2.5 py-1 type-badge border transition-colors",
                 queueFilter === filter.id
                   ? "border-ac bg-ac/10 text-ac"
                   : "border-bd text-t3 hover:text-t1 hover:border-t4",
@@ -178,7 +178,7 @@ export function JobMapMissingLocations({ isAdmin, onLocated }: Props) {
                       <p className="text-xs text-t4">Completed {job.dateCompleted.slice(0, 10)}</p>
                     )}
                     <p className={cn(
-                      "text-[11px] font-medium pt-1",
+                      "type-badge pt-1",
                       QUEUE_BADGE_CLASS[job.queueReason],
                     )}>
                       {GEOCODE_QUEUE_LABELS[job.queueReason]}

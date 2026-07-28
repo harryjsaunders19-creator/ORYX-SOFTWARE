@@ -50,7 +50,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             className={cn(
               "pointer-events-auto flex items-center gap-2.5",
               "min-w-[260px] max-w-sm rounded-xl border px-[18px] py-[14px]",
-              "bg-sr shadow-card text-sm font-medium",
+              "bg-sr shadow-card type-small font-medium",
               t.variant === "success" && "border-ok-bd text-ok-tx",
               t.variant === "error"   && "border-dn-bd text-dn-tx",
               t.variant === "info"    && "border-bd text-t1",
@@ -66,8 +66,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               padding: "14px 18px",
               backgroundColor: "var(--color-sr)",
               boxShadow: "var(--shadow-modal)",
-              fontSize: "14px",
-              fontWeight: 500,
+              fontSize: "var(--type-small-size)",
+              fontWeight: "var(--type-body-lg-weight)" as unknown as number,
+              lineHeight: "var(--type-small-leading)",
               ...VARIANT_STYLES[t.variant],
             }}
           >

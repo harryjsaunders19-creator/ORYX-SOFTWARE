@@ -72,9 +72,9 @@ function KpiCard({
 }) {
   return (
     <div className="rounded-xl border border-bd bg-sr p-4">
-      <p className="text-xs font-medium text-t3 mb-2">{label}</p>
+      <p className="type-label text-t3 mb-2">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
-        <p className="text-lg font-bold text-t1 truncate font-mono tabular-nums">{value}</p>
+        <p className="type-body-lg text-t1 truncate font-mono tabular-nums">{value}</p>
         {badge ? (
           <span className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-wn-bg text-wn-tx">
             {badge}
@@ -317,7 +317,7 @@ export default function ParentJobDashboardPage({
             </p>
           )}
           <div className="flex items-center gap-2 pt-1">
-            <span className="text-xs font-medium text-t3">Client</span>
+            <span className="type-label text-t3">Client</span>
             <span className="text-sm font-semibold text-t1">{parent.clientCompany}</span>
           </div>
         </div>
@@ -447,7 +447,7 @@ export default function ParentJobDashboardPage({
                 />
                 <InfoField label="Requested by" value={parent.requestedBy} />
                 <div>
-                  <p className="text-xs font-medium text-t3 mb-2">
+                  <p className="type-label text-t3 mb-2">
                     Engineer Assigned
                   </p>
                   {current ? (
@@ -516,7 +516,7 @@ export default function ParentJobDashboardPage({
                         >
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="min-w-0">
-                              <h3 className="text-base font-bold text-t1">
+                              <h3 className="type-body-lg text-t1">
                                 {item.title}
                                 {isCurrent ? " — In Progress" : isComplete ? " — Complete" : ""}
                               </h3>
@@ -630,7 +630,7 @@ export default function ParentJobDashboardPage({
                 </div>
                 <div className="flex justify-between gap-2 pt-3 border-t border-bd">
                   <span className="text-t3">Outstanding</span>
-                  <span className="font-bold tabular-nums text-t1">
+                  <span className="font-semibold tabular-nums text-t1">
                     {formatGBP(outstanding) ?? "—"}
                   </span>
                 </div>
@@ -708,7 +708,7 @@ export default function ParentJobDashboardPage({
               <Label>
                 Reason for revision<span className="text-dn ml-0.5">*</span>
               </Label>
-              <p className="text-[11px] text-t4 mt-0.5 mb-2">
+              <p className="type-helper text-t4 mt-0.5 mb-2">
                 What did the client request? This appears on the project timeline for the whole team.
               </p>
               <Textarea

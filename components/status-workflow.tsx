@@ -67,12 +67,12 @@ export function StatusWorkflow({ jobId, currentStatus, onStatusChange, patchUrl 
                     ? <Loader2 className="h-3.5 w-3.5 text-t3 animate-spin" />
                     : done
                     ? <Check className="h-3.5 w-3.5 text-sr" strokeWidth={2.5} />
-                    : <span className={cn("text-[9px] font-bold tabular-nums", current ? "text-ac" : "text-t4")}>
+                    : <span className={cn("type-badge tabular-nums", current ? "text-ac" : "text-t4")}>
                         {idx + 1}
                       </span>}
                 </div>
                 <span className={cn(
-                  "text-[9px] leading-tight text-center w-full truncate px-0.5",
+                  "type-helper leading-tight text-center w-full truncate px-0.5",
                   done    && "font-medium text-t2",
                   current && "font-semibold text-t1",
                   !done && !current && "text-t4",

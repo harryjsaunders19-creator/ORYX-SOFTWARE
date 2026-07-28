@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { cn } from "@/shared/utils"
+import { Typography } from "@/shared/design/typography"
 import { useUser } from "@/shared/providers/user-context"
 import { modulesForUser, type ModuleDef } from "@/shared/auth/permissions"
 import { OryxLogo } from "@/shared/branding/oryx-logo"
@@ -31,7 +32,8 @@ function NavLink({ item, active, collapsed, onNavigate }: NavLinkProps) {
       onClick={() => onNavigate?.()}
       title={collapsed ? item.label : undefined}
       className={cn(
-        "stitch-nav-link group flex items-center gap-3 rounded-md text-sm transition-colors duration-150 ease-in-out outline-none",
+        Typography.Nav,
+        "stitch-nav-link group flex items-center gap-3 rounded-md transition-colors duration-150 ease-in-out outline-none",
         "focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-inset",
         collapsed ? "justify-center px-0 py-2.5 mx-2" : "mx-2 px-3 py-2.5",
       )}
@@ -113,7 +115,7 @@ function SideNavContent({
           sections.map(group => (
             <div key={group.id} className="space-y-1">
               {!collapsed && (
-                <p className="px-5 pb-1 text-[11px] font-medium tracking-wide text-white/45">
+                <p className="stitch-nav-section-label px-5 pb-1">
                   {group.label}
                 </p>
               )}
@@ -138,7 +140,8 @@ function SideNavContent({
             type="button"
             onClick={onToggleCollapse}
             className={cn(
-                "flex w-full items-center gap-3 rounded-md py-2.5 text-sm text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white",
+                Typography.Nav,
+                "flex w-full items-center gap-3 rounded-md py-2.5 text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25",
               collapsed ? "justify-center px-0" : "px-3",
             )}

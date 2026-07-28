@@ -83,7 +83,7 @@ export function LeaveEventDialog({ open, onClose, event }: LeaveEventDialogProps
         <DialogBody className="space-y-4">
           <div className="flex items-center gap-2">
             <span
-              className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+              className="inline-flex items-center rounded-full px-2 py-0.5 type-badge"
               style={{ backgroundColor: color + "20", color }}
             >
               {statusLabel(reviewStatus === "APPROVED" || event.status === "LEAVE_APPROVED"

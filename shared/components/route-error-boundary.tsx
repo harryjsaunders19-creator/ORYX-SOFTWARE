@@ -4,6 +4,8 @@ import { useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { reportClientError } from "@/shared/client-error-report"
+import { Typography } from "@/shared/design/typography"
+import { cn } from "@/shared/utils"
 
 type Props = {
   tag: string
@@ -21,8 +23,8 @@ export function RouteErrorBoundary({ tag, error, reset, backHref = "/", backLabe
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center bg-pg px-4 text-center text-t1">
-      <h1 className="text-xl font-semibold tracking-tight">Something went wrong</h1>
-      <p className="mt-2 max-w-md text-sm text-t3">
+      <h1 className={cn(Typography.PageTitle)}>Something went wrong</h1>
+      <p className={cn(Typography.Small, "mt-2 max-w-md text-t3")}>
         An unexpected error occurred. You can try again or go back.
       </p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

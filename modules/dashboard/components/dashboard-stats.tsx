@@ -18,6 +18,7 @@ import {
 import { useUser } from "@/shared/providers/user-context"
 import { cn, getDeadlineInfo } from "@/shared/utils/utils"
 import { useApi } from "@/shared/hooks/use-api"
+import { Typography } from "@/shared/design/typography"
 import type { StatsData, DashboardWeekEvent } from "../types/stats-types"
 import type { Job, ClientHoldWithClient } from "@/lib/types"
 
@@ -91,17 +92,17 @@ function StatCard({
           <Icon className="h-4 w-4" aria-hidden />
         </div>
         <span className={cn(
-          "inline-flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
+          "inline-flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5 type-badge tabular-nums",
           t.badge,
         )}>
           {value}
         </span>
       </div>
-      <p className="text-3xl font-semibold tabular-nums tracking-tight text-t1 max-md:text-2xl">
+      <p className={cn(Typography.Stat, "text-t1 max-md:text-[28px]")}>
         {value}
       </p>
-      <p className="mt-2 text-sm font-medium text-t1">{label}</p>
-      {sub && <p className="mt-1 text-xs text-t3">{sub}</p>}
+      <p className={cn(Typography.Small, "mt-2 font-medium text-t1")}>{label}</p>
+      {sub && <p className={cn(Typography.Helper, "mt-1 text-t3")}>{sub}</p>}
     </div>
   )
   return href ? (
@@ -134,10 +135,11 @@ function Panel({
     <section className="flex min-h-56 flex-col overflow-hidden rounded-xl border border-bd bg-sr shadow-sm">
       <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-4">
         <div className="flex min-w-0 items-center gap-2">
-          <h2 className="text-sm font-semibold text-t1">{title}</h2>
+          <h2 className={cn(Typography.CardTitle, "text-t1")}>{title}</h2>
           {count != null && count > 0 && (
             <span className={cn(
-              "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
+              Typography.Badge,
+              "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 tabular-nums",
               badgeClass,
             )}>
               {count}
@@ -147,7 +149,7 @@ function Panel({
         {viewAllHref && (
           <Link
             href={viewAllHref}
-            className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-t3 transition-colors hover:text-t1"
+            className={cn(Typography.Helper, "inline-flex shrink-0 items-center gap-0.5 font-medium text-t3 transition-colors hover:text-t1")}
           >
             {viewAllLabel ?? "View all"}
             <ChevronRight className="h-3.5 w-3.5" />
@@ -163,7 +165,7 @@ function PanelEmpty({ icon: Icon, message }: { icon: React.ElementType; message:
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-5 py-10">
       <Icon className="h-5 w-5 text-t4" aria-hidden />
-      <p className="text-center text-sm text-t3">{message}</p>
+      <p className={cn(Typography.Small, "text-center text-t3")}>{message}</p>
     </div>
   )
 }
@@ -295,10 +297,10 @@ export function DashboardStats({
       {/* Greeting + New */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-t1 max-md:text-xl">
+          <h1 className={cn(Typography.PageTitle, "text-t1 max-md:text-[26px]")}>
             {greetingForHour(now.getHours())}, {displayName}
           </h1>
-          <p className="mt-1 text-sm text-t3">{todayLabel}</p>
+          <p className={cn(Typography.Small, "mt-1 text-t3")}>{todayLabel}</p>
         </div>
         <div className="shrink-0">
           <QuickCreateMenu />
@@ -433,7 +435,7 @@ export function DashboardStats({
                           </p>
                         </div>
                         <span className={cn(
-                          "shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium",
+                          "shrink-0 rounded-md px-2 py-0.5 type-badge",
                           TONE.overdue.badge,
                         )}>
                           {dl.label}

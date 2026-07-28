@@ -49,7 +49,7 @@ export function SettingsMenu() {
                 aria-pressed={active}
                 onClick={() => setThemePreference(value)}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-md px-2 py-2 text-[11px] font-medium transition-colors",
+                  "flex flex-col items-center gap-1 rounded-md px-2 py-2 type-badge transition-colors",
                   active
                     ? "bg-sr text-t1 shadow-sm"
                     : "text-t3 hover:text-t2",

@@ -105,7 +105,7 @@ function SortTh({ field, label, current, dir, onSort, className }: {
     <th
       onClick={() => onSort(field)}
       className={cn(
-        "px-4 py-2.5 text-left text-xs font-semibold text-t3 cursor-pointer select-none whitespace-nowrap",
+        "px-4 py-2.5 text-left type-label text-t3 cursor-pointer select-none whitespace-nowrap",
         className,
       )}
     >
@@ -154,17 +154,17 @@ const JobMobileCard = memo(function JobMobileCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <RevisionFamilyBadge job={job} />
-            <span className="font-mono text-xs font-bold text-ac">{job.drawingNumber}</span>
+            <span className="font-mono type-badge text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
             {showTags && (job.tags ?? []).slice(0, 2).map(tag => (
-              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
+              <span key={tag} className="type-helper px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
                 {tag}
               </span>
             ))}
             {showTags && (job.tags ?? []).length > 2 && (
-              <span className="text-[10px] text-t4">+{(job.tags ?? []).length - 2}</span>
+              <span className="type-helper text-t4">+{(job.tags ?? []).length - 2}</span>
             )}
           </div>
           <p className="text-sm font-medium text-t1 mt-1 line-clamp-2">{job.address}</p>
@@ -179,7 +179,7 @@ const JobMobileCard = memo(function JobMobileCard({
         <InlineStatusSelect status={job.status} onChange={value => onStatusChange(job, value)} size="lg" />
         {showDeadline && (
           <span className={cn(
-            "inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full border",
+            "inline-flex items-center gap-1 type-badge px-2 py-1 rounded-full border",
             dl.severity === "overdue" ? "bg-dn-bg text-dn-tx border-dn-bd"
               : dl.severity === "today" ? "bg-wn-bg text-wn-tx border-wn-bd"
               : "bg-wn-bg/60 text-wn-tx border-wn-bd/60",
@@ -245,17 +245,17 @@ const JobTableRow = memo(
         <td className="px-4 py-3.5 whitespace-nowrap">
           <span className="flex items-center gap-1.5 flex-wrap">
             <RevisionFamilyBadge job={job} />
-            <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
+            <span className="font-mono type-badge text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
             {showTags && (job.tags ?? []).slice(0, 2).map(tag => (
-              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
+              <span key={tag} className="type-helper px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
                 {tag}
               </span>
             ))}
             {showTags && (job.tags ?? []).length > 2 && (
-              <span className="text-[10px] text-t4">+{(job.tags ?? []).length - 2}</span>
+              <span className="type-helper text-t4">+{(job.tags ?? []).length - 2}</span>
             )}
           </span>
         </td>
@@ -275,7 +275,7 @@ const JobTableRow = memo(
             )}
             <p className="text-xs font-medium text-t1 truncate">{job.clientCompany}</p>
             {isOnHold && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx whitespace-nowrap">
+              <span className="type-badge px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx whitespace-nowrap">
                 On Hold
               </span>
             )}
@@ -298,10 +298,10 @@ const JobTableRow = memo(
                 : <span className="text-t4">—</span>}
           </p>
           {(job.variationFees != null || job.additionalCharges != null) && job.quoteValue != null && (
-            <p className="text-[10px] text-t4 tabular-nums">incl. extras</p>
+            <p className="type-helper text-t4 tabular-nums">incl. extras</p>
           )}
           {job.quoteReference && (
-            <p className="text-[10px] font-mono text-t4 tabular-nums">{job.quoteReference}</p>
+            <p className="type-helper font-mono text-t4 tabular-nums">{job.quoteReference}</p>
           )}
         </td>
 
@@ -313,7 +313,7 @@ const JobTableRow = memo(
           />
           {showDeadlineFlag && (
             <p className={cn(
-              "mt-1 inline-flex items-center gap-1 text-[10px] font-medium",
+              "mt-1 inline-flex items-center gap-1 type-badge",
               dl.severity === "overdue" ? "text-dn-tx" : "text-wn-tx",
             )}>
               {dl.severity === "overdue" && <Clock className="h-2.5 w-2.5 shrink-0" />}
@@ -404,7 +404,7 @@ const JobTableRow = memo(
 
 function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full border border-ac/30 bg-ac-bg text-[11px] font-medium text-ac">
+    <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full border border-ac/30 bg-ac-bg type-badge text-ac">
       {label}
       <button
         type="button"
@@ -756,7 +756,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           <SlidersHorizontal className="h-3.5 w-3.5" />
           Filter
           {activeFilterCount > 0 && (
-            <span className="ml-1 bg-ac text-on-ac rounded-full h-4 w-4 text-[10px] flex items-center justify-center font-bold shrink-0">{activeFilterCount}</span>
+            <span className="ml-1 bg-ac text-on-ac rounded-full h-4 w-4 type-helper flex items-center justify-center font-bold shrink-0">{activeFilterCount}</span>
           )}
         </Button>
 
@@ -880,12 +880,12 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           <span className="text-xs font-medium text-t2">Type</span>
           <div className="flex items-center gap-1 flex-wrap">
             <button onClick={() => { setItemTypeFilter("ALL"); setPage(1) }}
-              className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === "ALL" ? "bg-ac text-on-ac" : "border border-bd text-t3 hover:text-t2"}`}>
+              className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === "ALL" ? "bg-ac text-on-ac" : "border border-bd text-t3 hover:text-t2"}`}>
               All
             </button>
             {WORK_ITEM_TYPES.map(t => (
               <button key={t.value} onClick={() => { setItemTypeFilter(t.value); setPage(1) }}
-                className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === t.value ? `${t.color}` : "border border-bd text-t3 hover:text-t2"}`}>
+                className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === t.value ? `${t.color}` : "border border-bd text-t3 hover:text-t2"}`}>
                 {t.label}
               </button>
             ))}
@@ -902,7 +902,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               { v: "this_week", l: "This week",  cls: "text-wn-tx bg-wn-bg/60" },
             ].map(({ v, l, cls }) => (
               <button key={v} onClick={() => { setDeadlineFilter(v); setPage(1) }}
-                className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${
+                className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${
                   deadlineFilter === v
                     ? (v === "ALL" ? "bg-ac text-on-ac" : (cls ?? "bg-ac text-on-ac"))
                     : "border border-bd text-t3 hover:text-t2"
@@ -976,17 +976,17 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               <tr className="bg-surface-low border-b border-bd">
                 <SortTh field="drawingNumber" label="Drawing No." {...sp} />
                 <SortTh field="address" label="Address"     {...sp} />
-                <th className={cn("px-4 py-2.5 text-left text-xs font-semibold text-t3 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
+                <th className={cn("px-4 py-2.5 text-left type-label text-t3 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
                   Type of Works
                 </th>
                 <SortTh field="clientCompany" label="Client" className={COL_CLIENT} {...sp} />
-                <th className={cn("px-4 py-2.5 text-left text-xs font-semibold text-t3 whitespace-nowrap", COL_REQUESTED_BY)}>
+                <th className={cn("px-4 py-2.5 text-left type-label text-t3 whitespace-nowrap", COL_REQUESTED_BY)}>
                   Requested By
                 </th>
                 <SortTh field="quoteValue" label="Quotation" className={COL_QUOTATION} {...sp} />
                 <SortTh field="status" label="Completion Status" {...sp} />
                 <SortTh field="designer" label="Designer" className={COL_DESIGNER} {...sp} />
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-t3 whitespace-nowrap min-w-[180px]">
+                <th className="px-4 py-2.5 text-right type-label text-t3 whitespace-nowrap min-w-[180px]">
                   Actions
                 </th>
               </tr>

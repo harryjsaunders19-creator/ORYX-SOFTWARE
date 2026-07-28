@@ -169,7 +169,7 @@ function HandoffQuoteValue({ item, view, onQuoteSaved }: {
           className="h-7 w-24 text-xs tabular-nums"
           disabled={saving}
         />
-        <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" loading={saving} onClick={saveQuote}>
+        <Button size="sm" variant="outline" className="h-7 px-2 type-helper" loading={saving} onClick={saveQuote}>
           Save
         </Button>
       </div>
@@ -198,7 +198,7 @@ function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved }: {
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-xs font-bold text-ac">{item.drawingNumber}</span>
+            <span className="font-mono type-badge text-ac">{item.drawingNumber}</span>
             <WorkItemTypeBadge itemType={item.itemType} size="sm" />
           </div>
           <p className="text-sm font-medium text-t1 mt-1">{item.clientCompany}</p>
@@ -220,7 +220,7 @@ function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved }: {
       </div>
 
       {view === "cleared" && (
-        <p className="text-[11px] text-t3">
+        <p className="type-helper text-t3">
           Cleared {item.clearedByAccountsAt ? format(new Date(item.clearedByAccountsAt), "d MMM yyyy") : "—"}
           {item.clearedBy ? ` · ${item.clearedBy}` : ""}
         </p>
@@ -252,7 +252,7 @@ function BatchMobileCard({ batch }: { batch: BillingExportBatch }) {
     <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <span className="font-mono text-xs font-bold text-ac">{batch.batchNumber}</span>
+          <span className="font-mono type-badge text-ac">{batch.batchNumber}</span>
           <p className="text-xs text-t3 mt-1 tabular-nums">{formatDisplayDate(batch.exportDate)}</p>
         </div>
         <span className="text-sm font-semibold text-t1 tabular-nums">{batch.recordCount} rows</span>

@@ -51,7 +51,7 @@ function QuoteStatusBadge({ status }: { status: string }) {
   const s = statusMeta(status)
   return (
     <span className={cn(
-      "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
+      "inline-flex items-center rounded-full px-2.5 py-0.5 type-badge whitespace-nowrap",
       s.color,
     )}>
       {s.label}
@@ -71,7 +71,7 @@ function QuoteExpiryCell({ quote }: { quote: Quote }) {
       </p>
       {info.severity !== "none" && (
         <span className={cn(
-          "inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+          "inline-flex type-badge px-1.5 py-0.5 rounded-full",
           quoteExpiryBadgeClass(info.severity),
         )}>
           {info.label}
@@ -176,7 +176,7 @@ const QuoteMobileCard = memo(function QuoteMobileCard({
     <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <span className="font-mono text-xs font-bold text-ac">{q.quoteNumber}</span>
+          <span className="font-mono type-badge text-ac">{q.quoteNumber}</span>
           <p className="text-sm font-medium text-t1 mt-1 truncate">{q.clientCompany}</p>
           {q.contactName && <p className="text-xs text-t3 truncate">{q.contactName}</p>}
           <p className="text-xs text-t2 mt-1 line-clamp-2">
@@ -185,7 +185,7 @@ const QuoteMobileCard = memo(function QuoteMobileCard({
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
-          {q.vatRate != null && <p className="text-[10px] text-t4">+{q.vatRate}% VAT</p>}
+          {q.vatRate != null && <p className="type-helper text-t4">+{q.vatRate}% VAT</p>}
         </div>
       </div>
 
@@ -197,7 +197,7 @@ const QuoteMobileCard = memo(function QuoteMobileCard({
       <div className="flex items-center gap-2 flex-wrap">
         <QuoteStatusBadge status={q.status} />
         {q.jobId && (
-          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="text-[11px] text-ac hover:underline">
+          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="type-helper text-ac hover:underline">
             View job →
           </Link>
         )}
@@ -230,7 +230,7 @@ function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus
   return (
     <tr className="border-b border-bd last:border-0 hover:bg-pg">
       <td className="px-4 py-3 whitespace-nowrap">
-        <span className="font-mono text-[11px] font-semibold text-ac">{q.quoteNumber}</span>
+        <span className="font-mono type-badge text-ac">{q.quoteNumber}</span>
       </td>
       <td className="px-4 py-3 max-w-[140px]">
         <p className="text-xs font-medium text-t1 truncate">{q.clientCompany}</p>
@@ -243,7 +243,7 @@ function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus
       </td>
       <td className="px-4 py-3 text-right whitespace-nowrap">
         <p className="text-xs font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
-        {q.vatRate != null && <p className="text-[10px] text-t4">+{q.vatRate}% VAT</p>}
+        {q.vatRate != null && <p className="type-helper text-t4">+{q.vatRate}% VAT</p>}
       </td>
       <td className="px-4 py-3 whitespace-nowrap">
         <p className="text-xs text-t3 tabular-nums">{format(parseLocalDate(q.quoteDate), "d MMM yyyy")}</p>
@@ -254,7 +254,7 @@ function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus
       <td className="px-4 py-3 whitespace-nowrap">
         <QuoteStatusBadge status={q.status} />
         {q.jobId && (
-          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="block text-[10px] text-ac hover:underline mt-0.5">
+          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="block type-helper text-ac hover:underline mt-0.5">
             View job →
           </Link>
         )}
@@ -473,13 +473,13 @@ function QuotesInner() {
         <SearchField value={search} onChange={setSearch} placeholder="Search quotes…" className="max-w-xs" />
         <div className="flex items-center gap-1 flex-wrap">
           <button onClick={() => setStatusFilter("ALL")}
-            className={cn("text-[11px] px-2 py-0.5 rounded border font-medium",
+            className={cn("type-helper px-2 py-0.5 rounded border font-medium",
               statusFilter === "ALL" ? "bg-ac text-on-ac border-ac" : "border-bd text-t3 hover:text-t2")}>
             All
           </button>
           {QUOTE_STATUSES.map(s => (
             <button key={s.value} onClick={() => setStatusFilter(s.value)}
-              className={cn("text-[11px] px-2 py-0.5 rounded border font-medium",
+              className={cn("type-helper px-2 py-0.5 rounded border font-medium",
                 statusFilter === s.value ? s.color : "border-bd text-t3 hover:text-t2")}>
               {s.label}
             </button>

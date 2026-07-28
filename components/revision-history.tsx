@@ -73,13 +73,13 @@ function TimelineEntry({
       >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mb-1.5">
           <h4 className={cn(
-            "text-base font-bold tracking-tight",
+            "type-body-lg tracking-tight",
             entry.isCurrent ? "text-ac" : "text-t1",
           )}>
             {entry.title}
           </h4>
           {entry.isCurrent && (
-            <span className="text-xs font-bold px-2 py-0.5 rounded-sm bg-ac text-on-ac">
+            <span className="type-badge px-2 py-0.5 rounded-sm bg-ac text-on-ac">
               Current
             </span>
           )}
@@ -315,7 +315,7 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, embed
                   <Label>
                     Reason for revision<span className="text-dn ml-0.5">*</span>
                   </Label>
-                  <p className="text-[11px] text-t4">
+                  <p className="type-helper text-t4">
                     What did the client request? Shown on the project timeline.
                   </p>
                   <Textarea

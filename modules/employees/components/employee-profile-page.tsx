@@ -199,11 +199,11 @@ export default function EmployeeProfilePage() {
           <div className="flex items-start gap-4">
             <ProfilePhoto userId={id} name={emp.name} className="size-20 text-xl" />
             <div>
-              <h1 className="text-2xl font-semibold text-t1">{emp.name}</h1>
+              <h1 className="type-page-title text-t1">{emp.name}</h1>
               <p className="text-sm text-t3">{emp.jobTitle ?? "—"} · {emp.department ?? "No department"}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-t3">
                 <span className={cn(
-                  "rounded-md px-2 py-0.5 text-[11px] font-medium",
+                  "rounded-md px-2 py-0.5 type-badge",
                   emp.employmentStatus === "ACTIVE" ? "bg-ok-bg text-ok-tx" : "bg-gy-bg text-gy-tx",
                 )}>
                   {STATUS_LABELS[emp.employmentStatus]}
@@ -220,7 +220,7 @@ export default function EmployeeProfilePage() {
               <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-surface-low">
                 <div className="h-full bg-ac transition-all" style={{ width: `${emp.profileCompletion}%` }} />
               </div>
-              <p className="mt-0.5 text-[10px] text-t4">{emp.profileCompletion}% profile complete</p>
+              <p className="mt-0.5 type-helper text-t4">{emp.profileCompletion}% profile complete</p>
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -358,7 +358,7 @@ export default function EmployeeProfilePage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-t1">{a.action.replace(/_/g, " ")}</p>
                     {a.detail && <p className="text-xs text-t3">{a.detail}</p>}
-                    <p className="text-[10px] text-t4 mt-0.5">
+                    <p className="type-helper text-t4 mt-0.5">
                       {a.performedByName} · {format(new Date(a.createdAt), "d MMM yyyy HH:mm")}
                     </p>
                   </div>
@@ -405,7 +405,7 @@ export default function EmployeeProfilePage() {
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
-      <dt className="text-[10px] font-semibold text-t4">{label}</dt>
+      <dt className="type-badge text-t4">{label}</dt>
       <dd className="text-t1">{value?.trim() ? value : "—"}</dd>
     </div>
   )
@@ -737,7 +737,7 @@ function LeaveTab({
             {requests.slice(0, 15).map(r => (
               <li key={r.id} className="flex justify-between px-4 py-2.5 text-sm">
                 <span>{format(new Date(r.startDate), "d MMM")} – {format(new Date(r.endDate), "d MMM yyyy")}</span>
-                <span className="text-xs font-medium text-t3">{r.status}</span>
+                <span className="type-label text-t3">{r.status}</span>
               </li>
             ))}
           </ul>

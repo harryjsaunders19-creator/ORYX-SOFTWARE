@@ -62,7 +62,7 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
       {/* Day headers */}
       <div className="grid grid-cols-7 border-b border-bd">
         {DAY_HEADERS.map(d => (
-          <div key={d} className="px-0.5 py-1.5 text-center text-[9px] font-semibold text-t3 sm:px-2 sm:py-2 sm:text-[11px]">
+          <div key={d} className="px-0.5 py-1.5 text-center type-badge text-t3 sm:px-2 sm:py-2 sm:type-helper">
             {d}
           </div>
         ))}
@@ -99,7 +99,7 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
                   {format(day, "d")}
                 </span>
                 {isToday && (
-                  <span className="text-[9px] font-semibold" style={{ color: "var(--color-ac)" }}>
+                  <span className="type-badge" style={{ color: "var(--color-ac)" }}>
                     Today
                   </span>
                 )}
@@ -115,7 +115,7 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
                   />
                 ))}
                 {overflow > 0 && (
-                  <p className="text-[10px] text-t3 font-medium px-1.5">+{overflow} more</p>
+                  <p className="type-helper text-t3 font-medium px-1.5">+{overflow} more</p>
                 )}
               </div>
             </div>

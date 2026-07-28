@@ -83,17 +83,31 @@ Status: `P0` = foundation this PR · `P1` = next pass · `P2` = later · `Defer`
 
 ---
 
-## Typography hierarchy (target)
+## Typography hierarchy
 
-| Role | Class / token | Size |
-|------|----------------|------|
-| Page title | `.oryx-page-title` | 1.5rem / 600 |
-| Section | `text-sm font-semibold` | 14px |
-| Card / panel label | `text-xs font-semibold uppercase tracking-wider text-t3` | 12px |
-| Body | `text-sm text-t1` | 14px |
-| Metadata | `text-xs text-t3` | 12px |
-| Caption | `text-[11px] text-t4` | 11px |
-| Mono codes | `font-mono` | drawing nos, KPI labels |
+Single family: **Inter** (`app/fonts.ts`). Mono (`JetBrains Mono`) only via `.font-mono` for IDs / drawing numbers / money.
+
+Prefer `Typography.*` from `shared/design/typography.ts` (maps to `.type-*` in `app/globals.css`). Do not hardcode `text-[Npx]` or mix font families.
+
+| Role | Token | Size / weight |
+|------|--------|----------------|
+| Display | `Typography.Display` | 36px / 700 |
+| Page title | `Typography.PageTitle` / `.oryx-page-title` | 30px / 700 |
+| Section heading | `Typography.SectionHeading` | 24px / 600 |
+| Card title | `Typography.CardTitle` | 20px / 600 |
+| Large statistic | `Typography.Stat` | 32px / 700 |
+| Body large | `Typography.BodyLarge` | 16px / 500 |
+| Body | `Typography.Body` | 15px / 400 |
+| Small body | `Typography.Small` | 14px / 400 |
+| Table text | `Typography.Table` | 14px / 400 |
+| Table head | `Typography.TableHead` | 13px / 500 |
+| Input label | `Typography.Label` | 13px / 500 |
+| Helper / caption | `Typography.Helper` | 12px / 400 |
+| Status badge | `Typography.Badge` | 12px / 600 |
+| Sidebar nav | `Typography.Nav` | 14px / 500 |
+| Button | `Typography.Button` | 14px / 600 |
+
+Sentence case throughout. Avoid uppercase headings and excessive bold — use status badges for emphasis in tables.
 
 ## Colour usage rule
 

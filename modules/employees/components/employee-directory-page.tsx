@@ -35,7 +35,7 @@ function EmployeeAvatar({ userId, name }: { userId: string; name: string }) {
   const initials = name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase()).join("")
   if (failed) {
     return (
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-low text-xs font-bold text-t2">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-low type-badge text-t2">
         {initials || "?"}
       </div>
     )
@@ -140,7 +140,7 @@ function EmployeesInner() {
                           {emp.name}
                         </Link>
                         {emp.employeeId && (
-                          <p className="font-mono text-[10px] text-t4 mt-0.5">{emp.employeeId}</p>
+                          <p className="font-mono type-helper text-t4 mt-0.5">{emp.employeeId}</p>
                         )}
                       </td>
                       <td className="px-4 py-3 text-t3">{emp.jobTitle ?? "—"}</td>
@@ -149,7 +149,7 @@ function EmployeesInner() {
                       <td className="px-4 py-3 text-t3">{emp.phone ?? "—"}</td>
                       <td className="px-4 py-3">
                         <span className={cn(
-                          "rounded-md px-2 py-0.5 text-[10px] font-medium",
+                          "rounded-md px-2 py-0.5 type-badge",
                           emp.employmentStatus === "ACTIVE" && "bg-ok-bg text-ok-tx",
                           emp.employmentStatus === "ON_LEAVE" && "bg-wn-bg text-wn-tx",
                           emp.employmentStatus === "SUSPENDED" && "bg-dn-bg text-dn-tx",

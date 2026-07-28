@@ -337,7 +337,7 @@ function ImportJobsInner() {
                 <AlertTriangle className="h-3.5 w-3.5 inline mr-1" />
                 Unmapped columns (ignored): {preview.unmappedHeaders.join(", ")}
               </p>
-              <p className="text-[11px] text-wn-tx/70">
+              <p className="type-helper text-wn-tx/70">
                 These columns didn't match any known field name. Data in them won't be imported.
               </p>
             </div>
@@ -361,17 +361,17 @@ function ImportJobsInner() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-pg border-b border-bd">
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 w-12">Row</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 w-10">
+                    <th className="px-3 py-2.5 text-left type-label text-t3 w-12">Row</th>
+                    <th className="px-3 py-2.5 text-left type-label text-t3 w-10">
                       <span className="sr-only">Status</span>
                     </th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Address</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Type of Works</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Client</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Requested By</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Designer</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Status</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Issues</th>
+                    <th className="px-3 py-2.5 text-left type-label text-t3">Address</th>
+                    <th className="px-3 py-2.5 text-left type-label text-t3">Type of Works</th>
+                    <th className="px-3 py-2.5 text-left type-label text-t3">Client</th>
+                    <th className="px-3 py-2.5 text-left type-label text-t3">Requested By</th>
+                    <th className="px-3 py-2.5 text-left type-label text-t3">Designer</th>
+                    <th className="px-3 py-2.5 text-left type-label text-t3">Status</th>
+                    <th className="px-3 py-2.5 text-left type-label text-t3">Issues</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -401,7 +401,7 @@ function ImportJobsInner() {
                         <td className="px-3 py-2.5 text-xs text-t2 max-w-[140px] truncate" title={row.typeOfWorks}>
                           {row.typeOfWorks || <span className="text-t4">—</span>}
                           {row.customTypeDescription && (
-                            <span className="text-[10px] text-t4 block truncate">{row.customTypeDescription}</span>
+                            <span className="type-helper text-t4 block truncate">{row.customTypeDescription}</span>
                           )}
                         </td>
                         <td className="px-3 py-2.5 text-xs text-t1 max-w-[140px] truncate" title={row.clientCompany}>
@@ -415,7 +415,7 @@ function ImportJobsInner() {
                         </td>
                         <td className="px-3 py-2.5 text-xs">
                           <span className={cn(
-                            "inline-block px-2 py-0.5 rounded-full text-[10px] font-medium",
+                            "inline-block px-2 py-0.5 rounded-full type-badge",
                             row.status === "NEW_REQUEST" ? "bg-gy-bg text-gy-tx" :
                             row.status === "IN_DESIGN"   ? "bg-yl-bg text-yl-tx" :
                             row.status === "CHECKING"        ? "bg-wn-bg text-wn-tx" :
@@ -532,7 +532,7 @@ function ImportJobsInner() {
           {result.importedJobs.length > 0 && (
             <div className="bg-sr border border-bd rounded-md overflow-hidden" style={{ backgroundColor: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "14px", overflow: "hidden" }}>
               <div className="px-4 py-3 border-b border-bd">
-                <p className="text-xs font-semibold text-t3">Created jobs</p>
+                <p className="type-label text-t3">Created jobs</p>
               </div>
               <div className="max-h-[300px] overflow-y-auto thin-scroll">
                 <table className="w-full text-sm">
@@ -540,7 +540,7 @@ function ImportJobsInner() {
                     {result.importedJobs.map((job, i) => (
                       <tr key={i} className="border-b border-bd last:border-0">
                         <td className="px-4 py-2.5">
-                          <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
+                          <span className="font-mono type-badge text-ac">{job.drawingNumber}</span>
                         </td>
                         <td className="px-4 py-2.5 text-xs text-t1">{job.address}</td>
                         <td className="px-4 py-2.5 text-xs text-t3">{job.clientCompany}</td>

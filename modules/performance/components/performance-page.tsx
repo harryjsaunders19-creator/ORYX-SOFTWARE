@@ -12,10 +12,10 @@ import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import type { ChartPoint, PerformancePayload } from "../types"
 
 function TrendBadge({ pct }: { pct: number | null }) {
-  if (pct == null) return <span className="text-[11px] text-t4">No baseline</span>
+  if (pct == null) return <span className="type-helper text-t4">No baseline</span>
   const up = pct >= 0
   return (
-    <span className={cn("inline-flex items-center gap-1 text-[11px] font-medium", up ? "text-ok-tx" : "text-er")}>
+    <span className={cn("inline-flex items-center gap-1 type-badge", up ? "text-ok-tx" : "text-er")}>
       {up ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
       {Math.abs(pct).toFixed(1)}%
     </span>
