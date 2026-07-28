@@ -39,7 +39,7 @@ const JOB_OVERDUE_PREVIEW_SELECT = "id,drawing_number,address,required_by_date,s
  * Perf: list/detail payloads don't need geocode/notes blobs — select only columns
  * the jobs table + revision flags need. Same JobRow shape via toJobRow (nulls for omitted).
  */
-const JOB_LIST_SELECT = [
+const JOB_LIST_SELECT_COLUMNS = [
   "id", "drawing_number", "item_type", "address", "type_of_works", "custom_type_description",
   "legacy_type_of_works", "client_company", "client_id", "requested_by", "status", "designer",
   "design_standards",
@@ -47,7 +47,35 @@ const JOB_LIST_SELECT = [
   "variation_fees", "additional_charges", "invoice_id", "billing_status", "billing_batch_id",
   "requested_date", "required_by_date", "parent_job_id", "revision_letter", "billable",
   "tags", "archived_at", "archived_by", "created_at", "updated_at",
-].join(",")
+]
+
+/** Omitted after PostgREST "column not found" — remote schema may lag migrations. */
+const jobListSelectOmitted = new Set<string>()
+
+function buildJobListSelect(): string {
+  return JOB_LIST_SELECT_COLUMNS.filter(c => !jobListSelectOmitted.has(c)).join(",")
+}
+
+function noteJobListSelectMissingColumn(error: { code?: string; message?: string } | null): boolean {
+  const missing = missingColumnFromError(error)
+  if (!missing || !JOB_LIST_SELECT_COLUMNS.includes(missing)) return false
+  jobListSelectOmitted.add(missing)
+  return true
+}
+
+type JobListQueryResult<T> = { data: T | null; error: { code?: string; message?: string } | null; count?: number | null }
+
+/** List reads retry without columns missing on Supabase (same idea as upsertJobRow). */
+async function runJobListSelectQuery<T>(
+  build: (select: string) => PromiseLike<JobListQueryResult<T>>,
+): Promise<JobListQueryResult<T>> {
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const result = await build(buildJobListSelect())
+    if (!result.error) return result
+    if (!noteJobListSelectMissingColumn(result.error)) return result
+  }
+  throw new Error("Job list query failed: too many missing-column retries")
+}
 
 /** Perf: analytics only needs status/type/money/dates — avoid transferring full job rows. */
 const JOB_ANALYTICS_SELECT = "status,item_type,quote_value,date_created,date_completed"
@@ -317,7 +345,9 @@ async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
     return { jobs: [], total: count ?? 0, allForRevisions: [] }
   }
 
-  const { data: pageData, error: pageErr } = await table().select(JOB_LIST_SELECT).in("id", pageIds)
+  const { data: pageData, error: pageErr } = await runJobListSelectQuery(async select =>
+    await table().select(select).in("id", pageIds),
+  )
   if (pageErr) throw pageErr
 
   const byId = new Map(
@@ -337,15 +367,17 @@ async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
 }> {
   const dir = opts.orderBy?.dir ?? "asc"
   const asc = dir === "asc"
-  let q = applyWhere(table().select(JOB_LIST_SELECT, { count: "exact" }), opts.where)
-    .order("list_sort_key", { ascending: asc })
-    .order("created_at", { ascending: asc })
-  if (opts.skip != null && opts.take != null) {
-    q = q.range(opts.skip, opts.skip + opts.take - 1)
-  } else if (opts.take != null) {
-    q = q.limit(opts.take)
-  }
-  const { data, count, error } = await q
+  const { data, count, error } = await runJobListSelectQuery(async select => {
+    let q = applyWhere(table().select(select, { count: "exact" }), opts.where)
+      .order("list_sort_key", { ascending: asc })
+      .order("created_at", { ascending: asc })
+    if (opts.skip != null && opts.take != null) {
+      q = q.range(opts.skip, opts.skip + opts.take - 1)
+    } else if (opts.take != null) {
+      q = q.limit(opts.take)
+    }
+    return await q
+  })
   if (error) {
     if (isMissingColumnError(error, "list_sort_key")) {
       return findManyDrawingSortInMemory(opts)
@@ -385,13 +417,15 @@ export const supabaseJobRepo = {
 
     const col = sortColumn(field)
     const asc = dir === "asc"
-    let q = applyWhere(table().select(JOB_LIST_SELECT, { count: "exact" }), opts.where).order(col, { ascending: asc })
-    if (opts.skip != null && opts.take != null) {
-      q = q.range(opts.skip, opts.skip + opts.take - 1)
-    } else if (opts.take != null) {
-      q = q.limit(opts.take)
-    }
-    const { data, count, error } = await q
+    const { data, count, error } = await runJobListSelectQuery(async select => {
+      let q = applyWhere(table().select(select, { count: "exact" }), opts.where).order(col, { ascending: asc })
+      if (opts.skip != null && opts.take != null) {
+        q = q.range(opts.skip, opts.skip + opts.take - 1)
+      } else if (opts.take != null) {
+        q = q.limit(opts.take)
+      }
+      return await q
+    })
     if (error) throw error
     const jobs = ((data ?? []) as SupabaseJobRow[]).map(toJobRow)
     const allForRevisions = await fetchRevisionRowsForParents(collectRevisionParentIds(jobs))
