@@ -18,7 +18,7 @@ export const EMPLOYEE_OBJECT_PREFIX = "employees/"
 const EMPLOYEE_FILES_DIR = process.env.EMPLOYEE_FILES_DIR
   ?? (process.env.VERCEL ? path.join("/tmp", "employee-files") : path.join(process.cwd(), ".data", "employee-files"))
 
-export function useEmployeeObjectStorage(): boolean {
+export function isEmployeeObjectStorageEnabled(): boolean {
   return isSupabaseAdminConfigured()
 }
 
@@ -90,7 +90,7 @@ export async function writeEmployeeFile(params: {
   contentType: string
 }): Promise<string> {
   const filename = safeEmployeeFilename(params.filename)
-  if (useEmployeeObjectStorage()) {
+  if (isEmployeeObjectStorageEnabled()) {
     const key = employeeObjectKey(params.userId, filename)
     const { error } = await createAdminClient().storage
       .from(EMPLOYEE_FILES_BUCKET)
@@ -119,7 +119,7 @@ export async function writeEmployeeFile(params: {
 export async function readEmployeeFile(storedPath: string): Promise<Buffer | null> {
   if (!storedPath) return null
   if (isEmployeeObjectKey(storedPath)) {
-    if (!useEmployeeObjectStorage()) return null
+    if (!isEmployeeObjectStorageEnabled()) return null
     const { data, error } = await createAdminClient().storage
       .from(EMPLOYEE_FILES_BUCKET)
       .download(objectPathFromKey(storedPath))
@@ -136,7 +136,7 @@ export async function readEmployeeFile(storedPath: string): Promise<Buffer | nul
 export async function deleteEmployeeFile(storedPath: string | null | undefined): Promise<void> {
   if (!storedPath) return
   if (isEmployeeObjectKey(storedPath)) {
-    if (!useEmployeeObjectStorage()) return
+    if (!isEmployeeObjectStorageEnabled()) return
     await createAdminClient().storage
       .from(EMPLOYEE_FILES_BUCKET)
       .remove([objectPathFromKey(storedPath)])

@@ -1,7 +1,7 @@
 /**
  * Boot-time checks that Vercel never silently stores uploaded files in /tmp.
  *
- * useJobObjectStorage / useEmployeeObjectStorage currently follow
+ * isJobObjectStorageEnabled / isEmployeeObjectStorageEnabled currently follow
  * isSupabaseAdminConfigured(), which instrumentation already requires — so the
  * boolean assert is belt-and-suspenders. The bucket existence probe catches the
  * real misconfig: credentials present but Storage migrations not applied.
@@ -10,11 +10,11 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 import {
   JOB_FILES_BUCKET,
-  useJobObjectStorage,
+  isJobObjectStorageEnabled,
 } from "@/modules/job-documents/services/job-files"
 import {
   EMPLOYEE_FILES_BUCKET,
-  useEmployeeObjectStorage,
+  isEmployeeObjectStorageEnabled,
 } from "@/modules/employees/services/employee-files"
 
 async function assertStorageBucketExists(bucket: string, migrationHint: string): Promise<void> {
@@ -32,7 +32,7 @@ async function assertStorageBucketExists(bucket: string, migrationHint: string):
 
 /** Fail fast on Vercel when object storage is unavailable for durable file uploads. */
 export async function assertVercelObjectStorageReady(): Promise<void> {
-  if (!useJobObjectStorage()) {
+  if (!isJobObjectStorageEnabled()) {
     throw new Error(
       "VERCEL=1 but job object storage is not active. " +
       "Uploaded job documents would land in ephemeral /tmp and vanish on cold start. " +
@@ -43,7 +43,7 @@ export async function assertVercelObjectStorageReady(): Promise<void> {
 
   // Employee module is experimental/off in production — only require its bucket when enabled.
   if (isExperimentalEnabled("employees")) {
-    if (!useEmployeeObjectStorage()) {
+    if (!isEmployeeObjectStorageEnabled()) {
       throw new Error(
         "VERCEL=1 with employees enabled but employee object storage is not active. " +
         "Uploaded photos/documents would land in ephemeral /tmp. " +

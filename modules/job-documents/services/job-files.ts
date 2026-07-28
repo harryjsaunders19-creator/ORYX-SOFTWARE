@@ -16,7 +16,7 @@ export const JOB_OBJECT_PREFIX = "jobs/"
 const JOB_FILES_DIR = process.env.JOB_FILES_DIR
   ?? (process.env.VERCEL ? path.join("/tmp", "job-files") : path.join(process.cwd(), ".data", "job-files"))
 
-export function useJobObjectStorage(): boolean {
+export function isJobObjectStorageEnabled(): boolean {
   return isSupabaseAdminConfigured()
 }
 
@@ -69,7 +69,7 @@ export async function writeJobFile(params: {
     ? [primaryType]
     : [primaryType, "application/octet-stream"]
 
-  if (useJobObjectStorage()) {
+  if (isJobObjectStorageEnabled()) {
     const client = createAdminClient()
     let lastError: unknown = null
     for (const contentType of candidates) {
@@ -111,7 +111,7 @@ export async function writeJobFile(params: {
 
 export async function readJobFile(storedPath: string): Promise<Buffer | null> {
   if (!storedPath) return null
-  if (useJobObjectStorage() && storedPath.startsWith(JOB_OBJECT_PREFIX)) {
+  if (isJobObjectStorageEnabled() && storedPath.startsWith(JOB_OBJECT_PREFIX)) {
     const { data, error } = await createAdminClient().storage
       .from(JOB_FILES_BUCKET)
       .download(objectPathFromKey(storedPath))
@@ -128,7 +128,7 @@ export async function readJobFile(storedPath: string): Promise<Buffer | null> {
 
 export async function deleteJobFile(storedPath: string | null | undefined): Promise<void> {
   if (!storedPath) return
-  if (useJobObjectStorage() && storedPath.startsWith(JOB_OBJECT_PREFIX)) {
+  if (isJobObjectStorageEnabled() && storedPath.startsWith(JOB_OBJECT_PREFIX)) {
     await createAdminClient().storage
       .from(JOB_FILES_BUCKET)
       .remove([objectPathFromKey(storedPath)])
