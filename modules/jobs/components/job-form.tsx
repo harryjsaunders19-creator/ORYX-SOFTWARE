@@ -50,7 +50,7 @@ function validate(f: JobFormData): FieldErrors {
 
 function SH({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-wider text-t4 border-b border-bd pb-1 mb-3">
+    <p className="text-[11px] font-semibold text-t4 border-b border-bd pb-1 mb-3">
       {children}
     </p>
   )
@@ -176,7 +176,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       {/* Drawing number chip — edit mode only */}
       {job && (
         <div className="flex items-center gap-3 mb-5 px-3 py-2 bg-pg border border-bd rounded-md">
-          <span className="text-xs text-t4 uppercase tracking-wider shrink-0">Reference</span>
+          <span className="text-xs text-t4 shrink-0">Reference</span>
           <span className="font-mono text-sm font-semibold text-ac">{job.drawingNumber}</span>
         </div>
       )}

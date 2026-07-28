@@ -297,7 +297,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
             <div className="space-y-4 px-2 pb-2">
               {recent.length > 0 && (
                 <section>
-                  <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-t3 flex items-center gap-1.5">
+                  <p className="px-3 py-1.5 text-[10px] font-bold text-t3 flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5" /> Recent searches
                   </p>
                   <ul className="space-y-0.5">
@@ -323,7 +323,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
                 <>
                   {recentJobs.length > 0 && (
                     <section>
-                      <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-t3">
+                      <p className="px-3 py-1.5 text-[10px] font-bold text-t3">
                         Recent jobs
                       </p>
                       <ul className="space-y-0.5">
@@ -352,7 +352,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
                   )}
                   {recentClients.length > 0 && (
                     <section>
-                      <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-t3">
+                      <p className="px-3 py-1.5 text-[10px] font-bold text-t3">
                         Recent clients
                       </p>
                       <ul className="space-y-0.5">
@@ -397,7 +397,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
 
           {!emptyMode && result && result.groups.map(group => (
             <section key={group.type} className="mb-1">
-              <p className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-t3">
+              <p className="px-4 py-1.5 text-[10px] font-bold text-t3">
                 {group.label}
               </p>
               <ul className="space-y-0.5 px-2">
@@ -423,7 +423,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wide text-t3">
+                            <span className="text-[10px] font-bold text-t3">
                               {TYPE_LABEL[hit.type]}
                             </span>
                             {hit.meta && (

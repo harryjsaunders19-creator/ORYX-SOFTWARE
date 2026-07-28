@@ -401,7 +401,7 @@ function BackupsInner() {
       {importResult && (
         <DataPanel className="overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-bd flex items-center justify-between">
-            <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Import result</p>
+            <p className="text-xs font-semibold text-t3">Import result</p>
             <button type="button" onClick={() => setImportResult(null)} className="text-xs text-t4 hover:text-t2">
               Dismiss
             </button>
@@ -458,20 +458,20 @@ function BackupsInner() {
       ) : (
         <DataPanel className="overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-bd">
-            <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Backup history</p>
+            <p className="text-xs font-semibold text-t3">Backup history</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-pg border-b border-bd text-xs">
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider w-10" />
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Date & Time</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Trigger</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">By</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Size</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Duration</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Folder</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3 w-10" />
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Date & Time</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Status</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Trigger</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3">By</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-t3">Size</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-t3">Duration</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Folder</th>
                 </tr>
               </thead>
               <tbody>
@@ -509,7 +509,7 @@ function BackupsInner() {
       {backups.filter(b => b.status === "FAILED").length > 0 && (
         <DataPanel className="overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-bd">
-            <p className="text-xs font-semibold text-dn-tx uppercase tracking-wider">Failed backups</p>
+            <p className="text-xs font-semibold text-dn-tx ">Failed backups</p>
           </div>
           <div className="divide-y divide-bd">
             {backups.filter(b => b.status === "FAILED").map(b => (
@@ -525,7 +525,7 @@ function BackupsInner() {
       {auditLog.length > 0 && (
         <DataPanel className="overflow-hidden">
           <div className="px-4 py-3 border-b border-bd">
-            <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Audit log</p>
+            <p className="text-xs font-semibold text-t3">Audit log</p>
           </div>
           <div className="max-h-[250px] overflow-y-auto thin-scroll divide-y divide-bd">
             {auditLog.map(e => (

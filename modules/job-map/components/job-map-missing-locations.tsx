@@ -166,11 +166,11 @@ export function JobMapMissingLocations({ isAdmin, onLocated }: Props) {
                   <div className="flex-1 min-w-0 space-y-1">
                     <p className="text-sm font-semibold text-t1 font-mono">{job.drawingNumber}</p>
                     <p className="text-xs text-t3">
-                      <span className="text-t4 uppercase tracking-wide font-medium">Site: </span>
+                      <span className="text-t4 font-medium">Site: </span>
                       {displaySiteName(job.siteName, job.address)}
                     </p>
                     <p className="text-xs text-t3">
-                      <span className="text-t4 uppercase tracking-wide font-medium">Address: </span>
+                      <span className="text-t4 font-medium">Address: </span>
                       {job.siteAddress?.trim() || job.address || "—"}
                     </p>
                     <p className="text-xs text-t3">{job.clientCompany}</p>
@@ -178,7 +178,7 @@ export function JobMapMissingLocations({ isAdmin, onLocated }: Props) {
                       <p className="text-xs text-t4">Completed {job.dateCompleted.slice(0, 10)}</p>
                     )}
                     <p className={cn(
-                      "text-[11px] font-medium uppercase tracking-wide pt-1",
+                      "text-[11px] font-medium pt-1",
                       QUEUE_BADGE_CLASS[job.queueReason],
                     )}>
                       {GEOCODE_QUEUE_LABELS[job.queueReason]}

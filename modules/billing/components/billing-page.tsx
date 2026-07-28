@@ -489,11 +489,11 @@ function BillingPageInner() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-pg border-b border-bd">
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Batch Number</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Export Date</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Exported By</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Record Count</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Notes</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Batch Number</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Export Date</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Exported By</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Record Count</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Notes</th>
                 <th className="px-4 py-2 w-1" />
               </tr>
             </thead>
@@ -548,18 +548,18 @@ function BillingPageInner() {
                     <input type="checkbox" className="h-4 w-4 accent-ac" checked={!!items && items.length > 0 && selected.size === items.length} onChange={toggleAll} />
                   </th>
                 )}
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Job Number</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Project</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Client</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Site Address</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Job Type</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Completed</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Assigned Staff</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Value</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Job Number</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Project</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Client</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Site Address</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Job Type</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Completed</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Assigned Staff</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Value</th>
                 {view === "cleared" && (
                   <>
-                    <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Cleared</th>
-                    <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Cleared By</th>
+                    <th className="px-4 py-2 text-left font-semibold text-t3">Cleared</th>
+                    <th className="px-4 py-2 text-left font-semibold text-t3">Cleared By</th>
                   </>
                 )}
                 <th className="px-4 py-2 w-1" />

@@ -547,13 +547,13 @@ function QuotesInner() {
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Quote No.</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Client</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Type of works</th>
-                <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Value</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Expires</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Quote No.</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Client</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Type of works</th>
+                <th className="px-4 py-2.5 text-right font-semibold text-t3">Value</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Date</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Expires</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Status</th>
                 <th className="px-4 py-2.5 w-72" />
               </tr>
             </thead>

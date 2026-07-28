@@ -167,14 +167,14 @@ function ImportClientsInner() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-pg border-b border-bd">
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider w-12">Row</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider w-10" />
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Company</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Customer ID</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Contact</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Phone</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Email</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Issues</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 w-12">Row</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 w-10" />
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Company</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Customer ID</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Contact</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Phone</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Email</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Issues</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -244,7 +244,7 @@ function ImportClientsInner() {
 
           {result.importedClients.length > 0 && (
             <div className="bg-sr border border-bd rounded-md overflow-hidden" style={{ borderRadius: "14px" }}>
-              <div className="px-4 py-3 border-b border-bd"><p className="text-xs font-semibold text-t3 uppercase tracking-wider">Created clients</p></div>
+              <div className="px-4 py-3 border-b border-bd"><p className="text-xs font-semibold text-t3">Created clients</p></div>
               <div className="max-h-[250px] overflow-y-auto thin-scroll">
                 <table className="w-full text-sm"><tbody>
                   {result.importedClients.map((c, i) => (
@@ -260,7 +260,7 @@ function ImportClientsInner() {
 
           {result.skippedDetails.length > 0 && (
             <div className="bg-sr border border-bd rounded-md overflow-hidden" style={{ borderRadius: "14px" }}>
-              <div className="px-4 py-3 border-b border-bd"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-dn-tx)" }}>Skipped</p></div>
+              <div className="px-4 py-3 border-b border-bd"><p className="text-xs font-semibold" style={{ color: "var(--color-dn-tx)" }}>Skipped</p></div>
               <div className="max-h-[150px] overflow-y-auto thin-scroll divide-y divide-bd">
                 {result.skippedDetails.map((s, i) => (
                   <div key={i} className="px-4 py-2.5">

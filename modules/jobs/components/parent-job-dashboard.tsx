@@ -72,11 +72,11 @@ function KpiCard({
 }) {
   return (
     <div className="rounded-xl border border-bd bg-sr p-4">
-      <p className="text-xs font-semibold text-t3 uppercase tracking-wide mb-2">{label}</p>
+      <p className="text-xs font-medium text-t3 mb-2">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
         <p className="text-lg font-bold text-t1 truncate font-mono tabular-nums">{value}</p>
         {badge ? (
-          <span className="shrink-0 px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
+          <span className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-wn-bg text-wn-tx">
             {badge}
           </span>
         ) : null}
@@ -317,7 +317,7 @@ export default function ParentJobDashboardPage({
             </p>
           )}
           <div className="flex items-center gap-2 pt-1">
-            <span className="text-xs font-medium text-t3 uppercase tracking-wider">Client</span>
+            <span className="text-xs font-medium text-t3">Client</span>
             <span className="text-sm font-semibold text-t1">{parent.clientCompany}</span>
           </div>
         </div>
@@ -447,7 +447,7 @@ export default function ParentJobDashboardPage({
                 />
                 <InfoField label="Requested by" value={parent.requestedBy} />
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-t3 mb-2">
+                  <p className="text-xs font-medium text-t3 mb-2">
                     Engineer Assigned
                   </p>
                   {current ? (
@@ -527,7 +527,7 @@ export default function ParentJobDashboardPage({
                             </div>
                             <div className="shrink-0 flex flex-wrap gap-2 justify-end">
                               {isCurrent && (
-                                <span className="px-2 py-0.5 rounded text-xs font-bold uppercase bg-ac text-on-ac">
+                                <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-ac text-on-ac">
                                   Active
                                 </span>
                               )}

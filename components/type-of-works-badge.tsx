@@ -27,7 +27,7 @@ export function TypeOfWorksBadge({ typeOfWorks, customTypeDescription, size = "m
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full font-medium whitespace-nowrap bg-t1/[0.06] text-t2 max-w-[180px] truncate",
+        "inline-flex items-center rounded-md font-medium whitespace-nowrap bg-t1/[0.06] text-t2 max-w-[180px] truncate",
         size === "sm" ? "px-1.5 py-0 text-[10px]" : "px-2.5 py-0.5 text-[11px]",
       )}
       title={typeOfWorks === OTHER_WORKS_TYPE ? `Other — ${customTypeDescription ?? "no description"}` : undefined}

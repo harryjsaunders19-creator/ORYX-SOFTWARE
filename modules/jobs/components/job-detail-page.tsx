@@ -77,11 +77,11 @@ function InfoField({ label, value }: { label: string; value?: string | null }) {
 function KpiCard({ label, value, badge }: { label: string; value: string; badge?: string | null }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold text-t3 uppercase tracking-wide">{label}</p>
+      <p className="text-xs font-medium text-t3">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
-        <p className="text-lg font-bold text-t1 truncate font-mono tabular-nums">{value}</p>
+        <p className="text-lg font-semibold text-t1 truncate font-mono tabular-nums">{value}</p>
         {badge ? (
-          <span className="shrink-0 px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
+          <span className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-wn-bg text-wn-tx">
             {badge}
           </span>
         ) : null}
@@ -376,7 +376,7 @@ export default function JobDetailPage({
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className={cn(
-                "oryx-page-title text-t1 uppercase",
+                "oryx-page-title text-t1",
                 isCancelled && "line-through opacity-70",
               )}>
                 {job.clientCompany}
@@ -528,7 +528,7 @@ export default function JobDetailPage({
                     />
                     <InfoField label="Requested by" value={job.requestedBy} />
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wider text-t3 mb-2">
+                      <p className="text-xs font-medium text-t3 mb-2">
                         Engineer Assigned
                       </p>
                       {isCancelled ? (
@@ -716,7 +716,7 @@ export default function JobDetailPage({
                 {dl.severity === "overdue"
                   ? <AlertOctagon className="h-4 w-4 text-dn shrink-0" />
                   : <Clock className="h-4 w-4 text-t4 shrink-0" />}
-                <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Deadline</p>
+                <p className="text-xs font-semibold text-t3">Deadline</p>
               </div>
               <p className={cn(
                 "text-sm font-semibold tabular-nums",

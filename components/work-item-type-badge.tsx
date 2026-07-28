@@ -15,7 +15,7 @@ export function WorkItemTypeBadge({ itemType, size = "md" }: {
   const t = getWorkItemType(itemType)
   return (
     <span className={cn(
-      "inline-flex items-center rounded-full font-medium whitespace-nowrap",
+      "inline-flex items-center rounded-md font-medium whitespace-nowrap",
       t.color,
       size === "sm" ? "px-1.5 py-0 text-[10px]" : "px-2.5 py-0.5 text-[11px]",
     )}>

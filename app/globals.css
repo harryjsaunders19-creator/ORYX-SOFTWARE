@@ -285,7 +285,7 @@ html.dark {
   /* Skeleton placeholder */
   .skeleton {
     background-color: var(--color-bd);
-    border-radius: 4px;
+    border-radius: var(--radius-lg);
   }
 
   /* Monospace — drawing numbers, money, IDs */
@@ -376,6 +376,7 @@ html.stitch-layout .oryx-surface-card {
   box-shadow: var(--shadow-card);
   border-radius: var(--radius-xl);
   border-color: var(--color-bd);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 html.stitch-layout.dark .oryx-surface-card {

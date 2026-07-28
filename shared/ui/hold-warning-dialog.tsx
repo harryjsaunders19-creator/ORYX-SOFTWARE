@@ -32,7 +32,7 @@ export function HoldWarningDialog({
               <AlertTriangle className="h-4 w-4 text-dn" />
             </div>
             <div className="min-w-0">
-              <DialogTitle>Client On Hold</DialogTitle>
+              <DialogTitle>Client on hold</DialogTitle>
               <DialogDescription>
                 This client is currently restricted from receiving new work.
               </DialogDescription>
@@ -41,7 +41,7 @@ export function HoldWarningDialog({
         </DialogHeader>
         <DialogBody>
           <div className="bg-dn-bg border border-dn-bd rounded-md px-4 py-3 mb-4">
-            <p className="text-xs font-semibold text-dn uppercase tracking-wider mb-1">Reason</p>
+            <p className="text-xs font-semibold text-dn mb-1">Reason</p>
             <p className="text-sm text-dn-tx font-medium">{reason}</p>
           </div>
           <p className="text-sm text-t2">

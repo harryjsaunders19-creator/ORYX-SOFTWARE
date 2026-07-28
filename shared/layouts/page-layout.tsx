@@ -7,7 +7,7 @@ import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 
 /** Stitch surface — bordered card, minimal shadow. */
-export const surfaceCard = "oryx-surface-card bg-sr border border-bd rounded-md"
+export const surfaceCard = "oryx-surface-card bg-sr border border-bd rounded-xl"
 
 /** Standard page wrapper — Stitch canvas padding below top bar. */
 export function PageShell({ children, className, wide }: {
@@ -88,7 +88,7 @@ export function DataPanel({ children, className, noPadding }: {
 }) {
   return (
     <div className={cn(
-      "oryx-surface-card bg-sr border border-bd rounded-md overflow-hidden",
+      "oryx-surface-card bg-sr border border-bd rounded-xl overflow-hidden",
       !noPadding && "p-0",
       className,
     )}>
@@ -142,7 +142,7 @@ export function Th({ children, className, align }: {
 }) {
   return (
     <th className={cn(
-      "px-4 py-2.5 font-semibold text-t3 uppercase tracking-wider whitespace-nowrap",
+      "px-4 py-2.5 text-xs font-medium text-t3 whitespace-nowrap",
       align === "right" && "text-right",
       align === "center" && "text-center",
       (!align || align === "left") && "text-left",
@@ -163,7 +163,7 @@ export function BackLink({ href, children }: { href: string; children: React.Rea
   )
 }
 
-/** Stitch KPI tile — accent bar, large value, optional subtitle. */
+/** Stitch KPI tile — large value, optional subtitle. Neutral chrome only. */
 export function KpiTile({ label, value, sub, valueClassName, className }: {
   label: string
   value: React.ReactNode
@@ -175,10 +175,10 @@ export function KpiTile({ label, value, sub, valueClassName, className }: {
 }) {
   return (
     <div className={cn(
-      "oryx-surface-card rounded-xl border border-bd bg-sr p-6 transition-shadow hover:shadow-sm",
+      "oryx-surface-card rounded-xl border border-bd bg-sr p-5 transition-colors duration-150 hover:border-bds",
       className,
     )}>
-      <p className={cn("mb-2 text-4xl font-semibold tabular-nums leading-none tracking-tight max-md:text-3xl", valueClassName ?? "text-t1")}>{value}</p>
+      <p className={cn("mb-2 text-3xl font-semibold tabular-nums leading-none tracking-tight max-md:text-2xl", valueClassName ?? "text-t1")}>{value}</p>
       <p className="text-sm font-medium text-t2">{label}</p>
       {sub != null && <p className="mt-1 text-xs text-t3">{sub}</p>}
     </div>
@@ -195,7 +195,7 @@ export function DetailPanel({ title, children, className, headerAction }: {
   return (
     <div className={cn(surfaceCard, "overflow-hidden", className)}>
       <div className="px-4 py-3 border-b border-bd flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-t3 uppercase tracking-wider">{title}</p>
+        <p className="text-sm font-medium text-t2">{title}</p>
         {headerAction}
       </div>
       <div className="px-4 py-3">{children}</div>
@@ -389,7 +389,7 @@ export function AuthBrand({ title, subtitle }: { title: string; subtitle?: strin
           </svg>
         </div>
         <div>
-          <p className="text-sm font-bold uppercase tracking-tight text-t1">Oryx Design</p>
+          <p className="text-sm font-semibold tracking-tight text-t1">Oryx Design</p>
         </div>
       </div>
       <h1 className="text-xl font-bold text-t1 text-center lg:text-left">{title}</h1>
@@ -412,7 +412,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
               </svg>
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight uppercase leading-none">Oryx Design</h2>
+              <h2 className="text-xl font-semibold tracking-tight leading-none">Oryx Design</h2>
             </div>
           </div>
           <p className="text-2xl font-semibold tracking-tight leading-tight max-w-sm text-sr/90">

@@ -361,17 +361,17 @@ function ImportJobsInner() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-pg border-b border-bd">
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider w-12">Row</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider w-10">
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 w-12">Row</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 w-10">
                       <span className="sr-only">Status</span>
                     </th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Address</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Type of Works</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Client</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Requested By</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Designer</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Status</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Issues</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Address</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Type of Works</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Client</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Requested By</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Designer</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Status</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-t3">Issues</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -532,7 +532,7 @@ function ImportJobsInner() {
           {result.importedJobs.length > 0 && (
             <div className="bg-sr border border-bd rounded-md overflow-hidden" style={{ backgroundColor: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "14px", overflow: "hidden" }}>
               <div className="px-4 py-3 border-b border-bd">
-                <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Created jobs</p>
+                <p className="text-xs font-semibold text-t3">Created jobs</p>
               </div>
               <div className="max-h-[300px] overflow-y-auto thin-scroll">
                 <table className="w-full text-sm">
@@ -556,7 +556,7 @@ function ImportJobsInner() {
           {result.skippedDetails.length > 0 && (
             <div className="bg-sr border border-bd rounded-md overflow-hidden" style={{ backgroundColor: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "14px", overflow: "hidden" }}>
               <div className="px-4 py-3 border-b border-bd">
-                <p className="text-xs font-semibold text-dn-tx uppercase tracking-wider">Skipped rows</p>
+                <p className="text-xs font-semibold text-dn-tx ">Skipped rows</p>
               </div>
               <div className="max-h-[200px] overflow-y-auto thin-scroll divide-y divide-bd">
                 {result.skippedDetails.map((s, i) => (

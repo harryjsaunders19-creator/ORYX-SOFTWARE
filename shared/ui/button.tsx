@@ -34,9 +34,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          "inline-flex items-center justify-center gap-1.5 rounded font-medium",
-          "select-none whitespace-nowrap cursor-pointer",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac focus-visible:ring-offset-1",
+          "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium",
+          "select-none whitespace-nowrap cursor-pointer transition-colors duration-150",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac/30 focus-visible:ring-offset-1",
           "disabled:opacity-40 disabled:cursor-not-allowed",
           variant === "primary"   && "bg-ac text-on-ac hover:bg-ach",
           variant === "secondary" && "bg-sr border border-bd text-t1 hover:bg-pg",

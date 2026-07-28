@@ -130,11 +130,11 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-surface-low border-b border-bd">
-                <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider w-6">Rev</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Drawing number</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Designer</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Created</th>
+                <th className="px-3 py-2 text-left font-semibold text-t3 w-6">Rev</th>
+                <th className="px-3 py-2 text-left font-semibold text-t3">Drawing number</th>
+                <th className="px-3 py-2 text-left font-semibold text-t3">Status</th>
+                <th className="px-3 py-2 text-left font-semibold text-t3">Designer</th>
+                <th className="px-3 py-2 text-left font-semibold text-t3">Created</th>
                 <th className="px-3 py-2 w-8" />
               </tr>
             </thead>

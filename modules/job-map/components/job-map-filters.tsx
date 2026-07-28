@@ -47,7 +47,7 @@ function FilterFields({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3">
       <div className="sm:col-span-2">
-        <label className="text-[11px] font-medium text-t3 uppercase tracking-wide mb-1 block">Search</label>
+        <label className="text-[11px] font-medium text-t3 mb-1 block">Search</label>
         <Input
           value={filters.search ?? ""}
           onChange={e => onChange({ search: e.target.value })}
@@ -56,7 +56,7 @@ function FilterFields({
         />
       </div>
       <div>
-        <label className="text-[11px] font-medium text-t3 uppercase tracking-wide mb-1 block">Client</label>
+        <label className="text-[11px] font-medium text-t3 mb-1 block">Client</label>
         <Select value={filters.client ?? "__all"} onValueChange={v => onChange({ client: v === "__all" ? undefined : v })}>
           <SelectTrigger className="h-9 bg-surface-low"><SelectValue placeholder="All clients" /></SelectTrigger>
           <SelectContent>
@@ -66,7 +66,7 @@ function FilterFields({
         </Select>
       </div>
       <div>
-        <label className="text-[11px] font-medium text-t3 uppercase tracking-wide mb-1 block">Designer</label>
+        <label className="text-[11px] font-medium text-t3 mb-1 block">Designer</label>
         <Select value={filters.designer ?? "__all"} onValueChange={v => onChange({ designer: v === "__all" ? undefined : v })}>
           <SelectTrigger className="h-9 bg-surface-low"><SelectValue placeholder="All designers" /></SelectTrigger>
           <SelectContent>
@@ -76,7 +76,7 @@ function FilterFields({
         </Select>
       </div>
       <div>
-        <label className="text-[11px] font-medium text-t3 uppercase tracking-wide mb-1 block">Project Type</label>
+        <label className="text-[11px] font-medium text-t3 mb-1 block">Project Type</label>
         <Select value={filters.typeOfWorks ?? "__all"} onValueChange={v => onChange({ typeOfWorks: v === "__all" ? undefined : v })}>
           <SelectTrigger className="h-9 bg-surface-low"><SelectValue placeholder="All types" /></SelectTrigger>
           <SelectContent>
@@ -86,11 +86,11 @@ function FilterFields({
         </Select>
       </div>
       <div>
-        <label className="text-[11px] font-medium text-t3 uppercase tracking-wide mb-1 block">From</label>
+        <label className="text-[11px] font-medium text-t3 mb-1 block">From</label>
         <Input type="date" value={filters.dateFrom ?? ""} onChange={e => onChange({ dateFrom: e.target.value || undefined })} className="h-9 bg-surface-low" />
       </div>
       <div>
-        <label className="text-[11px] font-medium text-t3 uppercase tracking-wide mb-1 block">To</label>
+        <label className="text-[11px] font-medium text-t3 mb-1 block">To</label>
         <Input type="date" value={filters.dateTo ?? ""} onChange={e => onChange({ dateTo: e.target.value || undefined })} className="h-9 bg-surface-low" />
       </div>
     </div>
@@ -199,7 +199,7 @@ export function JobMapFiltersBar(props: Props) {
 
         {topClients.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-bd">
-            <span className="text-[10px] font-semibold text-t4 uppercase tracking-wide mr-1">Clients</span>
+            <span className="text-[10px] font-semibold text-t4 mr-1">Clients</span>
             {topClients.map(c => (
               <button
                 key={c}

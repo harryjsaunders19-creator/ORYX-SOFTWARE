@@ -105,7 +105,7 @@ function SortTh({ field, label, current, dir, onSort, className }: {
     <th
       onClick={() => onSort(field)}
       className={cn(
-        "px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider cursor-pointer select-none whitespace-nowrap",
+        "px-4 py-2.5 text-left text-xs font-semibold text-t3 cursor-pointer select-none whitespace-nowrap",
         className,
       )}
     >
@@ -975,18 +975,18 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
             <thead>
               <tr className="bg-surface-low border-b border-bd">
                 <SortTh field="drawingNumber" label="Drawing No." {...sp} />
-                <SortTh field="address"       label="Address"     {...sp} />
-                <th className={cn("px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider whitespace-nowrap", COL_TYPE_OF_WORKS)}>
+                <SortTh field="address" label="Address"     {...sp} />
+                <th className={cn("px-4 py-2.5 text-left text-xs font-semibold text-t3 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
                   Type of Works
                 </th>
                 <SortTh field="clientCompany" label="Client" className={COL_CLIENT} {...sp} />
-                <th className={cn("px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider whitespace-nowrap", COL_REQUESTED_BY)}>
+                <th className={cn("px-4 py-2.5 text-left text-xs font-semibold text-t3 whitespace-nowrap", COL_REQUESTED_BY)}>
                   Requested By
                 </th>
                 <SortTh field="quoteValue" label="Quotation" className={COL_QUOTATION} {...sp} />
-                <SortTh field="status"     label="Completion Status" {...sp} />
-                <SortTh field="designer"   label="Designer" className={COL_DESIGNER} {...sp} />
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-t3 uppercase tracking-wider whitespace-nowrap min-w-[180px]">
+                <SortTh field="status" label="Completion Status" {...sp} />
+                <SortTh field="designer" label="Designer" className={COL_DESIGNER} {...sp} />
+                <th className="px-4 py-2.5 text-right text-xs font-semibold text-t3 whitespace-nowrap min-w-[180px]">
                   Actions
                 </th>
               </tr>

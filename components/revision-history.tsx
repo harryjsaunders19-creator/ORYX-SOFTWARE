@@ -79,17 +79,17 @@ function TimelineEntry({
             {entry.title}
           </h4>
           {entry.isCurrent && (
-            <span className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-sm bg-ac text-on-ac">
+            <span className="text-xs font-bold px-2 py-0.5 rounded-sm bg-ac text-on-ac">
               Current
             </span>
           )}
           <StatusBadge status={entry.status} />
           {entry.billable ? (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-sm bg-ok-bg text-ok-tx border border-ok-bd uppercase tracking-wide">
+            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-sm bg-ok-bg text-ok-tx border border-ok-bd ">
               <Receipt className="h-3.5 w-3.5" /> Billable
             </span>
           ) : !entry.isOriginal ? (
-            <span className="text-xs font-medium px-2 py-0.5 rounded-sm bg-pg text-t3 border border-bd uppercase tracking-wide">
+            <span className="text-xs font-medium px-2 py-0.5 rounded-sm bg-pg text-t3 border border-bd ">
               Included
             </span>
           ) : null}

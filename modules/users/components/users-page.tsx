@@ -214,11 +214,11 @@ function UsersPageInner() {
           <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Name</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Email</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Role</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Added</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Name</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Email</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Role</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Status</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Added</th>
                 <th className="px-4 py-2.5 w-44" />
               </tr>
             </thead>

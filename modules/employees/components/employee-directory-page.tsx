@@ -149,7 +149,7 @@ function EmployeesInner() {
                       <td className="px-4 py-3 text-t3">{emp.phone ?? "—"}</td>
                       <td className="px-4 py-3">
                         <span className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
+                          "rounded-md px-2 py-0.5 text-[10px] font-medium",
                           emp.employmentStatus === "ACTIVE" && "bg-ok-bg text-ok-tx",
                           emp.employmentStatus === "ON_LEAVE" && "bg-wn-bg text-wn-tx",
                           emp.employmentStatus === "SUSPENDED" && "bg-dn-bg text-dn-tx",

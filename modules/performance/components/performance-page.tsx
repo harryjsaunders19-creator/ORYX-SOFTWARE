@@ -99,7 +99,7 @@ function PerformancePageInner() {
       />
 
       <div className={cn(surfaceCard, "p-3 md:p-4")}>
-        <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-t3"><Filter className="h-3.5 w-3.5" /> Filters</div>
+        <div className="mb-3 flex items-center gap-2 text-xs text-t3"><Filter className="h-3.5 w-3.5" /> Filters</div>
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
           <Input type="date" value={from} onChange={e => setFrom(e.target.value)} />
           <Input type="date" value={to} onChange={e => setTo(e.target.value)} />

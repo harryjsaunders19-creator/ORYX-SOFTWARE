@@ -42,7 +42,7 @@ export function ClientContactsFields({ contacts, onChange }: Props) {
           className="rounded-lg border border-bd bg-pg/30 p-3 space-y-2"
         >
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-medium text-t3 uppercase tracking-wide">
+            <p className="text-[11px] font-medium text-t3">
               {index === 0 ? "Primary contact" : `Contact ${index + 1}`}
             </p>
             {contacts.length > 1 && (

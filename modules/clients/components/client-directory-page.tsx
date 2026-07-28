@@ -367,12 +367,12 @@ function ClientsInner() {
           <table className={cn("w-full min-w-[640px] text-sm")}>
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Company</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Contact</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Email</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Phone</th>
-                {isAdmin && <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Active jobs</th>}
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Added</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Company</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Contact</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Email</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Phone</th>
+                {isAdmin && <th className="px-4 py-2.5 text-right font-semibold text-t3">Active jobs</th>}
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Added</th>
                 {isAdmin && <th className="px-4 py-2.5 w-28" />}
               </tr>
             </thead>
