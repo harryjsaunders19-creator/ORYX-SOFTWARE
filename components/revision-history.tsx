@@ -11,6 +11,7 @@ import { useUser } from "@/shared/providers/user-context"
 import { revisionParentId } from "@/lib/revision-chain"
 import { REVISIONS_CHANGED, notifyRevisionsChanged } from "@/lib/revision-events"
 import { cn } from "@/shared/utils/utils"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import type { Job } from "@/lib/types"
 import type { RevisionFamilyResponse, RevisionHistoryEntry } from "@/modules/jobs/types/revision-types"
 
@@ -263,10 +264,7 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, embed
 
   if (loading) {
     return (
-      <div className="mb-4 flex items-center gap-2 rounded-xl border border-bd bg-pg px-5 py-4 text-sm text-t4">
-        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-        Loading revision history…
-      </div>
+      <ListSkeleton rows={3} className="mb-4 space-y-2 rounded-xl border border-bd bg-pg p-4" />
     )
   }
 

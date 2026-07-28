@@ -4,7 +4,7 @@ import Link from "next/link"
 import { format } from "date-fns"
 import {
   ArrowLeft, ShieldCheck,
-  Loader2, Building2, Plus,
+  Building2, Plus,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
@@ -19,6 +19,7 @@ import { formatGBP } from "@/shared/utils/utils"
 // Perf: SWR caches hold list; mutate() refreshes after add/remove/edit.
 import { useApi } from "@/shared/hooks/use-api"
 import { PageHeader, PageShell, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import type { ClientHoldWithClient } from "@/lib/types"
 
 type HoldListData = { holds: ClientHoldWithClient[]; total: number }
@@ -141,7 +142,7 @@ export default function HoldListPage() {
       />
 
       {loading ? (
-        <div className="flex items-center gap-2 py-12 text-t3"><Loader2 className="h-4 w-4 animate-spin" />Loading…</div>
+        <ListSkeleton rows={4} />
       ) : !data?.holds.length ? (
         <DataPanel>
           <EmptyPanel

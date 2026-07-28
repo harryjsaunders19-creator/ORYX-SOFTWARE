@@ -61,10 +61,10 @@ Status: `P0` = foundation this PR · `P1` = next pass · `P2` = later · `Defer`
 
 ## Phase 3 — Forms & feedback (`P1`)
 
-- [ ] Shared `Field` / `FieldError` wrapper
-- [ ] Replace remaining custom overlays with Dialog where safe
-- [ ] Unify loading: list skeletons only (retire bare “Loading…” where practical)
-- [ ] Login page → AuthLayout parity
+- [x] Shared `Field` / `FieldError` / `FormAlert` wrapper
+- [x] Replace remaining custom overlays with Dialog where safe (ExportModal, HoldWarningDialog)
+- [x] Unify loading: list skeletons only (retire bare “Loading…” where practical)
+- [x] Login page → AuthLayout parity
 
 ## Phase 4 — Colour & polish sweep (`P1`)
 

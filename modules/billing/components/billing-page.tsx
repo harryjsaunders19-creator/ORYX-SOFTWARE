@@ -6,6 +6,11 @@ import { Clock, ArrowUpRight, Loader2, ClipboardCheck, Download, FileSpreadsheet
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Textarea } from "@/shared/ui/textarea"
+import { Field } from "@/shared/ui/field"
+import {
+  Dialog, DialogContent, DialogHeader, DialogFooter,
+  DialogTitle, DialogDescription, DialogBody,
+} from "@/shared/ui/dialog"
 import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
 import { useToast } from "@/shared/ui/toast"
@@ -45,21 +50,22 @@ async function downloadResponse(res: Response, fallbackName: string) {
   URL.revokeObjectURL(url)
 }
 
-function ExportModal({ count, onClose, onExported }: {
-  count: number
+function ExportModal({ ids, onClose, onExported }: {
+  ids: string[]
   onClose: () => void
   onExported: (batchNumber: string) => void
 }) {
   const { toast } = useToast()
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
+  const count = ids.length
 
-  const submit = async (handoffIds: string[]) => {
+  const submit = async () => {
     setSaving(true)
     try {
       const res = await fetch("/api/billing-handoffs/export", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handoffIds, notes: notes.trim() || null }),
+        body: JSON.stringify({ handoffIds: ids, notes: notes.trim() || null }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
@@ -78,41 +84,37 @@ function ExportModal({ count, onClose, onExported }: {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.45)" }} data-handoff-ids="">
-      <div className="bg-sr rounded-xl border border-bd shadow-modal w-[calc(100vw-2rem)] max-w-[460px] overflow-hidden">
-        <div className="px-6 pt-5 pb-4 border-b border-bd">
+    <Dialog open onOpenChange={o => { if (!o && !saving) onClose() }}>
+      <DialogContent size="sm" showClose={!saving}>
+        <DialogHeader>
           <div className="flex items-center gap-2 mb-1">
             <FileSpreadsheet className="h-4 w-4 text-ac2" />
-            <p className="text-sm font-semibold text-t1">Export Accounts Handover</p>
+            <DialogTitle>Export Accounts Handover</DialogTitle>
           </div>
-          <p className="text-xs text-t3">{count} item{count === 1 ? "" : "s"} selected</p>
-        </div>
-        <div className="px-6 py-5 space-y-3">
+          <DialogDescription>{count} item{count === 1 ? "" : "s"} selected</DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
           <p className="text-xs text-t3">
             This downloads a complete workbook for accounts — client, project, commercial, revision, and audit
             details across all selected items — and creates a numbered billing batch. Once exported, these items
             move to Cleared and won&rsquo;t reappear here.
           </p>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-t2">Batch notes (optional)</label>
+          <Field label="Batch notes (optional)">
             <Textarea
               value={notes} onChange={e => setNotes(e.target.value)}
               placeholder="e.g. Weekly handover for w/e 21 June"
               rows={2} autoFocus
             />
-          </div>
-        </div>
-        <div className="px-6 py-4 border-t border-bd flex gap-3">
+          </Field>
+        </DialogBody>
+        <DialogFooter>
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button
-            variant="primary" className="flex-1" loading={saving}
-            onClick={() => { const ids = (window as unknown as { __pendingExportIds: string[] }).__pendingExportIds ?? []; submit(ids) }}
-          >
+          <Button variant="primary" className="flex-1" loading={saving} onClick={() => void submit()}>
             {saving ? "Exporting…" : "Export & Process"}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -588,7 +590,7 @@ function BillingPageInner() {
       )}
 
       {exporting && (
-        <ExportModalWrapper
+        <ExportModal
           ids={[...selected]}
           onClose={() => setExporting(false)}
           onExported={() => { setExporting(false); load("awaiting") }}
@@ -596,13 +598,6 @@ function BillingPageInner() {
       )}
     </PageShell>
   )
-}
-
-// Thin wrapper so ExportModal can read the selected ids without prop-drilling
-// through a window global — keeps the modal component reusable/testable.
-function ExportModalWrapper({ ids, onClose, onExported }: { ids: string[]; onClose: () => void; onExported: (batchNumber: string) => void }) {
-  useEffect(() => { (window as unknown as { __pendingExportIds: string[] }).__pendingExportIds = ids }, [ids])
-  return <ExportModal count={ids.length} onClose={onClose} onExported={onExported} />
 }
 
 export default function BillingPage() {

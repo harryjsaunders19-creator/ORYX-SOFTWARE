@@ -19,6 +19,7 @@ import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
 import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel, TablePagination } from "@/shared/layouts/page-layout"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import type { Client } from "@/lib/types"
 import type { ClientContactInput, ClientContactRow } from "../types/client-contact-types"
 import { contactsFromClient, emptyContact } from "../types/client-contact-types"
@@ -434,7 +435,7 @@ function ClientsInner() {
               />
             )}
             {editClient && editContactsLoading && (
-              <p className="text-sm text-t3 py-6 text-center">Loading contacts…</p>
+              <ListSkeleton rows={3} className="space-y-2 py-2" />
             )}
           </DialogBody>
           <DialogFooter>

@@ -4,7 +4,7 @@ import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths,
 } from "date-fns"
-import { ChevronLeft, ChevronRight, Plus, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -20,6 +20,7 @@ import {
   LeaveAcceptancePanel,
 } from "@/modules/leave/ui"
 import { DataPanel, PageHeader, PageShell } from "@/shared/layouts/page-layout"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 
 const LEAVE_ENABLED = isExperimentalEnabled("leave")
@@ -254,10 +255,7 @@ export default function CalendarPage() {
 
       <DataPanel>
         {loading && events.length === 0 ? (
-          <div className="flex items-center justify-center py-24 text-t3 gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Loading calendar…</span>
-          </div>
+          <ListSkeleton rows={8} className="p-6" />
         ) : (
           <MonthView
             currentDate={currentDate}

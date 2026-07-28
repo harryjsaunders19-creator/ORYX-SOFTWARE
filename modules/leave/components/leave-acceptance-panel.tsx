@@ -5,6 +5,7 @@ import { Check, Loader2, X } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useToast } from "@/shared/ui/toast"
 import { apiErrorDetail } from "@/shared/utils/error-message"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import { leaveTypeLabel } from "../constants"
 
 interface PendingLeave {
@@ -64,12 +65,7 @@ export function LeaveAcceptancePanel({ onAccepted }: LeaveAcceptancePanelProps) 
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border border-bd bg-surface px-4 py-3 text-sm text-t3">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading pending leave…
-      </div>
-    )
+    return <ListSkeleton rows={2} className="mb-4 space-y-2 rounded-lg border border-bd bg-surface p-4" />
   }
 
   if (pending.length === 0) return null

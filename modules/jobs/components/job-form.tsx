@@ -2,17 +2,17 @@
 import { useState } from "react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
-import { Label }    from "@/shared/ui/label"
 import { Textarea } from "@/shared/ui/textarea"
+import { Field } from "@/shared/ui/field"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/shared/ui/select"
 import { JOB_STATUSES, CREATABLE_ITEM_TYPES, JOB_TAGS, OTHER_WORKS_TYPE, getWorkItemRefHint } from "@/lib/constants"
-import { AlertTriangle } from "lucide-react"
 import { ClientCombobox } from "@/components/client-combobox"
 import { DesignerCombobox } from "@/components/designer-combobox"
 import { TypeOfWorksCombobox } from "@/components/type-of-works-combobox"
 import { QuickCreateClientModal } from "@/components/quick-create-client-modal"
+import { HoldWarningDialog } from "@/shared/ui/hold-warning-dialog"
 import { defaultRequiredByDate, totalJobCommercialValue, formatGBP } from "@/shared/utils/utils"
 import type { Job, JobFormData } from "@/lib/types"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
@@ -53,21 +53,6 @@ function SH({ children }: { children: React.ReactNode }) {
     <p className="text-[11px] font-semibold uppercase tracking-wider text-t4 border-b border-bd pb-1 mb-3">
       {children}
     </p>
-  )
-}
-
-function F({ label, required, error, hint, children }: {
-  label: string; required?: boolean; error?: string; hint?: string; children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label>
-        {label}{required && <span className="text-dn ml-0.5">*</span>}
-      </Label>
-      {children}
-      {error && <p className="text-xs text-dn">{error}</p>}
-      {!error && hint && <p className="text-xs text-t4">{hint}</p>}
-    </div>
   )
 }
 
@@ -229,42 +214,42 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
           <div>
             <SH>Site</SH>
             <div className="space-y-3">
-              <F label="Site name" hint="Building or site description (e.g. Selfridges)">
+              <Field label="Site name" hint="Building or site description (e.g. Selfridges)">
                 <Input value={form.siteName} onChange={setF("siteName")}
                   placeholder="The Old Admiralty Building"
                   autoComplete="off" autoFocus={!job} />
-              </F>
-              <F label="Site address" required error={errors.siteAddress}
+              </Field>
+              <Field label="Site address" required error={errors.siteAddress}
                 hint="Full postal address for geocoding when available">
                 <Input value={form.siteAddress} onChange={setF("siteAddress")}
                   placeholder="400 Oxford Street, London, W1A 1AB"
                   autoComplete="off" />
-              </F>
+              </Field>
               {needsTypeOfWorks && (
-                <F label="Type of works" required={isDesign} error={errors.typeOfWorks}>
+                <Field label="Type of works" required={isDesign} error={errors.typeOfWorks}>
                   <TypeOfWorksCombobox
                     value={form.typeOfWorks}
                     onChange={setTypeOfWorks}
                     error={!!errors.typeOfWorks}
                   />
-                </F>
+                </Field>
               )}
               {needsTypeOfWorks && form.typeOfWorks === OTHER_WORKS_TYPE && (
-                <F label="Specify type of works" required error={errors.customTypeDescription}>
+                <Field label="Specify type of works" required error={errors.customTypeDescription}>
                   <Input
                     value={form.customTypeDescription}
                     onChange={setF("customTypeDescription")}
                     placeholder="e.g. Temporary Pedestrian Tunnel"
                     autoComplete="off" autoFocus
                   />
-                </F>
+                </Field>
               )}
             </div>
           </div>
           <div>
             <SH>Client</SH>
             <div className="space-y-3">
-              <F label="Client" required error={errors.clientCompany}>
+              <Field label="Client" required error={errors.clientCompany}>
                 <ClientCombobox
                   value={form.clientId}
                   name={form.clientCompany}
@@ -281,11 +266,11 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                   onCreateNew={name => setQuickCreateName(name)}
                 />
                 {errors.clientCompany && <p className="text-xs text-dn mt-0.5">{errors.clientCompany}</p>}
-              </F>
-              <F label="Requested by" required error={errors.requestedBy} hint="Defaults to the client's contact">
+              </Field>
+              <Field label="Requested by" required error={errors.requestedBy} hint="Defaults to the client's contact">
                 <Input value={form.requestedBy} onChange={setF("requestedBy")}
                   placeholder="James Carter" autoComplete="off" />
-              </F>
+              </Field>
             </div>
           </div>
         </div>
@@ -295,12 +280,12 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
           <div>
             <SH>Assignment</SH>
             <div className="space-y-3">
-              <F label="Designer / Engineer" hint="Users directory only — same list as Performance">
+              <Field label="Designer / Engineer" hint="Users directory only — same list as Performance">
                 <DesignerCombobox value={form.designer} onChange={v => setForm(f => ({ ...f, designer: v }))}
                   placeholder="Select a user…" designers={designers} />
-              </F>
+              </Field>
               {job && (
-                <F label="Status">
+                <Field label="Status">
                   <Select value={form.status} onValueChange={setSel("status")}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -309,14 +294,14 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
-                </F>
+                </Field>
               )}
-              <F label="Date completed">
+              <Field label="Date completed">
                 <Input type="date" value={form.dateCompleted} onChange={setF("dateCompleted")} />
-              </F>
-              <F label="Required by" hint="Defaults to 1 week from today if left blank">
+              </Field>
+              <Field label="Required by" hint="Defaults to 1 week from today if left blank">
                 <Input type="date" value={form.requiredByDate} onChange={setF("requiredByDate")} />
-              </F>
+              </Field>
             </div>
           </div>
           <div>
@@ -360,18 +345,18 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
           <div>
             <SH>Commercial</SH>
             <div className="space-y-3">
-              <F label="Quote value (£)">
+              <Field label="Quote value (£)">
                 <Input value={form.quoteValue} onChange={setF("quoteValue")}
                   placeholder="e.g. 1250" inputMode="decimal" autoComplete="off" />
-              </F>
-              <F label="Variation fees (£)" hint="Scope changes after the original quote">
+              </Field>
+              <Field label="Variation fees (£)" hint="Scope changes after the original quote">
                 <Input value={form.variationFees} onChange={setF("variationFees")}
                   placeholder="e.g. 250" inputMode="decimal" autoComplete="off" />
-              </F>
-              <F label="Additional charges (£)" hint="Site visits, hourly revision work, etc.">
+              </Field>
+              <Field label="Additional charges (£)" hint="Site visits, hourly revision work, etc.">
                 <Input value={form.additionalCharges} onChange={setF("additionalCharges")}
                   placeholder="e.g. 95" inputMode="decimal" autoComplete="off" />
-              </F>
+              </Field>
               {(form.quoteValue || form.variationFees || form.additionalCharges) && (() => {
                 const total = totalJobCommercialValue({
                   quoteValue: form.quoteValue ? parseFloat(form.quoteValue) : null,
@@ -384,71 +369,29 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                   </p>
                 ) : null
               })()}
-              <F label="Quote reference">
+              <Field label="Quote reference">
                 <Input value={form.quoteReference} onChange={setF("quoteReference")}
                   placeholder="e.g. QT-2026-047" autoComplete="off" />
-              </F>
-              <F label="Quote date">
+              </Field>
+              <Field label="Quote date">
                 <Input type="date" value={form.quoteDate} onChange={setF("quoteDate")} />
-              </F>
-              <F label="Commercial notes">
+              </Field>
+              <Field label="Commercial notes">
                 <Textarea value={form.commercialNotes} onChange={setF("commercialNotes")}
                   placeholder="Pricing notes, agreed terms…" rows={2} />
-              </F>
+              </Field>
             </div>
           </div>
         </div>
       </div>
-    {/* CLIENT ON HOLD warning — shown before job creation proceeds */}
-      {holdWarning && (
-        <div
-          className="fixed inset-0 z-[300] flex items-center justify-center"
-          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
-        >
-          <div
-            className="bg-sr rounded-xl border-2 border-dn shadow-modal w-[calc(100vw-2rem)] max-w-[440px] overflow-hidden"
-            style={{ background: "var(--color-sr)", border: "2px solid var(--color-dn)" }}
-          >
-            {/* Red header */}
-            <div className="bg-dn px-6 py-4 flex items-center gap-3">
-              <AlertTriangle className="h-6 w-6 text-white shrink-0" />
-              <div>
-                <p className="text-base font-bold text-white">Client On Hold</p>
-                <p className="text-white/85 text-xs mt-0.5">This client is currently restricted from receiving new work.</p>
-              </div>
-            </div>
-            <div className="px-6 py-5">
-              <div className="bg-dn-bg border border-dn-bd rounded-md px-4 py-3 mb-5">
-                <p className="text-xs font-semibold text-dn uppercase tracking-wider mb-1">Reason</p>
-                <p className="text-sm text-dn-tx font-medium">{holdWarning.reason}</p>
-              </div>
-              <p className="text-sm text-t2 mb-5">
-                You may cancel and return to the job form, or continue creating the job regardless.
-                All actions are recorded.
-              </p>
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={() => setHoldWarning(null)}
-                >
-                  Cancel job creation
-                </Button>
-                <Button
-                  type="button"
-                  variant="danger"
-                  className="flex-1"
-                  onClick={proceedDespiteHold}
-                  loading={saving}
-                >
-                  Continue anyway
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <HoldWarningDialog
+        open={!!holdWarning}
+        reason={holdWarning?.reason ?? ""}
+        saving={saving}
+        onCancel={() => setHoldWarning(null)}
+        onContinue={proceedDespiteHold}
+        cancelLabel="Cancel job creation"
+      />
 
     {/* Quick-create client modal */}
       {quickCreateName && (

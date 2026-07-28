@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { Textarea } from "@/shared/ui/textarea"
+import { Field } from "@/shared/ui/field"
 import { ClientCombobox } from "@/components/client-combobox"
 import { QuickCreateClientModal } from "@/components/quick-create-client-modal"
 import { TypeOfWorksCombobox } from "@/components/type-of-works-combobox"
@@ -130,8 +131,7 @@ export function QuoteForm({ formId, initial, quoteId, onSubmit }: {
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label>Client *</Label>
+        <Field label="Client" required error={clientError}>
           <ClientCombobox
             value={form.clientId}
             name={form.clientCompany}
@@ -141,38 +141,31 @@ export function QuoteForm({ formId, initial, quoteId, onSubmit }: {
             }}
             onCreateNew={name => setQuickCreateName(name)}
           />
-          {clientError && <p className="text-xs text-er">{clientError}</p>}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Contact name</Label>
+        </Field>
+        <Field label="Contact name">
           <Input value={form.contactName} onChange={setF("contactName")} placeholder="Jane Smith" />
-        </div>
+        </Field>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Address *</Label>
+      <Field label="Address" required error={addressError}>
         <Input
           value={form.address}
           onChange={e => { setAddressError(null); setF("address")(e) }}
           placeholder="14 Clifton Road, Bristol, BS8 1AF"
           autoComplete="off"
         />
-        {addressError && <p className="text-xs text-er">{addressError}</p>}
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Type of works *</Label>
+      <Field label="Type of works" required error={worksError}>
         <TypeOfWorksCombobox
           value={form.typeOfWorks}
           onChange={v => { setTypeOfWorks(v); setWorksError(null) }}
           error={!!worksError}
         />
-        {worksError && <p className="text-xs text-dn">{worksError}</p>}
-      </div>
+      </Field>
 
       {form.typeOfWorks === OTHER_WORKS_TYPE && (
-        <div className="flex flex-col gap-1.5">
-          <Label>Specify type of works *</Label>
+        <Field label="Specify type of works" required error={customWorksError}>
           <Input
             value={form.customTypeDescription}
             onChange={e => {
@@ -182,31 +175,23 @@ export function QuoteForm({ formId, initial, quoteId, onSubmit }: {
             placeholder="e.g. Temporary Pedestrian Tunnel"
             autoComplete="off"
           />
-          {customWorksError && <p className="text-xs text-dn">{customWorksError}</p>}
-        </div>
+        </Field>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label>Quote value (£) *</Label>
+        <Field label="Quote value (£)" required hint={form.lineItems.length > 0 ? "Set by the line items below" : undefined}>
           <Input value={displayedQuoteValue} onChange={setF("quoteValue")} placeholder="e.g. 1850" inputMode="decimal" autoComplete="off"
             disabled={form.lineItems.length > 0} />
-          {form.lineItems.length > 0 && <p className="text-[11px] text-t4">Set by the line items below</p>}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>VAT rate (%)</Label>
+        </Field>
+        <Field label="VAT rate (%)" hint="Blank = no VAT breakdown on the PDF">
           <Input value={form.vatRate} onChange={setF("vatRate")} placeholder="e.g. 20" inputMode="decimal" autoComplete="off" />
-          <p className="text-[11px] text-t4">Blank = no VAT breakdown on the PDF</p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Quote date *</Label>
+        </Field>
+        <Field label="Quote date" required>
           <Input type="date" value={form.quoteDate} onChange={handleQuoteDateChange} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Expiry date</Label>
+        </Field>
+        <Field label="Expiry date" hint={!expiryTouched ? "Defaults to 30 days out" : undefined}>
           <Input type="date" value={form.expiryDate} onChange={handleExpiryDateChange} />
-          {!expiryTouched && <p className="text-[11px] text-t4">Defaults to 30 days out</p>}
-        </div>
+        </Field>
       </div>
 
       <div className="flex flex-col gap-2">

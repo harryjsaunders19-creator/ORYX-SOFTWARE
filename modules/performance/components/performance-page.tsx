@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { cn } from "@/shared/utils"
 import { DetailPanel, KpiTile, PageHeader, PageShell, surfaceCard } from "@/shared/layouts/page-layout"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import type { ChartPoint, PerformancePayload } from "../types"
 
 function TrendBadge({ pct }: { pct: number | null }) {
@@ -125,8 +126,8 @@ function PerformancePageInner() {
         </div>
       </div>
 
-      {error && <p className="text-sm text-er">{error instanceof Error ? error.message : "Failed to load analytics"}</p>}
-      {isLoading && <p className="text-sm text-t3">Loading analytics…</p>}
+      {error && <p className="text-sm text-dn">{error instanceof Error ? error.message : "Failed to load analytics"}</p>}
+      {isLoading && !data && <ListSkeleton rows={4} className="space-y-2" />}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {data?.kpis.map(metric => (

@@ -6,7 +6,7 @@ import { Check, X } from "lucide-react"
 import { AuthLayout, AuthBrand } from "@/components/page-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Field, FormAlert } from "@/components/ui/field"
 
 const RULES = [
   { test: (p: string) => p.length >= 8,      label: "At least 8 characters" },
@@ -90,8 +90,7 @@ export default function SetPasswordPage() {
       />
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="new-password">New password</Label>
+        <Field label="New password" htmlFor="new-password" required>
           <Input
             id="new-password"
             type="password"
@@ -101,10 +100,9 @@ export default function SetPasswordPage() {
             value={password}
             onChange={e => setPassword(e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="confirm-password">Confirm password</Label>
+        <Field label="Confirm password" htmlFor="confirm-password" required>
           <Input
             id="confirm-password"
             type="password"
@@ -113,7 +111,7 @@ export default function SetPasswordPage() {
             value={confirm}
             onChange={e => setConfirm(e.target.value)}
           />
-        </div>
+        </Field>
 
         <div className="p-3 bg-pg rounded-md space-y-1">
           {RULES.map((rule, i) => {
@@ -133,11 +131,7 @@ export default function SetPasswordPage() {
           )}
         </div>
 
-        {error && (
-          <div className="p-3 bg-dn-bg border border-dn-bd rounded-md text-sm text-dn-tx font-medium">
-            {error}
-          </div>
-        )}
+        {error && <FormAlert>{error}</FormAlert>}
 
         <Button
           type="submit"

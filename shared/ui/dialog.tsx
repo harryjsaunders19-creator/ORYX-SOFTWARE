@@ -51,12 +51,14 @@ DialogOverlay.displayName = "DialogOverlay"
 export interface DialogContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   size?: "sm" | "md" | "lg"
+  /** Show the top-right close control (default true). */
+  showClose?: boolean
 }
 
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, size = "md", ...props }, ref) => (
+>(({ className, children, size = "md", showClose = true, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -80,18 +82,20 @@ export const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close
-        className={cn(
-          "absolute right-4 top-4 z-10",
-          "h-7 w-7 rounded-lg flex items-center justify-center",
-          "text-t4 hover:text-t2 hover:bg-pg",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ac",
-        )}
-        style={{ color: "var(--color-t4)" }}
-      >
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
+      {showClose && (
+        <DialogPrimitive.Close
+          className={cn(
+            "absolute right-4 top-4 z-10",
+            "h-7 w-7 rounded-lg flex items-center justify-center",
+            "text-t4 hover:text-t2 hover:bg-pg",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-ac",
+          )}
+          style={{ color: "var(--color-t4)" }}
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      )}
     </DialogPrimitive.Content>
   </DialogPortal>
 ))

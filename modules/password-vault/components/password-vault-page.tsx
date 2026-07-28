@@ -18,6 +18,7 @@ import {
   PageHeader, PageShell, SearchField, DataPanel, EmptyPanel,
   TableShell, TableHead, Th,
 } from "@/shared/layouts/page-layout"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi, buildApiKey } from "@/shared/hooks/use-api"
 import { RequireRole } from "@/components/require-role"
@@ -319,7 +320,7 @@ function VaultPageInner() {
 
       <DataPanel noPadding>
         {loading && !data ? (
-          <div className="p-8 text-center text-sm text-t3">Loading vault…</div>
+          <ListSkeleton rows={6} />
         ) : !data?.entries.length ? (
           <EmptyPanel
             icon={KeyRound}
