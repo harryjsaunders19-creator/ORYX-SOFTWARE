@@ -37,7 +37,7 @@ const DEFAULT_STANDARDS = [
 
 const CHECKER = {
   name: "Lee Saunders",
-  title: "Principle Engineer",
+  title: "Principal Engineer",
 }
 
 const CERT_INTRO =
