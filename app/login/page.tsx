@@ -4,8 +4,18 @@ import { useRouter } from "next/navigation"
 import { useUser } from "@/components/user-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { OryxLogo } from "@/components/oryx-logo"
+import { Field, FormAlert } from "@/components/ui/field"
+import { AuthLayout, AuthBrand } from "@/components/page-layout"
 import { ArrowRight } from "lucide-react"
+
+function formatLoginError(error: unknown): string {
+  if (typeof error === "string") return error
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === "string" && message.trim()) return message
+  }
+  return ""
+}
 
 export default function LoginPage() {
   const router = useRouter()
@@ -31,10 +41,29 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       })
-      const data = await res.json() as { error?: string; mustChangePassword?: boolean }
+
+      let data: { error?: unknown; mustChangePassword?: boolean; protection?: unknown } = {}
+      try {
+        data = await res.json() as typeof data
+      } catch {
+        setError(
+          res.status >= 500
+            ? "Internal server error — the app could not complete sign-in. Confirm you are on https://oryx-software.vercel.app (not a protected preview link)."
+            : "Login failed",
+        )
+        return
+      }
 
       if (!res.ok) {
-        setError(data.error ?? "Login failed")
+        // Vercel Deployment Protection returns { error: { message, code }, protection: {...} }
+        if (data.protection || (typeof data.error === "object" && data.error && "message" in data.error
+          && String((data.error as { message?: string }).message).toLowerCase().includes("protected"))) {
+          setError(
+            "This preview deployment is protected. Open production at https://oryx-software.vercel.app, or sign in to Vercel SSO first, then retry.",
+          )
+          return
+        }
+        setError(formatLoginError(data.error) || "Login failed")
         return
       }
 
@@ -55,91 +84,51 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-pg text-t1">
-      <main className="flex flex-1 items-center justify-center px-4 py-10">
-        <div className="flex w-full max-w-[440px] flex-col items-center">
-          <div className="mb-10 text-center">
-            <OryxLogo variant="login" className="mx-auto h-24 w-auto md:h-32" priority />
-          </div>
+    <AuthLayout>
+      <AuthBrand
+        title="Operations Portal Access"
+        subtitle="Secure engineering entry point"
+      />
 
-          <section className="w-full rounded-lg border border-bd bg-sr p-8 shadow-sm">
-            <header className="mb-6">
-              <h1 className="text-2xl font-semibold tracking-tight text-t1">Operations Portal Access</h1>
-              <p className="mt-1 text-sm text-t3">Secure engineering entry point</p>
-            </header>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field label="Email address" htmlFor="email" required>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            autoFocus
+            required
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="engineering@oryx.design"
+          />
+        </Field>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-1.5">
-                <label htmlFor="email" className="text-xs font-medium uppercase tracking-wider text-t3">
-                  Email Address
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  autoFocus
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="engineering@oryx.design"
-                  className="h-12 border-bd bg-sr focus-visible:ring-ac/30"
-                />
-              </div>
+        <Field label="Password" htmlFor="password" required>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="••••••••"
+          />
+        </Field>
 
-              <div className="space-y-1.5">
-                <label htmlFor="password" className="text-xs font-medium uppercase tracking-wider text-t3">
-                  Password
-                </label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="h-12 border-bd bg-sr focus-visible:ring-ac/30"
-                />
-              </div>
+        {error && <FormAlert>{error}</FormAlert>}
 
-              {error && (
-                <div className="rounded border border-dn-bd bg-dn-bg p-3 text-sm font-medium text-dn-tx">
-                  {error}
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                variant="primary"
-                className="mt-2 h-12 w-full"
-                loading={loading}
-                disabled={loading}
-              >
-                Sign In
-                {!loading && <ArrowRight className="ml-1.5 h-4 w-4" />}
-              </Button>
-            </form>
-          </section>
-
-          <nav className="mt-6 flex items-center gap-4 text-xs text-t3">
-            <span className="hover:text-t1 transition-colors cursor-default">Support Center</span>
-            <span className="text-bd">•</span>
-            <span className="hover:text-t1 transition-colors cursor-default">Request Access</span>
-          </nav>
-        </div>
-      </main>
-
-      <footer className="flex flex-col items-center justify-between gap-3 border-t border-bd bg-sr px-8 py-4 text-xs text-t3 md:flex-row">
-        <div>
-          <span className="mr-2 font-mono text-[11px] uppercase tracking-tighter text-t1">Oryx Design</span>
-          <span>© 2026 Oryx Design. Engineering Minimalism.</span>
-        </div>
-        <div className="flex gap-6">
-          <span className="cursor-default hover:text-t1 transition-colors">Privacy Policy</span>
-          <span className="cursor-default hover:text-t1 transition-colors">Terms of Service</span>
-          <span className="cursor-default hover:text-t1 transition-colors">Security</span>
-        </div>
-      </footer>
-    </div>
+        <Button
+          type="submit"
+          variant="primary"
+          className="w-full"
+          loading={loading}
+          disabled={loading}
+        >
+          Sign In
+          {!loading && <ArrowRight className="ml-1.5 h-4 w-4" />}
+        </Button>
+      </form>
+    </AuthLayout>
   )
 }

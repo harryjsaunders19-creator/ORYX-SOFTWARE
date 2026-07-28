@@ -37,7 +37,7 @@ export {
   deleteEmployeeFile,
   isEmployeeObjectKey,
   employeeObjectKey,
-  useEmployeeObjectStorage,
+  isEmployeeObjectStorageEnabled,
   EMPLOYEE_FILES_BUCKET,
   EMPLOYEE_OBJECT_PREFIX,
   PHOTO_MIME,

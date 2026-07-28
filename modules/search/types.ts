@@ -1,3 +1,5 @@
+import type { UserRow } from "@/lib/db/user-types"
+
 export type SearchEntityType =
   | "job"
   | "revision"
@@ -5,6 +7,8 @@ export type SearchEntityType =
   | "quote"
   | "invoice"
   | "user"
+  | "calendar"
+  | "employee"
 
 export interface SearchHit {
   id: string
@@ -33,4 +37,6 @@ export interface GlobalSearchOptions {
   query: string
   role: "ADMIN" | "ENGINEER"
   limit?: number
+  /** Required for employee search (access-scoped directory). */
+  viewer?: UserRow
 }

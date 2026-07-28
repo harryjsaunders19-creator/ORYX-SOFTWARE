@@ -23,6 +23,7 @@ db.exec(`
     dateCreated     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     dateCompleted   TEXT,
     notes           TEXT,
+    designStandards TEXT,
     parentJobId     TEXT REFERENCES Job(id) ON DELETE SET NULL,
     revisionLetter  TEXT,
     quoteValue      REAL,
@@ -671,15 +672,15 @@ db.exec(`
 // ── Seed calendar categories ────────────────────────────────────────
 db.exec(`
   INSERT OR IGNORE INTO EventCategory (id, name, color, icon) VALUES
-    ('cat_site_visit',       'Site Visit',       '#3B82F6', 'map-pin'),
-    ('cat_teams_meeting',    'Teams Meeting',    '#A855F7', 'video'),
-    ('cat_survey',           'Survey',           '#F97316', 'clipboard'),
-    ('cat_installation',     'Installation',     '#22C55E', 'wrench'),
-    ('cat_client_meeting',   'Client Meeting',   '#A855F7', 'users'),
-    ('cat_deadline',         'Deadline',         '#EF4444', 'alert-circle'),
-    ('cat_leave',            'Leave',            '#6B7280', 'calendar-off'),
+    ('cat_site_visit',       'Site Visit',       '#1E5A96', 'map-pin'),
+    ('cat_teams_meeting',    'Teams Meeting',    '#0E7A6E', 'video'),
+    ('cat_survey',           'Survey',           '#5F6B2E', 'clipboard'),
+    ('cat_installation',     'Installation',     '#15803D', 'wrench'),
+    ('cat_client_meeting',   'Client Meeting',   '#6E3F9E', 'users'),
+    ('cat_deadline',         'Deadline',         '#C0362C', 'alert-circle'),
+    ('cat_leave',            'Leave',            '#71717A', 'calendar-off'),
     ('cat_annual_leave',     'Annual Leave',     '#15803D', 'calendar-off'),
-    ('cat_internal_meeting', 'Internal Meeting', '#14B8A6', 'message-square');
+    ('cat_internal_meeting', 'Internal Meeting', '#0E7A6E', 'message-square');
 `)
 
 // ── Live migrations ─────────────────────────────────────────────────
@@ -761,6 +762,7 @@ try {
   add("siteAddress",      "TEXT")
   add("locationStatus",   "TEXT")
   add("locationSource",   "TEXT")
+  add("designStandards",  "TEXT")
   // Chargeable flag — revisions default false; originals true. Governs Ready for Invoicing.
   add("billable",         "INTEGER NOT NULL DEFAULT 1")
   // Multi-select job tags — JSON array of JOB_TAGS values (see lib/constants.ts).

@@ -28,6 +28,7 @@ import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { cn } from "@/shared/utils/utils"
+import { TablePagination } from "@/shared/layouts/page-layout"
 import {
   JOB_DOCUMENT_CATEGORIES,
   JOB_DOC_LIST_PAGE_SIZE,
@@ -245,7 +246,11 @@ export function JobDocumentsPanel({
   const handleDelete = async () => {
     if (!deleteDoc) return
     const res = await fetch(`/api/jobs/${jobId}/documents/${deleteDoc.id}`, { method: "DELETE" })
-    if (!res.ok) { toast("Delete failed", "error"); return }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string }
+      toast(body.error ?? "Delete failed", "error")
+      return
+    }
     toast("Document deleted", "success")
     setDeleteDoc(null)
     onTimelineChange?.()
@@ -521,17 +526,14 @@ export function JobDocumentsPanel({
         </ul>
       )}
 
-      {pages > 1 && (
-        <div className="flex items-center justify-between pt-1">
-          <Button type="button" size="sm" variant="outline" disabled={page <= 1} onClick={() => void load(page - 1)}>
-            Previous
-          </Button>
-          <span className="text-xs text-t4">Page {page} of {pages}</span>
-          <Button type="button" size="sm" variant="outline" disabled={page >= pages} onClick={() => void load(page + 1)}>
-            Next
-          </Button>
-        </div>
-      )}
+      <TablePagination
+        variant="bare"
+        page={page}
+        totalPages={pages}
+        onPageChange={p => void load(p)}
+        total={total}
+        pageSize={JOB_DOC_LIST_PAGE_SIZE}
+      />
 
       {lightboxIndex != null && imageDocs[lightboxIndex] && (
         <DocumentLightbox

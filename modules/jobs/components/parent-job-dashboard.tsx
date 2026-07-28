@@ -5,7 +5,7 @@ import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import {
-  GitBranch, Plus, Receipt, ChevronRight, MapPin, UserCircle2,
+  GitBranch, Plus, Receipt, MapPin, UserCircle2, Download,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Textarea } from "@/shared/ui/textarea"
@@ -23,7 +23,8 @@ import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
 import { useApi } from "@/shared/hooks/use-api"
 import { formatGBP, cn } from "@/shared/utils/utils"
-import { PageShell } from "@/shared/layouts/page-layout"
+import { worksTypeDisplayLabel } from "@/lib/constants"
+import { PageShell, PageBreadcrumb } from "@/shared/layouts/page-layout"
 import { DesignerCombobox } from "@/components/designer-combobox"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { DesignWorkItemRow } from "@/modules/jobs/types/design-work-item-types"
@@ -52,7 +53,7 @@ function Skeleton() {
 
 function InfoField({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="flex flex-col gap-1.5 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
+    <div className="flex flex-col gap-2 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
       <span className="text-sm font-medium text-t3">{label}</span>
       <span className="text-base font-semibold text-t1 leading-snug">
         {value?.trim() ? value : <span className="font-normal text-t4 italic">Not set</span>}
@@ -72,11 +73,11 @@ function KpiCard({
 }) {
   return (
     <div className="rounded-xl border border-bd bg-sr p-4">
-      <p className="text-xs font-semibold text-t3 uppercase tracking-wide mb-1.5">{label}</p>
+      <p className="type-label text-t3 mb-2">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
-        <p className="text-lg font-bold text-t1 truncate font-mono tabular-nums">{value}</p>
+        <p className="type-body-lg text-t1 truncate font-mono tabular-nums">{value}</p>
         {badge ? (
-          <span className="shrink-0 px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
+          <span className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-wn-bg text-wn-tx">
             {badge}
           </span>
         ) : null}
@@ -106,7 +107,7 @@ function Pill({
   }
   return (
     <span className={cn(
-      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold",
+      "inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold",
       tones[tone],
     )}>
       <span className={cn("h-1.5 w-1.5 rounded-full", dots[tone])} />
@@ -170,15 +171,48 @@ export default function ParentJobDashboardPage({
   const [priority, setPriority] = useState("")
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<DetailTab>("information")
+  const [cat2Exporting, setCat2Exporting] = useState(false)
 
   const parent = data?.parent
   const workItems = data?.workItems ?? EMPTY_WORK_ITEMS
   const current = data?.currentActive
+  const canExportCat2 = useMemo(
+    () => workItems.some(w => w.status === "ISSUED") || current?.status === "ISSUED",
+    [workItems, current?.status],
+  )
 
   const sortedItems = useMemo(
     () => [...workItems].sort((a, b) => b.dateCreated.localeCompare(a.dateCreated)),
     [workItems],
   )
+
+  const handleCat2Export = async () => {
+    setCat2Exporting(true)
+    try {
+      const res = await fetch(`/api/jobs/${parentId}/cat2-check-sheet`, { method: "POST" })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "CAT II export failed", "error")
+        return
+      }
+      const blob = await res.blob()
+      const cd = res.headers.get("Content-Disposition") ?? ""
+      const match = cd.match(/filename="([^"]+)"/i)
+      const filename = match?.[1] || "CATII Check Certificate.pdf"
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toast("CAT II Check Sheet exported", "success")
+      void mutate()
+    } catch {
+      toast("CAT II export failed", "error")
+    } finally {
+      setCat2Exporting(false)
+    }
+  }
 
   const createRevision = async () => {
     const reason = description.trim()
@@ -264,34 +298,28 @@ export default function ParentJobDashboardPage({
 
   return (
     <PageShell wide>
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-t3 mb-5">
-        <button
-          type="button"
-          className="hover:text-t1 transition-colors"
-          onClick={() => router.push("/jobs")}
-        >
-          Jobs
-        </button>
-        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="font-semibold text-t1 font-mono">{parent.drawingNumber}</span>
-      </nav>
+      <PageBreadcrumb
+        items={[
+          { label: "Jobs", onClick: () => router.push("/jobs") },
+          { label: parent.drawingNumber, mono: true },
+        ]}
+      />
 
       {/* Header — Stitch Job Details */}
-      <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-7">
-        <div className="min-w-0 space-y-1.5">
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-t1 font-mono">
+      <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-8">
+        <div className="min-w-0 space-y-2">
+          <h1 className="oryx-page-title text-t1 font-mono">
             {parent.drawingNumber}
           </h1>
           {siteLine && (
-            <p className="text-sm sm:text-base text-t3 flex items-start gap-1.5">
+            <p className="text-sm text-t3 flex items-start gap-2">
               <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
               <span>{siteLine}</span>
             </p>
           )}
           <div className="flex items-center gap-2 pt-1">
-            <span className="text-sm font-semibold text-t3">Client</span>
-            <span className="text-base font-semibold text-t1">{parent.clientCompany}</span>
+            <span className="type-label text-t3">Client</span>
+            <span className="text-sm font-semibold text-t1">{parent.clientCompany}</span>
           </div>
         </div>
 
@@ -317,6 +345,24 @@ export default function ParentJobDashboardPage({
           )}
         </div>
       </header>
+
+      {/* Actions — CAT II and related job actions */}
+      {canExportCat2 && (
+        <section className="rounded-xl border border-bd bg-sr p-6 mb-6">
+          <h2 className="text-base font-semibold text-t1 mb-4">Actions</h2>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleCat2Export()}
+              loading={cat2Exporting}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CAT II Check Sheet
+            </Button>
+          </div>
+        </section>
+      )}
 
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
@@ -357,7 +403,7 @@ export default function ParentJobDashboardPage({
                 aria-selected={selected}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "px-3.5 py-2.5 text-sm font-semibold rounded-t-lg border border-b-0 transition-colors",
+                  "px-4 py-2 text-sm font-semibold rounded-t-lg border border-b-0 transition-colors",
                   selected
                     ? "bg-sr text-t1 border-bd -mb-px"
                     : "bg-transparent text-t3 border-transparent hover:text-t1 hover:bg-sr/60",
@@ -369,10 +415,10 @@ export default function ParentJobDashboardPage({
           })}
         </div>
 
-        <div className="p-5 sm:p-6" role="tabpanel">
+        <div className="p-6 sm:p-6" role="tabpanel">
           {activeTab === "information" && (
             <div>
-              <div className="flex items-center justify-between gap-3 mb-5">
+              <div className="flex items-center justify-between gap-3 mb-6">
                 <div>
                   <h2 className="text-lg font-semibold text-t1">Job Information</h2>
                   <p className="text-sm text-t3 mt-0.5">Site, client, and assignment details</p>
@@ -386,11 +432,7 @@ export default function ParentJobDashboardPage({
                 <InfoField label="Site Address" value={siteLine} />
                 <InfoField
                   label="Type of works"
-                  value={
-                    parent.typeOfWorks === "Other" && parent.customTypeDescription
-                      ? `Other — ${parent.customTypeDescription}`
-                      : parent.typeOfWorks
-                  }
+                  value={worksTypeDisplayLabel(parent.typeOfWorks, parent.customTypeDescription) || null}
                 />
                 <InfoField
                   label="Initial Quote"
@@ -402,7 +444,7 @@ export default function ParentJobDashboardPage({
                 />
                 <InfoField label="Requested by" value={parent.requestedBy} />
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-t3 mb-1.5">
+                  <p className="type-label text-t3 mb-2">
                     Engineer Assigned
                   </p>
                   {current ? (
@@ -426,7 +468,7 @@ export default function ParentJobDashboardPage({
 
           {activeTab === "timeline" && (
             <div>
-              <div className="flex items-center justify-between gap-3 mb-5">
+              <div className="flex items-center justify-between gap-3 mb-6">
                 <div>
                   <h2 className="text-lg font-semibold text-t1 inline-flex items-center gap-2">
                     <GitBranch className="h-5 w-5 text-ac" />
@@ -471,7 +513,7 @@ export default function ParentJobDashboardPage({
                         >
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="min-w-0">
-                              <h3 className="text-base font-bold text-t1">
+                              <h3 className="type-body-lg text-t1">
                                 {item.title}
                                 {isCurrent ? " — In Progress" : isComplete ? " — Complete" : ""}
                               </h3>
@@ -480,9 +522,9 @@ export default function ParentJobDashboardPage({
                                 {item.designer ? ` · ${item.designer}` : ""}
                               </p>
                             </div>
-                            <div className="shrink-0 flex flex-wrap gap-1.5 justify-end">
+                            <div className="shrink-0 flex flex-wrap gap-2 justify-end">
                               {isCurrent && (
-                                <span className="px-2 py-0.5 rounded text-xs font-bold uppercase bg-ac text-on-ac">
+                                <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-ac text-on-ac">
                                   Active
                                 </span>
                               )}
@@ -555,7 +597,7 @@ export default function ParentJobDashboardPage({
           {activeTab === "documents" && (
             <div>
               <h2 className="text-lg font-semibold text-t1 mb-1">Documents</h2>
-              <p className="text-sm text-t3 mb-5">PDFs and images — print emails to PDF to attach them</p>
+              <p className="text-sm text-t3 mb-6">PDFs and images — print emails to PDF to attach them</p>
               <JobDocumentsPanel jobId={parent.id} showTitle={false} />
             </div>
           )}
@@ -563,7 +605,7 @@ export default function ParentJobDashboardPage({
           {activeTab === "financial" && (
             <div>
               <h2 className="text-lg font-semibold text-t1 mb-1">Financial</h2>
-              <p className="text-sm text-t3 mb-5">Quoted, billed, and ready-to-invoice totals</p>
+              <p className="text-sm text-t3 mb-6">Quoted, billed, and ready-to-invoice totals</p>
               <div className="max-w-xl space-y-4 text-base">
                 <div className="flex justify-between gap-2">
                   <span className="text-t3">Quoted total</span>
@@ -585,7 +627,7 @@ export default function ParentJobDashboardPage({
                 </div>
                 <div className="flex justify-between gap-2 pt-3 border-t border-bd">
                   <span className="text-t3">Outstanding</span>
-                  <span className="font-bold tabular-nums text-t1">
+                  <span className="font-semibold tabular-nums text-t1">
                     {formatGBP(outstanding) ?? "—"}
                   </span>
                 </div>
@@ -599,7 +641,7 @@ export default function ParentJobDashboardPage({
           {activeTab === "status" && (
             <div>
               <h2 className="text-lg font-semibold text-t1 mb-1">Status</h2>
-              <p className="text-sm text-t3 mb-5">
+              <p className="text-sm text-t3 mb-6">
                 {current
                   ? `Update workflow for ${current.title}`
                   : "No active work item — create a revision to continue"}
@@ -615,9 +657,9 @@ export default function ParentJobDashboardPage({
                     onStatusChange={() => void mutate()}
                     patchUrl={`/api/work-items/${current.id}`}
                   />
-                  <div className="mt-5">
+                  <div className="mt-6">
                     <Label className="text-sm text-t3">Designer</Label>
-                    <div className="mt-1.5">
+                    <div className="mt-2">
                       <DesignerCombobox
                         value={current.designer}
                         onChange={v => void patchWorkItem(current.id, { designer: v })}
@@ -652,7 +694,7 @@ export default function ParentJobDashboardPage({
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-4">
-            <div className="rounded-lg border border-bd bg-pg px-3 py-2.5 text-xs text-t3 space-y-1">
+            <div className="rounded-lg border border-bd bg-pg px-3 py-2 text-xs text-t3 space-y-1">
               <p>
                 New work item:{" "}
                 <span className="font-semibold text-t1">Revision {data.nextRevisionLetter}</span>
@@ -663,7 +705,7 @@ export default function ParentJobDashboardPage({
               <Label>
                 Reason for revision<span className="text-dn ml-0.5">*</span>
               </Label>
-              <p className="text-[11px] text-t4 mt-0.5 mb-1.5">
+              <p className="type-helper text-t4 mt-0.5 mb-2">
                 What did the client request? This appears on the project timeline for the whole team.
               </p>
               <Textarea
@@ -681,14 +723,14 @@ export default function ParentJobDashboardPage({
             </div>
             <div>
               <Label>Designer</Label>
-              <div className="mt-1.5">
+              <div className="mt-2">
                 <DesignerCombobox value={designer} onChange={setDesigner} />
               </div>
             </div>
             <div>
               <Label>Priority</Label>
               <Select value={priority || "__none"} onValueChange={v => setPriority(v === "__none" ? "" : v)}>
-                <SelectTrigger className="mt-1.5">
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Optional" />
                 </SelectTrigger>
                 <SelectContent>

@@ -1,4 +1,4 @@
-import { OTHER_WORKS_TYPE, isValidWorksType } from "@/lib/constants"
+import { OTHER_WORKS_TYPE, isValidWorksType, worksTypeDisplayLabel } from "@/lib/constants"
 import { todayIsoDate } from "@/shared/utils/utils"
 
 /** Human-readable works label for PDFs, lists, and the legacy description column. */
@@ -7,12 +7,8 @@ export function quoteWorksDisplayLabel(
   customTypeDescription: string | null | undefined,
   fallbackDescription?: string,
 ): string {
-  const works = typeOfWorks?.trim() ?? ""
-  if (works) {
-    return works === OTHER_WORKS_TYPE
-      ? (customTypeDescription?.trim() ?? "")
-      : works
-  }
+  const label = worksTypeDisplayLabel(typeOfWorks, customTypeDescription)
+  if (label) return label
   return fallbackDescription?.trim() ?? ""
 }
 

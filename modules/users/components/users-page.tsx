@@ -26,10 +26,10 @@ const ENGINEER_MODULES = MODULES.filter(m => m.roles.includes("ENGINEER"))
 function RoleBadge({ role }: { role: string }) {
   return (
     <span className={cn(
-      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
+      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 type-badge whitespace-nowrap",
       role === "ADMIN" ? "bg-ac-bg text-ac" : "bg-t1/[0.06] text-t2",
     )}>
-      {role === "ADMIN" && <ShieldCheck className="h-3 w-3" />}
+      {role === "ADMIN" && <ShieldCheck className="h-3.5 w-3.5" />}
       {role === "ADMIN" ? "Admin" : "Engineer"}
     </span>
   )
@@ -214,11 +214,11 @@ function UsersPageInner() {
           <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Name</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Email</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Role</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Added</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Name</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Email</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Role</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Status</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Added</th>
                 <th className="px-4 py-2.5 w-44" />
               </tr>
             </thead>
@@ -227,15 +227,15 @@ function UsersPageInner() {
                 <tr key={u.id} className={cn("border-b border-bd last:border-0 hover:bg-pg", !u.active && "opacity-60")}>
                   <td className="px-4 py-3">
                     <span className="font-medium text-t1">{u.name}</span>
-                    {me?.id === u.id && <span className="text-[10px] text-t4 ml-1.5">(you)</span>}
+                    {me?.id === u.id && <span className="type-helper text-t4 ml-1.5">(you)</span>}
                   </td>
                   <td className="px-4 py-3 text-xs text-t3">{u.email ?? "—"}</td>
                   <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
                   <td className="px-4 py-3">
                     {u.active ? (
-                      <span className="text-[11px] font-medium text-ok-tx">Active</span>
+                      <span className="type-badge text-ok-tx">Active</span>
                     ) : (
-                      <span className="text-[11px] font-medium text-t4">Disabled</span>
+                      <span className="type-badge text-t4">Disabled</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-t4 tabular-nums whitespace-nowrap">{format(new Date(u.createdAt), "d MMM yyyy")}</td>
@@ -363,11 +363,11 @@ function UsersPageInner() {
             </p>
             <div className="bg-pg border border-bd rounded-md p-3 flex items-center justify-between gap-2">
               <div>
-                <p className="text-[11px] text-t4 mb-0.5">Email</p>
+                <p className="type-helper text-t4 mb-0.5">Email</p>
                 <p className="text-sm font-medium text-t1">{tempPasswordInfo?.email}</p>
               </div>
               <div>
-                <p className="text-[11px] text-t4 mb-0.5">Temporary password</p>
+                <p className="type-helper text-t4 mb-0.5">Temporary password</p>
                 <p className="text-sm font-mono font-semibold text-ac">{tempPasswordInfo?.password}</p>
               </div>
               <button
@@ -384,7 +384,7 @@ function UsersPageInner() {
               </button>
             </div>
             <p className="text-xs text-wn-tx mt-3 flex items-start gap-1.5">
-              <KeyRound className="h-3 w-3 shrink-0 mt-0.5" />
+              <KeyRound className="h-3.5 w-3.5 shrink-0 mt-0.5" />
               This password is shown once. If it's lost, use the key icon to reset it.
             </p>
           </DialogBody>

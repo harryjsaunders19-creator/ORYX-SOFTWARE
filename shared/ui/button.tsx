@@ -2,6 +2,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cn } from "@/shared/utils"
+import { Typography } from "@/shared/design/typography"
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "ghost" | "danger" | "outline"
@@ -16,14 +17,14 @@ const VARIANT_STYLES: Record<string, React.CSSProperties> = {
   secondary: { backgroundColor: "var(--color-sr)", color: "var(--color-t1)", border: "1px solid var(--color-bd)" },
   outline:   { backgroundColor: "transparent", color: "var(--color-t2)", border: "1px solid var(--color-bd)" },
   ghost:     { backgroundColor: "transparent", color: "var(--color-t3)" },
-  danger:    { backgroundColor: "var(--color-dn)", color: "#ffffff" },
+  danger:    { backgroundColor: "var(--color-dn)", color: "var(--color-on-ac)" },
 }
 
 const SIZE_STYLES: Record<string, React.CSSProperties> = {
-  md:      { height: "36px", padding: "0 16px", fontSize: "14px" },
-  sm:      { height: "30px", padding: "0 12px", fontSize: "12px" },
-  icon:    { height: "36px", width: "36px", padding: "0", fontSize: "14px" },
-  "icon-sm": { height: "30px", width: "30px", padding: "0", fontSize: "12px" },
+  md:      { height: "36px", padding: "0 16px" },
+  sm:      { height: "30px", padding: "0 12px" },
+  icon:    { height: "36px", width: "36px", padding: "0" },
+  "icon-sm": { height: "30px", width: "30px", padding: "0" },
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -34,27 +35,30 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          "inline-flex items-center justify-center gap-1.5 rounded font-medium",
-          "select-none whitespace-nowrap cursor-pointer",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac focus-visible:ring-offset-1",
+          Typography.Button,
+          "inline-flex items-center justify-center gap-1.5 rounded-lg",
+          "select-none whitespace-nowrap cursor-pointer transition-colors duration-150",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac/30 focus-visible:ring-offset-1",
           "disabled:opacity-40 disabled:cursor-not-allowed",
           variant === "primary"   && "bg-ac text-on-ac hover:bg-ach",
           variant === "secondary" && "bg-sr border border-bd text-t1 hover:bg-pg",
           variant === "outline"   && "border border-bd text-t2 hover:text-t1 hover:border-bds bg-transparent",
           variant === "ghost"     && "text-t3 hover:text-t2 hover:bg-pg",
           variant === "danger"    && "bg-dn text-sr hover:bg-dnh",
-          size === "md"           && "h-9 px-4 text-sm",
-          size === "sm"           && "h-[30px] px-3 text-xs",
-          size === "icon"         && "h-9 w-9 text-sm",
-          size === "icon-sm"      && "h-[30px] w-[30px] text-xs",
+          size === "md"           && "h-9 px-4",
+          size === "sm"           && "h-[30px] px-3",
+          size === "icon"         && "h-9 w-9",
+          size === "icon-sm"      && "h-[30px] w-[30px]",
           className,
         )}
         style={{
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: className?.includes("rounded-full") ? "9999px" : "6px",
-          fontWeight: 500,
+          borderRadius: className?.includes("rounded-full") ? "9999px" : "var(--radius-lg)",
+          fontSize: "var(--type-button-size)",
+          fontWeight: "var(--type-button-weight)" as unknown as number,
+          lineHeight: "var(--type-button-leading)",
           userSelect: "none",
           whiteSpace: "nowrap",
           gap: "6px",

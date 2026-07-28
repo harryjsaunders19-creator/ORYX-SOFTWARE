@@ -3,6 +3,7 @@ import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown } from "lucide-react"
 import { cn } from "@/shared/utils"
+import { Typography } from "@/shared/design/typography"
 
 export const Select      = SelectPrimitive.Root
 export const SelectValue = SelectPrimitive.Value
@@ -15,8 +16,9 @@ export const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
+      Typography.Small,
       "flex h-9 w-full items-center justify-between rounded-lg border border-bd bg-sr",
-      "px-3.5 text-sm text-t1",
+      "px-3.5 text-t1 transition-colors duration-150",
       "focus:outline-none focus:ring-2 focus:ring-ac/20 focus:border-ac",
       "disabled:cursor-not-allowed disabled:opacity-50",
       "data-[placeholder]:text-t4",
@@ -28,12 +30,14 @@ export const SelectTrigger = React.forwardRef<
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      borderRadius: "8px",
+      borderRadius: "var(--radius-lg)",
       border: "1px solid var(--color-bd)",
       backgroundColor: "var(--color-sr)",
       paddingLeft: "14px",
       paddingRight: "14px",
-      fontSize: "14px",
+      fontSize: "var(--type-small-size)",
+      fontWeight: "var(--type-small-weight)" as unknown as number,
+      lineHeight: "var(--type-small-leading)",
       color: "var(--color-t1)",
       outline: "none",
       cursor: "default",
@@ -66,10 +70,10 @@ export const SelectContent = React.forwardRef<
         zIndex: 200,
         maxHeight: "288px",
         overflow: "hidden",
-        borderRadius: "14px",
+        borderRadius: "var(--radius-xl)",
         border: "1px solid var(--color-bd)",
         backgroundColor: "var(--color-sr)",
-        boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.03), 0 8px 24px -8px rgb(0 0 0 / 0.08)",
+        boxShadow: "var(--shadow-modal)",
       }}
       {...props}
     >
@@ -94,13 +98,23 @@ export const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
+      Typography.Small,
       "relative flex w-full cursor-default select-none items-center",
-      "rounded-md py-2 pl-7 pr-2.5 text-sm text-t1",
+      "rounded-md py-2 pl-7 pr-2.5 text-t1",
       "focus:bg-pg outline-none",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}
-    style={{ padding: "8px 10px 8px 28px", fontSize: "14px", color: "var(--color-t1)", borderRadius: "6px", position: "relative", cursor: "default" }}
+    style={{
+      padding: "8px 10px 8px 28px",
+      fontSize: "var(--type-small-size)",
+      fontWeight: "var(--type-small-weight)" as unknown as number,
+      lineHeight: "var(--type-small-leading)",
+      color: "var(--color-t1)",
+      borderRadius: "var(--radius-md)",
+      position: "relative",
+      cursor: "default",
+    }}
     {...props}
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center" style={{ position: "absolute", left: "8px", display: "flex", alignItems: "center" }}>

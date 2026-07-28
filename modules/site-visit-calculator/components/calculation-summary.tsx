@@ -51,7 +51,7 @@ export function CalculationSummary({
     return (
       <DataPanel className="p-6">
         <p className="text-sm text-t3">
-          Enter a site address to see the cost estimate.
+          Search for a site address and choose one from the dropdown to see the cost estimate.
         </p>
       </DataPanel>
     )

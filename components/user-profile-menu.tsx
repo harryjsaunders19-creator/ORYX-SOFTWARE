@@ -35,7 +35,7 @@ export function UserProfileMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-bd bg-surface-low text-[11px] font-bold text-t1 transition-colors hover:bg-surface-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac/30"
+          className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-bd bg-surface-low type-badge text-t1 transition-colors hover:bg-surface-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac/30"
           aria-label="Account menu"
         >
           {initials}

@@ -6,11 +6,16 @@ import { Clock, ArrowUpRight, Loader2, ClipboardCheck, Download, FileSpreadsheet
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Textarea } from "@/shared/ui/textarea"
+import { Field } from "@/shared/ui/field"
+import {
+  Dialog, DialogContent, DialogHeader, DialogFooter,
+  DialogTitle, DialogDescription, DialogBody,
+} from "@/shared/ui/dialog"
 import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
 import { useToast } from "@/shared/ui/toast"
 import { RequireRole } from "@/components/require-role"
-import { PageHeader, PageShell, DataPanel, KpiTile, TabBar } from "@/shared/layouts/page-layout"
+import { PageHeader, PageShell, DataPanel, KpiTile, TabBar, TablePagination } from "@/shared/layouts/page-layout"
 import { formatGBP, formatDisplayDate } from "@/shared/utils/utils"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi } from "@/shared/hooks/use-api"
@@ -45,21 +50,22 @@ async function downloadResponse(res: Response, fallbackName: string) {
   URL.revokeObjectURL(url)
 }
 
-function ExportModal({ count, onClose, onExported }: {
-  count: number
+function ExportModal({ ids, onClose, onExported }: {
+  ids: string[]
   onClose: () => void
   onExported: (batchNumber: string) => void
 }) {
   const { toast } = useToast()
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
+  const count = ids.length
 
-  const submit = async (handoffIds: string[]) => {
+  const submit = async () => {
     setSaving(true)
     try {
       const res = await fetch("/api/billing-handoffs/export", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handoffIds, notes: notes.trim() || null }),
+        body: JSON.stringify({ handoffIds: ids, notes: notes.trim() || null }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
@@ -78,41 +84,37 @@ function ExportModal({ count, onClose, onExported }: {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.45)" }} data-handoff-ids="">
-      <div className="bg-sr rounded-xl border border-bd shadow-modal w-[calc(100vw-2rem)] max-w-[460px] overflow-hidden">
-        <div className="px-6 pt-5 pb-4 border-b border-bd">
+    <Dialog open onOpenChange={o => { if (!o && !saving) onClose() }}>
+      <DialogContent size="sm" showClose={!saving}>
+        <DialogHeader>
           <div className="flex items-center gap-2 mb-1">
             <FileSpreadsheet className="h-4 w-4 text-ac2" />
-            <p className="text-sm font-semibold text-t1">Export Accounts Handover</p>
+            <DialogTitle>Export Accounts Handover</DialogTitle>
           </div>
-          <p className="text-xs text-t3">{count} item{count === 1 ? "" : "s"} selected</p>
-        </div>
-        <div className="px-6 py-5 space-y-3">
+          <DialogDescription>{count} item{count === 1 ? "" : "s"} selected</DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
           <p className="text-xs text-t3">
             This downloads a complete workbook for accounts — client, project, commercial, revision, and audit
             details across all selected items — and creates a numbered billing batch. Once exported, these items
             move to Cleared and won&rsquo;t reappear here.
           </p>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-t2">Batch notes (optional)</label>
+          <Field label="Batch notes (optional)">
             <Textarea
               value={notes} onChange={e => setNotes(e.target.value)}
               placeholder="e.g. Weekly handover for w/e 21 June"
               rows={2} autoFocus
             />
-          </div>
-        </div>
-        <div className="px-6 py-4 border-t border-bd flex gap-3">
+          </Field>
+        </DialogBody>
+        <DialogFooter>
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button
-            variant="primary" className="flex-1" loading={saving}
-            onClick={() => { const ids = (window as unknown as { __pendingExportIds: string[] }).__pendingExportIds ?? []; submit(ids) }}
-          >
+          <Button variant="primary" className="flex-1" loading={saving} onClick={() => void submit()}>
             {saving ? "Exporting…" : "Export & Process"}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -167,7 +169,7 @@ function HandoffQuoteValue({ item, view, onQuoteSaved }: {
           className="h-7 w-24 text-xs tabular-nums"
           disabled={saving}
         />
-        <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" loading={saving} onClick={saveQuote}>
+        <Button size="sm" variant="outline" className="h-7 px-2 type-helper" loading={saving} onClick={saveQuote}>
           Save
         </Button>
       </div>
@@ -196,7 +198,7 @@ function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved }: {
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-xs font-bold text-ac">{item.drawingNumber}</span>
+            <span className="font-mono type-badge text-ac">{item.drawingNumber}</span>
             <WorkItemTypeBadge itemType={item.itemType} size="sm" />
           </div>
           <p className="text-sm font-medium text-t1 mt-1">{item.clientCompany}</p>
@@ -213,12 +215,12 @@ function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved }: {
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-bd/60">
         <HandoffQuoteValue item={item} view={view} onQuoteSaved={onQuoteSaved} />
         <Link href={`/jobs/${item.sourceJobId}`} className="text-xs text-ac hover:text-ach font-medium inline-flex items-center gap-1 shrink-0">
-          View job <ArrowUpRight className="h-3 w-3" />
+          View job <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
       </div>
 
       {view === "cleared" && (
-        <p className="text-[11px] text-t3">
+        <p className="type-helper text-t3">
           Cleared {item.clearedByAccountsAt ? format(new Date(item.clearedByAccountsAt), "d MMM yyyy") : "—"}
           {item.clearedBy ? ` · ${item.clearedBy}` : ""}
         </p>
@@ -250,7 +252,7 @@ function BatchMobileCard({ batch }: { batch: BillingExportBatch }) {
     <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <span className="font-mono text-xs font-bold text-ac">{batch.batchNumber}</span>
+          <span className="font-mono type-badge text-ac">{batch.batchNumber}</span>
           <p className="text-xs text-t3 mt-1 tabular-nums">{formatDisplayDate(batch.exportDate)}</p>
         </div>
         <span className="text-sm font-semibold text-t1 tabular-nums">{batch.recordCount} rows</span>
@@ -262,7 +264,7 @@ function BatchMobileCard({ batch }: { batch: BillingExportBatch }) {
         disabled={downloading}
         className="text-xs text-ac hover:text-ach font-medium inline-flex items-center gap-1 disabled:opacity-50"
       >
-        {downloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+        {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
         Download
       </button>
     </div>
@@ -300,7 +302,7 @@ function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
       )}
       <td className="px-4 py-3 text-right whitespace-nowrap">
         <Link href={`/jobs/${item.sourceJobId}`} className="text-xs text-ac hover:text-ach font-medium inline-flex items-center gap-1">
-          View job <ArrowUpRight className="h-3 w-3" />
+          View job <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
       </td>
     </tr>
@@ -334,7 +336,7 @@ function BatchRow({ batch }: { batch: BillingExportBatch }) {
       <td className="px-4 py-3 text-t3 max-w-[260px] truncate">{batch.notes || "—"}</td>
       <td className="px-4 py-3 text-right whitespace-nowrap">
         <button onClick={redownload} disabled={downloading} className="text-xs text-ac hover:text-ach font-medium inline-flex items-center gap-1 disabled:opacity-50">
-          {downloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+          {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
           Download
         </button>
       </td>
@@ -424,8 +426,8 @@ function BillingPageInner() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <KpiTile label="Awaiting Accounts Action" value={stats?.awaitingCount ?? "—"} sub={stats ? formatGBP(stats.awaitingValue) : undefined} accent="#B45309" valueClassName="text-wn-tx" />
-        <KpiTile label="Cleared" value={stats?.clearedCount ?? "—"} accent="#15803D" valueClassName="text-ok-ic" />
+        <KpiTile label="Awaiting Accounts Action" value={stats?.awaitingCount ?? "—"} sub={stats ? formatGBP(stats.awaitingValue) : undefined} accent="var(--color-wn)" valueClassName="text-wn-tx" />
+        <KpiTile label="Cleared" value={stats?.clearedCount ?? "—"} accent="var(--color-ok-ic)" valueClassName="text-ok-ic" />
       </div>
 
       <TabBar
@@ -457,26 +459,16 @@ function BillingPageInner() {
         </div>
       )}
 
-      {view !== "history" && totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2 text-xs text-t3">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={page <= 1 || listLoading}
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-          >
-            Previous
-          </Button>
-          <span className="tabular-nums">Page {page} / {totalPages}</span>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={page >= totalPages || listLoading}
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-          >
-            Next
-          </Button>
-        </div>
+      {view !== "history" && (
+        <TablePagination
+          variant="bare"
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          total={viewTotal}
+          pageSize={PAGE_SIZE}
+          disabled={listLoading}
+        />
       )}
 
       {view === "history" ? (
@@ -497,11 +489,11 @@ function BillingPageInner() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-pg border-b border-bd">
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Batch Number</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Export Date</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Exported By</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Record Count</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Notes</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Batch Number</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Export Date</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Exported By</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Record Count</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Notes</th>
                 <th className="px-4 py-2 w-1" />
               </tr>
             </thead>
@@ -556,18 +548,18 @@ function BillingPageInner() {
                     <input type="checkbox" className="h-4 w-4 accent-ac" checked={!!items && items.length > 0 && selected.size === items.length} onChange={toggleAll} />
                   </th>
                 )}
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Job Number</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Project</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Client</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Site Address</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Job Type</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Completed</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Assigned Staff</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Value</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Job Number</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Project</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Client</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Site Address</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Job Type</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Completed</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Assigned Staff</th>
+                <th className="px-4 py-2 text-left font-semibold text-t3">Value</th>
                 {view === "cleared" && (
                   <>
-                    <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Cleared</th>
-                    <th className="px-4 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Cleared By</th>
+                    <th className="px-4 py-2 text-left font-semibold text-t3">Cleared</th>
+                    <th className="px-4 py-2 text-left font-semibold text-t3">Cleared By</th>
                   </>
                 )}
                 <th className="px-4 py-2 w-1" />
@@ -598,7 +590,7 @@ function BillingPageInner() {
       )}
 
       {exporting && (
-        <ExportModalWrapper
+        <ExportModal
           ids={[...selected]}
           onClose={() => setExporting(false)}
           onExported={() => { setExporting(false); load("awaiting") }}
@@ -606,13 +598,6 @@ function BillingPageInner() {
       )}
     </PageShell>
   )
-}
-
-// Thin wrapper so ExportModal can read the selected ids without prop-drilling
-// through a window global — keeps the modal component reusable/testable.
-function ExportModalWrapper({ ids, onClose, onExported }: { ids: string[]; onClose: () => void; onExported: (batchNumber: string) => void }) {
-  useEffect(() => { (window as unknown as { __pendingExportIds: string[] }).__pendingExportIds = ids }, [ids])
-  return <ExportModal count={ids.length} onClose={onClose} onExported={onExported} />
 }
 
 export default function BillingPage() {

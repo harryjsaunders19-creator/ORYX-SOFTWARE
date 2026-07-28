@@ -39,6 +39,7 @@ function buildJobRow(data: CreateJobData, now: string): JobRow {
     dateCreated: now,
     dateCompleted: data.dateCompleted ?? null,
     notes: data.notes ?? null,
+    designStandards: data.designStandards ?? null,
     tags: data.tags ?? [],
     quoteValue: data.quoteValue ?? null,
     quoteReference: data.quoteReference ?? null,

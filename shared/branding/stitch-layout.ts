@@ -20,6 +20,7 @@ export const STITCH_COLORS = {
 } as const
 
 export const STITCH_SIDEBAR_W = 256
+export const STITCH_SIDEBAR_COLLAPSED_W = 72
 export const STITCH_TOP_BAR_H = 64
 
 export const STITCH_SIDEBAR_BG = STITCH_COLORS.sidebar

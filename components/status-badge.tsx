@@ -1,8 +1,11 @@
 import { cn } from "@/lib/utils"
 import { getJobStatus } from "@/lib/constants"
+import { Typography } from "@/shared/design/typography"
 
-// Status taxonomy: New Request (grey) / In Progress (yellow) / Requires Checking
-// (amber) / Ready to Send (sky blue) / Complete (green).
+/**
+ * Status colour communicates workflow meaning only (ISO / ops scanning).
+ * Chrome stays restrained — no decorative shadows or oversized pills.
+ */
 export const JOB_BADGE_CLASSES: Record<string, string> = {
   NEW_REQUEST:   "bg-gy-bg text-gy-tx border border-gy-bd",
   IN_DESIGN:     "bg-yl-bg text-yl-tx border border-yl-bd",
@@ -11,7 +14,6 @@ export const JOB_BADGE_CLASSES: Record<string, string> = {
   ISSUED:        "bg-ok-bg text-ok-tx border border-ok-bd",
 }
 
-// Row background tints — dedicated *-row tokens (globals.css), full opacity.
 export const JOB_ROW_BG: Record<string, string> = {
   NEW_REQUEST:   "bg-gy-row",
   IN_DESIGN:     "bg-yl-row",
@@ -20,7 +22,6 @@ export const JOB_ROW_BG: Record<string, string> = {
   ISSUED:        "bg-ok-row",
 }
 
-// Left-edge stripe gives instant status recognition even before reading the badge.
 export const JOB_ROW_BORDER: Record<string, string> = {
   NEW_REQUEST:   "border-l-[3px] border-l-gy-bd",
   IN_DESIGN:     "border-l-[3px] border-l-yl",
@@ -37,19 +38,23 @@ export const STATUS_DOT: Record<string, string> = {
   ISSUED:        "bg-ok-ic",
 }
 
-const pill = "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap border shadow-sm"
+const pill = cn(
+  "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 whitespace-nowrap border",
+  Typography.Badge,
+)
 
-// Larger variant for the jobs table — completion status should be the most
-// scannable element in each row.
-const pillLg = "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[12px] font-bold whitespace-nowrap border shadow-sm"
+const pillLg = cn(
+  "inline-flex items-center gap-2 rounded-md px-2.5 py-1 whitespace-nowrap border",
+  Typography.Badge,
+)
 
 export function StatusBadge({ status, size = "md" }: { status: string; size?: "md" | "lg" }) {
   const s = getJobStatus(status)
   const cls = JOB_BADGE_CLASSES[status] ?? JOB_BADGE_CLASSES.NEW_REQUEST
   const dot = STATUS_DOT[status] ?? STATUS_DOT.NEW_REQUEST
   const dotCls = cn(
-    "rounded-full shrink-0 ring-2 ring-sr/80",
-    size === "lg" ? "h-2.5 w-2.5" : "h-2 w-2",
+    "rounded-full shrink-0",
+    size === "lg" ? "h-2 w-2" : "h-1.5 w-1.5",
     dot,
   )
   if (size === "lg") {

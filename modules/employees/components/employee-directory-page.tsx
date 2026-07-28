@@ -3,11 +3,12 @@ import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { format } from "date-fns"
-import { ChevronLeft, ChevronRight, UsersRound } from "lucide-react"
+import { UsersRound } from "lucide-react"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi } from "@/shared/hooks/use-api"
 import {
   PageHeader, PageShell, SearchField, DataPanel, EmptyPanel, Th, TableHead, TableShell,
+  TablePagination,
 } from "@/shared/layouts/page-layout"
 import { cn } from "@/shared/utils"
 import type { EmployeeListItem } from "../services/employee-service"
@@ -34,7 +35,7 @@ function EmployeeAvatar({ userId, name }: { userId: string; name: string }) {
   const initials = name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase()).join("")
   if (failed) {
     return (
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-low text-xs font-bold text-t2">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-low type-badge text-t2">
         {initials || "?"}
       </div>
     )
@@ -73,7 +74,7 @@ function EmployeesInner() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1
 
   return (
-    <PageShell>
+    <PageShell wide>
       <PageHeader
         title="Employees"
         description="Company directory — search, filter, and open employee profiles."
@@ -84,7 +85,7 @@ function EmployeesInner() {
         <select
           value={department}
           onChange={e => setDepartment(e.target.value)}
-          className="h-10 rounded border border-bd bg-sr px-3 text-sm text-t1"
+          className="h-9 rounded-lg border border-bd bg-sr px-3 text-sm text-t1"
         >
           <option value="">All departments</option>
           {(data?.departments ?? []).map(d => (
@@ -94,7 +95,7 @@ function EmployeesInner() {
         <select
           value={status}
           onChange={e => setStatus(e.target.value)}
-          className="h-10 rounded border border-bd bg-sr px-3 text-sm text-t1"
+          className="h-9 rounded-lg border border-bd bg-sr px-3 text-sm text-t1"
         >
           <option value="">All statuses</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => (
@@ -139,7 +140,7 @@ function EmployeesInner() {
                           {emp.name}
                         </Link>
                         {emp.employeeId && (
-                          <p className="font-mono text-[10px] text-t4 mt-0.5">{emp.employeeId}</p>
+                          <p className="font-mono type-helper text-t4 mt-0.5">{emp.employeeId}</p>
                         )}
                       </td>
                       <td className="px-4 py-3 text-t3">{emp.jobTitle ?? "—"}</td>
@@ -148,7 +149,7 @@ function EmployeesInner() {
                       <td className="px-4 py-3 text-t3">{emp.phone ?? "—"}</td>
                       <td className="px-4 py-3">
                         <span className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
+                          "rounded-md px-2 py-0.5 type-badge",
                           emp.employmentStatus === "ACTIVE" && "bg-ok-bg text-ok-tx",
                           emp.employmentStatus === "ON_LEAVE" && "bg-wn-bg text-wn-tx",
                           emp.employmentStatus === "SUSPENDED" && "bg-dn-bg text-dn-tx",
@@ -165,28 +166,13 @@ function EmployeesInner() {
                 </tbody>
               </table>
             </TableShell>
-            <div className="flex items-center justify-between border-t border-bd px-4 py-3 text-xs text-t3">
-              <span>{data.total} employee{data.total !== 1 ? "s" : ""}</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => p - 1)}
-                  className="rounded p-1 hover:bg-pg disabled:opacity-40"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <span>Page {page} of {totalPages}</span>
-                <button
-                  type="button"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                  className="rounded p-1 hover:bg-pg disabled:opacity-40"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+            <TablePagination
+              variant="inset"
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              countLabel={`${data.total} employee${data.total !== 1 ? "s" : ""}`}
+            />
           </>
         )}
       </DataPanel>

@@ -130,11 +130,11 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-surface-low border-b border-bd">
-                <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider w-6">Rev</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Drawing number</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Designer</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Created</th>
+                <th className="px-3 py-2 text-left font-semibold text-t3 w-6">Rev</th>
+                <th className="px-3 py-2 text-left font-semibold text-t3">Drawing number</th>
+                <th className="px-3 py-2 text-left font-semibold text-t3">Status</th>
+                <th className="px-3 py-2 text-left font-semibold text-t3">Designer</th>
+                <th className="px-3 py-2 text-left font-semibold text-t3">Created</th>
                 <th className="px-3 py-2 w-8" />
               </tr>
             </thead>
@@ -147,7 +147,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
                   <td className="px-3 py-2.5 font-semibold text-t3 whitespace-nowrap">—</td>
                   <td className="px-3 py-2.5 font-mono text-t2 whitespace-nowrap font-semibold">
                     {job.drawingNumber}
-                    <span className="ml-1.5 text-[10px] font-medium text-t4 normal-case">Original</span>
+                    <span className="ml-1.5 type-badge text-t4 normal-case">Original</span>
                   </td>
                   <td className="px-3 py-2.5 whitespace-nowrap">
                     <StatusBadge status={job.status} />
@@ -175,7 +175,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
                       <span className="flex items-center gap-1.5">
                         {rev.revisionLetter}
                         {isLatest && (
-                          <span className="bg-ac-bg text-ac rounded-full px-2 text-[10px] font-medium leading-tight">
+                          <span className="bg-ac-bg text-ac rounded-full px-2 type-badge leading-tight">
                             Latest
                           </span>
                         )}
@@ -236,7 +236,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
             <Label>
               Reason for revision<span className="text-dn ml-0.5">*</span>
             </Label>
-            <p className="text-[11px] text-t4">
+            <p className="type-helper text-t4">
               What did the client request? Shown on the revision history.
             </p>
             <Textarea

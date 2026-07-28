@@ -1,9 +1,9 @@
 "use client"
 import { Suspense, memo, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { format } from "date-fns"
-import { Plus, RotateCcw, Building2, ChevronRight, Archive, Upload, ChevronLeft } from "lucide-react"
+import { Plus, RotateCcw, Building2, ChevronRight, Archive, Upload } from "lucide-react"
 import { useUser } from "@/shared/providers/user-context"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
@@ -18,7 +18,8 @@ import { cn }       from "@/shared/utils/utils"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
-import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
+import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel, TablePagination } from "@/shared/layouts/page-layout"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import type { Client } from "@/lib/types"
 import type { ClientContactInput, ClientContactRow } from "../types/client-contact-types"
 import { contactsFromClient, emptyContact } from "../types/client-contact-types"
@@ -47,9 +48,9 @@ const ClientTableRow = memo(function ClientTableRow({
       <td className="px-4 py-3">
         <Link href={`/clients/${c.id}`} prefetch={false} className="font-medium text-t1 hover:text-ac flex items-center gap-1.5">
           {c.name}
-          {!c.active && <span className="text-[10px] bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>}
-          {c.onHold && <span className="text-[10px] bg-dn-bg text-dn rounded-full px-2 font-medium whitespace-nowrap">On Hold</span>}
-          <ChevronRight className="h-3 w-3 text-t4" />
+          {!c.active && <span className="type-helper bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>}
+          {c.onHold && <span className="type-helper bg-dn-bg text-dn rounded-full px-2 font-medium whitespace-nowrap">On Hold</span>}
+          <ChevronRight className="h-3.5 w-3.5 text-t4" />
         </Link>
       </td>
       <td className="px-4 py-3 text-xs text-t3">{c.contactName ?? "—"}</td>
@@ -105,10 +106,10 @@ const ClientMobileCard = memo(function ClientMobileCard({
             <div className="flex items-center gap-1.5 flex-wrap">
               <p className="text-sm font-semibold text-t1">{c.name}</p>
               {!c.active && (
-                <span className="text-[10px] bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>
+                <span className="type-helper bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>
               )}
               {c.onHold && (
-                <span className="text-[10px] bg-dn-bg text-dn rounded-full px-2 font-medium">On Hold</span>
+                <span className="type-helper bg-dn-bg text-dn rounded-full px-2 font-medium">On Hold</span>
               )}
             </div>
             {c.contactName && <p className="text-xs text-t3 mt-0.5">{c.contactName}</p>}
@@ -208,6 +209,7 @@ function ClientsInner() {
   const { toast } = useToast()
   const { isAdmin } = useUser()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [search,     setSearch]     = useState(() => searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
   const [showAll,    setShowAll]    = useState(false)
@@ -220,6 +222,15 @@ function ClientsInner() {
   const [dupError,   setDupError]   = useState<{ msg: string; existing: Client } | null>(null)
   const [archiveClient, setArchiveClient] = useState<ClientWithMeta | null>(null)
   const [archiving,     setArchiving]     = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return
+    setCreateOpen(true)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete("new")
+    const qs = next.toString()
+    router.replace(qs ? `/clients?${qs}` : "/clients", { scroll: false })
+  }, [searchParams, router])
 
   useEffect(() => { setPage(1) }, [debouncedSearch, showAll])
 
@@ -297,7 +308,7 @@ function ClientsInner() {
   }, [mutate, toast])
 
   return (
-    <PageShell>
+    <PageShell wide>
       <PageHeader
         title="Clients"
         description={`${data?.total ?? 0} client${data?.total !== 1 ? "s" : ""}${!showAll ? " (active)" : ""}`}
@@ -356,12 +367,12 @@ function ClientsInner() {
           <table className={cn("w-full min-w-[640px] text-sm")}>
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Company</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Contact</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Email</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Phone</th>
-                {isAdmin && <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Active jobs</th>}
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Added</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Company</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Contact</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Email</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Phone</th>
+                {isAdmin && <th className="px-4 py-2.5 text-right font-semibold text-t3">Active jobs</th>}
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Added</th>
                 {isAdmin && <th className="px-4 py-2.5 w-28" />}
               </tr>
             </thead>
@@ -381,23 +392,13 @@ function ClientsInner() {
         </DataPanel>
       )}
 
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 mt-3 border border-bd rounded-xl bg-sr shadow-card">
-          <p className="text-xs text-t3">
-            {((page - 1) * CLIENT_LIMIT) + 1}–{Math.min(page * CLIENT_LIMIT, data.total)} of{" "}
-            <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
-          </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <span className="text-xs text-t3 tabular-nums px-2">{page} / {totalPages}</span>
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        total={data?.total}
+        pageSize={CLIENT_LIMIT}
+      />
 
       {/* Create */}
       <Dialog open={createOpen} onOpenChange={o => { if (!o) setCreateOpen(false) }}>
@@ -444,7 +445,7 @@ function ClientsInner() {
               />
             )}
             {editClient && editContactsLoading && (
-              <p className="text-sm text-t3 py-6 text-center">Loading contacts…</p>
+              <ListSkeleton rows={3} className="space-y-2 py-2" />
             )}
           </DialogBody>
           <DialogFooter>
@@ -504,7 +505,7 @@ export default function ClientsPage() {
   return (
     <Suspense
       fallback={
-        <PageShell>
+        <PageShell wide>
           <div className="skeleton h-9 w-36 rounded mb-2" />
           <div className="skeleton h-4 w-48 rounded mb-8" />
           <DataPanel>

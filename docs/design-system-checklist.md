@@ -1,0 +1,114 @@
+# Oryx Design System Refinement Checklist
+
+Feature-complete refinement plan. Phases 1–4 prioritise consistency and shared primitives.
+Phase 5 productizes existing search, dashboard BI, activity, and CSV export — without greenfield platforms.
+
+Status: `P0` = foundation this PR · `P1` = next pass · `P2` = later · `Defer` = expansion (out of scope)
+
+---
+
+## Phase 0 — Audit findings (done)
+
+| # | Issue | Impact |
+|---|--------|--------|
+| 1 | Fractured radius (6/8/10/12/14/20px + inline overrides) | High |
+| 2 | Shadow policy unclear (`shadow-card: none` vs soft card/toast shadows) | High |
+| 3 | Search controls: pill vs square vs h-8/h-9/h-10 | High |
+| 4 | Ad-hoc blue/purple accents (calendar, map, KPI indigo) | High |
+| 5 | KpiTile vs dashboard StatCard border/accent mismatch | High |
+| 6 | Parallel empty states (EmptyPanel / jobs EmptyState / italic stubs) | Med |
+| 7 | Native `<select>` vs Radix Select heights | Med |
+| 8 | Client combobox stone hex borders | Med |
+| 9 | Dropdown item colours ignore dark mode | Med |
+| 10 | `global-error.tsx` wrong CSS var names | Med |
+| 11 | Orphan purple accent in bare `html.dark` | Med |
+| 12 | Chart-2 indigo leaks into KPI accents | Med |
+| 13 | PageShell wide vs constrained lottery | Low–Med |
+| 14 | Double chrome (top bar title + PageHeader) | Low (defer redesign) |
+| 15 | Custom modals vs Dialog z-index/blur | Low–Med |
+| 16 | Pagination copy/size differences | Low |
+| 17 | Label typography voice drift | Low |
+| 18 | Loading: skeleton vs plain text | Low |
+| 19 | Token docs still say “v3 Apple” | Docs |
+| 20 | Job detail abandons PageHeader | Low–Med |
+
+---
+
+## Phase 1 — Global tokens & primitives (`P0`)
+
+- [x] Align radius scale: control 8px · card 12px · modal 12px; remove inline 10/14/20 overrides
+- [x] Soften token docs to Stitch Engineering OS (not Apple v3 narrative)
+- [x] Replace chart-2 indigo with restrained slate; monochrome dark accent (no purple)
+- [x] Button / Input / Dialog / Dropdown / Toast use `var(--radius-*)`
+- [x] SearchField = standard control height (h-9) + surface-low
+- [x] KpiTile uses `border-bd` + design tokens (no `#E5E7EB` / indigo props)
+- [x] Dropdown item colours via CSS variables (dark-mode safe)
+- [x] Fix `global-error.tsx` token fallbacks
+- [x] Calendar category colours → design-system hues (no Tailwind blue/purple)
+- [x] Client combobox → token borders + h-9
+- [x] Jobs toolbar search → same SearchField language (not pill)
+- [x] Jobs empty state → shared `EmptyPanel`
+- [x] Map / import / client KPI accents → token colours
+- [x] Native filter selects → h-9 / rounded-lg to match controls
+- [x] PageStack helper (8px spacing rhythm)
+
+## Phase 2 — Layout & tables (`P1`)
+
+- [x] Standardise list pages on `PageShell` + `PageHeader` + `ToolbarCard` + `DataPanel`
+- [x] Shared `TablePagination` chrome (copy + icon size)
+- [x] Archive tabs → shared `TabBar`
+- [x] Align PageShell `wide` policy (lists wide, directories constrained)
+- [x] Detail pages: BackLink + title hierarchy closer to PageHeader (`PageBreadcrumb` + `oryx-page-title`)
+
+## Phase 3 — Forms & feedback (`P1`)
+
+- [x] Shared `Field` / `FieldError` / `FormAlert` wrapper
+- [x] Replace remaining custom overlays with Dialog where safe (ExportModal, HoldWarningDialog)
+- [x] Unify loading: list skeletons only (retire bare “Loading…” where practical)
+- [x] Login page → AuthLayout parity
+
+## Phase 4 — Colour & polish sweep (`P1`)
+
+- [x] Grep remaining hardcoded hex in UI components; migrate to tokens
+- [x] Icon size scale: 14 / 16 / 20 only
+- [x] 8px spacing audit on job detail / parent dashboard sections
+
+## Phase 5 — Expansion (productize existing APIs)
+
+- [x] Dashboard BI: wire quote conversion stats; Due Today / Ready to Send / win-rate KPIs
+- [x] Unified global search: calendar (+ employees when experimental is on)
+- [x] Global activity timeline: `GET /api/activity` + dashboard Recent Activity panel
+- [x] Shared CSV download helper (`buildCsv` / `downloadCsv`); jobs + job-map export
+- [x] Skip table column-resize (no shared table lib) and broad new automation platforms
+
+---
+
+## Typography hierarchy
+
+Single family: **Inter** (`app/fonts.ts`). Mono (`JetBrains Mono`) only via `.font-mono` for IDs / drawing numbers / money.
+
+Prefer `Typography.*` from `shared/design/typography.ts` (maps to `.type-*` in `app/globals.css`). Do not hardcode `text-[Npx]` or mix font families.
+
+| Role | Token | Size / weight |
+|------|--------|----------------|
+| Display | `Typography.Display` | 36px / 700 |
+| Page title | `Typography.PageTitle` / `.oryx-page-title` | 30px / 700 |
+| Section heading | `Typography.SectionHeading` | 24px / 600 |
+| Card title | `Typography.CardTitle` | 20px / 600 |
+| Large statistic | `Typography.Stat` | 32px / 700 |
+| Body large | `Typography.BodyLarge` | 16px / 500 |
+| Body | `Typography.Body` | 15px / 400 |
+| Small body | `Typography.Small` | 14px / 400 |
+| Table text | `Typography.Table` | 14px / 400 |
+| Table head | `Typography.TableHead` | 13px / 500 |
+| Input label | `Typography.Label` | 13px / 500 |
+| Helper / caption | `Typography.Helper` | 12px / 400 |
+| Status badge | `Typography.Badge` | 12px / 600 |
+| Sidebar nav | `Typography.Nav` | 14px / 500 |
+| Button | `Typography.Button` | 14px / 600 |
+
+Sentence case throughout. Avoid uppercase headings and excessive bold — use status badges for emphasis in tables.
+
+## Colour usage rule
+
+Use colour only for: primary actions, warnings, errors, success, information, status/category identity. Prefer charcoal / grey / teal (`ac` / `ac2`) over decorative indigo/purple/blue.

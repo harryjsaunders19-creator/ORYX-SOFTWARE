@@ -35,6 +35,9 @@ export interface JobDocumentRow {
 
 export interface JobDocumentListOptions {
   rootJobId: string
+  /** Extra root ids to include (e.g. legacy job id when viewing a parent). */
+  rootJobIds?: string[]
+  parentJobId?: string | null
   q?: string
   category?: JobDocumentCategory | string
   kind?: DocumentKindFilter

@@ -1,6 +1,7 @@
 import * as React from "react"
 import * as LabelPrimitive from "@radix-ui/react-label"
 import { cn } from "@/shared/utils"
+import { Typography } from "@/shared/design/typography"
 
 const Label = React.forwardRef<
   React.ElementRef<typeof LabelPrimitive.Root>,
@@ -8,8 +9,16 @@ const Label = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <LabelPrimitive.Root
     ref={ref}
-    className={cn("text-xs font-medium text-t2 select-none", className)}
-    style={{ fontSize: "12px", fontWeight: 500, color: "var(--color-t2)", userSelect: "none", display: "block", marginBottom: "0" }}
+    className={cn(Typography.Label, "text-t2 select-none", className)}
+    style={{
+      fontSize: "var(--type-label-size)",
+      fontWeight: "var(--type-label-weight)" as unknown as number,
+      lineHeight: "var(--type-label-leading)",
+      color: "var(--color-t2)",
+      userSelect: "none",
+      display: "block",
+      marginBottom: "0",
+    }}
     {...props}
   />
 ))

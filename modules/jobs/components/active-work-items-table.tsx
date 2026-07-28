@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Search, Plus, FolderOpen, ChevronLeft, ChevronRight, GitBranch,
+  Search, Plus, FolderOpen, GitBranch,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
@@ -23,7 +23,7 @@ import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
 import { JOB_STATUSES } from "@/lib/constants"
 import { cn, getJobDeadlineInfo } from "@/shared/utils/utils"
-import { ToolbarCard } from "@/shared/layouts/page-layout"
+import { ToolbarCard, DataPanel, TablePagination } from "@/shared/layouts/page-layout"
 import type { MixedWorkloadRow } from "@/modules/jobs/services/mixed-workload-service"
 import type { JobFormData } from "@/lib/types"
 
@@ -141,7 +141,8 @@ export function ActiveWorkItemsTable({
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-t4" />
             <Input
-              className="pl-9"
+              className="pl-9 bg-surface-low border border-bd shadow-none h-9 rounded-lg"
+              style={{ paddingLeft: "36px", height: "36px" }}
               placeholder="Search drawing, client, site…"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
@@ -176,7 +177,7 @@ export function ActiveWorkItemsTable({
 
       {matchingParents.length > 0 && (
         <div className="rounded-xl border border-bd bg-pg/40 px-4 py-3">
-          <p className="text-xs font-semibold text-t3 uppercase tracking-wider mb-2">Projects</p>
+          <p className="type-label text-t3 mb-2">Projects</p>
           <ul className="space-y-1.5">
             {matchingParents.map(p => (
               <li key={p.id}>
@@ -185,7 +186,7 @@ export function ActiveWorkItemsTable({
                   className="text-sm text-left w-full hover:text-ac transition-colors"
                   onClick={() => router.push(`/jobs/${p.id}`)}
                 >
-                  <span className="font-mono font-bold text-ac">{p.drawingNumber}</span>
+                  <span className="font-mono font-medium text-ac">{p.drawingNumber}</span>
                   <span className="text-t3"> · {p.clientCompany}</span>
                   {p.siteName ? <span className="text-t4"> · {p.siteName}</span> : null}
                 </button>
@@ -195,17 +196,17 @@ export function ActiveWorkItemsTable({
         </div>
       )}
 
-      <div className="rounded-xl border border-bd bg-sr overflow-hidden shadow-card">
+      <DataPanel>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-bd bg-pg">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase">Drawing / Ref</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase">Work</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase hidden sm:table-cell">Client</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase hidden md:table-cell">Site</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase">Status</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase hidden lg:table-cell">Designer</th>
+              <tr className="border-b border-bd bg-surface-low">
+                <th className="px-4 py-2.5 text-left type-label text-t3">Drawing / Ref</th>
+                <th className="px-4 py-2.5 text-left type-label text-t3">Work</th>
+                <th className="px-4 py-2.5 text-left type-label text-t3 hidden sm:table-cell">Client</th>
+                <th className="px-4 py-2.5 text-left type-label text-t3 hidden md:table-cell">Site</th>
+                <th className="px-4 py-2.5 text-left type-label text-t3">Status</th>
+                <th className="px-4 py-2.5 text-left type-label text-t3 hidden lg:table-cell">Designer</th>
               </tr>
             </thead>
             <tbody>
@@ -249,7 +250,7 @@ export function ActiveWorkItemsTable({
                     onClick={() => router.push(`/jobs/${row.parentJobId}`)}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs font-bold text-ac">{row.drawingNumber}</span>
+                      <span className="font-mono type-badge text-ac">{row.drawingNumber}</span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1.5 text-sm font-medium text-t1 flex-wrap">
@@ -260,7 +261,7 @@ export function ActiveWorkItemsTable({
                         {row.workLabel}
                       </span>
                       {dl.severity !== "none" && (
-                        <p className="text-[11px] text-t3 mt-0.5">{dl.label}</p>
+                        <p className="type-helper text-t3 mt-0.5">{dl.label}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell text-t2 truncate max-w-[160px]">
@@ -285,27 +286,21 @@ export function ActiveWorkItemsTable({
           </table>
         </div>
 
-        {pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-bd">
-            <p className="text-xs text-t3">{total} active · page {page} of {pages}</p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
+        <TablePagination
+          variant="inset"
+          page={page}
+          totalPages={pages}
+          onPageChange={setPage}
+          countLabel={`${total} active`}
+        />
+      </DataPanel>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>New job</DialogTitle>
             <DialogDescription>
-              Design jobs create a Parent Job + Original Issue. Site visits and surveys stay as standalone jobs.
+              Create a design, site visit, or CAT III check. Design jobs open as a parent job with an original issue.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>

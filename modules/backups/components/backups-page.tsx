@@ -256,7 +256,7 @@ function BackupsInner() {
   )
 
   return (
-    <PageShell>
+    <PageShell wide>
       <DataPanel className="mb-4 p-4 border border-bd bg-surface-low text-sm text-t1">
         <div className="flex items-start gap-3">
           <ShieldCheck className="h-5 w-5 text-ac shrink-0 mt-0.5" />
@@ -383,10 +383,10 @@ function BackupsInner() {
                 : "Never")
               : "Use JSON / Supabase"
           }
-          accent="#4640DE"
+          accent="var(--color-ac)"
         />
-        <KpiTile label="Size" value={formatBytes(latestCompleted?.sizeBytes ?? null)} accent="#0E7A6E" />
-        <KpiTile label="Rows backed up" value={totalRows?.toLocaleString() ?? "—"} accent="#B45309" />
+        <KpiTile label="Size" value={formatBytes(latestCompleted?.sizeBytes ?? null)} accent="var(--color-ac2)" />
+        <KpiTile label="Rows backed up" value={totalRows?.toLocaleString() ?? "—"} accent="var(--color-wn)" />
         <KpiTile
           label="Storage location"
           value={
@@ -394,14 +394,14 @@ function BackupsInner() {
               {localBackupSupported ? (backupsDir || "—") : "Supabase + downloads"}
             </span>
           }
-          accent="#71717A"
+          accent="var(--color-gy)"
         />
       </div>
 
       {importResult && (
         <DataPanel className="overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-bd flex items-center justify-between">
-            <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Import result</p>
+            <p className="type-label text-t3">Import result</p>
             <button type="button" onClick={() => setImportResult(null)} className="text-xs text-t4 hover:text-t2">
               Dismiss
             </button>
@@ -421,10 +421,10 @@ function BackupsInner() {
                   {hasErrors && (
                     <div className="mt-1 space-y-0.5">
                       {r.errors.slice(0, 5).map((e, i) => (
-                        <p key={i} className="text-[11px] font-mono text-dn-tx">{e}</p>
+                        <p key={i} className="type-helper font-mono text-dn-tx">{e}</p>
                       ))}
                       {r.errors.length > 5 && (
-                        <p className="text-[11px] text-t4">…and {r.errors.length - 5} more errors</p>
+                        <p className="type-helper text-t4">…and {r.errors.length - 5} more errors</p>
                       )}
                     </div>
                   )}
@@ -445,7 +445,7 @@ function BackupsInner() {
         </div>
       ) : backups.length === 0 ? (
         <div className={cn(surfaceCard, "p-10 text-center")}>
-          <DatabaseBackup className="h-8 w-8 text-t4 mx-auto mb-3" />
+          <DatabaseBackup className="h-5 w-5 text-t4 mx-auto mb-3" />
           <p className="text-sm font-medium text-t1 mb-1">
             {localBackupSupported ? "No local backups yet" : "No local backup history"}
           </p>
@@ -458,20 +458,20 @@ function BackupsInner() {
       ) : (
         <DataPanel className="overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-bd">
-            <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Backup history</p>
+            <p className="type-label text-t3">Backup history</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-pg border-b border-bd text-xs">
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider w-10" />
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Date & Time</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Trigger</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">By</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Size</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Duration</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Folder</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3 w-10" />
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Date & Time</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Status</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Trigger</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3">By</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-t3">Size</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-t3">Duration</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Folder</th>
                 </tr>
               </thead>
               <tbody>
@@ -483,7 +483,7 @@ function BackupsInner() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn(
-                        "text-[11px] font-medium",
+                        "type-badge",
                         b.status === "COMPLETED" ? "text-ok-tx" :
                         b.status === "FAILED"    ? "text-dn-tx" :
                         b.status === "RUNNING"   ? "text-ac" :
@@ -491,7 +491,7 @@ function BackupsInner() {
                       )}>
                         {statusLabel(b.status)}
                       </span>
-                      {b.fileDeletedAt && <span className="text-[10px] text-t4 ml-1">(pruned)</span>}
+                      {b.fileDeletedAt && <span className="type-helper text-t4 ml-1">(pruned)</span>}
                     </td>
                     <td className="px-4 py-3 text-xs text-t3">{triggerLabel(b.trigger)}</td>
                     <td className="px-4 py-3 text-xs text-t2">{b.triggeredByName}</td>
@@ -509,7 +509,7 @@ function BackupsInner() {
       {backups.filter(b => b.status === "FAILED").length > 0 && (
         <DataPanel className="overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-bd">
-            <p className="text-xs font-semibold text-dn-tx uppercase tracking-wider">Failed backups</p>
+            <p className="text-xs font-semibold text-dn-tx ">Failed backups</p>
           </div>
           <div className="divide-y divide-bd">
             {backups.filter(b => b.status === "FAILED").map(b => (
@@ -525,7 +525,7 @@ function BackupsInner() {
       {auditLog.length > 0 && (
         <DataPanel className="overflow-hidden">
           <div className="px-4 py-3 border-b border-bd">
-            <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Audit log</p>
+            <p className="type-label text-t3">Audit log</p>
           </div>
           <div className="max-h-[250px] overflow-y-auto thin-scroll divide-y divide-bd">
             {auditLog.map(e => (

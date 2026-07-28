@@ -25,6 +25,11 @@ import {
   weekEndIsoDate,
   type SupabaseJobRow,
 } from "./mapper"
+import {
+  displayDeadlineByOriginal,
+  overdueOriginalIds,
+  tallyDeadlineStats,
+} from "../services/deadline-tallies"
 
 /** Above this count, drawing-number list sort loads all matching IDs into memory. */
 const DRAWING_SORT_WARN_ROWS = 8_000
@@ -33,20 +38,52 @@ const REVISION_PARENT_IN_CHUNK = 100
 import { parseOryxDrawingSequence } from "@/lib/drawing-number"
 
 /** Perf: dashboard overdue list only needs id / drawing / address / deadline. */
-const JOB_OVERDUE_PREVIEW_SELECT = "id,drawing_number,address,required_by_date,status,client_company,client_id"
+const JOB_OVERDUE_PREVIEW_SELECT =
+  "id,drawing_number,address,required_by_date,status,client_company,client_id,parent_job_id,revision_letter,updated_at"
+const JOB_DEADLINE_TALLY_SELECT =
+  "id,parent_job_id,revision_letter,status,required_by_date"
 
 /**
  * Perf: list/detail payloads don't need geocode/notes blobs — select only columns
  * the jobs table + revision flags need. Same JobRow shape via toJobRow (nulls for omitted).
  */
-const JOB_LIST_SELECT = [
+const JOB_LIST_SELECT_COLUMNS = [
   "id", "drawing_number", "item_type", "address", "type_of_works", "custom_type_description",
   "legacy_type_of_works", "client_company", "client_id", "requested_by", "status", "designer",
+  "design_standards",
   "date_created", "date_completed", "quote_value", "quote_reference", "quote_date",
   "variation_fees", "additional_charges", "invoice_id", "billing_status", "billing_batch_id",
   "requested_date", "required_by_date", "parent_job_id", "revision_letter", "billable",
   "tags", "archived_at", "archived_by", "created_at", "updated_at",
-].join(",")
+]
+
+/** Omitted after PostgREST "column not found" — remote schema may lag migrations. */
+const jobListSelectOmitted = new Set<string>()
+
+function buildJobListSelect(): string {
+  return JOB_LIST_SELECT_COLUMNS.filter(c => !jobListSelectOmitted.has(c)).join(",")
+}
+
+function noteJobListSelectMissingColumn(error: { code?: string; message?: string } | null): boolean {
+  const missing = missingColumnFromError(error)
+  if (!missing || !JOB_LIST_SELECT_COLUMNS.includes(missing)) return false
+  jobListSelectOmitted.add(missing)
+  return true
+}
+
+type JobListQueryResult<T> = { data: T | null; error: { code?: string; message?: string } | null; count?: number | null }
+
+/** List reads retry without columns missing on Supabase (same idea as upsertJobRow). */
+async function runJobListSelectQuery<T>(
+  build: (select: string) => PromiseLike<JobListQueryResult<T>>,
+): Promise<JobListQueryResult<T>> {
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const result = await build(buildJobListSelect())
+    if (!result.error) return result
+    if (!noteJobListSelectMissingColumn(result.error)) return result
+  }
+  throw new Error("Job list query failed: too many missing-column retries")
+}
 
 /** Perf: analytics only needs status/type/money/dates — avoid transferring full job rows. */
 const JOB_ANALYTICS_SELECT = "status,item_type,quote_value,date_created,date_completed"
@@ -76,6 +113,7 @@ function missingColumnFromError(error: { code?: string; message?: string } | nul
     "site_name", "site_address", "location_status", "location_source",
     "latitude", "longitude", "geocoded_at", "geocoded_address",
     "variation_fees", "additional_charges",
+    "design_standards",
     "list_sort_key",
     "tags",
   ]) {
@@ -315,7 +353,9 @@ async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
     return { jobs: [], total: count ?? 0, allForRevisions: [] }
   }
 
-  const { data: pageData, error: pageErr } = await table().select(JOB_LIST_SELECT).in("id", pageIds)
+  const { data: pageData, error: pageErr } = await runJobListSelectQuery(async select =>
+    await table().select(select).in("id", pageIds),
+  )
   if (pageErr) throw pageErr
 
   const byId = new Map(
@@ -335,15 +375,17 @@ async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
 }> {
   const dir = opts.orderBy?.dir ?? "asc"
   const asc = dir === "asc"
-  let q = applyWhere(table().select(JOB_LIST_SELECT, { count: "exact" }), opts.where)
-    .order("list_sort_key", { ascending: asc })
-    .order("created_at", { ascending: asc })
-  if (opts.skip != null && opts.take != null) {
-    q = q.range(opts.skip, opts.skip + opts.take - 1)
-  } else if (opts.take != null) {
-    q = q.limit(opts.take)
-  }
-  const { data, count, error } = await q
+  const { data, count, error } = await runJobListSelectQuery(async select => {
+    let q = applyWhere(table().select(select, { count: "exact" }), opts.where)
+      .order("list_sort_key", { ascending: asc })
+      .order("created_at", { ascending: asc })
+    if (opts.skip != null && opts.take != null) {
+      q = q.range(opts.skip, opts.skip + opts.take - 1)
+    } else if (opts.take != null) {
+      q = q.limit(opts.take)
+    }
+    return await q
+  })
   if (error) {
     if (isMissingColumnError(error, "list_sort_key")) {
       return findManyDrawingSortInMemory(opts)
@@ -383,13 +425,15 @@ export const supabaseJobRepo = {
 
     const col = sortColumn(field)
     const asc = dir === "asc"
-    let q = applyWhere(table().select(JOB_LIST_SELECT, { count: "exact" }), opts.where).order(col, { ascending: asc })
-    if (opts.skip != null && opts.take != null) {
-      q = q.range(opts.skip, opts.skip + opts.take - 1)
-    } else if (opts.take != null) {
-      q = q.limit(opts.take)
-    }
-    const { data, count, error } = await q
+    const { data, count, error } = await runJobListSelectQuery(async select => {
+      let q = applyWhere(table().select(select, { count: "exact" }), opts.where).order(col, { ascending: asc })
+      if (opts.skip != null && opts.take != null) {
+        q = q.range(opts.skip, opts.skip + opts.take - 1)
+      } else if (opts.take != null) {
+        q = q.limit(opts.take)
+      }
+      return await q
+    })
     if (error) throw error
     const jobs = ((data ?? []) as SupabaseJobRow[]).map(toJobRow)
     const allForRevisions = await fetchRevisionRowsForParents(collectRevisionParentIds(jobs))
@@ -685,10 +729,9 @@ export const supabaseJobRepo = {
   },
 
   /**
-   * Dashboard aggregates via job_dashboard_counts RPC when available.
-   * Falls back to a paginated slim scan (1000/page) with the same tally
-   * semantics: archived filter, VALID_STATUSES/VALID_ITEM_TYPES, and
-   * status !== ISSUED for deadline buckets.
+   * Dashboard aggregates via job_dashboard_counts RPC when available for status /
+   * type / unassigned tallies. Deadline buckets always use current-revision
+   * semantics (originals only) so they match /jobs?deadline=overdue.
    */
   async dashboardCounts(): Promise<{
     byStatus:         { status: string; count: number }[]
@@ -700,40 +743,9 @@ export const supabaseJobRepo = {
     dueTodayCount:    number
     dueThisWeekCount: number
   }> {
-    try {
-      const { data, error } = await createAdminClient().rpc("job_dashboard_counts")
-      if (!error && data && typeof data === "object") {
-        const d = data as Record<string, unknown>
-        const statusMap = new Map<string, number>()
-        for (const row of (Array.isArray(d.byStatus) ? d.byStatus : []) as { status?: string; count?: number }[]) {
-          if (row.status) statusMap.set(row.status, Number(row.count) || 0)
-        }
-        const typeMap = new Map<string, number>()
-        for (const row of (Array.isArray(d.byItemType) ? d.byItemType : []) as { itemType?: string; count?: number }[]) {
-          if (row.itemType) typeMap.set(row.itemType, Number(row.count) || 0)
-        }
-        return {
-          byStatus: VALID_STATUSES
-            .map(status => ({ status, count: statusMap.get(status) ?? 0 }))
-            .filter(r => r.count > 0),
-          byItemType: VALID_ITEM_TYPES
-            .map(itemType => ({ itemType, count: typeMap.get(itemType) ?? 0 }))
-            .filter(r => r.count > 0),
-          unassigned:       Number(d.unassigned) || 0,
-          totalActiveJobs:  Number(d.totalActiveJobs) || 0,
-          totalRevisions:   Number(d.totalRevisions) || 0,
-          overdueCount:     Number(d.overdueCount) || 0,
-          dueTodayCount:    Number(d.dueTodayCount) || 0,
-          dueThisWeekCount: Number(d.dueThisWeekCount) || 0,
-        }
-      }
-    } catch {
-      // Fall through to paginated scan.
-    }
-
-    const cols = "status,item_type,designer,parent_job_id,required_by_date"
     const pageSize = 1000
     let useArchived = jobsArchivedFilterEnabled()
+    const cols = `${JOB_DEADLINE_TALLY_SELECT},item_type,designer`
     const fetchPage = (from: number, archived: boolean) => {
       let q = table().select(cols).range(from, from + pageSize - 1)
       if (archived) q = q.is("archived_at", null)
@@ -754,16 +766,18 @@ export const supabaseJobRepo = {
       rows.push(...(data ?? []))
     }
 
-    const today = todayIsoDate()
-    const weekEnd = weekEndIsoDate()
     const statusCounts = new Map<string, number>()
     const typeCounts = new Map<string, number>()
     let unassigned = 0
     let totalActiveJobs = 0
     let totalRevisions = 0
-    let overdueCount = 0
-    let dueTodayCount = 0
-    let dueThisWeekCount = 0
+    const tallyRows = [] as {
+      id: string
+      parentJobId: string | null
+      revisionLetter: string | null
+      status: string
+      requiredByDate: string | null
+    }[]
 
     for (const row of rows) {
       const status = row.status as string
@@ -777,14 +791,16 @@ export const supabaseJobRepo = {
       if (row.parent_job_id == null) totalActiveJobs += 1
       else totalRevisions += 1
 
-      const rbdRaw = row.required_by_date as string | null
-      if (rbdRaw && status !== "ISSUED") {
-        const day = rbdRaw.length >= 10 ? rbdRaw.slice(0, 10) : rbdRaw
-        if (day < today) overdueCount += 1
-        if (day === today) dueTodayCount += 1
-        if (day >= today && day <= weekEnd) dueThisWeekCount += 1
-      }
+      tallyRows.push({
+        id: row.id as string,
+        parentJobId: (row.parent_job_id as string | null) ?? null,
+        revisionLetter: (row.revision_letter as string | null) ?? null,
+        status,
+        requiredByDate: (row.required_by_date as string | null) ?? null,
+      })
     }
+
+    const deadlines = tallyDeadlineStats(tallyRows, todayIsoDate())
 
     return {
       byStatus: VALID_STATUSES
@@ -796,9 +812,7 @@ export const supabaseJobRepo = {
       unassigned,
       totalActiveJobs,
       totalRevisions,
-      overdueCount,
-      dueTodayCount,
-      dueThisWeekCount,
+      ...deadlines,
     }
   },
 
@@ -824,14 +838,63 @@ export const supabaseJobRepo = {
     return ((data ?? []) as SupabaseJobRow[]).map(toJobRow)
   },
 
-  /** Dashboard overdue strip — slim columns, capped. Originals only (one card per drawing). */
+  /**
+   * Dashboard overdue strip — originals whose *current revision* is overdue
+   * (same rule as /jobs?deadline=overdue), capped.
+   */
   async findOverduePreview(take = 5): Promise<JobRow[]> {
-    const q = applyWhere(table().select(JOB_OVERDUE_PREVIEW_SELECT), { overdue: true, onlyOriginals: true })
-      .order("required_by_date", { ascending: true })
-      .limit(take)
-    const { data, error } = await q
+    const pageSize = 1000
+    let useArchived = jobsArchivedFilterEnabled()
+    const fetchPage = (from: number, archived: boolean) => {
+      let q = table().select(JOB_OVERDUE_PREVIEW_SELECT).range(from, from + pageSize - 1)
+      if (archived) q = q.is("archived_at", null)
+      return q
+    }
+
+    let { data, error } = await fetchPage(0, useArchived)
+    if (error && noteJobsArchivedFromError(error)) {
+      useArchived = false
+      ;({ data, error } = await fetchPage(0, false))
+    }
     if (error) throw error
-    return ((data ?? []) as SupabaseJobRow[]).map(toJobRow)
+
+    const rows = [...((data ?? []) as SupabaseJobRow[])]
+    while ((data?.length ?? 0) === pageSize) {
+      ;({ data, error } = await fetchPage(rows.length, useArchived))
+      if (error) throw error
+      rows.push(...((data ?? []) as SupabaseJobRow[]))
+    }
+
+    const tallyRows = rows.map(r => ({
+      id: r.id,
+      parentJobId: r.parent_job_id,
+      revisionLetter: r.revision_letter,
+      status: r.status,
+      requiredByDate: r.required_by_date,
+    }))
+    const display = displayDeadlineByOriginal(tallyRows)
+    const overdueIds = overdueOriginalIds(tallyRows, todayIsoDate())
+    const byId = new Map(rows.map(r => [r.id, r]))
+
+    return overdueIds
+      .map(id => byId.get(id))
+      .filter((r): r is SupabaseJobRow => !!r)
+      .sort((a, b) => {
+        const da = display.get(a.id)?.requiredByDate ?? ""
+        const db = display.get(b.id)?.requiredByDate ?? ""
+        return da.localeCompare(db)
+      })
+      .slice(0, take)
+      .map(row => {
+        const overlay = display.get(row.id)
+        const mapped = toJobRow(row)
+        if (!overlay) return mapped
+        return {
+          ...mapped,
+          status: overlay.status,
+          requiredByDate: overlay.requiredByDate,
+        }
+      })
   },
 
   async sumQuoteValue(where: WhereClause = {}): Promise<number> {

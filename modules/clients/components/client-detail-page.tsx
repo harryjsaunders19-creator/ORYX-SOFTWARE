@@ -36,7 +36,7 @@ interface ClientAnalytics {
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
-  return <KpiTile label={label} value={value} accent="#4640DE" />
+  return <KpiTile label={label} value={value} accent="var(--color-ac)" />
 }
 
 export default function ClientDetailPage() {
@@ -137,12 +137,12 @@ export default function ClientDetailPage() {
                   </span>
                   {contact.email && (
                     <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-ac hover:text-ach">
-                      <Mail className="h-3 w-3" />{contact.email}
+                      <Mail className="h-3.5 w-3.5" />{contact.email}
                     </a>
                   )}
                   {contact.phone && (
                     <span className="flex items-center gap-1">
-                      <Phone className="h-3 w-3" />{contact.phone}
+                      <Phone className="h-3.5 w-3.5" />{contact.phone}
                     </span>
                   )}
                 </span>
@@ -152,15 +152,15 @@ export default function ClientDetailPage() {
                 {client.contactName && <span>{client.contactName}</span>}
                 {client.email && (
                   <a href={`mailto:${client.email}`} className="flex items-center gap-1 text-ac hover:text-ach">
-                    <Mail className="h-3 w-3" />{client.email}
+                    <Mail className="h-3.5 w-3.5" />{client.email}
                   </a>
                 )}
-                {client.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{client.phone}</span>}
+                {client.phone && <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{client.phone}</span>}
               </>
             )}
             {client.billingAddress && (
               <span className="flex items-center gap-1 w-full sm:w-auto">
-                <MapPin className="h-3 w-3" />{client.billingAddress}
+                <MapPin className="h-3.5 w-3.5" />{client.billingAddress}
               </span>
             )}
           </span>
@@ -168,7 +168,7 @@ export default function ClientDetailPage() {
         actions={
           <>
             {!client.active && (
-              <span className="text-[11px] bg-t1/[0.06] text-t3 rounded-full px-2.5 py-0.5">Archived</span>
+              <span className="type-helper bg-t1/[0.06] text-t3 rounded-full px-2.5 py-0.5">Archived</span>
             )}
             <Button variant="outline" size="sm" onClick={() => router.push(`/clients`)}>
               All clients
@@ -185,23 +185,23 @@ export default function ClientDetailPage() {
             <div className="flex items-center gap-2.5">
               <AlertTriangle className="h-5 w-5 text-white shrink-0" />
               <div>
-                <p className="font-bold text-white text-sm">CLIENT ON HOLD</p>
+                <p className="type-small font-semibold text-white">Client on hold</p>
                 <p className="text-white/85 text-xs">Added {hold.addedAt ? format(new Date(hold.addedAt), "d MMM yyyy") : ""} by {hold.addedBy}</p>
               </div>
             </div>
             <Button variant="secondary" size="sm" onClick={() => setRemoveOpen(true)}
-              style={{ backgroundColor: "rgba(255,255,255,0.15)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.3)" }}>
+              className="!bg-white/15 !text-white !border-white/30">
               Remove hold
             </Button>
           </div>
           <div className="bg-dn-bg px-4 py-3 border-t border-dn-bd space-y-1">
             <div className="flex gap-2">
-              <span className="text-xs font-semibold text-dn uppercase tracking-wider w-16 shrink-0">Reason</span>
+              <span className="text-xs font-semibold text-dn w-16 shrink-0">Reason</span>
               <span className="text-sm text-dn-tx font-medium">{hold.reason}</span>
             </div>
             {hold.notes && (
               <div className="flex gap-2">
-                <span className="text-xs font-semibold text-dn uppercase tracking-wider w-16 shrink-0">Notes</span>
+                <span className="text-xs font-semibold text-dn w-16 shrink-0">Notes</span>
                 <span className="text-sm text-dn-tx">{hold.notes}</span>
               </div>
             )}
@@ -222,11 +222,11 @@ export default function ClientDetailPage() {
       {/* Stats — admin only (job counts and financial aggregates) */}
       {isAdmin && stats && (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
-          <StatCard label="Total jobs"     value={stats.totalJobs}    />
-          <StatCard label="Active"         value={stats.activeJobs}   />
-          <StatCard label="Issued"         value={stats.issuedJobs}   />
-          <StatCard label="Revisions"      value={stats.totalRevisions} />
-          <StatCard label="Total quoted"   value={formatGBP(stats.totalQuotedValue)} />
+          <StatCard label="Total jobs" value={stats.totalJobs}    />
+          <StatCard label="Active" value={stats.activeJobs}   />
+          <StatCard label="Issued" value={stats.issuedJobs}   />
+          <StatCard label="Revisions" value={stats.totalRevisions} />
+          <StatCard label="Total quoted" value={formatGBP(stats.totalQuotedValue)} />
           <StatCard label="Total invoiced" value={formatGBP(stats.totalInvoicedValue)} />
         </div>
       )}
@@ -236,32 +236,32 @@ export default function ClientDetailPage() {
         <div className="mb-5 space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 className="h-4 w-4 text-ac" />
-            <h2 className="text-xs font-semibold text-t3 uppercase tracking-wider">Client Analytics</h2>
+            <h2 className="type-label text-t3">Client Analytics</h2>
           </div>
 
           {/* Key metrics row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className={surfaceCard + " p-3"}>
-              <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">Completion Rate</p>
-              <p className="text-2xl font-semibold tabular-nums text-t1">{analytics.completionRate}%</p>
-              <p className="text-[11px] text-t4 mt-0.5">{analytics.completed} of {analytics.totalJobs} jobs</p>
+              <p className="type-label text-t3 mb-1">Completion Rate</p>
+              <p className="type-stat text-t1">{analytics.completionRate}%</p>
+              <p className="type-helper text-t4 mt-0.5">{analytics.completed} of {analytics.totalJobs} jobs</p>
             </div>
             <div className={surfaceCard + " p-3"}>
-              <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">In Progress</p>
-              <p className="text-2xl font-semibold tabular-nums text-yl">{analytics.inProgress}</p>
-              <p className="text-[11px] text-t4 mt-0.5">{analytics.checking} awaiting check</p>
+              <p className="type-label text-t3 mb-1">In Progress</p>
+              <p className="type-stat text-yl">{analytics.inProgress}</p>
+              <p className="type-helper text-t4 mt-0.5">{analytics.checking} awaiting check</p>
             </div>
             <div className={surfaceCard + " p-3"}>
-              <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">Avg. Completion</p>
-              <p className="text-2xl font-semibold tabular-nums text-t1">
+              <p className="type-label text-t3 mb-1">Avg. Completion</p>
+              <p className="type-stat text-t1">
                 {analytics.avgCompletionDays != null ? `${analytics.avgCompletionDays}d` : "—"}
               </p>
-              <p className="text-[11px] text-t4 mt-0.5">calendar days</p>
+              <p className="type-helper text-t4 mt-0.5">calendar days</p>
             </div>
             <div className={surfaceCard + " p-3"}>
-              <p className="text-[11px] font-medium text-t3 uppercase tracking-wider mb-1">Completed Value</p>
-              <p className="text-2xl font-semibold tabular-nums text-ok-ic">{formatGBP(analytics.completedQuoted)}</p>
-              <p className="text-[11px] text-t4 mt-0.5">of {formatGBP(analytics.totalQuoted)} quoted</p>
+              <p className="type-label text-t3 mb-1">Completed Value</p>
+              <p className="type-stat text-ok-ic">{formatGBP(analytics.completedQuoted)}</p>
+              <p className="type-helper text-t4 mt-0.5">of {formatGBP(analytics.totalQuoted)} quoted</p>
             </div>
           </div>
 
@@ -325,16 +325,16 @@ export default function ClientDetailPage() {
                         <div className="w-[45%] rounded-t" style={{ height: `${Math.max(createdH, 1)}px`, backgroundColor: m.created > 0 ? "var(--color-ac)" : "var(--color-bd)" }} />
                         <div className="w-[45%] rounded-t" style={{ height: `${Math.max(completedH, 1)}px`, backgroundColor: m.completed > 0 ? "var(--color-ok-ic)" : "var(--color-bd)" }} />
                       </div>
-                      <span className="text-[9px] text-t4 whitespace-nowrap">{m.month}</span>
+                      <span className="type-helper text-t4 whitespace-nowrap">{m.month}</span>
                     </div>
                   )
                 })}
               </div>
               <div className="flex items-center gap-4 mt-2 justify-center">
-                <span className="flex items-center gap-1.5 text-[10px] text-t3">
+                <span className="flex items-center gap-1.5 type-helper text-t3">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-ac)" }} /> Created
                 </span>
-                <span className="flex items-center gap-1.5 text-[10px] text-t3">
+                <span className="flex items-center gap-1.5 type-helper text-t3">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--color-ok-ic)" }} /> Completed
                 </span>
               </div>
@@ -354,7 +354,7 @@ export default function ClientDetailPage() {
       {/* Design jobs (one card per drawing — revisions live under parent) */}
       {designJobs.length > 0 && (
         <section className="mb-5">
-          <h2 className="text-xs font-semibold text-t3 uppercase tracking-wider mb-2">
+          <h2 className="type-label text-t3 mb-2">
             Designs ({designJobs.length})
             {revisionCount > 0 && (
               <span className="ml-2 font-normal normal-case text-t4">· {revisionCount} revision{revisionCount === 1 ? "" : "s"} in history</span>
@@ -367,7 +367,7 @@ export default function ClientDetailPage() {
       {/* Site visits / surveys / inspections */}
       {nonDesignJobs.length > 0 && (
         <section className="mb-5">
-          <h2 className="text-xs font-semibold text-t3 uppercase tracking-wider mb-2">Site visits & other ({nonDesignJobs.length})</h2>
+          <h2 className="type-label text-t3 mb-2">Site visits & other ({nonDesignJobs.length})</h2>
           <JobsTable jobs={nonDesignJobs} />
         </section>
       )}
@@ -432,10 +432,10 @@ function JobsTable({ jobs }: { jobs: Job[] }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-pg border-b border-bd text-xs">
-            <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Drawing No.</th>
-            <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Address</th>
-            <th className="px-3 py-2 text-left font-semibold text-t3 uppercase tracking-wider">Completion Status</th>
-            <th className="px-3 py-2 text-right font-semibold text-t3 uppercase tracking-wider">Quote</th>
+            <th className="px-3 py-2 text-left font-semibold text-t3">Drawing No.</th>
+            <th className="px-3 py-2 text-left font-semibold text-t3">Address</th>
+            <th className="px-3 py-2 text-left font-semibold text-t3">Completion Status</th>
+            <th className="px-3 py-2 text-right font-semibold text-t3">Quote</th>
           </tr>
         </thead>
         <tbody>
@@ -444,7 +444,7 @@ function JobsTable({ jobs }: { jobs: Job[] }) {
               <td className="px-3 py-2.5 whitespace-nowrap">
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
                   <RevisionFamilyBadge job={j} size="xs" />
-                  <Link href={`/jobs/${j.id}`} className="font-mono text-[11px] font-semibold text-ac hover:underline">
+                  <Link href={`/jobs/${j.id}`} className="font-mono type-badge text-ac hover:underline">
                     {j.drawingNumber}
                   </Link>
                   {j.itemType && j.itemType !== "DESIGN" && j.itemType !== "REVISION" && (

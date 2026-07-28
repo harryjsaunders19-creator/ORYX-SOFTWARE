@@ -27,7 +27,7 @@ function looksLikeId(segment: string): boolean {
 }
 
 function routeContext(pathname: string): { section: string; trail: string } {
-  if (pathname === "/") return { section: "ORYX OS", trail: "Dashboard Overview" }
+  if (pathname === "/") return { section: "Oryx OS", trail: "Dashboard" }
 
   const mod = MODULES.find(m => {
     if (m.href === "/") return false
@@ -36,7 +36,7 @@ function routeContext(pathname: string): { section: string; trail: string } {
 
   if (mod) {
     const rest = pathname.slice(mod.href.length).replace(/^\//, "")
-    if (!rest) return { section: "ORYX OS", trail: mod.label }
+    if (!rest) return { section: "Oryx OS", trail: mod.label }
 
     const parts = rest.split("/").filter(Boolean)
     const readable = parts
@@ -45,13 +45,13 @@ function routeContext(pathname: string): { section: string; trail: string } {
 
     if (!readable.length) {
       const singular = mod.label.endsWith("s") ? mod.label.slice(0, -1) : mod.label
-      return { section: "ORYX OS", trail: `${singular} detail` }
+      return { section: "Oryx OS", trail: `${singular} detail` }
     }
 
-    return { section: "ORYX OS", trail: `${mod.label} / ${readable.join(" / ")}` }
+    return { section: "Oryx OS", trail: `${mod.label} / ${readable.join(" / ")}` }
   }
 
-  return { section: "ORYX OS", trail: "Oryx Design" }
+  return { section: "Oryx OS", trail: "Oryx Design" }
 }
 
 type Props = {
@@ -93,7 +93,7 @@ export function StitchTopBar({ onMenuClick }: Props) {
               <Menu className="h-5 w-5" />
             </button>
           )}
-          <h2 className="stitch-top-bar-title hidden shrink-0 uppercase sm:block">
+          <h2 className="stitch-top-bar-title hidden shrink-0 sm:block">
             {section}
           </h2>
           <div className="hidden h-6 w-px shrink-0 bg-bd sm:block" />
@@ -108,8 +108,8 @@ export function StitchTopBar({ onMenuClick }: Props) {
             aria-label="Open global search"
           >
             <Search className="h-4 w-4 shrink-0 text-t4" />
-            <span className="w-36 truncate text-sm text-t4">Search everything…</span>
-            <kbd className="rounded border border-bd bg-sr px-1.5 py-0.5 text-[10px] font-medium text-t4">
+            <span className="w-44 truncate text-sm text-t4">Search jobs, clients and documents…</span>
+            <kbd className="rounded border border-bd bg-sr px-1.5 py-0.5 type-badge text-t4">
               Ctrl K
             </kbd>
           </button>

@@ -1,11 +1,16 @@
 /** Job table access. */
 import { db } from "../connection"
 import { nowIso, buildWhere, safeOrder, type WhereClause, type FindManyOptions } from "../helpers"
-import { totalJobCommercialValue } from "@/lib/utils"
+import { totalJobCommercialValue, todayIsoDate } from "@/lib/utils"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { billingHandoffDb } from "./billing-handoff"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { parseJobTags, serializeJobTags } from "@/lib/constants"
+import {
+  displayDeadlineByOriginal,
+  overdueOriginalIds,
+  tallyDeadlineStats,
+} from "@/modules/jobs/services/deadline-tallies"
 
 export type { JobRow, CreateJobData, UpdateJobData } from "../job-types"
 import type { JobRow, CreateJobData, UpdateJobData } from "../job-types"
@@ -104,16 +109,16 @@ export const jobDb = {
     db.transaction(() => {
       db.prepare(`
         INSERT INTO Job (id,drawingNumber,itemType,address,siteName,siteAddress,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
-          status,designer,dateCompleted,notes,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
+          status,designer,dateCompleted,notes,designStandards,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
           variationFees,additionalCharges,
           parentJobId,revisionLetter,billable,requestedDate,requiredByDate,dateCreated,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `).run(data.id, data.drawingNumber, data.itemType ?? "DESIGN", data.address,
              data.siteName ?? null, data.siteAddress ?? null,
              data.typeOfWorks,
              data.customTypeDescription ?? null,
              data.clientCompany, data.clientId ?? null, data.requestedBy, data.status, data.designer ?? "",
-             data.dateCompleted ?? null, data.notes ?? null, tagsJson,
+             data.dateCompleted ?? null, data.notes ?? null, data.designStandards ?? null, tagsJson,
              data.quoteValue ?? null, data.quoteReference ?? null,
              data.quoteDate ?? null, data.commercialNotes ?? null,
              data.variationFees ?? null, data.additionalCharges ?? null,
@@ -151,7 +156,7 @@ export const jobDb = {
     }
     const allowedColumns = new Set([
       "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
-      "requestedBy", "status", "designer", "dateCompleted", "notes", "tags", "quoteValue",
+      "requestedBy", "status", "designer", "dateCompleted", "notes", "designStandards", "tags", "quoteValue",
       "quoteReference", "quoteDate", "commercialNotes", "variationFees", "additionalCharges",
       "requestedDate", "requiredByDate", "billable",
     ])
@@ -306,14 +311,14 @@ export const jobDb = {
     db.prepare(`
       INSERT OR IGNORE INTO Job
         (id,drawingNumber,itemType,address,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
-         status,designer,dateCompleted,notes,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
+         status,designer,dateCompleted,notes,designStandards,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
          variationFees,additionalCharges,parentJobId,revisionLetter,requestedDate,requiredByDate,
          dateCreated,createdAt,updatedAt)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       job.id, job.drawingNumber, job.itemType, job.address, job.typeOfWorks,
       job.customTypeDescription ?? null, job.clientCompany, job.clientId ?? null, job.requestedBy,
-      job.status, job.designer ?? "", job.dateCompleted ?? null, job.notes ?? null,
+      job.status, job.designer ?? "", job.dateCompleted ?? null, job.notes ?? null, job.designStandards ?? null,
       serializeJobTags(job.tags),
       job.quoteValue ?? null, job.quoteReference ?? null, job.quoteDate ?? null,
       job.commercialNotes ?? null, job.variationFees ?? null, job.additionalCharges ?? null,
@@ -328,17 +333,44 @@ export const jobDb = {
   },
 
   deadlineStats(): { overdueCount: number; dueTodayCount: number; dueThisWeekCount: number } {
-    const overdueCount    = (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'").get() as { n: number }).n
-    const dueTodayCount   = (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate = date('now') AND status != 'ISSUED'").get() as { n: number }).n
-    const dueThisWeekCount= (db.prepare("SELECT COUNT(*) as n FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate >= date('now') AND requiredByDate <= date('now','+7 days') AND status != 'ISSUED'").get() as { n: number }).n
-    return { overdueCount, dueTodayCount, dueThisWeekCount }
+    const rows = db.prepare(
+      "SELECT id, parentJobId, revisionLetter, status, requiredByDate FROM Job WHERE archivedAt IS NULL",
+    ).all() as {
+      id: string
+      parentJobId: string | null
+      revisionLetter: string | null
+      status: string
+      requiredByDate: string | null
+    }[]
+    return tallyDeadlineStats(rows, todayIsoDate())
   },
 
-  /** Overdue jobs for dashboard alert — all non-issued, non-archived jobs past their deadline */
+  /** Overdue originals for dashboard alert — current-revision deadline semantics. */
   overdueJobs(): JobRow[] {
-    return normalizeJobRows(db.prepare(
-      "SELECT * FROM Job WHERE archivedAt IS NULL AND requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED' ORDER BY requiredByDate ASC LIMIT 20"
-    ).all() as JobRow[])
+    const slim = db.prepare(
+      "SELECT id, parentJobId, revisionLetter, status, requiredByDate FROM Job WHERE archivedAt IS NULL",
+    ).all() as {
+      id: string
+      parentJobId: string | null
+      revisionLetter: string | null
+      status: string
+      requiredByDate: string | null
+    }[]
+    const ids = overdueOriginalIds(slim, todayIsoDate())
+    if (ids.length === 0) return []
+    const display = displayDeadlineByOriginal(slim)
+    const placeholders = ids.map(() => "?").join(",")
+    const jobs = normalizeJobRows(db.prepare(
+      `SELECT * FROM Job WHERE id IN (${placeholders})`,
+    ).all(...ids) as JobRow[])
+    return jobs
+      .map(j => {
+        const overlay = display.get(j.id)
+        if (!overlay) return j
+        return { ...j, status: overlay.status, requiredByDate: overlay.requiredByDate }
+      })
+      .sort((a, b) => (a.requiredByDate ?? "").localeCompare(b.requiredByDate ?? ""))
+      .slice(0, 20)
   },
 
   groupByStatus(): { status: string; count: number }[] {

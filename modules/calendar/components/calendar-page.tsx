@@ -4,7 +4,8 @@ import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths,
 } from "date-fns"
-import { ChevronLeft, ChevronRight, Plus, Loader2 } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -20,6 +21,7 @@ import {
   LeaveAcceptancePanel,
 } from "@/modules/leave/ui"
 import { DataPanel, PageHeader, PageShell } from "@/shared/layouts/page-layout"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 
 const LEAVE_ENABLED = isExperimentalEnabled("leave")
@@ -49,6 +51,8 @@ function getRange(date: Date) {
 export default function CalendarPage() {
   const { toast } = useToast()
   const { isAdmin, user } = useUser()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentDate, setCurrentDate] = useState(new Date())
 
   const [filterCategory, setFilterCategory] = useState("ALL")
@@ -63,8 +67,22 @@ export default function CalendarPage() {
   const [editEvent, setEditEvent]       = useState<CalendarEvent | null>(null)
   const [leaveEvent, setLeaveEvent]     = useState<CalendarEvent | null>(null)
   const [defaultDate, setDefaultDate]   = useState<string | undefined>()
+  const [defaultCategoryId, setDefaultCategoryId] = useState<string | undefined>()
 
   const canFilterStaff = isAdmin
+
+  useEffect(() => {
+    const create = searchParams.get("new")
+    if (!create) return
+    setEditEvent(null)
+    setDefaultDate(format(new Date(), "yyyy-MM-dd"))
+    setDefaultCategoryId(create === "site-visit" ? "cat_site_visit" : undefined)
+    setDialogOpen(true)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete("new")
+    const qs = next.toString()
+    router.replace(qs ? `/calendar?${qs}` : "/calendar", { scroll: false })
+  }, [searchParams, router])
 
   const eventsKey = useMemo(() => {
     const { from, to } = getRange(currentDate)
@@ -109,6 +127,7 @@ export default function CalendarPage() {
   const handleDayClick = (date: Date) => {
     setEditEvent(null)
     setDefaultDate(format(date, "yyyy-MM-dd"))
+    setDefaultCategoryId(undefined)
     setDialogOpen(true)
   }
 
@@ -236,12 +255,12 @@ export default function CalendarPage() {
               </label>
             </>
           )}
-          <div className="flex items-center gap-3 text-[10px] text-t3">
+          <div className="flex items-center gap-3 type-helper text-t3">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "#15803D" }} /> Approved
+              <span className="w-2 h-2 rounded-sm bg-ok-ic" /> Approved
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "#CA8A04" }} /> Pending
+              <span className="w-2 h-2 rounded-sm bg-yl" /> Pending
             </span>
           </div>
         </div>
@@ -254,10 +273,7 @@ export default function CalendarPage() {
 
       <DataPanel>
         {loading && events.length === 0 ? (
-          <div className="flex items-center justify-center py-24 text-t3 gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Loading calendar…</span>
-          </div>
+          <ListSkeleton rows={8} className="p-6" />
         ) : (
           <MonthView
             currentDate={currentDate}
@@ -270,10 +286,11 @@ export default function CalendarPage() {
 
       <EventDialog
         open={dialogOpen}
-        onClose={() => { setDialogOpen(false); setEditEvent(null) }}
+        onClose={() => { setDialogOpen(false); setEditEvent(null); setDefaultCategoryId(undefined) }}
         onSaved={refreshEvents}
         event={editEvent}
         defaultDate={defaultDate}
+        defaultCategoryId={defaultCategoryId}
       />
 
       {LEAVE_ENABLED && (

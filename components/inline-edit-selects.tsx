@@ -25,7 +25,7 @@ export function InlineStatusSelect({ status, onChange, size = "md" }: { status: 
         aria-label="Change status"
       >
         <StatusBadge status={status} size={size} />
-        <ChevronDown className="h-3 w-3 text-t4 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <ChevronDown className="h-3.5 w-3.5 text-t4 opacity-0 group-hover:opacity-100 transition-opacity" />
       </SelectPrimitive.Trigger>
       <SelectContent align="start">
         {JOB_STATUSES.map(s => (
@@ -60,7 +60,7 @@ export function InlineDesignerSelect({ designer, designers, onChange }: {
         {designer
           ? <p className="text-xs text-t2">{designer}</p>
           : <p className="text-xs text-t4 italic">Unassigned</p>}
-        <ChevronDown className="h-3 w-3 text-t4 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <ChevronDown className="h-3.5 w-3.5 text-t4 opacity-0 group-hover:opacity-100 transition-opacity" />
       </SelectPrimitive.Trigger>
       <SelectContent align="start">
         <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>

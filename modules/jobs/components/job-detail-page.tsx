@@ -4,8 +4,8 @@ import { useRouter, useParams } from "next/navigation"
 import { format } from "date-fns"
 import dynamic from "next/dynamic"
 import {
-  Pencil, Trash2, FileText, UserPlus, Clock, AlertOctagon, RotateCcw,
-  MapPin, ChevronRight,
+  Pencil, Trash2, FileText, UserPlus, Clock, AlertOctagon, RotateCcw, Download,
+  MapPin,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
@@ -21,8 +21,8 @@ import { DesignerCombobox }   from "@/components/designer-combobox"
 import { useToast }            from "@/shared/ui/toast"
 import { formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue, cn } from "@/shared/utils/utils"
 import { useUser }             from "@/shared/providers/user-context"
-import { PageShell } from "@/shared/layouts/page-layout"
-import { OTHER_WORKS_TYPE }    from "@/lib/constants"
+import { PageShell, PageBreadcrumb } from "@/shared/layouts/page-layout"
+import { worksTypeDisplayLabel }    from "@/lib/constants"
 // Perf: SWR caches job detail across navigations; parent/billing keys follow when known.
 import { useApi } from "@/shared/hooks/use-api"
 import type { Job, JobFormData, BillingHandoff } from "@/lib/types"
@@ -65,7 +65,7 @@ function Skeleton() {
 
 function InfoField({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="flex flex-col gap-1.5 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
+    <div className="flex flex-col gap-2 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
       <span className="text-sm font-medium text-t3">{label}</span>
       <span className="text-base font-semibold text-t1 leading-snug">
         {value?.trim() ? value : <span className="font-normal text-t4 italic">Not set</span>}
@@ -76,12 +76,12 @@ function InfoField({ label, value }: { label: string; value?: string | null }) {
 
 function KpiCard({ label, value, badge }: { label: string; value: string; badge?: string | null }) {
   return (
-    <div className="space-y-1.5">
-      <p className="text-xs font-semibold text-t3 uppercase tracking-wide">{label}</p>
+    <div className="space-y-2">
+      <p className="type-label text-t3">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
-        <p className="text-lg font-bold text-t1 truncate font-mono tabular-nums">{value}</p>
+        <p className="text-lg font-semibold text-t1 truncate font-mono tabular-nums">{value}</p>
         {badge ? (
-          <span className="shrink-0 px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide bg-wn-bg text-wn-tx">
+          <span className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-wn-bg text-wn-tx">
             {badge}
           </span>
         ) : null}
@@ -111,7 +111,7 @@ function Pill({
   }
   return (
     <span className={cn(
-      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold",
+      "inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold",
       tones[tone],
     )}>
       <span className={cn("h-1.5 w-1.5 rounded-full", dots[tone])} />
@@ -182,6 +182,7 @@ export default function JobDetailPage({
   const [dnEditOpen,   setDnEditOpen]   = useState(false)
   const [dnEditValue,  setDnEditValue]  = useState("")
   const [dnEditSaving, setDnEditSaving] = useState(false)
+  const [cat2Exporting, setCat2Exporting] = useState(false)
 
   useEffect(() => {
     if (jobError && !/404|Not found/i.test(jobError.message)) {
@@ -274,11 +275,39 @@ export default function JobDetailPage({
     finally { setRestoring(false) }
   }
 
+  const handleCat2Export = async () => {
+    setCat2Exporting(true)
+    try {
+      const res = await fetch(`/api/jobs/${id}/cat2-check-sheet`, { method: "POST" })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "CAT II export failed", "error")
+        return
+      }
+      const blob = await res.blob()
+      const cd = res.headers.get("Content-Disposition") ?? ""
+      const match = cd.match(/filename="([^"]+)"/i)
+      const filename = match?.[1] || "CATII Check Certificate.pdf"
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toast("CAT II Check Sheet exported", "success")
+      setHistoryKey(k => k + 1)
+    } catch {
+      toast("CAT II export failed", "error")
+    } finally {
+      setCat2Exporting(false)
+    }
+  }
+
   if (loading) return <PageShell wide><Skeleton /></PageShell>
 
   if (notFound || !job) return (
     <PageShell wide className="flex flex-col items-center justify-center py-24 text-center">
-      <FileText className="h-8 w-8 text-t4 mb-3" />
+      <FileText className="h-5 w-5 text-t4 mb-3" />
       <p className="text-sm font-medium text-t1 mb-1">Job not found</p>
       <p className="text-xs text-t3 mb-4">This job may have been deleted.</p>
       <Button variant="outline" onClick={() => router.push("/jobs")}>Back to jobs</Button>
@@ -300,26 +329,19 @@ export default function JobDetailPage({
 
   return (
     <PageShell wide>
-      <nav className="flex items-center gap-1.5 text-sm text-t3 mb-6">
-        <button
-          type="button"
-          className="hover:text-t1 transition-colors"
-          onClick={() => router.push("/jobs")}
-        >
-          Jobs
-        </button>
-        <ChevronRight className="h-4 w-4 shrink-0" />
-        <span className={cn("font-semibold text-t1 font-mono", isCancelled && "line-through opacity-70")}>
-          {job.drawingNumber}
-        </span>
-      </nav>
+      <PageBreadcrumb
+        items={[
+          { label: "Jobs", onClick: () => router.push("/jobs") },
+          { label: job.drawingNumber, mono: true, strike: isCancelled },
+        ]}
+      />
 
       {isCancelled && (
-        <div className="mb-5 rounded-xl border border-dn-bd bg-dn-bg px-4 py-3">
+        <div className="mb-6 rounded-xl border border-dn-bd bg-dn-bg px-4 py-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-dn-tx flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-dn-bg border border-dn-bd">
+                <span className="type-badge px-2 py-0.5 rounded-full bg-dn-bg border border-dn-bd">
                   Cancelled
                 </span>
                 <span className="font-mono line-through opacity-80">{job.drawingNumber}</span>
@@ -346,15 +368,15 @@ export default function JobDetailPage({
 
       {/* Master job card — Stitch layout */}
       <section className="oryx-surface-card mb-8 overflow-hidden rounded-xl border border-bd bg-sr p-6 sm:p-8 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-6">
-          <div className="min-w-0 space-y-2.5">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
+          <div className="min-w-0 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge status={job.status} />
               <span className="font-mono text-base text-t3 tabular-nums">{job.drawingNumber}</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className={cn(
-                "text-2xl sm:text-3xl font-bold tracking-tight text-t1 uppercase",
+                "oryx-page-title text-t1",
                 isCancelled && "line-through opacity-70",
               )}>
                 {job.clientCompany}
@@ -370,7 +392,7 @@ export default function JobDetailPage({
               )}
             </div>
             {job.address && (
-              <p className="text-base text-t2 flex items-start gap-1.5">
+              <p className="text-base text-t2 flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-1 shrink-0" />
                 <span>{job.address}</span>
               </p>
@@ -420,7 +442,7 @@ export default function JobDetailPage({
         </div>
 
         {(job.tags ?? []).length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-5 pb-5 border-b border-bd">
+          <div className="flex flex-wrap gap-2 mb-6 pb-6 border-b border-bd">
             {(job.tags ?? []).map(tag => (
               <Pill key={tag} tone="neutral">{tag}</Pill>
             ))}
@@ -459,7 +481,7 @@ export default function JobDetailPage({
                     aria-selected={selected}
                     onClick={() => setActiveTab(tab.id)}
                     className={cn(
-                      "px-3.5 py-2.5 text-sm font-semibold rounded-t-lg border border-b-0 transition-colors",
+                      "px-4 py-2 text-sm font-semibold rounded-t-lg border border-b-0 transition-colors",
                       selected
                         ? "bg-sr text-t1 border-bd -mb-px"
                         : "bg-transparent text-t3 border-transparent hover:text-t1 hover:bg-sr/60",
@@ -471,10 +493,10 @@ export default function JobDetailPage({
               })}
             </div>
 
-            <div className="p-5 sm:p-6" role="tabpanel">
+            <div className="p-6 sm:p-6" role="tabpanel">
               {activeTab === "information" && (
                 <div>
-                  <div className="flex items-center justify-between gap-3 mb-5">
+                  <div className="flex items-center justify-between gap-3 mb-6">
                     <div>
                       <h2 className="text-lg font-semibold text-t1">Job Information</h2>
                       <p className="text-sm text-t3 mt-0.5">Site, client, and assignment details</p>
@@ -494,11 +516,7 @@ export default function JobDetailPage({
                     <InfoField label="Site Address" value={job.address} />
                     <InfoField
                       label="Type of works"
-                      value={
-                        job.typeOfWorks === OTHER_WORKS_TYPE
-                          ? `Other — ${job.customTypeDescription || "no description"}`
-                          : job.typeOfWorks
-                      }
+                      value={worksTypeDisplayLabel(job.typeOfWorks, job.customTypeDescription) || null}
                     />
                     <InfoField
                       label="Initial Quote"
@@ -506,7 +524,7 @@ export default function JobDetailPage({
                     />
                     <InfoField label="Requested by" value={job.requestedBy} />
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wider text-t3 mb-1.5">
+                      <p className="type-label text-t3 mb-2">
                         Engineer Assigned
                       </p>
                       {isCancelled ? (
@@ -531,6 +549,9 @@ export default function JobDetailPage({
                       <InfoField label="Required by" value={format(parseLocalDate(job.requiredByDate), "d MMMM yyyy")} />
                     )}
                     {job.notes && <InfoField label="Notes" value={job.notes} />}
+                    {job.designStandards && (
+                      <InfoField label="Design standards & codes" value={job.designStandards} />
+                    )}
                     {(job.tags ?? []).length > 0 && (
                       <InfoField label="Tags" value={(job.tags ?? []).join(", ")} />
                     )}
@@ -550,7 +571,7 @@ export default function JobDetailPage({
               {activeTab === "documents" && (
                 <div>
                   <h2 className="text-lg font-semibold text-t1 mb-1">Documents</h2>
-                  <p className="text-sm text-t3 mb-5">PDFs and images — print emails to PDF to attach them</p>
+                  <p className="text-sm text-t3 mb-6">PDFs and images — print emails to PDF to attach them</p>
                   <JobDocumentsPanel
                     jobId={job.id}
                     showTitle={false}
@@ -561,7 +582,7 @@ export default function JobDetailPage({
 
               {activeTab === "financial" && (
                 <div>
-                  <div className="flex items-center justify-between gap-3 mb-5">
+                  <div className="flex items-center justify-between gap-3 mb-6">
                     <div>
                       <h2 className="text-lg font-semibold text-t1">Financial</h2>
                       <p className="text-sm text-t3 mt-0.5">Quote, variations, and invoicing</p>
@@ -603,7 +624,7 @@ export default function JobDetailPage({
                       {commercialTotal != null && (
                         <div className="flex justify-between gap-2 pt-3 border-t border-bd">
                           <span className="text-t3 font-medium">Total agreed</span>
-                          <span className="font-bold tabular-nums text-t1">{formatGBP(commercialTotal)}</span>
+                          <span className="font-semibold tabular-nums text-t1">{formatGBP(commercialTotal)}</span>
                         </div>
                       )}
                       {job.quoteReference && (
@@ -647,7 +668,7 @@ export default function JobDetailPage({
               {activeTab === "status" && (
                 <div>
                   <h2 className="text-lg font-semibold text-t1 mb-1">Status</h2>
-                  <p className="text-sm text-t3 mb-5">Update the workflow for the current revision</p>
+                  <p className="text-sm text-t3 mb-6">Update the workflow for the current revision</p>
                   {isCancelled ? (
                     <StatusBadge status={job.status} />
                   ) : (
@@ -666,7 +687,7 @@ export default function JobDetailPage({
               {activeTab === "activity" && (
                 <div>
                   <h2 className="text-lg font-semibold text-t1 mb-1">Activity</h2>
-                  <p className="text-sm text-t3 mb-5">Status changes, notes, and document events</p>
+                  <p className="text-sm text-t3 mb-6">Status changes, notes, and document events</p>
                   <StatusHistory
                     key={historyKey}
                     jobId={workflowJobId}
@@ -687,11 +708,11 @@ export default function JobDetailPage({
                 : dl.severity === "soon" ? "bg-wn-bg/60 border-wn-bd/60"
                 : "bg-sr border-bd",
             )}>
-              <div className="flex items-center gap-1.5 mb-2">
+              <div className="flex items-center gap-2 mb-2">
                 {dl.severity === "overdue"
                   ? <AlertOctagon className="h-4 w-4 text-dn shrink-0" />
                   : <Clock className="h-4 w-4 text-t4 shrink-0" />}
-                <p className="text-xs font-semibold text-t3 uppercase tracking-wider">Deadline</p>
+                <p className="type-label text-t3">Deadline</p>
               </div>
               <p className={cn(
                 "text-sm font-semibold tabular-nums",
@@ -707,14 +728,14 @@ export default function JobDetailPage({
             </div>
           )}
 
-          <section className="rounded-xl border border-bd bg-sr p-5">
+          <section className="rounded-xl border border-bd bg-sr p-6">
             <h2 className="text-base font-semibold text-t1 mb-4">Actions</h2>
             {isCancelled ? (
               <p className="text-xs text-t3">
                 This job is cancelled. Restore it to make changes or return it to active views.
               </p>
             ) : (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Button
                   variant={job.designer ? "outline" : "primary"}
                   size="sm"
@@ -727,6 +748,17 @@ export default function JobDetailPage({
                 <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-3.5 w-3.5" /> Edit details
                 </Button>
+                {(job.status === "ISSUED" || job.currentRevision?.status === "ISSUED") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => void handleCat2Export()}
+                    loading={cat2Exporting}
+                  >
+                    <Download className="h-3.5 w-3.5" /> Export CAT II Check Sheet
+                  </Button>
+                )}
                 {isAdmin && (
                   <Button
                     variant="ghost"
@@ -741,7 +773,7 @@ export default function JobDetailPage({
             )}
           </section>
 
-          <section className="rounded-xl border border-bd bg-sr p-5">
+          <section className="rounded-xl border border-bd bg-sr p-6">
             <h2 className="text-base font-semibold text-t1 mb-3">Dates</h2>
             <dl className="space-y-2">
               {([
@@ -811,7 +843,7 @@ export default function JobDetailPage({
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
-            <label className="block text-xs font-medium text-t2 mb-1.5">
+            <label className="block text-xs font-medium text-t2 mb-2">
               Reason for cancellation <span className="text-dn">*</span>
             </label>
             <Textarea

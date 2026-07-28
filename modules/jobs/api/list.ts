@@ -19,6 +19,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { resolveDirectoryDesigner } from "../services/designer-directory"
+import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils/utils"
 
 /**
  * Revision family flags + overlay current-revision status/designer onto parent rows.
@@ -50,13 +51,11 @@ function flagRevisions<T extends {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+  return todayIsoDate()
 }
 
 function weekEndIso(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + 7)
-  return d.toISOString().slice(0, 10)
+  return addDaysToIsoDate(new Date(), 7)
 }
 
 /** Filter parent rows by their *current revision* display fields. */
@@ -109,6 +108,7 @@ const createJobBodySchema = z.object({
   proceedDespiteHold: z.boolean().optional(),
   dateCompleted: z.union([z.string(), z.null()]).optional(),
   notes: z.union([z.string(), z.null()]).optional(),
+  designStandards: z.union([z.string(), z.null()]).optional(),
   quoteValue: z.union([z.string(), z.number(), z.null()]).optional(),
   quoteReference: z.union([z.string(), z.null()]).optional(),
   quoteDate: z.union([z.string(), z.null()]).optional(),
@@ -376,6 +376,7 @@ export async function POST(req: NextRequest) {
       designer,
       dateCompleted:   body.dateCompleted ? String(body.dateCompleted) : null,
       notes:           body.notes ? String(body.notes).trim() : null,
+      designStandards: body.designStandards ? String(body.designStandards).trim() : null,
       tags,
       quoteValue,
       quoteReference:  body.quoteReference  ? String(body.quoteReference).trim()  : null,

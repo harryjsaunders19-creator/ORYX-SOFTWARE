@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { format }    from "date-fns"
 import {
   Search, Plus, Download, Upload, SlidersHorizontal,
-  Pencil, Trash2, ChevronLeft, ChevronRight,
+  Pencil, Trash2,
   X, FolderOpen, ArrowUp, ArrowDown, ArrowUpDown, GitBranch, AlertTriangle, Clock,
   MoreHorizontal, Building2, FileText, UserCircle2, PenTool, ClipboardCheck,
 } from "lucide-react"
@@ -39,7 +39,8 @@ import { useToast }      from "@/shared/ui/toast"
 import { useUser }       from "@/shared/providers/user-context"
 import { JOB_STATUSES, WORK_ITEM_TYPES, WORKS_TYPES, getJobStatus } from "@/lib/constants"
 import { cn, formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue } from "@/shared/utils/utils"
-import { ToolbarCard } from "@/shared/layouts/page-layout"
+import { buildCsv, downloadCsv } from "@/shared/utils/download-csv"
+import { ToolbarCard, EmptyPanel, DataPanel, TablePagination } from "@/shared/layouts/page-layout"
 import { notifyRevisionsChanged } from "@/lib/revision-events"
 import { revisionParentId } from "@/lib/revision-chain"
 import { RevisionFamilyBadge } from "@/components/revision-family-badge"
@@ -80,22 +81,16 @@ function EmptyState({ hasFilters, onCreate, onClear }: {
 }) {
   return (
     <tr>
-      <td colSpan={9} className="py-16 text-center">
-        <div className="inline-flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded border border-bd flex items-center justify-center bg-pg">
-            <FolderOpen className="h-5 w-5 text-t4" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-t1">{hasFilters ? "No jobs match" : "No jobs yet"}</p>
-            <p className="text-xs text-t3 mt-0.5">
-              {hasFilters ? "Try clearing your filters" : "Create your first job to get started"}
-            </p>
-          </div>
-          {hasFilters
+      <td colSpan={9} className="p-0">
+        <EmptyPanel
+          icon={FolderOpen}
+          title={hasFilters ? "No jobs match" : "No jobs yet"}
+          description={hasFilters ? "Try clearing your filters" : "Create your first job to get started"}
+          action={hasFilters
             ? <Button variant="outline" size="sm" onClick={onClear}>Clear filters</Button>
             : <Button variant="primary" size="sm" onClick={onCreate}><Plus className="h-3.5 w-3.5" />New job</Button>
           }
-        </div>
+        />
       </td>
     </tr>
   )
@@ -110,15 +105,15 @@ function SortTh({ field, label, current, dir, onSort, className }: {
     <th
       onClick={() => onSort(field)}
       className={cn(
-        "px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider cursor-pointer select-none whitespace-nowrap",
+        "px-4 py-2.5 text-left type-label text-t3 cursor-pointer select-none whitespace-nowrap",
         className,
       )}
     >
       <span className="inline-flex items-center gap-1">
         {label}
         {active
-          ? dir === "asc" ? <ArrowUp className="h-3 w-3 text-t2" /> : <ArrowDown className="h-3 w-3 text-t2" />
-          : <ArrowUpDown className="h-3 w-3 text-t4" />}
+          ? dir === "asc" ? <ArrowUp className="h-3.5 w-3.5 text-t2" /> : <ArrowDown className="h-3.5 w-3.5 text-t2" />
+          : <ArrowUpDown className="h-3.5 w-3.5 text-t4" />}
       </span>
     </th>
   )
@@ -159,17 +154,17 @@ const JobMobileCard = memo(function JobMobileCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <RevisionFamilyBadge job={job} />
-            <span className="font-mono text-xs font-bold text-ac">{job.drawingNumber}</span>
+            <span className="font-mono type-badge text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
             {showTags && (job.tags ?? []).slice(0, 2).map(tag => (
-              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
+              <span key={tag} className="type-helper px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
                 {tag}
               </span>
             ))}
             {showTags && (job.tags ?? []).length > 2 && (
-              <span className="text-[10px] text-t4">+{(job.tags ?? []).length - 2}</span>
+              <span className="type-helper text-t4">+{(job.tags ?? []).length - 2}</span>
             )}
           </div>
           <p className="text-sm font-medium text-t1 mt-1 line-clamp-2">{job.address}</p>
@@ -184,12 +179,12 @@ const JobMobileCard = memo(function JobMobileCard({
         <InlineStatusSelect status={job.status} onChange={value => onStatusChange(job, value)} size="lg" />
         {showDeadline && (
           <span className={cn(
-            "inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full border",
+            "inline-flex items-center gap-1 type-badge px-2 py-1 rounded-full border",
             dl.severity === "overdue" ? "bg-dn-bg text-dn-tx border-dn-bd"
               : dl.severity === "today" ? "bg-wn-bg text-wn-tx border-wn-bd"
               : "bg-wn-bg/60 text-wn-tx border-wn-bd/60",
           )}>
-            <Clock className="h-3 w-3 shrink-0" />
+            <Clock className="h-3.5 w-3.5 shrink-0" />
             {dl.label}
           </span>
         )}
@@ -250,17 +245,17 @@ const JobTableRow = memo(
         <td className="px-4 py-3.5 whitespace-nowrap">
           <span className="flex items-center gap-1.5 flex-wrap">
             <RevisionFamilyBadge job={job} />
-            <span className="font-mono text-[11px] font-semibold text-ac">{job.drawingNumber}</span>
+            <span className="font-mono type-badge text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
             {showTags && (job.tags ?? []).slice(0, 2).map(tag => (
-              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
+              <span key={tag} className="type-helper px-1.5 py-0.5 rounded border border-bd text-t3 font-medium">
                 {tag}
               </span>
             ))}
             {showTags && (job.tags ?? []).length > 2 && (
-              <span className="text-[10px] text-t4">+{(job.tags ?? []).length - 2}</span>
+              <span className="type-helper text-t4">+{(job.tags ?? []).length - 2}</span>
             )}
           </span>
         </td>
@@ -276,11 +271,11 @@ const JobTableRow = memo(
         <td className={cn("px-4 py-3.5 max-w-[170px]", COL_CLIENT)}>
           <div className="flex items-center gap-1.5 flex-wrap">
             {isOnHold && (
-              <span title="Client on hold"><AlertTriangle className="h-3 w-3 text-dn shrink-0" /></span>
+              <span title="Client on hold"><AlertTriangle className="h-3.5 w-3.5 text-dn shrink-0" /></span>
             )}
             <p className="text-xs font-medium text-t1 truncate">{job.clientCompany}</p>
             {isOnHold && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx whitespace-nowrap">
+              <span className="type-badge px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx whitespace-nowrap">
                 On Hold
               </span>
             )}
@@ -289,7 +284,7 @@ const JobTableRow = memo(
 
         <td className={cn("px-4 py-3.5 max-w-[150px]", COL_REQUESTED_BY)}>
           <p className="text-xs text-t3 truncate flex items-center gap-1.5">
-            <UserCircle2 className="h-3 w-3 text-t4 shrink-0" />
+            <UserCircle2 className="h-3.5 w-3.5 text-t4 shrink-0" />
             {job.requestedBy || <span className="italic text-t4">—</span>}
           </p>
         </td>
@@ -303,10 +298,10 @@ const JobTableRow = memo(
                 : <span className="text-t4">—</span>}
           </p>
           {(job.variationFees != null || job.additionalCharges != null) && job.quoteValue != null && (
-            <p className="text-[10px] text-t4 tabular-nums">incl. extras</p>
+            <p className="type-helper text-t4 tabular-nums">incl. extras</p>
           )}
           {job.quoteReference && (
-            <p className="text-[10px] font-mono text-t4 tabular-nums">{job.quoteReference}</p>
+            <p className="type-helper font-mono text-t4 tabular-nums">{job.quoteReference}</p>
           )}
         </td>
 
@@ -318,7 +313,7 @@ const JobTableRow = memo(
           />
           {showDeadlineFlag && (
             <p className={cn(
-              "mt-1 inline-flex items-center gap-1 text-[10px] font-medium",
+              "mt-1 inline-flex items-center gap-1 type-badge",
               dl.severity === "overdue" ? "text-dn-tx" : "text-wn-tx",
             )}>
               {dl.severity === "overdue" && <Clock className="h-2.5 w-2.5 shrink-0" />}
@@ -329,7 +324,7 @@ const JobTableRow = memo(
 
         <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_DESIGNER)} onClick={e => e.stopPropagation()}>
           <div className="flex items-center gap-1.5">
-            <PenTool className="h-3 w-3 text-t4 shrink-0" />
+            <PenTool className="h-3.5 w-3.5 text-t4 shrink-0" />
             <InlineDesignerSelect
               designer={job.designer}
               designers={designers}
@@ -409,7 +404,7 @@ const JobTableRow = memo(
 
 function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full border border-ac/30 bg-ac-bg text-[11px] font-medium text-ac">
+    <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full border border-ac/30 bg-ac-bg type-badge text-ac">
       {label}
       <button
         type="button"
@@ -417,7 +412,7 @@ function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => 
         className="rounded-full p-0.5 hover:bg-ac/15 text-ac"
         aria-label={`Remove ${label} filter`}
       >
-        <X className="h-3 w-3" />
+        <X className="h-3.5 w-3.5" />
       </button>
     </span>
   )
@@ -453,6 +448,15 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const [cancelReason, setCancelReason] = useState("")
   const [deleting,     setDeleting]     = useState(false)
   const [creatingRevisionFor, setCreatingRevisionFor] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return
+    setCreateOpen(true)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete("new")
+    const qs = next.toString()
+    router.replace(qs ? `/jobs?${qs}` : "/jobs", { scroll: false })
+  }, [searchParams, router])
 
   useEffect(() => { setPage(1) }, [debouncedSearch])
 
@@ -702,12 +706,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         j.dateCompleted ? format(parseLocalDate(j.dateCompleted), "dd/MM/yyyy") : "",
         j.legacyTypeOfWorks ?? "",
         j.notes ?? "",
-      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(","))
-      const csv = [headers.join(","), ...rows].join("\n")
-      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }))
-      const a = document.createElement("a")
-      a.href = url; a.download = `oryx-jobs-${format(new Date(), "yyyy-MM-dd")}.csv`; a.click()
-      URL.revokeObjectURL(url)
+      ])
+      downloadCsv(`oryx-jobs-${format(new Date(), "yyyy-MM-dd")}.csv`, buildCsv(headers, rows))
       toast(
         truncated && total != null
           ? `Exported ${jobs.length} of ${total} jobs (limit reached — narrow filters for a full export)`
@@ -733,13 +733,14 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     <>
       {/* Toolbar */}
       <ToolbarCard>
-        <div className="relative flex-1 min-w-48 max-w-72">
+        <div className="relative flex-1 min-w-48 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-t4 pointer-events-none" />
           <Input
             id="jobs-search"
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search jobs…"
-            className="pl-10 pr-8 h-10 rounded-full bg-pg border-none shadow-none"
+            className="pl-10 pr-8 h-9 rounded-lg bg-surface-low border border-bd shadow-none"
+            style={{ paddingLeft: "40px", height: "36px" }}
           />
           {search && (
             <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-t4 hover:text-t2">
@@ -755,7 +756,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           <SlidersHorizontal className="h-3.5 w-3.5" />
           Filter
           {activeFilterCount > 0 && (
-            <span className="ml-1 bg-ac text-on-ac rounded-full h-4 w-4 text-[10px] flex items-center justify-center font-bold shrink-0">{activeFilterCount}</span>
+            <span className="ml-1 bg-ac text-on-ac rounded-full h-4 w-4 type-helper flex items-center justify-center font-bold shrink-0">{activeFilterCount}</span>
           )}
         </Button>
 
@@ -879,12 +880,12 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           <span className="text-xs font-medium text-t2">Type</span>
           <div className="flex items-center gap-1 flex-wrap">
             <button onClick={() => { setItemTypeFilter("ALL"); setPage(1) }}
-              className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === "ALL" ? "bg-ac text-on-ac" : "border border-bd text-t3 hover:text-t2"}`}>
+              className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === "ALL" ? "bg-ac text-on-ac" : "border border-bd text-t3 hover:text-t2"}`}>
               All
             </button>
             {WORK_ITEM_TYPES.map(t => (
               <button key={t.value} onClick={() => { setItemTypeFilter(t.value); setPage(1) }}
-                className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === t.value ? `${t.color}` : "border border-bd text-t3 hover:text-t2"}`}>
+                className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === t.value ? `${t.color}` : "border border-bd text-t3 hover:text-t2"}`}>
                 {t.label}
               </button>
             ))}
@@ -901,7 +902,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               { v: "this_week", l: "This week",  cls: "text-wn-tx bg-wn-bg/60" },
             ].map(({ v, l, cls }) => (
               <button key={v} onClick={() => { setDeadlineFilter(v); setPage(1) }}
-                className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${
+                className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${
                   deadlineFilter === v
                     ? (v === "ALL" ? "bg-ac text-on-ac" : (cls ?? "bg-ac text-on-ac"))
                     : "border border-bd text-t3 hover:text-t2"
@@ -968,24 +969,24 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
 
       {/* Desktop table — show until media is ready to avoid a mobile flash on SSR */}
       {(!mediaReady || !isMobile) && (
-      <div className={cn("bg-sr border border-bd rounded-xl shadow-card overflow-hidden transition-opacity", refreshing && "opacity-60")}>
+      <DataPanel className={cn("transition-opacity", refreshing && "opacity-60")}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-low border-b border-bd">
                 <SortTh field="drawingNumber" label="Drawing No." {...sp} />
-                <SortTh field="address"       label="Address"     {...sp} />
-                <th className={cn("px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider whitespace-nowrap", COL_TYPE_OF_WORKS)}>
+                <SortTh field="address" label="Address"     {...sp} />
+                <th className={cn("px-4 py-2.5 text-left type-label text-t3 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
                   Type of Works
                 </th>
                 <SortTh field="clientCompany" label="Client" className={COL_CLIENT} {...sp} />
-                <th className={cn("px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider whitespace-nowrap", COL_REQUESTED_BY)}>
+                <th className={cn("px-4 py-2.5 text-left type-label text-t3 whitespace-nowrap", COL_REQUESTED_BY)}>
                   Requested By
                 </th>
                 <SortTh field="quoteValue" label="Quotation" className={COL_QUOTATION} {...sp} />
-                <SortTh field="status"     label="Completion Status" {...sp} />
-                <SortTh field="designer"   label="Designer" className={COL_DESIGNER} {...sp} />
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-t3 uppercase tracking-wider whitespace-nowrap min-w-[180px]">
+                <SortTh field="status" label="Completion Status" {...sp} />
+                <SortTh field="designer" label="Designer" className={COL_DESIGNER} {...sp} />
+                <th className="px-4 py-2.5 text-right type-label text-t3 whitespace-nowrap min-w-[180px]">
                   Actions
                 </th>
               </tr>
@@ -1013,36 +1014,25 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
             </tbody>
           </table>
         </div>
-      </div>
+      </DataPanel>
       )}
 
-      {/* Pagination — shared by mobile cards and desktop table */}
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 mt-3 border border-bd rounded-xl bg-sr shadow-card">
-          <p className="text-xs text-t3">
-            {((page - 1) * LIMIT) + 1}–{Math.min(page * LIMIT, data.total)} of{" "}
-            <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
-          </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <span className="text-xs text-t2 px-2 tabular-nums min-w-[56px] text-center">
-              {page} / {totalPages}
-            </span>
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p + 1)} disabled={page === totalPages}>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        total={data?.total}
+        pageSize={LIMIT}
+      />
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={o => { if (!createSaving) setCreateOpen(o) }}>
         <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>New job</DialogTitle>
-            <DialogDescription>Drawing number assigned automatically on save.</DialogDescription>
+            <DialogDescription>
+              Create a design, site visit, or CAT III check. Reference numbers are assigned automatically.
+            </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <JobForm key={createOpen ? "open" : "closed"} formId="create-job-form" onSubmit={handleCreate} designers={designers} />

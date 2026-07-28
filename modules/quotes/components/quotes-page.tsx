@@ -2,12 +2,11 @@
 import { Suspense, memo, useCallback, useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { format } from "date-fns"
 import {
   Plus, FileText, Download, CheckCircle2, XCircle,
   Loader2, Clock, FileDown, Trash2, Archive,
-  ChevronLeft, ChevronRight,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import {
@@ -17,7 +16,7 @@ import {
 import { useToast } from "@/shared/ui/toast"
 import { formatGBP, cn, parseLocalDate, getQuoteExpiryInfo, quoteExpiryBadgeClass } from "@/shared/utils/utils"
 import { quoteWorksDisplayLabel, inferQuoteWorksFromDescription } from "../quote-works"
-import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
+import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel, TablePagination } from "@/shared/layouts/page-layout"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
@@ -52,7 +51,7 @@ function QuoteStatusBadge({ status }: { status: string }) {
   const s = statusMeta(status)
   return (
     <span className={cn(
-      "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
+      "inline-flex items-center rounded-full px-2.5 py-0.5 type-badge whitespace-nowrap",
       s.color,
     )}>
       {s.label}
@@ -72,7 +71,7 @@ function QuoteExpiryCell({ quote }: { quote: Quote }) {
       </p>
       {info.severity !== "none" && (
         <span className={cn(
-          "inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+          "inline-flex type-badge px-1.5 py-0.5 rounded-full",
           quoteExpiryBadgeClass(info.severity),
         )}>
           {info.label}
@@ -177,7 +176,7 @@ const QuoteMobileCard = memo(function QuoteMobileCard({
     <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <span className="font-mono text-xs font-bold text-ac">{q.quoteNumber}</span>
+          <span className="font-mono type-badge text-ac">{q.quoteNumber}</span>
           <p className="text-sm font-medium text-t1 mt-1 truncate">{q.clientCompany}</p>
           {q.contactName && <p className="text-xs text-t3 truncate">{q.contactName}</p>}
           <p className="text-xs text-t2 mt-1 line-clamp-2">
@@ -186,7 +185,7 @@ const QuoteMobileCard = memo(function QuoteMobileCard({
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
-          {q.vatRate != null && <p className="text-[10px] text-t4">+{q.vatRate}% VAT</p>}
+          {q.vatRate != null && <p className="type-helper text-t4">+{q.vatRate}% VAT</p>}
         </div>
       </div>
 
@@ -198,7 +197,7 @@ const QuoteMobileCard = memo(function QuoteMobileCard({
       <div className="flex items-center gap-2 flex-wrap">
         <QuoteStatusBadge status={q.status} />
         {q.jobId && (
-          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="text-[11px] text-ac hover:underline">
+          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="type-helper text-ac hover:underline">
             View job →
           </Link>
         )}
@@ -231,7 +230,7 @@ function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus
   return (
     <tr className="border-b border-bd last:border-0 hover:bg-pg">
       <td className="px-4 py-3 whitespace-nowrap">
-        <span className="font-mono text-[11px] font-semibold text-ac">{q.quoteNumber}</span>
+        <span className="font-mono type-badge text-ac">{q.quoteNumber}</span>
       </td>
       <td className="px-4 py-3 max-w-[140px]">
         <p className="text-xs font-medium text-t1 truncate">{q.clientCompany}</p>
@@ -244,7 +243,7 @@ function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus
       </td>
       <td className="px-4 py-3 text-right whitespace-nowrap">
         <p className="text-xs font-semibold tabular-nums text-t1">{formatGBP(q.quoteValue)}</p>
-        {q.vatRate != null && <p className="text-[10px] text-t4">+{q.vatRate}% VAT</p>}
+        {q.vatRate != null && <p className="type-helper text-t4">+{q.vatRate}% VAT</p>}
       </td>
       <td className="px-4 py-3 whitespace-nowrap">
         <p className="text-xs text-t3 tabular-nums">{format(parseLocalDate(q.quoteDate), "d MMM yyyy")}</p>
@@ -255,7 +254,7 @@ function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus
       <td className="px-4 py-3 whitespace-nowrap">
         <QuoteStatusBadge status={q.status} />
         {q.jobId && (
-          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="block text-[10px] text-ac hover:underline mt-0.5">
+          <Link href={`/jobs/${q.jobId}`} prefetch={false} className="block type-helper text-ac hover:underline mt-0.5">
             View job →
           </Link>
         )}
@@ -279,6 +278,7 @@ const MemoQuoteTableRow = memo(QuoteTableRow)
 function QuotesInner() {
   const { toast }    = useToast()
   const searchParams = useSearchParams()
+  const router = useRouter()
 
   const [search,     setSearch]     = useState(() => searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
@@ -293,6 +293,15 @@ function QuotesInner() {
   const [clearing, setClearing] = useState(false)
   const [archiveQuote, setArchiveQuote] = useState<Quote | null>(null)
   const [archiving,    setArchiving]    = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return
+    setCreateOpen(true)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete("new")
+    const qs = next.toString()
+    router.replace(qs ? `/quotes?${qs}` : "/quotes", { scroll: false })
+  }, [searchParams, router])
 
   useEffect(() => { setPage(1) }, [debouncedSearch, statusFilter])
 
@@ -464,13 +473,13 @@ function QuotesInner() {
         <SearchField value={search} onChange={setSearch} placeholder="Search quotes…" className="max-w-xs" />
         <div className="flex items-center gap-1 flex-wrap">
           <button onClick={() => setStatusFilter("ALL")}
-            className={cn("text-[11px] px-2 py-0.5 rounded border font-medium",
+            className={cn("type-helper px-2 py-0.5 rounded border font-medium",
               statusFilter === "ALL" ? "bg-ac text-on-ac border-ac" : "border-bd text-t3 hover:text-t2")}>
             All
           </button>
           {QUOTE_STATUSES.map(s => (
             <button key={s.value} onClick={() => setStatusFilter(s.value)}
-              className={cn("text-[11px] px-2 py-0.5 rounded border font-medium",
+              className={cn("type-helper px-2 py-0.5 rounded border font-medium",
                 statusFilter === s.value ? s.color : "border-bd text-t3 hover:text-t2")}>
               {s.label}
             </button>
@@ -538,13 +547,13 @@ function QuotesInner() {
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Quote No.</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Client</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Type of works</th>
-                <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Value</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Expires</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Quote No.</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Client</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Type of works</th>
+                <th className="px-4 py-2.5 text-right font-semibold text-t3">Value</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Date</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Expires</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Status</th>
                 <th className="px-4 py-2.5 w-72" />
               </tr>
             </thead>
@@ -566,23 +575,14 @@ function QuotesInner() {
         </DataPanel>
       )}
 
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-between gap-4 mt-4 px-1">
-          <p className="text-xs text-t3">
-            {((page - 1) * QUOTE_PAGE_LIMIT) + 1}–{Math.min(page * QUOTE_PAGE_LIMIT, data.total)} of{" "}
-            <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
-          </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-xs text-t3 tabular-nums px-2">{page} / {totalPages}</span>
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        variant="bare"
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        total={data?.total}
+        pageSize={QUOTE_PAGE_LIMIT}
+      />
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={o => { if (!o) setCreateOpen(false) }}>

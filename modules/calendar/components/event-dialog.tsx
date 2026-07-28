@@ -15,10 +15,10 @@ import { useUser } from "@/shared/providers/user-context"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 
 const EVENT_TYPES = [
-  { id: "cat_site_visit",    name: "Site Visit",     color: "#3B82F6", icon: MapPin },
-  { id: "cat_teams_meeting", name: "Teams Meeting",  color: "#A855F7", icon: Video },
+  { id: "cat_site_visit",    name: "Site Visit",     color: "#1E5A96", icon: MapPin }, // tag-design
+  { id: "cat_teams_meeting", name: "Teams Meeting",  color: "#0E7A6E", icon: Video }, // ac2
   ...(isExperimentalEnabled("leave")
-    ? [{ id: "cat_leave" as const, name: "Leave", color: "#6B7280", icon: CalendarOff }]
+    ? [{ id: "cat_leave" as const, name: "Leave", color: "#71717A", icon: CalendarOff }] // gy
     : []),
 ]
 

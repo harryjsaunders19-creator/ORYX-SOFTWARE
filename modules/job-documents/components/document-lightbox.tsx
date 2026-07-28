@@ -75,7 +75,7 @@ export function DocumentLightbox({
               onClick={() => go(-1)}
               aria-label="Previous image"
             >
-              <ChevronLeft className="h-6 w-6" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               type="button"
@@ -83,7 +83,7 @@ export function DocumentLightbox({
               onClick={() => go(1)}
               aria-label="Next image"
             >
-              <ChevronRight className="h-6 w-6" />
+              <ChevronRight className="h-5 w-5" />
             </button>
           </>
         )}

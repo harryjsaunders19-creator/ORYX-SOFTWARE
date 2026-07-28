@@ -4,6 +4,10 @@
 import type { JobRow } from "../types/job-types"
 import { parseJobTags } from "@/lib/constants"
 import { computeJobListSortKey } from "../job-list-sort"
+import {
+  todayIsoDate as calendarTodayIsoDate,
+  addDaysToIsoDate,
+} from "@/shared/utils/utils"
 
 export interface SupabaseJobRow {
   id: string
@@ -21,6 +25,7 @@ export interface SupabaseJobRow {
   date_created: string
   date_completed: string | null
   notes: string | null
+  design_standards: string | null
   tags: string[] | null
   quote_value: number | null
   quote_reference: string | null
@@ -73,6 +78,7 @@ export function toJobRow(row: SupabaseJobRow): JobRow {
     dateCreated: row.date_created,
     dateCompleted: row.date_completed,
     notes: row.notes,
+    designStandards: row.design_standards ?? null,
     tags: parseJobTags(row.tags),
     quoteValue: row.quote_value != null ? Number(row.quote_value) : null,
     quoteReference: row.quote_reference,
@@ -121,6 +127,7 @@ export function toSupabaseRow(job: JobRow): SupabaseJobRow & { list_sort_key: st
     date_created: job.dateCreated,
     date_completed: dateOnly(job.dateCompleted),
     notes: job.notes,
+    design_standards: job.designStandards ?? null,
     tags: job.tags ?? [],
     quote_value: job.quoteValue,
     quote_reference: job.quoteReference,
@@ -170,12 +177,11 @@ export function sortColumn(field: string): keyof SupabaseJobRow {
   return SORT_COLUMNS[field] ?? "date_created"
 }
 
+/** Calendar “today” for deadline filters — same helper as the rest of the app. */
 export function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  return calendarTodayIsoDate()
 }
 
 export function weekEndIsoDate(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + 7)
-  return d.toISOString().slice(0, 10)
+  return addDaysToIsoDate(new Date(), 7)
 }

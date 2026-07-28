@@ -42,7 +42,7 @@ export function ClientContactsFields({ contacts, onChange }: Props) {
           className="rounded-lg border border-bd bg-pg/30 p-3 space-y-2"
         >
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-medium text-t3 uppercase tracking-wide">
+            <p className="type-label text-t3">
               {index === 0 ? "Primary contact" : `Contact ${index + 1}`}
             </p>
             {contacts.length > 1 && (
@@ -60,7 +60,7 @@ export function ClientContactsFields({ contacts, onChange }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2 sm:col-span-1 flex flex-col gap-1.5">
-              <Label className="text-[11px]">Name</Label>
+              <Label>Name</Label>
               <Input
                 value={contact.name}
                 onChange={e => update(index, { name: e.target.value })}
@@ -68,7 +68,7 @@ export function ClientContactsFields({ contacts, onChange }: Props) {
               />
             </div>
             <div className="col-span-2 sm:col-span-1 flex flex-col gap-1.5">
-              <Label className="text-[11px]">Role (optional)</Label>
+              <Label>Role (optional)</Label>
               <Input
                 value={contact.role ?? ""}
                 onChange={e => update(index, { role: e.target.value })}
@@ -76,7 +76,7 @@ export function ClientContactsFields({ contacts, onChange }: Props) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px]">Phone</Label>
+              <Label>Phone</Label>
               <Input
                 value={contact.phone ?? ""}
                 onChange={e => update(index, { phone: e.target.value })}
@@ -84,7 +84,7 @@ export function ClientContactsFields({ contacts, onChange }: Props) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px]">Email</Label>
+              <Label>Email</Label>
               <Input
                 type="email"
                 value={contact.email ?? ""}

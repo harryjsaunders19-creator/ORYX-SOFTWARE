@@ -16,6 +16,7 @@ import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 import { cn } from "@/shared/utils"
+import { Typography } from "@/shared/design/typography"
 
 export const Dialog        = DialogPrimitive.Root
 export const DialogTrigger = DialogPrimitive.Trigger
@@ -51,12 +52,14 @@ DialogOverlay.displayName = "DialogOverlay"
 export interface DialogContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   size?: "sm" | "md" | "lg"
+  /** Show the top-right close control (default true). */
+  showClose?: boolean
 }
 
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, size = "md", ...props }, ref) => (
+>(({ className, children, size = "md", showClose = true, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -70,31 +73,30 @@ export const DialogContent = React.forwardRef<
         size === "md" && "max-w-[640px]",
         size === "lg" && "max-w-[900px]",
         // Appearance — bg-sr provides the Tailwind class; inline style is the fallback.
-        // rounded-xl picks up --radius-xl (20px) from the v3 theme — this was
-        // previously the literal string "rounded-md-xl", not a real Tailwind
-        // class at all, so the modal got zero radius from it; fixed here
-        // alongside the v3 value, not left as a separate undocumented bug.
+        // rounded-xl → --radius-xl (12px) for cards / modals.
         "bg-sr border border-bd rounded-xl shadow-modal",
         // Layout: flex column so header/footer are sticky and body scrolls
         "flex flex-col overflow-hidden",
         className,
       )}
-      style={{ background: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "20px" }}
+      style={{ background: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "var(--radius-xl)" }}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close
-        className={cn(
-          "absolute right-4 top-4 z-10",
-          "h-7 w-7 rounded-lg flex items-center justify-center",
-          "text-t4 hover:text-t2 hover:bg-pg",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ac",
-        )}
-        style={{ color: "var(--color-t4)" }}
-      >
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
+      {showClose && (
+        <DialogPrimitive.Close
+          className={cn(
+            "absolute right-4 top-4 z-10",
+            "h-7 w-7 rounded-lg flex items-center justify-center",
+            "text-t4 hover:text-t2 hover:bg-pg",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-ac",
+          )}
+          style={{ color: "var(--color-t4)" }}
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      )}
     </DialogPrimitive.Content>
   </DialogPortal>
 ))
@@ -156,8 +158,15 @@ export const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-base font-semibold text-t1", className)}
-    style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-t1)", margin: 0, letterSpacing: "-0.01em" }}
+    className={cn(Typography.CardTitle, "text-t1", className)}
+    style={{
+      fontSize: "var(--type-card-title-size)",
+      fontWeight: "var(--type-card-title-weight)" as unknown as number,
+      lineHeight: "var(--type-card-title-leading)",
+      letterSpacing: "var(--type-card-title-tracking)",
+      color: "var(--color-t1)",
+      margin: 0,
+    }}
     {...props}
   />
 ))
@@ -169,8 +178,14 @@ export const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-t3 mt-0.5", className)}
-    style={{ fontSize: "14px", color: "var(--color-t3)", marginTop: "3px" }}
+    className={cn(Typography.Small, "text-t3 mt-0.5", className)}
+    style={{
+      fontSize: "var(--type-small-size)",
+      fontWeight: "var(--type-small-weight)" as unknown as number,
+      lineHeight: "var(--type-small-leading)",
+      color: "var(--color-t3)",
+      marginTop: "3px",
+    }}
     {...props}
   />
 ))

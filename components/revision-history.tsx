@@ -1,7 +1,7 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
-import { GitBranch, ChevronDown, ChevronUp, Loader2, Plus, UserCircle2, PenTool, Receipt, Check } from "lucide-react"
+import { GitBranch, ChevronDown, ChevronUp, Plus, UserCircle2, PenTool, Receipt, Check } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Textarea } from "@/shared/ui/textarea"
 import { Label } from "@/shared/ui/label"
@@ -11,6 +11,7 @@ import { useUser } from "@/shared/providers/user-context"
 import { revisionParentId } from "@/lib/revision-chain"
 import { REVISIONS_CHANGED, notifyRevisionsChanged } from "@/lib/revision-events"
 import { cn } from "@/shared/utils/utils"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import type { Job } from "@/lib/types"
 import type { RevisionFamilyResponse, RevisionHistoryEntry } from "@/modules/jobs/types/revision-types"
 
@@ -58,7 +59,7 @@ function TimelineEntry({
         )}
       >
         {entry.isCurrent ? (
-          <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
+          <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
         ) : (
           <div className="h-2 w-2 bg-ac" />
         )}
@@ -72,23 +73,23 @@ function TimelineEntry({
       >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mb-1.5">
           <h4 className={cn(
-            "text-base font-bold tracking-tight",
+            "type-body-lg tracking-tight",
             entry.isCurrent ? "text-ac" : "text-t1",
           )}>
             {entry.title}
           </h4>
           {entry.isCurrent && (
-            <span className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-sm bg-ac text-on-ac">
+            <span className="type-badge px-2 py-0.5 rounded-sm bg-ac text-on-ac">
               Current
             </span>
           )}
           <StatusBadge status={entry.status} />
           {entry.billable ? (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-sm bg-ok-bg text-ok-tx border border-ok-bd uppercase tracking-wide">
-              <Receipt className="h-3 w-3" /> Billable
+            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-sm bg-ok-bg text-ok-tx border border-ok-bd ">
+              <Receipt className="h-3.5 w-3.5" /> Billable
             </span>
           ) : !entry.isOriginal ? (
-            <span className="text-xs font-medium px-2 py-0.5 rounded-sm bg-pg text-t3 border border-bd uppercase tracking-wide">
+            <span className="text-xs font-medium px-2 py-0.5 rounded-sm bg-pg text-t3 border border-bd ">
               Included
             </span>
           ) : null}
@@ -263,10 +264,7 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, embed
 
   if (loading) {
     return (
-      <div className="mb-4 flex items-center gap-2 rounded-xl border border-bd bg-pg px-5 py-4 text-sm text-t4">
-        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-        Loading revision history…
-      </div>
+      <ListSkeleton rows={3} className="mb-4 space-y-2 rounded-xl border border-bd bg-pg p-4" />
     )
   }
 
@@ -317,7 +315,7 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, embed
                   <Label>
                     Reason for revision<span className="text-dn ml-0.5">*</span>
                   </Label>
-                  <p className="text-[11px] text-t4">
+                  <p className="type-helper text-t4">
                     What did the client request? Shown on the project timeline.
                   </p>
                   <Textarea

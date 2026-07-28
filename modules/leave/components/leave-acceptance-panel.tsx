@@ -1,10 +1,11 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
-import { Check, Loader2, X } from "lucide-react"
+import { Check, X } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useToast } from "@/shared/ui/toast"
 import { apiErrorDetail } from "@/shared/utils/error-message"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import { leaveTypeLabel } from "../constants"
 
 interface PendingLeave {
@@ -64,12 +65,7 @@ export function LeaveAcceptancePanel({ onAccepted }: LeaveAcceptancePanelProps) 
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border border-bd bg-surface px-4 py-3 text-sm text-t3">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading pending leave…
-      </div>
-    )
+    return <ListSkeleton rows={2} className="mb-4 space-y-2 rounded-lg border border-bd bg-surface p-4" />
   }
 
   if (pending.length === 0) return null
@@ -78,7 +74,7 @@ export function LeaveAcceptancePanel({ onAccepted }: LeaveAcceptancePanelProps) 
     <div className="rounded-lg border border-bd bg-surface mb-4 overflow-hidden">
       <div className="border-b border-bd px-4 py-2.5 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-t1">Pending leave — admin acceptance</h2>
-        <span className="text-xs font-medium text-t3 tabular-nums">{pending.length} awaiting</span>
+        <span className="type-label text-t3 tabular-nums">{pending.length} awaiting</span>
       </div>
       <ul className="divide-y divide-bd">
         {pending.map(r => (

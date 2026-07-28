@@ -269,7 +269,7 @@ function ResetDataSection() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>Type <span className="font-mono font-bold">RESET ALL DATA</span> to confirm</Label>
+                <Label>Type <span className="font-mono font-medium">RESET ALL DATA</span> to confirm</Label>
                 <Input
                   value={phrase}
                   onChange={e => setPhrase(e.target.value)}

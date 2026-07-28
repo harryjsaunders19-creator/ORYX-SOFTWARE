@@ -130,13 +130,13 @@ export function SupabaseStatusSection() {
                       : <XCircle className="h-4 w-4 text-dn shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-t1">{mod.label}</p>
-                      <p className="text-[11px] text-t3 mt-0.5">
+                      <p className="type-helper text-t3 mt-0.5">
                         {mod.enabled ? "Reading from Supabase" : "SQLite (disabled or no service role)"}
                         {" · "}
                         {mod.tables.filter(t => t.ready).length}/{mod.tables.length} tables
                       </p>
                     </div>
-                    <span className="text-[10px] font-mono text-t4 shrink-0">{mod.envVar}</span>
+                    <span className="type-helper font-mono text-t4 shrink-0">{mod.envVar}</span>
                   </button>
                   {open && (
                     <div className="border-t border-bd bg-pg/30 px-4 py-3 text-xs space-y-2">

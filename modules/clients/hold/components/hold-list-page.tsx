@@ -4,7 +4,7 @@ import Link from "next/link"
 import { format } from "date-fns"
 import {
   ArrowLeft, ShieldCheck,
-  Loader2, Building2, Plus,
+  Building2, Plus,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
@@ -19,6 +19,7 @@ import { formatGBP } from "@/shared/utils/utils"
 // Perf: SWR caches hold list; mutate() refreshes after add/remove/edit.
 import { useApi } from "@/shared/hooks/use-api"
 import { PageHeader, PageShell, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import type { ClientHoldWithClient } from "@/lib/types"
 
 type HoldListData = { holds: ClientHoldWithClient[]; total: number }
@@ -141,7 +142,7 @@ export default function HoldListPage() {
       />
 
       {loading ? (
-        <div className="flex items-center gap-2 py-12 text-t3"><Loader2 className="h-4 w-4 animate-spin" />Loading…</div>
+        <ListSkeleton rows={4} />
       ) : !data?.holds.length ? (
         <DataPanel>
           <EmptyPanel
@@ -155,11 +156,11 @@ export default function HoldListPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-pg border-b border-bd text-xs">
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Client</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Reason</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3 uppercase tracking-wider">Date Added</th>
-                <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Active Jobs</th>
-                <th className="px-4 py-2.5 text-right font-semibold text-t3 uppercase tracking-wider">Quote Value</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Client</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Reason</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-t3">Date Added</th>
+                <th className="px-4 py-2.5 text-right font-semibold text-t3">Active Jobs</th>
+                <th className="px-4 py-2.5 text-right font-semibold text-t3">Quote Value</th>
                 <th className="px-4 py-2.5 w-32" />
               </tr>
             </thead>
@@ -177,7 +178,7 @@ export default function HoldListPage() {
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-xs text-dn-tx font-medium">{hold.reason}</p>
-                    <p className="text-[11px] text-t4 mt-0.5">by {hold.addedBy}</p>
+                    <p className="type-helper text-t4 mt-0.5">by {hold.addedBy}</p>
                   </td>
                   <td className="px-4 py-3 text-xs text-t3 whitespace-nowrap tabular-nums">
                     {format(new Date(hold.addedAt), "d MMM yyyy")}

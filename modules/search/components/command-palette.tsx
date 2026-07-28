@@ -12,7 +12,7 @@ import {
 import { useRouter } from "next/navigation"
 import {
   Search, X, Loader2, Briefcase, GitBranch, Building2,
-  FileText, Receipt, Users, Clock,
+  FileText, Receipt, Users, Clock, CalendarDays, IdCard,
 } from "lucide-react"
 import {
   Dialog, DialogContent, DialogTitle, DialogDescription,
@@ -34,6 +34,8 @@ const TYPE_ICON: Record<SearchEntityType, React.ElementType> = {
   client: Building2,
   quote: FileText,
   invoice: Receipt,
+  calendar: CalendarDays,
+  employee: IdCard,
   user: Users,
 }
 
@@ -43,6 +45,8 @@ const TYPE_LABEL: Record<SearchEntityType, string> = {
   client: "Client",
   quote: "Quote",
   invoice: "Invoice",
+  calendar: "Event",
+  employee: "Employee",
   user: "User",
 }
 
@@ -262,7 +266,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search jobs, clients, quotes…"
+            placeholder="Search jobs, clients and documents…"
             className="min-w-0 flex-1 bg-transparent text-sm text-t1 placeholder:text-t4 outline-none"
             aria-controls={listId}
             aria-autocomplete="list"
@@ -283,7 +287,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
             </button>
           )}
           {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-t4" aria-hidden />}
-          <kbd className="hidden sm:inline-flex shrink-0 rounded border border-bd bg-pg px-1.5 py-0.5 text-[10px] font-medium text-t4">
+          <kbd className="hidden sm:inline-flex shrink-0 rounded border border-bd bg-pg px-1.5 py-0.5 type-badge text-t4">
             Esc
           </kbd>
         </div>
@@ -293,8 +297,8 @@ export function CommandPalette({ open, onOpenChange }: Props) {
             <div className="space-y-4 px-2 pb-2">
               {recent.length > 0 && (
                 <section>
-                  <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-t3 flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" /> Recent searches
+                  <p className="px-3 py-1.5 type-label text-t3 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" /> Recent searches
                   </p>
                   <ul className="space-y-0.5">
                     {recent.map(r => (
@@ -319,7 +323,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
                 <>
                   {recentJobs.length > 0 && (
                     <section>
-                      <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-t3">
+                      <p className="px-3 py-1.5 type-label text-t3">
                         Recent jobs
                       </p>
                       <ul className="space-y-0.5">
@@ -348,7 +352,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
                   )}
                   {recentClients.length > 0 && (
                     <section>
-                      <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-t3">
+                      <p className="px-3 py-1.5 type-label text-t3">
                         Recent clients
                       </p>
                       <ul className="space-y-0.5">
@@ -393,7 +397,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
 
           {!emptyMode && result && result.groups.map(group => (
             <section key={group.type} className="mb-1">
-              <p className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-t3">
+              <p className="px-4 py-1.5 type-label text-t3">
                 {group.label}
               </p>
               <ul className="space-y-0.5 px-2">
@@ -419,11 +423,11 @@ export function CommandPalette({ open, onOpenChange }: Props) {
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wide text-t3">
+                            <span className="type-label text-t3">
                               {TYPE_LABEL[hit.type]}
                             </span>
                             {hit.meta && (
-                              <span className="text-[10px] font-medium text-t4 truncate">
+                              <span className="type-badge text-t4 truncate">
                                 {hit.meta}
                               </span>
                             )}
@@ -449,7 +453,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
           ))}
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-bd bg-surface-low px-4 py-2 text-[10px] text-t4">
+        <div className="flex items-center justify-between gap-2 border-t border-bd bg-surface-low px-4 py-2 type-helper text-t4">
           <span className="flex items-center gap-3">
             <span><kbd className="rounded border border-bd bg-sr px-1">↑↓</kbd> navigate</span>
             <span><kbd className="rounded border border-bd bg-sr px-1">↵</kbd> open</span>

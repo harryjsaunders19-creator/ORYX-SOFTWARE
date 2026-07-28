@@ -18,6 +18,7 @@ import {
   clearJobMapCache,
 } from "../cache/session-cache"
 import { markersToCsv } from "../csv-export"
+import { downloadCsv } from "@/shared/utils/download-csv"
 
 const JobMapCanvas = dynamic(
   () => import("./job-map-canvas").then(m => m.JobMapCanvas),
@@ -204,14 +205,10 @@ export default function JobMapPage() {
       toast("No projects to export", "error")
       return
     }
-    const csv = markersToCsv(markers)
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `oryx-job-map-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadCsv(
+      `oryx-job-map-${new Date().toISOString().slice(0, 10)}.csv`,
+      markersToCsv(markers),
+    )
   }, [markers, toast])
 
   const findMissingLocations = useCallback(async () => {
@@ -293,13 +290,13 @@ export default function JobMapPage() {
         />
       ) : (
         <>
-          <div className="flex flex-wrap gap-3 mb-3 text-[11px] text-t3">
+          <div className="flex flex-wrap gap-3 mb-3 type-helper text-t3">
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#16a34a]" /> Completed projects with coordinates
+                <span className="w-2.5 h-2.5 rounded-full bg-ok-ic" /> Completed projects with coordinates
             </span>
             {(filters.locationFilter ?? "completed") === "manual" && (
               <span className="inline-flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#2563eb]" /> Manually placed pins
+                <span className="w-2.5 h-2.5 rounded-full bg-ac" /> Manually placed pins
               </span>
             )}
           </div>

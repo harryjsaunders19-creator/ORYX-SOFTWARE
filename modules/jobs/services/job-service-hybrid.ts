@@ -400,11 +400,7 @@ export const jobService = {
 
   async findOverduePreview(take = 5) {
     if (!useSupabaseJobs()) {
-      return jobDb.findMany({
-        where: { overdue: true },
-        orderBy: { field: "requiredByDate", dir: "asc" },
-        take,
-      })
+      return jobDb.overdueJobs().slice(0, take)
     }
     return supabaseJobRepo.findOverduePreview(take)
   },

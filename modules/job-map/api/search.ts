@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireSignIn } from "@/shared/auth/auth"
 import { jobMapService } from "../services/job-map-service"
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireRole(["ADMIN"])
+    const auth = await requireSignIn()
     if (auth instanceof NextResponse) return auth
 
     const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")

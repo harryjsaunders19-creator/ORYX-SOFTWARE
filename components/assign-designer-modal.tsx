@@ -77,7 +77,7 @@ export function AssignDesignerModal({ job, onClose, onSaved }: Props) {
               autoFocus
               allowUnassigned={false}
             />
-            <p className="text-[11px] text-t4 mt-1">
+            <p className="type-helper text-t4 mt-1">
               Choose from active Users — the same list Performance tracks.
             </p>
           </div>

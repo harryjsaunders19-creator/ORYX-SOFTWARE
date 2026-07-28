@@ -24,11 +24,11 @@ export const DropdownMenuContent = React.forwardRef<
         zIndex: 200,
         minWidth: "180px",
         overflow: "hidden",
-        borderRadius: "14px",
+        borderRadius: "var(--radius-xl)",
         border: "1px solid var(--color-bd)",
         backgroundColor: "var(--color-sr)",
         padding: "6px",
-        boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.03), 0 8px 24px -8px rgb(0 0 0 / 0.08)",
+        boxShadow: "var(--shadow-modal)",
       }}
       {...props}
     />
@@ -51,12 +51,12 @@ export const DropdownMenuItem = React.forwardRef<
     style={{
       padding: "8px 10px",
       fontSize: "13px",
-      borderRadius: "6px",
+      borderRadius: "var(--radius-md)",
       display: "flex",
       alignItems: "center",
       gap: "8px",
       cursor: "default",
-      color: danger ? "#C0362C" : "#18181B",
+      color: danger ? "var(--color-dn)" : "var(--color-t1)",
     }}
     {...props}
   />
@@ -74,7 +74,7 @@ export const DropdownMenuCheckboxItem = React.forwardRef<
       "focus:bg-pg data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
       className,
     )}
-    style={{ padding: "8px 10px 8px 28px", fontSize: "13px", borderRadius: "6px", position: "relative", cursor: "default" }}
+    style={{ padding: "8px 10px 8px 28px", fontSize: "13px", borderRadius: "var(--radius-md)", position: "relative", cursor: "default" }}
     {...props}
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center" style={{ position: "absolute", left: "8px", display: "flex", alignItems: "center" }}>
@@ -93,8 +93,14 @@ export const DropdownMenuLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Label
     ref={ref}
-    className={cn("px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-t4", className)}
-    style={{ padding: "6px 8px", fontSize: "11px", fontWeight: 600, color: "var(--color-t4)", textTransform: "uppercase", letterSpacing: "0.03em" }}
+    className={cn("px-2 py-1.5 type-label text-t4", className)}
+    style={{
+      padding: "6px 8px",
+      fontSize: "var(--type-label-size)",
+      fontWeight: "var(--type-label-weight)" as unknown as number,
+      lineHeight: "var(--type-label-leading)",
+      color: "var(--color-t4)",
+    }}
     {...props}
   />
 ))

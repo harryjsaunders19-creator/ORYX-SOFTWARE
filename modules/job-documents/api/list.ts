@@ -42,6 +42,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
     const result = await jobDocumentService.list({
       rootJobId: family.rootJobId,
+      rootJobIds: family.documentRootIds,
+      parentJobId: family.parentJobId,
       q,
       category: category && isValidDocumentCategory(category) ? category : category || undefined,
       kind,

@@ -17,7 +17,7 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif" }}>
+      <body style={{ margin: 0, fontFamily: "Inter, 'Segoe UI', system-ui, sans-serif" }}>
         <div
           style={{
             minHeight: "100vh",
@@ -27,14 +27,14 @@ export default function GlobalError({
             justifyContent: "center",
             padding: "1.5rem",
             textAlign: "center",
-            background: "var(--pg, #f5f5f4)",
-            color: "var(--t1, #1c1917)",
+            background: "var(--color-pg, #f8f9fa)",
+            color: "var(--color-t1, #191c1d)",
           }}
         >
-          <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>
+          <h1 style={{ fontSize: "30px", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-0.02em", margin: 0 }}>
             Something went wrong
           </h1>
-          <p style={{ marginTop: "0.5rem", maxWidth: "28rem", color: "var(--t3, #78716c)", fontSize: "0.875rem" }}>
+          <p style={{ marginTop: "0.5rem", maxWidth: "28rem", color: "var(--color-t3, #76777d)", fontSize: "14px", fontWeight: 400, lineHeight: 1.429 }}>
             A critical error occurred. Try again or go back to the home page.
           </p>
           <div style={{ marginTop: "1.5rem", display: "flex", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
@@ -43,13 +43,14 @@ export default function GlobalError({
               onClick={() => reset()}
               style={{
                 padding: "0.5rem 1rem",
-                borderRadius: "0.375rem",
+                borderRadius: "8px",
                 border: "none",
-                background: "var(--ac, #1c1917)",
-                color: "#fff",
+                background: "var(--color-ac, #111827)",
+                color: "var(--color-on-ac, #fff)",
                 cursor: "pointer",
-                fontSize: "0.875rem",
-                fontWeight: 500,
+                fontSize: "14px",
+                fontWeight: 600,
+                lineHeight: 1.429,
               }}
             >
               Try again
@@ -61,13 +62,14 @@ export default function GlobalError({
               }}
               style={{
                 padding: "0.5rem 1rem",
-                borderRadius: "0.375rem",
-                border: "1px solid var(--bd, #d6d3d1)",
-                background: "var(--sr, #fff)",
+                borderRadius: "8px",
+                border: "1px solid var(--color-bd, #c6c6cd)",
+                background: "var(--color-sr, #fff)",
                 color: "inherit",
                 cursor: "pointer",
-                fontSize: "0.875rem",
-                fontWeight: 500,
+                fontSize: "14px",
+                fontWeight: 600,
+                lineHeight: 1.429,
               }}
             >
               Go home

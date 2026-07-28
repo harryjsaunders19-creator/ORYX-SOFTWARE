@@ -18,6 +18,7 @@ import {
   PageHeader, PageShell, SearchField, DataPanel, EmptyPanel,
   TableShell, TableHead, Th,
 } from "@/shared/layouts/page-layout"
+import { ListSkeleton } from "@/shared/ui/list-skeleton"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi, buildApiKey } from "@/shared/hooks/use-api"
 import { RequireRole } from "@/components/require-role"
@@ -319,7 +320,7 @@ function VaultPageInner() {
 
       <DataPanel noPadding>
         {loading && !data ? (
-          <div className="p-8 text-center text-sm text-t3">Loading vault…</div>
+          <ListSkeleton rows={6} />
         ) : !data?.entries.length ? (
           <EmptyPanel
             icon={KeyRound}
@@ -343,7 +344,7 @@ function VaultPageInner() {
                     className="inline-flex items-center gap-1 hover:text-t1"
                   >
                     Service
-                    <ArrowUpDown className="h-3 w-3" />
+                    <ArrowUpDown className="h-3.5 w-3.5" />
                     <span className="sr-only">Sort {sort === "asc" ? "descending" : "ascending"}</span>
                   </button>
                 </Th>
@@ -391,7 +392,7 @@ function VaultPageInner() {
                           className="inline-flex items-center gap-1 text-xs text-ac hover:text-ach truncate max-w-full"
                         >
                           <span className="truncate">{entry.loginUrl!.replace(/^https?:\/\//, "")}</span>
-                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                         </a>
                       ) : (
                         <span className="text-t4">—</span>

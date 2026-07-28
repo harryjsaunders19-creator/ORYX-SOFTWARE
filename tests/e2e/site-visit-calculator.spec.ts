@@ -10,6 +10,10 @@ test.describe("Site visit calculator", () => {
     const siteInput = page.getByLabel(/site address/i)
     await siteInput.fill("Bristol Temple Meads, Bristol")
 
+    const listbox = page.getByRole("listbox", { name: "Address suggestions" })
+    await expect(listbox).toBeVisible({ timeout: 15_000 })
+    await listbox.getByRole("option").first().click()
+
     const summary = page.locator("#site-visit-summary")
     await expect(summary.getByText("Total (inc VAT)")).toBeVisible({ timeout: 45_000 })
     await expect(summary.locator(".text-lg").filter({ hasText: /£/ })).toBeVisible()

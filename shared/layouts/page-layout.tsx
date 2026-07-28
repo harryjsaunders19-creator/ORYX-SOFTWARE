@@ -1,11 +1,14 @@
 "use client"
+import { Fragment } from "react"
 import Link from "next/link"
-import { ArrowLeft, Search } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { cn } from "@/shared/utils"
 import { Input } from "@/shared/ui/input"
+import { Button } from "@/shared/ui/button"
+import { Typography } from "@/shared/design/typography"
 
 /** Stitch surface — bordered card, minimal shadow. */
-export const surfaceCard = "oryx-surface-card bg-sr border border-bd rounded-md"
+export const surfaceCard = "oryx-surface-card bg-sr border border-bd rounded-xl"
 
 /** Standard page wrapper — Stitch canvas padding below top bar. */
 export function PageShell({ children, className, wide }: {
@@ -20,6 +23,24 @@ export function PageShell({ children, className, wide }: {
   )
 }
 
+/** Vertical stack on the 8px grid — default page section rhythm. */
+export function PageStack({ children, className, gap = "lg" }: {
+  children: React.ReactNode
+  className?: string
+  gap?: "sm" | "md" | "lg"
+}) {
+  return (
+    <div className={cn(
+      gap === "sm" && "space-y-4",
+      gap === "md" && "space-y-6",
+      gap === "lg" && "space-y-8",
+      className,
+    )}>
+      {children}
+    </div>
+  )
+}
+
 export function PageHeader({ title, description, actions }: {
   title: string
   description?: React.ReactNode
@@ -28,9 +49,9 @@ export function PageHeader({ title, description, actions }: {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
       <div className="min-w-0">
-        <h1 className="oryx-page-title text-t1">{title}</h1>
+        <h1 className={cn(Typography.PageTitle, "oryx-page-title text-t1")}>{title}</h1>
         {description != null && (
-          <p className="mt-1 text-sm text-t3">{description}</p>
+          <p className={cn(Typography.Small, "mt-2 text-t3")}>{description}</p>
         )}
       </div>
       {actions && (
@@ -53,8 +74,8 @@ export function SearchField({ value, onChange, placeholder, className }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? "Search…"}
-        className="pl-10 bg-surface-low border border-bd shadow-none h-10 rounded focus-visible:ring-2 focus-visible:ring-t1/20"
-        style={{ paddingLeft: "40px" }}
+        className="pl-10 bg-surface-low border border-bd shadow-none h-9 rounded-lg focus-visible:ring-2 focus-visible:ring-t1/20"
+        style={{ paddingLeft: "40px", height: "36px" }}
       />
     </div>
   )
@@ -68,7 +89,7 @@ export function DataPanel({ children, className, noPadding }: {
 }) {
   return (
     <div className={cn(
-      "oryx-surface-card bg-sr border border-bd rounded-md overflow-hidden",
+      "oryx-surface-card bg-sr border border-bd rounded-xl overflow-hidden",
       !noPadding && "p-0",
       className,
     )}>
@@ -85,9 +106,9 @@ export function PanelHeader({ title, count, action }: {
   return (
     <div className="px-4 py-3 border-b border-bd flex items-center justify-between shrink-0 bg-sr">
       <div className="flex items-center gap-2 min-w-0">
-        <p className="text-sm font-semibold text-t1">{title}</p>
+        <p className={cn(Typography.CardTitle, "text-t1")}>{title}</p>
         {count != null && count > 0 && (
-          <span className="text-[11px] font-bold rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center bg-pg text-t2 shrink-0 tabular-nums">
+          <span className={cn(Typography.Badge, "rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center bg-pg text-t2 shrink-0 tabular-nums")}>
             {count}
           </span>
         )}
@@ -108,7 +129,7 @@ export function TableShell({ children, className }: { children: React.ReactNode;
 export function TableHead({ children }: { children: React.ReactNode }) {
   return (
       <thead>
-      <tr className="bg-surface-low border-b border-bd text-xs sticky top-0 z-[1]">
+      <tr className={cn("bg-surface-low border-b border-bd sticky top-0 z-[1]", Typography.TableHead)}>
         {children}
       </tr>
     </thead>
@@ -122,7 +143,8 @@ export function Th({ children, className, align }: {
 }) {
   return (
     <th className={cn(
-      "px-4 py-2.5 font-semibold text-t3 uppercase tracking-wider whitespace-nowrap",
+      Typography.TableHead,
+      "px-4 py-2.5 text-t3 whitespace-nowrap",
       align === "right" && "text-right",
       align === "center" && "text-center",
       (!align || align === "left") && "text-left",
@@ -136,28 +158,31 @@ export function Th({ children, className, align }: {
 /** Back navigation — consistent across detail and import pages. */
 export function BackLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="inline-flex items-center gap-1.5 text-xs text-t3 hover:text-t2 mb-4">
+    <Link href={href} className={cn(Typography.Helper, "inline-flex items-center gap-1.5 text-t3 hover:text-t2 mb-4")}>
       <ArrowLeft className="h-3.5 w-3.5" />
       {children}
     </Link>
   )
 }
 
-/** Stitch KPI tile — accent bar, large value, optional subtitle. */
-export function KpiTile({ label, value, sub, accent = "var(--color-ac)", valueClassName, className }: {
+/** Stitch KPI tile — large value, optional subtitle. Neutral chrome only. */
+export function KpiTile({ label, value, sub, valueClassName, className }: {
   label: string
   value: React.ReactNode
   sub?: React.ReactNode
+  /** @deprecated Decorative accents removed — kept for call-site compatibility. */
   accent?: string
   valueClassName?: string
   className?: string
 }) {
   return (
-    <div className={cn("relative overflow-hidden rounded-lg border border-[#E5E7EB] bg-sr p-6 shadow-sm transition-shadow hover:shadow-md", className)}>
-      <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
-      <p className={cn("mb-2 text-[48px] font-semibold tabular-nums leading-none tracking-tight max-md:text-3xl", valueClassName ?? "text-t1")}>{value}</p>
-      <p className="font-mono text-xs uppercase tracking-widest text-t3">{label}</p>
-      {sub != null && <p className="mt-1 text-xs text-t4">{sub}</p>}
+    <div className={cn(
+      "oryx-surface-card rounded-xl border border-bd bg-sr p-5 transition-colors duration-150 hover:border-bds",
+      className,
+    )}>
+      <p className={cn(Typography.Stat, "mb-2 max-md:text-[28px]", valueClassName ?? "text-t1")}>{value}</p>
+      <p className={cn(Typography.Small, "font-medium text-t2")}>{label}</p>
+      {sub != null && <p className={cn(Typography.Helper, "mt-1 text-t3")}>{sub}</p>}
     </div>
   )
 }
@@ -172,7 +197,7 @@ export function DetailPanel({ title, children, className, headerAction }: {
   return (
     <div className={cn(surfaceCard, "overflow-hidden", className)}>
       <div className="px-4 py-3 border-b border-bd flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-t3 uppercase tracking-wider">{title}</p>
+        <p className={cn(Typography.BodyLarge, "font-semibold text-t2")}>{title}</p>
         {headerAction}
       </div>
       <div className="px-4 py-3">{children}</div>
@@ -180,9 +205,9 @@ export function DetailPanel({ title, children, className, headerAction }: {
   )
 }
 
-/** Horizontal tab bar — billing, multi-view pages. */
+/** Horizontal tab bar — billing, archive, multi-view pages. */
 export function TabBar({ tabs, active, onChange, trailing }: {
-  tabs: { id: string; label: string; icon?: React.ElementType }[]
+  tabs: { id: string; label: string; icon?: React.ElementType; count?: number }[]
   active: string
   onChange: (id: string) => void
   trailing?: React.ReactNode
@@ -190,23 +215,139 @@ export function TabBar({ tabs, active, onChange, trailing }: {
   return (
     <div className="flex items-center justify-between border-b border-bd mb-4">
       <div className="flex items-center gap-1 max-md:overflow-x-auto max-md:thin-scroll">
-        {tabs.map(({ id, label, icon: Icon }) => (
+        {tabs.map(({ id, label, icon: Icon, count }) => (
           <button
             key={id}
             type="button"
             onClick={() => onChange(id)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+              Typography.Nav,
+              "flex items-center gap-1.5 px-3 py-2.5 border-b-2 -mb-px transition-colors whitespace-nowrap",
               active === id ? "border-ac text-ac" : "border-transparent text-t3 hover:text-t2",
             )}
           >
-            {Icon && <Icon className="h-3.5 w-3.5" />}
+            {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
             {label}
+            {count != null && count > 0 && (
+              <span className={cn(Typography.Badge, "ml-0.5 min-w-[18px] h-5 px-1.5 flex items-center justify-center rounded-full bg-pg text-t2 tabular-nums")}>
+                {count}
+              </span>
+            )}
           </button>
         ))}
       </div>
       {trailing}
     </div>
+  )
+}
+
+/** Shared table pagination — icon chevrons, consistent copy. */
+export function TablePagination({
+  page,
+  totalPages,
+  onPageChange,
+  total,
+  pageSize,
+  countLabel,
+  hideWhenSingle = true,
+  disabled = false,
+  variant = "card",
+  className,
+}: {
+  page: number
+  totalPages: number
+  onPageChange: (page: number) => void
+  total?: number
+  pageSize?: number
+  countLabel?: React.ReactNode
+  hideWhenSingle?: boolean
+  disabled?: boolean
+  variant?: "card" | "inset" | "bare"
+  className?: string
+}) {
+  if (hideWhenSingle && totalPages <= 1) return null
+
+  const rangeLabel = total != null && pageSize != null
+    ? (
+      <>
+        {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of{" "}
+        <span className="font-semibold text-t2">{total.toLocaleString()}</span>
+      </>
+    )
+    : countLabel
+
+  return (
+    <div
+      className={cn(
+        Typography.Helper,
+        "flex items-center justify-between gap-3 text-t3",
+        variant === "card" && "px-4 py-3 mt-3 border border-bd rounded-xl bg-sr shadow-card",
+        variant === "inset" && "px-4 py-3 border-t border-bd",
+        variant === "bare" && "mt-4 px-1",
+        className,
+      )}
+    >
+      <p className="min-w-0 truncate">{rangeLabel}</p>
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          disabled={disabled || page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </Button>
+        <span className={cn(Typography.Helper, "text-t2 px-2 tabular-nums min-w-[56px] text-center")}>
+          {page} / {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          disabled={disabled || page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          aria-label="Next page"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Detail-page breadcrumb — Jobs › drawing number. */
+export function PageBreadcrumb({
+  items,
+}: {
+  items: { label: React.ReactNode; onClick?: () => void; mono?: boolean; strike?: boolean }[]
+}) {
+  return (
+    <nav className={cn(Typography.Helper, "flex items-center gap-1.5 text-t3 mb-6")}>
+      {items.map((item, i) => (
+        <Fragment key={i}>
+          {i > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+          {item.onClick ? (
+            <button
+              type="button"
+              className="hover:text-t1 transition-colors"
+              onClick={item.onClick}
+            >
+              {item.label}
+            </button>
+          ) : (
+            <span
+              className={cn(
+                "font-medium text-t1 truncate",
+                item.mono && "font-mono",
+                item.strike && "line-through opacity-70",
+              )}
+            >
+              {item.label}
+            </span>
+          )}
+        </Fragment>
+      ))}
+    </nav>
   )
 }
 
@@ -232,8 +373,8 @@ export function EmptyPanel({ icon: Icon, title, description, action }: {
           <Icon className="h-5 w-5 text-t4" />
         </div>
         <div>
-          <p className="text-sm font-medium text-t1">{title}</p>
-          {description && <p className="text-xs text-t3 mt-1">{description}</p>}
+          <p className={cn(Typography.Small, "font-medium text-t1")}>{title}</p>
+          {description && <p className={cn(Typography.Helper, "text-t3 mt-1")}>{description}</p>}
         </div>
         {action}
       </div>
@@ -252,11 +393,11 @@ export function AuthBrand({ title, subtitle }: { title: string; subtitle?: strin
           </svg>
         </div>
         <div>
-          <p className="text-sm font-bold uppercase tracking-tight text-t1">Oryx Design</p>
+          <p className={cn(Typography.Small, "font-semibold tracking-tight text-t1")}>Oryx Design</p>
         </div>
       </div>
-      <h1 className="text-xl font-bold text-t1 text-center lg:text-left">{title}</h1>
-      {subtitle && <p className="text-sm text-t3 mt-1 mb-7 text-center lg:text-left">{subtitle}</p>}
+      <h1 className={cn(Typography.PageTitle, "text-t1 text-center lg:text-left")}>{title}</h1>
+      {subtitle && <p className={cn(Typography.Small, "text-t3 mt-1 mb-7 text-center lg:text-left")}>{subtitle}</p>}
       {!subtitle && <div className="mb-7" />}
     </>
   )
@@ -275,14 +416,14 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
               </svg>
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight uppercase leading-none">Oryx Design</h2>
+              <h2 className={cn(Typography.CardTitle, "leading-none")}>Oryx Design</h2>
             </div>
           </div>
-          <p className="text-2xl font-semibold tracking-tight leading-tight max-w-sm text-sr/90">
+          <p className={cn(Typography.SectionHeading, "max-w-sm text-sr/90")}>
             Engineering operations dashboard for scaffold design consultancy.
           </p>
         </div>
-        <p className="text-xs text-t4 relative z-10">Oryx Design Ltd · Scaffold Consultancy</p>
+        <p className={cn(Typography.Helper, "text-t4 relative z-10")}>Oryx Design Ltd · Scaffold Consultancy</p>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10">

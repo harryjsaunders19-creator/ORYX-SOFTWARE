@@ -54,7 +54,17 @@ export const supabaseJobDocumentRepo = {
     const from = (page - 1) * limit
     const to = from + limit - 1
 
-    let q = table().select(COLS, { count: "exact" }).eq("root_job_id", opts.rootJobId)
+    let q = table().select(COLS, { count: "exact" })
+    const rootIds = [...new Set([opts.rootJobId, ...(opts.rootJobIds ?? [])].filter(Boolean))]
+    if (opts.parentJobId) {
+      // Parent family may store docs under parent id or legacy job id.
+      const rootList = rootIds.join(",")
+      q = q.or(`root_job_id.in.(${rootList}),parent_job_id.eq.${opts.parentJobId}`)
+    } else if (rootIds.length > 1) {
+      q = q.in("root_job_id", rootIds)
+    } else {
+      q = q.eq("root_job_id", opts.rootJobId)
+    }
     if (!opts.includeDeleted) q = q.is("deleted_at", null)
 
     if (opts.category) q = q.eq("category", opts.category)

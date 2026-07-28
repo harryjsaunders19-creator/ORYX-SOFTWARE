@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
 import { getWorkItemType } from "@/lib/constants"
+import { Typography } from "@/shared/design/typography"
 
 /**
  * Badge for work item type — shown alongside status badge in tables and headers.
@@ -15,9 +16,10 @@ export function WorkItemTypeBadge({ itemType, size = "md" }: {
   const t = getWorkItemType(itemType)
   return (
     <span className={cn(
-      "inline-flex items-center rounded-full font-medium whitespace-nowrap",
+      Typography.Badge,
+      "inline-flex items-center rounded-md whitespace-nowrap",
       t.color,
-      size === "sm" ? "px-1.5 py-0 text-[10px]" : "px-2.5 py-0.5 text-[11px]",
+      size === "sm" ? "px-1.5 py-0" : "px-2.5 py-0.5",
     )}>
       {t.label}
     </span>
