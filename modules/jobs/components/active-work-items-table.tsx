@@ -296,11 +296,11 @@ export function ActiveWorkItemsTable({
       </DataPanel>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>New job</DialogTitle>
             <DialogDescription>
-              Design jobs create a Parent Job + Original Issue. Site visits and surveys stay as standalone jobs.
+              Create a design, site visit, or CAT III check. Design jobs open as a parent job with an original issue.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>

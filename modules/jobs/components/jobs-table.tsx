@@ -1030,7 +1030,9 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>New job</DialogTitle>
-            <DialogDescription>Drawing number assigned automatically on save.</DialogDescription>
+            <DialogDescription>
+              Create a design, site visit, or CAT III check. Reference numbers are assigned automatically.
+            </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <JobForm key={createOpen ? "open" : "closed"} formId="create-job-form" onSubmit={handleCreate} designers={designers} />
