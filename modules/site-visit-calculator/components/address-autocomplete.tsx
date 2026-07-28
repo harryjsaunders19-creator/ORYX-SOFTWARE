@@ -45,7 +45,7 @@ export function AddressAutocomplete({
     const ac = new AbortController()
     setLoading(true)
     setRequestError(null)
-    fetch(`/api/job-map/search?q=${encodeURIComponent(debounced.trim())}`, { signal: ac.signal })
+    fetch(`/api/site-visit-calculator/search?q=${encodeURIComponent(debounced.trim())}`, { signal: ac.signal })
       .then(async r => {
         if (!r.ok) {
           throw new Error("Address lookup failed")
