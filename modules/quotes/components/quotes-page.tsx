@@ -2,7 +2,7 @@
 import { Suspense, memo, useCallback, useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { format } from "date-fns"
 import {
   Plus, FileText, Download, CheckCircle2, XCircle,
@@ -278,6 +278,7 @@ const MemoQuoteTableRow = memo(QuoteTableRow)
 function QuotesInner() {
   const { toast }    = useToast()
   const searchParams = useSearchParams()
+  const router = useRouter()
 
   const [search,     setSearch]     = useState(() => searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
@@ -292,6 +293,15 @@ function QuotesInner() {
   const [clearing, setClearing] = useState(false)
   const [archiveQuote, setArchiveQuote] = useState<Quote | null>(null)
   const [archiving,    setArchiving]    = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return
+    setCreateOpen(true)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete("new")
+    const qs = next.toString()
+    router.replace(qs ? `/quotes?${qs}` : "/quotes", { scroll: false })
+  }, [searchParams, router])
 
   useEffect(() => { setPage(1) }, [debouncedSearch, statusFilter])
 

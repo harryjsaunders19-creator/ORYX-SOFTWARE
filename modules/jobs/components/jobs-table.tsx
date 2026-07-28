@@ -449,6 +449,15 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const [deleting,     setDeleting]     = useState(false)
   const [creatingRevisionFor, setCreatingRevisionFor] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return
+    setCreateOpen(true)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete("new")
+    const qs = next.toString()
+    router.replace(qs ? `/jobs?${qs}` : "/jobs", { scroll: false })
+  }, [searchParams, router])
+
   useEffect(() => { setPage(1) }, [debouncedSearch])
 
   const jobsApiKey = useMemo(() => {

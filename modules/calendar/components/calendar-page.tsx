@@ -4,6 +4,7 @@ import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths,
 } from "date-fns"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import {
@@ -50,6 +51,8 @@ function getRange(date: Date) {
 export default function CalendarPage() {
   const { toast } = useToast()
   const { isAdmin, user } = useUser()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentDate, setCurrentDate] = useState(new Date())
 
   const [filterCategory, setFilterCategory] = useState("ALL")
@@ -64,8 +67,22 @@ export default function CalendarPage() {
   const [editEvent, setEditEvent]       = useState<CalendarEvent | null>(null)
   const [leaveEvent, setLeaveEvent]     = useState<CalendarEvent | null>(null)
   const [defaultDate, setDefaultDate]   = useState<string | undefined>()
+  const [defaultCategoryId, setDefaultCategoryId] = useState<string | undefined>()
 
   const canFilterStaff = isAdmin
+
+  useEffect(() => {
+    const create = searchParams.get("new")
+    if (!create) return
+    setEditEvent(null)
+    setDefaultDate(format(new Date(), "yyyy-MM-dd"))
+    setDefaultCategoryId(create === "site-visit" ? "cat_site_visit" : undefined)
+    setDialogOpen(true)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete("new")
+    const qs = next.toString()
+    router.replace(qs ? `/calendar?${qs}` : "/calendar", { scroll: false })
+  }, [searchParams, router])
 
   const eventsKey = useMemo(() => {
     const { from, to } = getRange(currentDate)
@@ -110,6 +127,7 @@ export default function CalendarPage() {
   const handleDayClick = (date: Date) => {
     setEditEvent(null)
     setDefaultDate(format(date, "yyyy-MM-dd"))
+    setDefaultCategoryId(undefined)
     setDialogOpen(true)
   }
 
@@ -268,10 +286,11 @@ export default function CalendarPage() {
 
       <EventDialog
         open={dialogOpen}
-        onClose={() => { setDialogOpen(false); setEditEvent(null) }}
+        onClose={() => { setDialogOpen(false); setEditEvent(null); setDefaultCategoryId(undefined) }}
         onSaved={refreshEvents}
         event={editEvent}
         defaultDate={defaultDate}
+        defaultCategoryId={defaultCategoryId}
       />
 
       {LEAVE_ENABLED && (

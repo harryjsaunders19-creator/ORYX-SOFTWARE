@@ -24,7 +24,7 @@
   /* ── Fonts ─────────────────────────────────────────── */
   /* Loaded via next/font/google in app/fonts.ts — bundled at build time,
      no runtime dependency on Google's font CDN. */
-  --font-sans: 'Figtree', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* ── Colours ───────────────────────────────────────── */
@@ -153,7 +153,7 @@
   --space-8: 32px;
 
   /* ── Shadows ───────────────────────────────────────── */
-  --shadow-card:  0 4px 6px -1px rgb(0 0 0 / 0.05);
+  --shadow-card:  0 1px 2px 0 rgb(0 0 0 / 0.04);
   --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.12), 0 4px 12px 0 rgb(0 0 0 / 0.04);
   --shadow-sidebar: none;
 }
@@ -390,29 +390,31 @@ aside.stitch-sidebar {
   color: #ffffff;
 }
 
+html.stitch-layout main.oryx-app-main {
+  margin-left: 0;
+  padding-top: var(--stitch-top-bar-h);
+  min-height: 100vh;
+  transition: margin-left 200ms ease-out;
+}
+
+@media (min-width: 768px) {
+  html.stitch-layout main.oryx-app-main {
+    margin-left: var(--stitch-sidebar-w);
+  }
+}
+
 html.stitch-layout .stitch-top-bar {
   left: 0;
   right: 0;
   height: var(--stitch-top-bar-h);
   background-color: var(--stitch-top-bar-bg) !important;
   border-bottom: 1px solid var(--color-bd) !important;
+  transition: left 200ms ease-out;
 }
 
 @media (min-width: 768px) {
   html.stitch-layout .stitch-top-bar {
     left: var(--stitch-sidebar-w);
-  }
-}
-
-html.stitch-layout main.oryx-app-main {
-  margin-left: 0;
-  padding-top: var(--stitch-top-bar-h);
-  min-height: 100vh;
-}
-
-@media (min-width: 768px) {
-  html.stitch-layout main.oryx-app-main {
-    margin-left: var(--stitch-sidebar-w);
   }
 }
 
@@ -443,8 +445,8 @@ html.stitch-layout .oryx-nav-menu-btn {
 }
 
 html.stitch-layout .stitch-nav-link {
-  border-left: 2px solid transparent;
-  color: #ffffff;
+  border-left: none;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 html.stitch-layout .stitch-nav-link:hover {
@@ -454,7 +456,6 @@ html.stitch-layout .stitch-nav-link:hover {
 
 html.stitch-layout .stitch-nav-link[data-active="true"] {
   background-color: var(--stitch-sidebar-active) !important;
-  border-left-color: #ffffff !important;
   color: #ffffff !important;
   font-weight: 500;
 }
@@ -492,9 +493,9 @@ html.stitch-layout .stitch-menu-logo {
 }
 
 html.stitch-layout .stitch-top-bar-title {
-  font-size: 1.5rem;
-  line-height: 2rem;
-  font-weight: 900;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--color-t1);
 }

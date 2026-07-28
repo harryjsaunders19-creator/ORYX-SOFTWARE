@@ -266,7 +266,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search jobs, clients, quotes…"
+            placeholder="Search jobs, clients and documents…"
             className="min-w-0 flex-1 bg-transparent text-sm text-t1 placeholder:text-t4 outline-none"
             aria-controls={listId}
             aria-autocomplete="list"

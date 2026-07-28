@@ -164,20 +164,23 @@ export function BackLink({ href, children }: { href: string; children: React.Rea
 }
 
 /** Stitch KPI tile — accent bar, large value, optional subtitle. */
-export function KpiTile({ label, value, sub, accent = "var(--color-ac)", valueClassName, className }: {
+export function KpiTile({ label, value, sub, valueClassName, className }: {
   label: string
   value: React.ReactNode
   sub?: React.ReactNode
+  /** @deprecated Decorative accents removed — kept for call-site compatibility. */
   accent?: string
   valueClassName?: string
   className?: string
 }) {
   return (
-    <div className={cn("oryx-surface-card relative overflow-hidden rounded-xl border border-bd bg-sr p-6 transition-shadow hover:shadow-md", className)}>
-      <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
-      <p className={cn("mb-2 text-[48px] font-semibold tabular-nums leading-none tracking-tight max-md:text-3xl", valueClassName ?? "text-t1")}>{value}</p>
-      <p className="font-mono text-xs uppercase tracking-widest text-t3">{label}</p>
-      {sub != null && <p className="mt-1 text-xs text-t4">{sub}</p>}
+    <div className={cn(
+      "oryx-surface-card rounded-xl border border-bd bg-sr p-6 transition-shadow hover:shadow-sm",
+      className,
+    )}>
+      <p className={cn("mb-2 text-4xl font-semibold tabular-nums leading-none tracking-tight max-md:text-3xl", valueClassName ?? "text-t1")}>{value}</p>
+      <p className="text-sm font-medium text-t2">{label}</p>
+      {sub != null && <p className="mt-1 text-xs text-t3">{sub}</p>}
     </div>
   )
 }

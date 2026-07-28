@@ -1,7 +1,7 @@
 "use client"
 import { Suspense, memo, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { Plus, RotateCcw, Building2, ChevronRight, Archive, Upload } from "lucide-react"
 import { useUser } from "@/shared/providers/user-context"
@@ -209,6 +209,7 @@ function ClientsInner() {
   const { toast } = useToast()
   const { isAdmin } = useUser()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [search,     setSearch]     = useState(() => searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
   const [showAll,    setShowAll]    = useState(false)
@@ -221,6 +222,15 @@ function ClientsInner() {
   const [dupError,   setDupError]   = useState<{ msg: string; existing: Client } | null>(null)
   const [archiveClient, setArchiveClient] = useState<ClientWithMeta | null>(null)
   const [archiving,     setArchiving]     = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return
+    setCreateOpen(true)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete("new")
+    const qs = next.toString()
+    router.replace(qs ? `/clients?${qs}` : "/clients", { scroll: false })
+  }, [searchParams, router])
 
   useEffect(() => { setPage(1) }, [debouncedSearch, showAll])
 
