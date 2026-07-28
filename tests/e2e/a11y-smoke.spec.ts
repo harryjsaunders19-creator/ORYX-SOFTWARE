@@ -1,6 +1,14 @@
 import AxeBuilder from "@axe-core/playwright"
 import { test, expect, loginAsAdmin } from "./helpers"
 
+async function expectNoCriticalAxe(page: import("@playwright/test").Page) {
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze()
+  const critical = results.violations.filter(v => v.impact === "critical")
+  expect(critical, JSON.stringify(critical, null, 2)).toEqual([])
+}
+
 /**
  * Lightweight axe smoke — catches critical a11y regressions on key
  * authenticated surfaces. Expand route coverage / raise severity as
@@ -9,34 +17,34 @@ import { test, expect, loginAsAdmin } from "./helpers"
 test.describe("Accessibility smoke", () => {
   test("login page has no critical axe violations", async ({ page }) => {
     await page.goto("/login")
-    const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa"])
-      .analyze()
-    const serious = results.violations.filter(v => v.impact === "critical")
-    expect(serious, JSON.stringify(serious, null, 2)).toEqual([])
+    await expectNoCriticalAxe(page)
   })
 
   test("dashboard has no critical axe violations", async ({ page }) => {
     await loginAsAdmin(page)
     await expect(page).toHaveURL("/")
     await expect(page.locator("h1").filter({ hasText: /Good (morning|afternoon|evening)/i })).toBeVisible()
-
-    const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa"])
-      .analyze()
-    const serious = results.violations.filter(v => v.impact === "critical")
-    expect(serious, JSON.stringify(serious, null, 2)).toEqual([])
+    await expectNoCriticalAxe(page)
   })
 
   test("jobs list has no critical axe violations", async ({ page }) => {
     await loginAsAdmin(page)
     await page.goto("/jobs")
     await expect(page.locator("#jobs-search")).toBeVisible({ timeout: 15_000 })
+    await expectNoCriticalAxe(page)
+  })
 
-    const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa"])
-      .analyze()
-    const serious = results.violations.filter(v => v.impact === "critical")
-    expect(serious, JSON.stringify(serious, null, 2)).toEqual([])
+  test("clients list has no critical axe violations", async ({ page }) => {
+    await loginAsAdmin(page)
+    await page.goto("/clients")
+    await expect(page.locator("h1").filter({ hasText: /client/i })).toBeVisible({ timeout: 15_000 })
+    await expectNoCriticalAxe(page)
+  })
+
+  test("quotes list has no critical axe violations", async ({ page }) => {
+    await loginAsAdmin(page)
+    await page.goto("/quotes")
+    await expect(page.locator("h1").filter({ hasText: /quote/i })).toBeVisible({ timeout: 15_000 })
+    await expectNoCriticalAxe(page)
   })
 })

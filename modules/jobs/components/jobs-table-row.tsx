@@ -10,13 +10,13 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from "@/shared/ui/dropdown-menu"
-import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/components/status-badge"
-import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
-import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
-import { InlineStatusSelect, InlineDesignerSelect } from "@/components/inline-edit-selects"
+import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/modules/jobs/components/badges/status-badge"
+import { WorkItemTypeBadge } from "@/modules/jobs/components/badges/work-item-type-badge"
+import { TypeOfWorksBadge } from "@/modules/jobs/components/badges/type-of-works-badge"
+import { InlineStatusSelect, InlineDesignerSelect } from "@/modules/jobs/components/inline-edit-selects"
 import { cn, formatGBP, getJobDeadlineInfo, totalJobCommercialValue } from "@/shared/utils/utils"
 import { EmptyPanel } from "@/shared/layouts/page-layout"
-import { RevisionFamilyBadge } from "@/components/revision-family-badge"
+import { RevisionFamilyBadge } from "@/modules/jobs/components/badges/revision-family-badge"
 import type { Job, SortField, SortDir } from "@/lib/types"
 import {
   COL_TYPE_OF_WORKS,

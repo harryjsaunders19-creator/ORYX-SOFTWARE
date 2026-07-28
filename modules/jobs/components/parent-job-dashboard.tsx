@@ -17,7 +17,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/shared/ui/select"
-import { StatusBadge } from "@/components/status-badge"
+import { StatusBadge } from "@/modules/jobs/components/badges/status-badge"
 import { StatusWorkflow } from "@/components/status-workflow"
 import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"

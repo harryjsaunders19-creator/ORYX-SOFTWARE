@@ -40,6 +40,8 @@ Regenerate `01-bootstrap.sql` after editing migrations:
 npm run supabase:bootstrap
 ```
 
+See `docs/supabase-migration-numbering.md` before adding or renaming migration files (duplicate `004`/`005` prefixes already exist; do not renumber applied migrations).
+
 > **Do not use** deprecated `setup-vercel.sql` — it stops at migration 017.
 
 Bootstrap seeds `admin@test.com` and `engineer@test.com` with **must-change-password** on first login. Re-running bootstrap **does not reset** existing user passwords. For production, sync real users from SQLite:

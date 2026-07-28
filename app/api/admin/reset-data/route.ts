@@ -11,6 +11,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import { requireRole } from "@/shared/auth/auth"
 import { verifyPassword } from "@/shared/auth/password"
 import { resetSystemData } from "@/lib/services/reset-data-service"
+import { logEvent } from "@/shared/logger"
 
 export async function POST(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
@@ -41,7 +42,13 @@ export async function POST(req: NextRequest) {
 
     const counts = await resetSystemData()
 
-    console.log(`[RESET ALL DATA] Performed by ${auth.user.name} (${auth.user.email}). Cleared ${counts.jobCount} jobs, ${counts.clientCount} clients, ${counts.quoteCount} quotes.`)
+    logEvent("admin.reset-data", {
+      actorName: auth.user.name,
+      actorEmail: auth.user.email,
+      jobCount: counts.jobCount,
+      clientCount: counts.clientCount,
+      quoteCount: counts.quoteCount,
+    }, "warn")
 
     return NextResponse.json({ ok: true, cleared: counts })
   } catch (err) {

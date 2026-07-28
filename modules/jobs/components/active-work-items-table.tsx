@@ -14,9 +14,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogDescription, DialogBody,
 } from "@/shared/ui/dialog"
-import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/components/status-badge"
-import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
-import { InlineStatusSelect } from "@/components/inline-edit-selects"
+import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/modules/jobs/components/badges/status-badge"
+import { WorkItemTypeBadge } from "@/modules/jobs/components/badges/work-item-type-badge"
+import { InlineStatusSelect } from "@/modules/jobs/components/inline-edit-selects"
 import dynamic from "next/dynamic"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi } from "@/shared/hooks/use-api"
