@@ -1,6 +1,6 @@
 import type { EventCategoryRow } from "../types/calendar-types"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
-import { ANNUAL_LEAVE_CATEGORY_ID } from "@/lib/leave/constants"
+import { ANNUAL_LEAVE_CATEGORY_ID } from "@/modules/leave/constants"
 
 /** Categories shown in calendar filters and the new-event dialog. */
 export const CALENDAR_USER_CATEGORY_IDS = [

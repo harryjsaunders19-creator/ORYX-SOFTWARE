@@ -10,9 +10,9 @@
 import { cache } from "react"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
-import type { UserRow } from "@/lib/db/user-types"
+import type { UserRow } from "@/modules/users/types"
 import type { Role } from "@/shared/types/role"
-import { userService } from "@/lib/services/user-service"
+import { userService } from "@/modules/users"
 import {
   verifySessionTokenDetailed,
   SESSION_COOKIE,

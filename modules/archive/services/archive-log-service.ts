@@ -6,7 +6,7 @@ import { createId as nanoid } from "@paralleldrive/cuid2"
 import type { ArchiveLogRow } from "../types/archive-types"
 import { archiveLogDb } from "@/lib/db/stores"
 import { nowIso } from "@/lib/db/helpers"
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
+import { isSupabaseAdminConfigured } from "@/shared/supabase/config"
 import { supabaseArchiveLogRepo } from "../supabase/repository"
 
 export interface LogArchiveOpts {

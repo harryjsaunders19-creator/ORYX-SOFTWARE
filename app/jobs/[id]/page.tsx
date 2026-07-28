@@ -3,13 +3,13 @@ import ParentJobDashboardPage from "@/modules/jobs/components/parent-job-dashboa
 import { getCurrentUser } from "@/shared/auth/auth"
 import { jobService } from "@/modules/jobs/services/job-service"
 import { parentJobService, workItemService } from "@/modules/jobs/services/parent-work-item-service"
-import { cancelRecordForJob } from "@/lib/cancel-record"
+import { cancelRecordForJob } from "@/modules/archive/cancel-record"
 import { billingHandoffService } from "@/modules/billing"
-import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import type { Job } from "@/lib/types"
 import type { BillingHandoff } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
-import type { UserRow } from "@/lib/db/user-types"
+import type { UserRow } from "@/modules/users/types"
 
 type JobDetailFallback = Job & {
   parentJob?: Job | null

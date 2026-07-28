@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import type { IdentitySwitchLogRow } from "@/lib/db/identity-switch-types"
 import {
   toIdentitySwitchLogRow,

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { typeOfWorksMigrationLogDb } from "@/lib/db"
-import { requireRole, actorName } from "@/lib/auth"
-import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { requireRole, actorName } from "@/shared/auth/auth"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 
 type Ctx = { params: Promise<{ id: string }> }
 

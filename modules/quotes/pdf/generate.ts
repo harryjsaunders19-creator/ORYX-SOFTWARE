@@ -3,7 +3,7 @@
  * in the background via next/server `after()`.
  */
 import { quoteService } from "../services/quote-service"
-import { clientService } from "@/lib/services/client-service"
+import { clientService } from "@/modules/clients"
 import { quotePdfDownloadUrl } from "./urls"
 import { setCachedQuotePdf } from "./cache"
 import { PDFDocument, rgb } from "pdf-lib"

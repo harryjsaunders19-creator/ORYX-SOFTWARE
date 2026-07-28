@@ -17,6 +17,51 @@ const eslintConfig = defineConfig([
         "varsIgnorePattern": "^_",
         "caughtErrorsIgnorePattern": "^_",
       }],
+      // lib/ re-export shims were removed — import from @/shared or @/modules.
+      // Remaining @/lib/* paths are real modules (constants, types, db, etc.).
+      "no-restricted-imports": ["error", {
+        paths: [
+          { name: "@/lib/auth", message: "Import from @/shared/auth/auth" },
+          { name: "@/lib/utils", message: "Import from @/shared/utils" },
+          { name: "@/lib/permissions", message: "Import from @/shared/auth/permissions" },
+          { name: "@/lib/password", message: "Import from @/shared/auth/password" },
+          { name: "@/lib/branding", message: "Import from @/shared/branding/branding" },
+          { name: "@/lib/supabase", message: "Import from @/shared/supabase" },
+          { name: "@/lib/supabase/admin", message: "Import from @/shared/supabase/admin" },
+          { name: "@/lib/supabase/feature-flags", message: "Import from @/shared/supabase/feature-flags" },
+          { name: "@/lib/services/job-service", message: "Import from @/modules/jobs" },
+          { name: "@/lib/services/client-service", message: "Import from @/modules/clients" },
+          { name: "@/lib/services/quote-service", message: "Import from @/modules/quotes" },
+          { name: "@/lib/services/user-service", message: "Import from @/modules/users" },
+        ],
+        patterns: [
+          {
+            group: ["@/lib/supabase/mappers/*"],
+            message: "Import from the owning @/modules/*/supabase path instead",
+            allowTypeImports: false,
+          },
+          {
+            group: [
+              "@/lib/supabase/repositories/archive-log",
+              "@/lib/supabase/repositories/backup",
+              "@/lib/supabase/repositories/billing",
+              "@/lib/supabase/repositories/calendar",
+              "@/lib/supabase/repositories/client-holds",
+              "@/lib/supabase/repositories/clients",
+              "@/lib/supabase/repositories/employees",
+              "@/lib/supabase/repositories/identity-switch",
+              "@/lib/supabase/repositories/jobs",
+              "@/lib/supabase/repositories/leave",
+              "@/lib/supabase/repositories/password-vault",
+              "@/lib/supabase/repositories/quotes",
+              "@/lib/supabase/repositories/status-history",
+              "@/lib/supabase/repositories/users",
+            ],
+            message: "Import from the owning @/modules/*/supabase path instead",
+            allowTypeImports: false,
+          },
+        ],
+      }],
     },
   },
   {

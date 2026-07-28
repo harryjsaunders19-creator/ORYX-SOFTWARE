@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
-import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { VALID_STATUSES } from "@/lib/constants"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"

@@ -1,7 +1,7 @@
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { nowIso } from "@/lib/db/helpers"
 import { REVISION_LETTERS } from "@/lib/constants"
-import { useSupabaseBilling } from "@/lib/supabase/feature-flags"
+import { useSupabaseBilling } from "@/shared/supabase/feature-flags"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { supabaseBillingRepo } from "@/modules/billing/supabase/repository"
 import type { BillingHandoffRow } from "@/modules/billing/types/billing-types"
@@ -163,7 +163,7 @@ async function recordBillingForWorkItem(
 }
 
 async function createAdminBillingFindByWorkItem(workItemId: string) {
-  const { createAdminClient } = await import("@/lib/supabase/admin")
+  const { createAdminClient } = await import("@/shared/supabase/admin")
   const { data, error } = await createAdminClient()
     .from("billing_handoffs")
     .select("*")
@@ -177,7 +177,7 @@ async function createAdminBillingFindByWorkItem(workItemId: string) {
 async function upsertBillingWithWorkItem(
   row: BillingHandoffRow & { sourceWorkItemId?: string | null },
 ): Promise<void> {
-  const { createAdminClient } = await import("@/lib/supabase/admin")
+  const { createAdminClient } = await import("@/shared/supabase/admin")
   const { toSupabaseBillingHandoffRow } = await import("@/modules/billing/supabase/mapper")
   const payload = {
     ...toSupabaseBillingHandoffRow(row),

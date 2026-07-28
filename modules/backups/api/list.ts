@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { requireRole } from "@/shared/auth/auth"
-import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { backupRecordService } from "../services/backup-record-service"
 import { startBackup, BACKUPS_DIR, LOCAL_BACKUPS_EPHEMERAL_ON_VERCEL } from "../backup-service"
 

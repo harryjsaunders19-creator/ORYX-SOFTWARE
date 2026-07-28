@@ -4,8 +4,8 @@
  * fail. We probe once per request on archive routes and cache the result for
  * the lifetime of the serverless instance.
  */
-import { createAdminClient } from "@/lib/supabase/admin"
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
+import { createAdminClient } from "@/shared/supabase/admin"
+import { isSupabaseAdminConfigured } from "@/shared/supabase/config"
 
 export function isMissingColumnError(
   error: { code?: string; message?: string } | null | undefined,

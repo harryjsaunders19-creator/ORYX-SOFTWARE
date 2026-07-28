@@ -9,10 +9,10 @@ import type { ClientHoldRow, ClientHoldWithClientRow } from "../types/hold-types
 import { holdDb } from "@/lib/db/stores"
 import { nowIso } from "@/lib/db/helpers"
 import { clientService } from "../../services/client-service"
-import { useSupabaseHolds, useSupabaseClients, useSupabaseJobs, isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { useSupabaseHolds, useSupabaseClients, useSupabaseJobs, isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { supabaseHoldRepo } from "../supabase/repository"
 import { supabaseClientRepo } from "../../supabase/repository"
-import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
+import { supabaseJobRepo } from "@/modules/jobs/supabase/repository"
 
 async function mirrorHoldToSqlite(hold: ClientHoldRow | null): Promise<void> {
   if (!hold || isSupabaseOnly()) return

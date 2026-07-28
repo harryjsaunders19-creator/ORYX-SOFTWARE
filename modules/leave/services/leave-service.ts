@@ -6,11 +6,11 @@
  *   - Writes SQLite first, then mirror leave rows + calendar links
  */
 import { createId } from "@paralleldrive/cuid2"
-import type { UserRow } from "@/lib/db/user-types"
+import type { UserRow } from "@/modules/users/types"
 import type { LeaveCalendarLinkRow, LeaveRequestRow, LeaveRequestWithMeta } from "../types/leave-types"
 import { leaveDb, employeeProfileDb } from "@/lib/db/stores"
-import { calendarService } from "@/lib/services/calendar-service"
-import { userService } from "@/lib/services/user-service"
+import { calendarService } from "@/modules/calendar"
+import { userService } from "@/modules/users"
 import {
   ANNUAL_LEAVE_CATEGORY_ID,
   countLeaveDays,
@@ -20,9 +20,9 @@ import {
   type LeaveType,
 } from "../constants"
 import { canAcceptLeave, canReviewLeave } from "../permissions"
-import { useSupabaseEmployees, useSupabaseLeave } from "@/lib/supabase/feature-flags"
+import { useSupabaseEmployees, useSupabaseLeave } from "@/shared/supabase/feature-flags"
 import { supabaseLeaveRepo } from "../supabase/repository"
-import { supabaseEmployeeRepo } from "@/lib/supabase/repositories/employees"
+import { supabaseEmployeeRepo } from "@/modules/employees/supabase/repository"
 
 const SHOW_PENDING_ON_CREATE = true
 

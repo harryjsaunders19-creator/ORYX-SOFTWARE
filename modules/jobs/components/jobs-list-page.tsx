@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import { JobsTable } from "./jobs-table"
 import { ActiveWorkItemsTable } from "./active-work-items-table"
 import { PageHeader, PageShell, DataPanel } from "@/shared/layouts/page-layout"
-import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 
 export const metadata = { title: "Jobs" }
 

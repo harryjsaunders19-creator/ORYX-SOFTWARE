@@ -141,7 +141,7 @@ export const clientDb = {
 
   /** Insert a client row from an external source (e.g. Supabase) without side-effects.
    *  Uses INSERT OR IGNORE so it is safe to call even when the row already exists. */
-  rawInsertOrIgnore(client: import("@/lib/db/client-types").ClientRow): void {
+  rawInsertOrIgnore(client: import("@/modules/clients/types").ClientRow): void {
     db.prepare(`
       INSERT OR IGNORE INTO Client
         (id,name,nameLower,contactName,email,phone,billingAddress,notes,accountCode,active,createdAt,updatedAt)

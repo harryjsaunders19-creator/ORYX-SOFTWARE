@@ -4,8 +4,8 @@
  * Supabase-backed client CRUD. Used when SUPABASE_CLIENTS=true.
  * Uses the admin (service-role) client — same security model as SQLite API routes.
  */
-import { createAdminClient } from "@/lib/supabase/admin"
-import { isMissingColumnError } from "@/lib/supabase/archived-filter"
+import { createAdminClient } from "@/shared/supabase/admin"
+import { isMissingColumnError } from "@/shared/supabase/archived-filter"
 import { postgrestOrIlike, escapePostgrestFilterValue } from "@/shared/supabase/postgrest-filter"
 import { toClientRow, toSupabaseInsert, toSupabaseRow, toSupabaseUpdate, type SupabaseClientRow } from "./mapper"
 import type { ClientRow, CreateClientData, UpdateClientData } from "../types/client-types"

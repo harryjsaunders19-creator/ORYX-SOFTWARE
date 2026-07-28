@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react"
 import { SelectContent, SelectItem } from "@/components/ui/select"
 import { StatusBadge } from "@/components/status-badge"
 import { JOB_STATUSES } from "@/lib/constants"
-import { cn } from "@/lib/utils"
+import { cn } from "@/shared/utils"
 
 const UNASSIGNED = "__unassigned__"
 

@@ -5,8 +5,8 @@ import {
   MUST_CHANGE_PASSWORD_COOKIE,
   hasValidSessionToken,
   hasValidMustChangeFlag,
-} from "@/lib/session-cookie"
-import { isExperimentalEnabled } from "@/lib/experimental-features"
+} from "@/shared/auth/session-cookie"
+import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 
 const PUBLIC_PAGES = new Set(["/login", "/set-password"])
 

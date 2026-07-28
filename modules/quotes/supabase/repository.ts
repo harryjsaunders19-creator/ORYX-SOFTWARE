@@ -1,7 +1,7 @@
 /**
  * lib/supabase/repositories/quotes.ts
  */
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import { QUOTE_STATUSES } from "@/lib/types"
 import type {
   QuoteLineItemRow,
@@ -11,7 +11,7 @@ import type {
 import {
   quotesArchivedFilterEnabled,
   noteQuotesArchivedFromError,
-} from "@/lib/supabase/archived-filter"
+} from "@/shared/supabase/archived-filter"
 import { postgrestOrIlike } from "@/shared/supabase/postgrest-filter"
 import {
   toQuoteLineItemRow,

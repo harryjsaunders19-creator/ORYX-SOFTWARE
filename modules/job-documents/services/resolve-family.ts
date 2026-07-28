@@ -4,7 +4,7 @@
  */
 import { jobService } from "@/modules/jobs"
 import { parentJobService } from "@/modules/jobs/services/parent-work-item-service"
-import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { revisionParentId } from "@/lib/revision-chain"
 
 export interface DocumentFamilyContext {

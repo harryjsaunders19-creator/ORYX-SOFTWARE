@@ -155,7 +155,7 @@ export const calendarDb = {
   },
 
   /** Insert a calendar event row from an external source (e.g. Supabase) without side-effects. */
-  rawInsertOrIgnore(row: import("@/lib/db/calendar-types").CalendarEventRow): void {
+  rawInsertOrIgnore(row: import("@/modules/calendar/types").CalendarEventRow): void {
     db.prepare(`
       INSERT OR IGNORE INTO CalendarEvent
         (id,title,description,categoryId,startDate,endDate,allDay,location,priority,status,

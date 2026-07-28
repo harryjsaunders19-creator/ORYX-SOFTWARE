@@ -20,12 +20,12 @@ import ExcelJS from "exceljs"
 import { createId } from "@paralleldrive/cuid2"
 import { parse, isValid } from "date-fns"
 import { JOB_STATUSES, WORK_ITEM_TYPES } from "@/lib/constants"
-import { clientService } from "@/lib/services/client-service"
-import { jobService } from "@/lib/services/job-service"
-import { quoteService } from "@/lib/services/quote-service"
-import { userService } from "@/lib/services/user-service"
-import { hashPassword, generateTempPassword } from "@/lib/password"
-import type { ClientRow } from "@/lib/db/client-types"
+import { clientService } from "@/modules/clients"
+import { jobService } from "@/modules/jobs"
+import { quoteService } from "@/modules/quotes"
+import { userService } from "@/modules/users"
+import { hashPassword, generateTempPassword } from "@/shared/auth/password"
+import type { ClientRow } from "@/modules/clients/types"
 import { sheetDataRows } from "../utils/excel-import-rows"
 import {
   buildClientRowFromImport,
@@ -37,7 +37,7 @@ import {
   formatImportError,
   shouldUseBulkImport,
 } from "./import-excel-bulk"
-import { useSupabaseClients, useSupabaseJobs, useSupabaseQuotes } from "@/lib/supabase/feature-flags"
+import { useSupabaseClients, useSupabaseJobs, useSupabaseQuotes } from "@/shared/supabase/feature-flags"
 import {
   MAX_IMPORT_LOOKUP_ROWS,
   MAX_IMPORT_SHEET_ROWS,

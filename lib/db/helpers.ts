@@ -1,7 +1,7 @@
 /**
  * lib/db/helpers.ts — shared query helpers.
  */
-import { isDrawingNumberListSort } from "@/lib/job-list-sort"
+import { isDrawingNumberListSort } from "@/modules/jobs/job-list-sort"
 export interface WhereClause {
   search?: string; status?: string
   unassigned?: boolean; hasQuote?: boolean

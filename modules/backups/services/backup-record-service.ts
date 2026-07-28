@@ -12,7 +12,7 @@ import type {
   CreateBackupJobData,
 } from "../types/backup-types"
 import { backupAuditDb, backupJobDb } from "@/lib/db/stores"
-import { useSupabaseBackups } from "@/lib/supabase/feature-flags"
+import { useSupabaseBackups } from "@/shared/supabase/feature-flags"
 import { supabaseBackupRepo } from "../supabase/repository"
 
 async function mirrorJob(id: string): Promise<void> {

@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { requireSignIn, requireRole } from "@/shared/auth/auth"
 import type { UpdateCalendarEventData } from "../types/calendar-types"
 import { calendarService } from "../services/calendar-service"
-import { userService } from "@/lib/services/user-service"
+import { userService } from "@/modules/users"
 import { isUserSelectableCategory } from "../config/category-config"
 
 type Ctx = { params: Promise<{ id: string }> }

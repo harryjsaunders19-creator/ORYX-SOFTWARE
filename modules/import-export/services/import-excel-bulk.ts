@@ -5,18 +5,18 @@
  */
 import { db } from "@/lib/db/connection"
 import { nowIso } from "@/lib/db/helpers"
-import type { ClientRow } from "@/lib/db/client-types"
-import type { JobRow } from "@/lib/db/job-types"
-import type { QuoteRow } from "@/lib/db/quote-types"
+import type { ClientRow } from "@/modules/clients/types"
+import type { JobRow } from "@/modules/jobs/types/job-types"
+import type { QuoteRow } from "@/modules/quotes/types"
 import { clientDb, jobDb, quoteDb } from "@/lib/db/stores"
 import {
   useSupabaseClients,
   useSupabaseJobs,
   useSupabaseQuotes,
-} from "@/lib/supabase/feature-flags"
-import { supabaseClientRepo } from "@/lib/supabase/repositories/clients"
-import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
-import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
+} from "@/shared/supabase/feature-flags"
+import { supabaseClientRepo } from "@/modules/clients/supabase/repository"
+import { supabaseJobRepo } from "@/modules/jobs/supabase/repository"
+import { supabaseQuoteRepo } from "@/modules/quotes/supabase/repository"
 
 const CHUNK = 100
 

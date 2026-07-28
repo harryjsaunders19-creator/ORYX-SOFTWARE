@@ -11,7 +11,7 @@
 import { createId } from "@paralleldrive/cuid2"
 import { passwordVaultDb, type VaultSortOrder } from "@/lib/db/stores/vault"
 import type { PasswordVaultEntryRow } from "@/lib/db/vault-types"
-import { useSupabasePasswordVault } from "@/lib/supabase/feature-flags"
+import { useSupabasePasswordVault } from "@/shared/supabase/feature-flags"
 import { supabasePasswordVaultRepo } from "../supabase/repository"
 import { decryptVaultSecret, encryptVaultSecret } from "../crypto/vault-crypto"
 import type {

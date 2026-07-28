@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
 import { Check, ChevronDown, Search } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/shared/utils"
 import { WORKS_TYPES } from "@/lib/constants"
 
 interface Props {

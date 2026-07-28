@@ -3,13 +3,13 @@
  * Falls back to create + conditional link + compensating delete.
  */
 import { createId } from "@paralleldrive/cuid2"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
+import { createAdminClient } from "@/shared/supabase/admin"
+import { isSupabaseAdminConfigured } from "@/shared/supabase/config"
 import { nowIso } from "@/lib/db/helpers"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import type { CreateJobData, JobRow } from "@/modules/jobs/types/job-types"
 import { toSupabaseRow } from "@/modules/jobs/supabase/mapper"
-import { jobService } from "@/lib/services/job-service"
+import { jobService } from "@/modules/jobs"
 import { quoteService } from "./services/quote-service"
 import type { QuoteRow } from "./types/quote-types"
 import { logError } from "@/shared/logger"

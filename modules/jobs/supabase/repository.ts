@@ -3,8 +3,8 @@
  *
  * Supabase-backed job reads and row mirrors. Used when SUPABASE_JOBS=true.
  */
-import { createAdminClient } from "@/lib/supabase/admin"
-import { aggAvg, aggSum } from "@/lib/supabase/aggregates"
+import { createAdminClient } from "@/shared/supabase/admin"
+import { aggAvg, aggSum } from "@/shared/supabase/aggregates"
 import { VALID_ITEM_TYPES, VALID_STATUSES, matchingJobTags } from "@/lib/constants"
 import type { JobRow } from "../types/job-types"
 import type { FindManyOptions, WhereClause } from "@/lib/db/helpers"
@@ -13,7 +13,7 @@ import {
   jobsArchivedFilterEnabled,
   noteJobsArchivedFromError,
   isMissingColumnError,
-} from "@/lib/supabase/archived-filter"
+} from "@/shared/supabase/archived-filter"
 import { postgrestOrIlike, postgrestTagsOverlap } from "@/shared/supabase/postgrest-filter"
 import { logEvent } from "@/shared/logger"
 import { collectRevisionParentIds } from "@/lib/revision-chain"

@@ -2,10 +2,10 @@ import assert from "node:assert/strict"
 import { afterEach, describe, it } from "node:test"
 import ExcelJS from "exceljs"
 import { importFromExcelBuffer } from "../../modules/import-export/services/excel-import.ts"
-import { clientService } from "../../lib/services/client-service.ts"
-import { jobService } from "../../lib/services/job-service.ts"
-import { quoteService } from "../../lib/services/quote-service.ts"
-import { userService } from "../../lib/services/user-service.ts"
+import { clientService } from "../../modules/clients/index.ts"
+import { jobService } from "../../modules/jobs/index.ts"
+import { quoteService } from "../../modules/quotes/index.ts"
+import { userService } from "../../modules/users/index.ts"
 
 const restores = []
 function patchMethod(obj, key, impl) {

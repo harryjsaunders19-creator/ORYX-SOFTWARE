@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import { escapePostgrestFilterValue, postgrestOrIlike } from "@/shared/supabase/postgrest-filter"
 import type { DesignWorkItemRow } from "../types/design-work-item-types"
 import { toWorkItemRow, toSupabaseWorkItem, type SupabaseWorkItemRow } from "./work-item-mapper"

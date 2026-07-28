@@ -14,7 +14,7 @@
  */
 import type { CreateUserData, UpdateUserData, UserRow } from "../types/user-types"
 import { userDb } from "@/lib/db/stores"
-import { useSupabaseUsers } from "@/lib/supabase/feature-flags"
+import { useSupabaseUsers } from "@/shared/supabase/feature-flags"
 import { supabaseUserRepo } from "../supabase/repository"
 
 async function mirror(user: UserRow | null) {

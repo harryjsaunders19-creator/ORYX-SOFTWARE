@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
+import { cn } from "@/shared/utils"
 import { useEffect, useState } from "react"
 
 const UNASSIGNED = "__unassigned__"

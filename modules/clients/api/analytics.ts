@@ -6,7 +6,7 @@ import { apiInternalError } from "@/shared/api-errors"
 
 import { requireRole } from "@/shared/auth/auth"
 import { clientService } from "../services/client-service"
-import { jobService } from "@/lib/services/job-service"
+import { jobService } from "@/modules/jobs"
 
 type Ctx = { params: Promise<{ id: string }> }
 

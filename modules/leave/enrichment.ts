@@ -1,7 +1,7 @@
-import type { CalendarEventWithDetails } from "@/lib/db/calendar-types"
+import type { CalendarEventWithDetails } from "@/modules/calendar/types"
 import { leaveDb } from "@/lib/db/stores"
 import { ANNUAL_LEAVE_CATEGORY_ID } from "./constants"
-import { useSupabaseLeave } from "@/lib/supabase/feature-flags"
+import { useSupabaseLeave } from "@/shared/supabase/feature-flags"
 import { supabaseLeaveRepo } from "./supabase/repository"
 
 export async function enrichEventsWithLeave(

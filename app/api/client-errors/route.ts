@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
 import { logError } from "@/shared/logger"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser } from "@/shared/auth/auth"
 
 const MAX_TAG = 120
 const MAX_MESSAGE = 2000

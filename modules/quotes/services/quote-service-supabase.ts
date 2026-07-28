@@ -12,7 +12,7 @@ import type {
   UpdateQuoteData,
 } from "../types/quote-types"
 import { nowIso } from "@/lib/db/helpers"
-import { probeArchivedColumns } from "@/lib/supabase/archived-filter"
+import { probeArchivedColumns } from "@/shared/supabase/archived-filter"
 import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils/utils"
 import { nextRefNumberAsync } from "@/shared/supabase/sequence-service"
 import { supabaseArchiveLogRepo } from "@/modules/archive/supabase/repository"

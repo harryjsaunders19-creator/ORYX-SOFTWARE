@@ -94,7 +94,7 @@ export const holdDb = {
   },
 
   /** Insert a hold row from an external source (e.g. Supabase) without side-effects. */
-  rawInsertOrIgnore(hold: import("@/lib/db/hold-types").ClientHoldRow): void {
+  rawInsertOrIgnore(hold: import("@/modules/clients/hold/types").ClientHoldRow): void {
     db.prepare(`
       INSERT OR IGNORE INTO ClientHold
         (id,clientId,status,reason,notes,addedBy,addedAt,removedBy,removedAt,removedReason)
@@ -107,7 +107,7 @@ export const holdDb = {
   },
 
   /** Upsert a hold row from an external source (e.g. Supabase mirror). */
-  rawUpsert(hold: import("@/lib/db/hold-types").ClientHoldRow): void {
+  rawUpsert(hold: import("@/modules/clients/hold/types").ClientHoldRow): void {
     db.prepare(`
       INSERT OR REPLACE INTO ClientHold
         (id,clientId,status,reason,notes,addedBy,addedAt,removedBy,removedAt,removedReason)

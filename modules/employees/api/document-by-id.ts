@@ -11,7 +11,7 @@ import {
   type EmployeeDocumentRow,
 } from "@/modules/employees"
 import { employeeDocumentDb } from "@/lib/db/stores"
-import { useSupabaseEmployees as employeesUseSupabase } from "@/lib/supabase/feature-flags"
+import { useSupabaseEmployees as employeesUseSupabase } from "@/shared/supabase/feature-flags"
 import { supabaseEmployeeRepo } from "@/modules/employees/supabase/repository"
 import { experimentalDisabledResponse } from "@/shared/experimental/experimental-features"
 

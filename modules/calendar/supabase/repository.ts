@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import type { CalendarEventRow, EventCategoryRow } from "../types/calendar-types"
 import {
   toCalendarEventRow,

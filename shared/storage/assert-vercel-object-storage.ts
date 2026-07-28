@@ -6,7 +6,7 @@
  * boolean assert is belt-and-suspenders. The bucket existence probe catches the
  * real misconfig: credentials present but Storage migrations not applied.
  */
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 import {
   JOB_FILES_BUCKET,

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { isExperimentalEnabled } from "@/lib/experimental-features"
+import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 import { LogOut, User } from "lucide-react"
 import { useUser } from "@/components/user-context"
 import {

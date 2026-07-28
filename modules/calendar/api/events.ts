@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { listResponse } from "@/shared/utils/api-cache"
 import { requireSignIn } from "@/shared/auth/auth"
 import { calendarService } from "../services/calendar-service"
-import { userService } from "@/lib/services/user-service"
-import { filterLeaveEventsForViewer } from "@/lib/leave/permissions"
+import { userService } from "@/modules/users"
+import { filterLeaveEventsForViewer } from "@/modules/leave/permissions"
 import {
   resolveCategoryFilter,
   isUserSelectableCategory,
@@ -12,7 +13,7 @@ import {
 } from "../config/category-config"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 import { createId } from "@paralleldrive/cuid2"
-import { ANNUAL_LEAVE_CATEGORY_ID } from "@/lib/leave/constants"
+import { ANNUAL_LEAVE_CATEGORY_ID } from "@/modules/leave/constants"
 
 export async function GET(req: NextRequest) {
   const auth = await requireSignIn()

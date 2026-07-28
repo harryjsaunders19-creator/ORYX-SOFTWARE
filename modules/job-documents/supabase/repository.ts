@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import { escapePostgrestFilterValue } from "@/shared/supabase/postgrest-filter"
 import { documentKind } from "../constants"
 import type {

@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import { createId } from "@paralleldrive/cuid2"
 import type { ClientHoldRow } from "../types/hold-types"
 import { toClientHoldRow, toSupabaseClientHoldRow } from "./mapper"

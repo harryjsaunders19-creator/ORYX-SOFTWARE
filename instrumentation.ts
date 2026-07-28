@@ -13,7 +13,7 @@ export async function register() {
 
   // Fail the Vercel deploy loudly if required production secrets are missing.
   if (process.env.VERCEL === "1") {
-    const { isSupabaseAdminConfigured } = await import("@/lib/supabase/config")
+    const { isSupabaseAdminConfigured } = await import("@/shared/supabase/config")
     if (!isSupabaseAdminConfigured()) {
       throw new Error(
         "VERCEL=1 but Supabase admin is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
@@ -44,11 +44,11 @@ export async function register() {
     await assertVercelObjectStorageReady()
   }
 
-  const { isSupabaseOnly } = await import("@/lib/supabase/feature-flags")
+  const { isSupabaseOnly } = await import("@/shared/supabase/feature-flags")
   if (!isSupabaseOnly()) {
-    const { startBackupScheduler } = await import("@/lib/backup-scheduler")
+    const { startBackupScheduler } = await import("@/modules/backups/backup-scheduler")
     startBackupScheduler()
   }
-  const { startQuoteExpiryScheduler } = await import("@/lib/quote-expiry-scheduler")
+  const { startQuoteExpiryScheduler } = await import("@/modules/quotes/quote-expiry-scheduler")
   startQuoteExpiryScheduler()
 }

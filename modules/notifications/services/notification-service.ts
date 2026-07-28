@@ -1,12 +1,12 @@
 /**
  * Aggregates in-app notifications — overdue jobs, due today, clients on hold, pending leave (admins).
  */
-import type { UserRow } from "@/lib/db/user-types"
+import type { UserRow } from "@/modules/users/types"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
-import { leaveTypeLabel } from "@/lib/leave/constants"
-import { jobService } from "@/lib/services/job-service"
-import { holdService } from "@/lib/services/hold-service"
-import { leaveService } from "@/lib/services/leave-service"
+import { leaveTypeLabel } from "@/modules/leave/constants"
+import { jobService } from "@/modules/jobs"
+import { holdService } from "@/modules/clients/hold"
+import { leaveService } from "@/modules/leave"
 import { getDeadlineInfo, todayIsoDate } from "@/shared/utils/utils"
 import {
   sortNotifications,

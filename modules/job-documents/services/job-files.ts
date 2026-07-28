@@ -6,8 +6,8 @@
  */
 import fs from "fs"
 import path from "path"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
+import { createAdminClient } from "@/shared/supabase/admin"
+import { isSupabaseAdminConfigured } from "@/shared/supabase/config"
 import { storageScope } from "../constants"
 
 export const JOB_FILES_BUCKET = "job-files"

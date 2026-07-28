@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import type { UserRow } from "../types/user-types"
 import { toSupabaseAppUserRow, toUserRow } from "./mapper"
 

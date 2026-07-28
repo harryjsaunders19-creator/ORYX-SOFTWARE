@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import { postgrestOrIlike, postgrestTagsOverlap } from "@/shared/supabase/postgrest-filter"
 import { matchingJobTags } from "@/lib/constants"
 import type { ParentJobRow } from "../types/parent-job-types"

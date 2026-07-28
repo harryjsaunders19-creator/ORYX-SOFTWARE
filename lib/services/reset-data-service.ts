@@ -1,6 +1,6 @@
 import { resetAllData } from "@/lib/db/stores"
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config"
-import { resetSupabaseOperationalData } from "@/lib/supabase/reset-all-data"
+import { isSupabaseAdminConfigured } from "@/shared/supabase/config"
+import { resetSupabaseOperationalData } from "@/shared/supabase/reset-all-data"
 
 /**
  * Wipes all operational data in SQLite and, when linked, Supabase.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireSignIn } from "@/shared/auth/auth"
-import { isWorkItemsModelEnabled } from "@/lib/supabase/feature-flags"
+import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { apiInternalError } from "@/shared/api-errors"
 import { parentJobService } from "@/modules/jobs/services/parent-work-item-service"
 

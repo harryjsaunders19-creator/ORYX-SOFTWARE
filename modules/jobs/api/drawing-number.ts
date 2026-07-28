@@ -11,9 +11,9 @@ import { apiInternalError } from "@/shared/api-errors"
 import { requireRole } from "@/shared/auth/auth"
 import { jobService } from "../services/job-service"
 import { historyService } from "../services/history-service"
-import { isSupabaseOnly } from "@/lib/supabase/feature-flags"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { seedDrawingSequenceFromNumber } from "@/shared/supabase/sequence-service"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 
 type Ctx = { params: Promise<{ id: string }> }
 

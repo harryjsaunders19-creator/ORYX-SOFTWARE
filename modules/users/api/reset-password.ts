@@ -1,11 +1,12 @@
 /**
  * POST /api/users/[id]/reset-password
  */
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { userService } from "../services/user-service"
 import { requireRole } from "@/shared/auth/auth"
-import { generateTempPassword, hashPassword } from "@/lib/password"
+import { generateTempPassword, hashPassword } from "@/shared/auth/password"
 
 type Ctx = { params: Promise<{ id: string }> }
 

@@ -66,3 +66,6 @@ stitch-screens.json
 .tmp-batches/
 .tmp-mcp-exec/
 .cursor/
+
+# Local Synology deploy paths (see docs/synology.env.example)
+synology.env

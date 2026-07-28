@@ -8,10 +8,10 @@ import type { JobRow } from "@/modules/jobs/types/job-types"
 import type { ClientRow } from "@/modules/clients/types/client-types"
 import type { StatusHistoryRow } from "@/modules/jobs/types/history-types"
 import type { QuoteRow } from "@/modules/quotes/types/quote-types"
-import { supabaseJobRepo } from "@/lib/supabase/repositories/jobs"
+import { supabaseJobRepo } from "@/modules/jobs/supabase/repository"
 import { supabaseClientRepo } from "@/modules/clients/supabase/repository"
 import { supabaseStatusHistoryRepo } from "@/modules/jobs/supabase/status-history-repository"
-import { supabaseQuoteRepo } from "@/lib/supabase/repositories/quotes"
+import { supabaseQuoteRepo } from "@/modules/quotes/supabase/repository"
 
 const NOT_TRACKED = [
   "Billing Contact (distinct from Contact Name)",

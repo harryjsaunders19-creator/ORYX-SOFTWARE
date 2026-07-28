@@ -1,5 +1,5 @@
 import type { User } from "@/lib/types"
-import type { UserRow } from "@/lib/db/user-types"
+import type { UserRow } from "@/modules/users/types"
 import { getCurrentUser, getRealUser } from "@/shared/auth/auth"
 import { parseModuleAccessJson } from "@/shared/auth/permissions"
 

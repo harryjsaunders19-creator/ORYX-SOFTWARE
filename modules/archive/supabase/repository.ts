@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/shared/supabase/admin"
 import type { ArchiveLogRow } from "../types/archive-types"
 import { toArchiveLogRow, toSupabaseArchiveLogRow } from "./mapper"
 

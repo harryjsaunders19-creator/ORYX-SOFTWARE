@@ -1,5 +1,5 @@
-import { createAdminClient } from "@/lib/supabase/admin"
-import { aggSum } from "@/lib/supabase/aggregates"
+import { createAdminClient } from "@/shared/supabase/admin"
+import { aggSum } from "@/shared/supabase/aggregates"
 import { postgrestOrIlike } from "@/shared/supabase/postgrest-filter"
 import type {
   BillingExportBatchRow,
