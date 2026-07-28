@@ -5,7 +5,7 @@ import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import {
-  GitBranch, Plus, Receipt, ChevronRight, MapPin, UserCircle2, Download,
+  GitBranch, Plus, Receipt, MapPin, UserCircle2, Download,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Textarea } from "@/shared/ui/textarea"
@@ -23,7 +23,7 @@ import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
 import { useApi } from "@/shared/hooks/use-api"
 import { formatGBP, cn } from "@/shared/utils/utils"
-import { PageShell } from "@/shared/layouts/page-layout"
+import { PageShell, PageBreadcrumb } from "@/shared/layouts/page-layout"
 import { DesignerCombobox } from "@/components/designer-combobox"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { DesignWorkItemRow } from "@/modules/jobs/types/design-work-item-types"
@@ -297,34 +297,28 @@ export default function ParentJobDashboardPage({
 
   return (
     <PageShell wide>
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-t3 mb-5">
-        <button
-          type="button"
-          className="hover:text-t1 transition-colors"
-          onClick={() => router.push("/jobs")}
-        >
-          Jobs
-        </button>
-        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="font-semibold text-t1 font-mono">{parent.drawingNumber}</span>
-      </nav>
+      <PageBreadcrumb
+        items={[
+          { label: "Jobs", onClick: () => router.push("/jobs") },
+          { label: parent.drawingNumber, mono: true },
+        ]}
+      />
 
       {/* Header — Stitch Job Details */}
-      <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-7">
-        <div className="min-w-0 space-y-1.5">
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-t1 font-mono">
+      <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-8">
+        <div className="min-w-0 space-y-2">
+          <h1 className="oryx-page-title text-t1 font-mono">
             {parent.drawingNumber}
           </h1>
           {siteLine && (
-            <p className="text-sm sm:text-base text-t3 flex items-start gap-1.5">
+            <p className="text-sm text-t3 flex items-start gap-1.5">
               <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
               <span>{siteLine}</span>
             </p>
           )}
           <div className="flex items-center gap-2 pt-1">
-            <span className="text-sm font-semibold text-t3">Client</span>
-            <span className="text-base font-semibold text-t1">{parent.clientCompany}</span>
+            <span className="text-xs font-medium text-t3 uppercase tracking-wider">Client</span>
+            <span className="text-sm font-semibold text-t1">{parent.clientCompany}</span>
           </div>
         </div>
 

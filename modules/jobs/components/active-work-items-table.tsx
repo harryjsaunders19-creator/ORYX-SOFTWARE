@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Search, Plus, FolderOpen, ChevronLeft, ChevronRight, GitBranch,
+  Search, Plus, FolderOpen, GitBranch,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
@@ -23,7 +23,7 @@ import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
 import { JOB_STATUSES } from "@/lib/constants"
 import { cn, getJobDeadlineInfo } from "@/shared/utils/utils"
-import { ToolbarCard } from "@/shared/layouts/page-layout"
+import { ToolbarCard, DataPanel, TablePagination } from "@/shared/layouts/page-layout"
 import type { MixedWorkloadRow } from "@/modules/jobs/services/mixed-workload-service"
 import type { JobFormData } from "@/lib/types"
 
@@ -196,17 +196,17 @@ export function ActiveWorkItemsTable({
         </div>
       )}
 
-      <div className="rounded-xl border border-bd bg-sr overflow-hidden shadow-card">
+      <DataPanel>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-bd bg-pg">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase">Drawing / Ref</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase">Work</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase hidden sm:table-cell">Client</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase hidden md:table-cell">Site</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase">Status</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase hidden lg:table-cell">Designer</th>
+              <tr className="border-b border-bd bg-surface-low">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Drawing / Ref</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Work</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider hidden sm:table-cell">Client</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider hidden md:table-cell">Site</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-t3 uppercase tracking-wider hidden lg:table-cell">Designer</th>
               </tr>
             </thead>
             <tbody>
@@ -286,20 +286,14 @@ export function ActiveWorkItemsTable({
           </table>
         </div>
 
-        {pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-bd">
-            <p className="text-xs text-t3">{total} active · page {page} of {pages}</p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
+        <TablePagination
+          variant="inset"
+          page={page}
+          totalPages={pages}
+          onPageChange={setPage}
+          countLabel={`${total} active`}
+        />
+      </DataPanel>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl">

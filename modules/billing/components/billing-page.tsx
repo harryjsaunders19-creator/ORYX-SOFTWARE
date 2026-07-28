@@ -10,7 +10,7 @@ import { WorkItemTypeBadge } from "@/components/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/components/type-of-works-badge"
 import { useToast } from "@/shared/ui/toast"
 import { RequireRole } from "@/components/require-role"
-import { PageHeader, PageShell, DataPanel, KpiTile, TabBar } from "@/shared/layouts/page-layout"
+import { PageHeader, PageShell, DataPanel, KpiTile, TabBar, TablePagination } from "@/shared/layouts/page-layout"
 import { formatGBP, formatDisplayDate } from "@/shared/utils/utils"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi } from "@/shared/hooks/use-api"
@@ -457,26 +457,16 @@ function BillingPageInner() {
         </div>
       )}
 
-      {view !== "history" && totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2 text-xs text-t3">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={page <= 1 || listLoading}
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-          >
-            Previous
-          </Button>
-          <span className="tabular-nums">Page {page} / {totalPages}</span>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={page >= totalPages || listLoading}
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-          >
-            Next
-          </Button>
-        </div>
+      {view !== "history" && (
+        <TablePagination
+          variant="bare"
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          total={viewTotal}
+          pageSize={PAGE_SIZE}
+          disabled={listLoading}
+        />
       )}
 
       {view === "history" ? (

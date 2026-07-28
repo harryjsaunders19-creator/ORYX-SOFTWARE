@@ -7,7 +7,6 @@ import { format } from "date-fns"
 import {
   Plus, FileText, Download, CheckCircle2, XCircle,
   Loader2, Clock, FileDown, Trash2, Archive,
-  ChevronLeft, ChevronRight,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import {
@@ -17,7 +16,7 @@ import {
 import { useToast } from "@/shared/ui/toast"
 import { formatGBP, cn, parseLocalDate, getQuoteExpiryInfo, quoteExpiryBadgeClass } from "@/shared/utils/utils"
 import { quoteWorksDisplayLabel, inferQuoteWorksFromDescription } from "../quote-works"
-import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
+import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel, TablePagination } from "@/shared/layouts/page-layout"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
@@ -566,23 +565,14 @@ function QuotesInner() {
         </DataPanel>
       )}
 
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-between gap-4 mt-4 px-1">
-          <p className="text-xs text-t3">
-            {((page - 1) * QUOTE_PAGE_LIMIT) + 1}–{Math.min(page * QUOTE_PAGE_LIMIT, data.total)} of{" "}
-            <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
-          </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-xs text-t3 tabular-nums px-2">{page} / {totalPages}</span>
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        variant="bare"
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        total={data?.total}
+        pageSize={QUOTE_PAGE_LIMIT}
+      />
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={o => { if (!o) setCreateOpen(false) }}>

@@ -3,11 +3,12 @@ import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { format } from "date-fns"
-import { ChevronLeft, ChevronRight, UsersRound } from "lucide-react"
+import { UsersRound } from "lucide-react"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi } from "@/shared/hooks/use-api"
 import {
   PageHeader, PageShell, SearchField, DataPanel, EmptyPanel, Th, TableHead, TableShell,
+  TablePagination,
 } from "@/shared/layouts/page-layout"
 import { cn } from "@/shared/utils"
 import type { EmployeeListItem } from "../services/employee-service"
@@ -73,7 +74,7 @@ function EmployeesInner() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1
 
   return (
-    <PageShell>
+    <PageShell wide>
       <PageHeader
         title="Employees"
         description="Company directory — search, filter, and open employee profiles."
@@ -165,28 +166,13 @@ function EmployeesInner() {
                 </tbody>
               </table>
             </TableShell>
-            <div className="flex items-center justify-between border-t border-bd px-4 py-3 text-xs text-t3">
-              <span>{data.total} employee{data.total !== 1 ? "s" : ""}</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => p - 1)}
-                  className="rounded p-1 hover:bg-pg disabled:opacity-40"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <span>Page {page} of {totalPages}</span>
-                <button
-                  type="button"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                  className="rounded p-1 hover:bg-pg disabled:opacity-40"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+            <TablePagination
+              variant="inset"
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              countLabel={`${data.total} employee${data.total !== 1 ? "s" : ""}`}
+            />
           </>
         )}
       </DataPanel>

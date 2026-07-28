@@ -53,11 +53,11 @@ Status: `P0` = foundation this PR · `P1` = next pass · `P2` = later · `Defer`
 
 ## Phase 2 — Layout & tables (`P1`)
 
-- [ ] Standardise list pages on `PageShell` + `PageHeader` + `ToolbarCard` + `DataPanel`
-- [ ] Shared `TablePagination` chrome (copy + icon size)
-- [ ] Archive tabs → shared `TabBar`
-- [ ] Align PageShell `wide` policy (lists wide, directories constrained)
-- [ ] Detail pages: BackLink + title hierarchy closer to PageHeader
+- [x] Standardise list pages on `PageShell` + `PageHeader` + `ToolbarCard` + `DataPanel`
+- [x] Shared `TablePagination` chrome (copy + icon size)
+- [x] Archive tabs → shared `TabBar`
+- [x] Align PageShell `wide` policy (lists wide, directories constrained)
+- [x] Detail pages: BackLink + title hierarchy closer to PageHeader (`PageBreadcrumb` + `oryx-page-title`)
 
 ## Phase 3 — Forms & feedback (`P1`)
 

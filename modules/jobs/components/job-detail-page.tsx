@@ -5,7 +5,7 @@ import { format } from "date-fns"
 import dynamic from "next/dynamic"
 import {
   Pencil, Trash2, FileText, UserPlus, Clock, AlertOctagon, RotateCcw, Download,
-  MapPin, ChevronRight,
+  MapPin,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
@@ -21,7 +21,7 @@ import { DesignerCombobox }   from "@/components/designer-combobox"
 import { useToast }            from "@/shared/ui/toast"
 import { formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue, cn } from "@/shared/utils/utils"
 import { useUser }             from "@/shared/providers/user-context"
-import { PageShell } from "@/shared/layouts/page-layout"
+import { PageShell, PageBreadcrumb } from "@/shared/layouts/page-layout"
 import { OTHER_WORKS_TYPE }    from "@/lib/constants"
 // Perf: SWR caches job detail across navigations; parent/billing keys follow when known.
 import { useApi } from "@/shared/hooks/use-api"
@@ -329,19 +329,12 @@ export default function JobDetailPage({
 
   return (
     <PageShell wide>
-      <nav className="flex items-center gap-1.5 text-sm text-t3 mb-6">
-        <button
-          type="button"
-          className="hover:text-t1 transition-colors"
-          onClick={() => router.push("/jobs")}
-        >
-          Jobs
-        </button>
-        <ChevronRight className="h-4 w-4 shrink-0" />
-        <span className={cn("font-semibold text-t1 font-mono", isCancelled && "line-through opacity-70")}>
-          {job.drawingNumber}
-        </span>
-      </nav>
+      <PageBreadcrumb
+        items={[
+          { label: "Jobs", onClick: () => router.push("/jobs") },
+          { label: job.drawingNumber, mono: true, strike: isCancelled },
+        ]}
+      />
 
       {isCancelled && (
         <div className="mb-5 rounded-xl border border-dn-bd bg-dn-bg px-4 py-3">
@@ -383,7 +376,7 @@ export default function JobDetailPage({
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className={cn(
-                "text-2xl sm:text-3xl font-bold tracking-tight text-t1 uppercase",
+                "oryx-page-title text-t1 uppercase",
                 isCancelled && "line-through opacity-70",
               )}>
                 {job.clientCompany}

@@ -3,7 +3,7 @@ import { Suspense, memo, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { format } from "date-fns"
-import { Plus, RotateCcw, Building2, ChevronRight, Archive, Upload, ChevronLeft } from "lucide-react"
+import { Plus, RotateCcw, Building2, ChevronRight, Archive, Upload } from "lucide-react"
 import { useUser } from "@/shared/providers/user-context"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
@@ -18,7 +18,7 @@ import { cn }       from "@/shared/utils/utils"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
-import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel } from "@/shared/layouts/page-layout"
+import { PageHeader, PageShell, SearchField, DataPanel, EmptyPanel, TablePagination } from "@/shared/layouts/page-layout"
 import type { Client } from "@/lib/types"
 import type { ClientContactInput, ClientContactRow } from "../types/client-contact-types"
 import { contactsFromClient, emptyContact } from "../types/client-contact-types"
@@ -297,7 +297,7 @@ function ClientsInner() {
   }, [mutate, toast])
 
   return (
-    <PageShell>
+    <PageShell wide>
       <PageHeader
         title="Clients"
         description={`${data?.total ?? 0} client${data?.total !== 1 ? "s" : ""}${!showAll ? " (active)" : ""}`}
@@ -381,23 +381,13 @@ function ClientsInner() {
         </DataPanel>
       )}
 
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 mt-3 border border-bd rounded-xl bg-sr shadow-card">
-          <p className="text-xs text-t3">
-            {((page - 1) * CLIENT_LIMIT) + 1}–{Math.min(page * CLIENT_LIMIT, data.total)} of{" "}
-            <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
-          </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <span className="text-xs text-t3 tabular-nums px-2">{page} / {totalPages}</span>
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        total={data?.total}
+        pageSize={CLIENT_LIMIT}
+      />
 
       {/* Create */}
       <Dialog open={createOpen} onOpenChange={o => { if (!o) setCreateOpen(false) }}>

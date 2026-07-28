@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { format }    from "date-fns"
 import {
   Search, Plus, Download, Upload, SlidersHorizontal,
-  Pencil, Trash2, ChevronLeft, ChevronRight,
+  Pencil, Trash2,
   X, FolderOpen, ArrowUp, ArrowDown, ArrowUpDown, GitBranch, AlertTriangle, Clock,
   MoreHorizontal, Building2, FileText, UserCircle2, PenTool, ClipboardCheck,
 } from "lucide-react"
@@ -39,7 +39,7 @@ import { useToast }      from "@/shared/ui/toast"
 import { useUser }       from "@/shared/providers/user-context"
 import { JOB_STATUSES, WORK_ITEM_TYPES, WORKS_TYPES, getJobStatus } from "@/lib/constants"
 import { cn, formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue } from "@/shared/utils/utils"
-import { ToolbarCard, EmptyPanel } from "@/shared/layouts/page-layout"
+import { ToolbarCard, EmptyPanel, DataPanel, TablePagination } from "@/shared/layouts/page-layout"
 import { notifyRevisionsChanged } from "@/lib/revision-events"
 import { revisionParentId } from "@/lib/revision-chain"
 import { RevisionFamilyBadge } from "@/components/revision-family-badge"
@@ -963,7 +963,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
 
       {/* Desktop table — show until media is ready to avoid a mobile flash on SSR */}
       {(!mediaReady || !isMobile) && (
-      <div className={cn("bg-sr border border-bd rounded-xl shadow-card overflow-hidden transition-opacity", refreshing && "opacity-60")}>
+      <DataPanel className={cn("transition-opacity", refreshing && "opacity-60")}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -1008,29 +1008,16 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
             </tbody>
           </table>
         </div>
-      </div>
+      </DataPanel>
       )}
 
-      {/* Pagination — shared by mobile cards and desktop table */}
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 mt-3 border border-bd rounded-xl bg-sr shadow-card">
-          <p className="text-xs text-t3">
-            {((page - 1) * LIMIT) + 1}–{Math.min(page * LIMIT, data.total)} of{" "}
-            <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
-          </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <span className="text-xs text-t2 px-2 tabular-nums min-w-[56px] text-center">
-              {page} / {totalPages}
-            </span>
-            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => p + 1)} disabled={page === totalPages}>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        total={data?.total}
+        pageSize={LIMIT}
+      />
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={o => { if (!createSaving) setCreateOpen(o) }}>

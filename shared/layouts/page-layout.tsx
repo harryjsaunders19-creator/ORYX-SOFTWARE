@@ -1,8 +1,10 @@
 "use client"
+import { Fragment } from "react"
 import Link from "next/link"
-import { ArrowLeft, Search } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { cn } from "@/shared/utils"
 import { Input } from "@/shared/ui/input"
+import { Button } from "@/shared/ui/button"
 
 /** Stitch surface — bordered card, minimal shadow. */
 export const surfaceCard = "oryx-surface-card bg-sr border border-bd rounded-md"
@@ -198,9 +200,9 @@ export function DetailPanel({ title, children, className, headerAction }: {
   )
 }
 
-/** Horizontal tab bar — billing, multi-view pages. */
+/** Horizontal tab bar — billing, archive, multi-view pages. */
 export function TabBar({ tabs, active, onChange, trailing }: {
-  tabs: { id: string; label: string; icon?: React.ElementType }[]
+  tabs: { id: string; label: string; icon?: React.ElementType; count?: number }[]
   active: string
   onChange: (id: string) => void
   trailing?: React.ReactNode
@@ -208,23 +210,137 @@ export function TabBar({ tabs, active, onChange, trailing }: {
   return (
     <div className="flex items-center justify-between border-b border-bd mb-4">
       <div className="flex items-center gap-1 max-md:overflow-x-auto max-md:thin-scroll">
-        {tabs.map(({ id, label, icon: Icon }) => (
+        {tabs.map(({ id, label, icon: Icon, count }) => (
           <button
             key={id}
             type="button"
             onClick={() => onChange(id)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+              "flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
               active === id ? "border-ac text-ac" : "border-transparent text-t3 hover:text-t2",
             )}
           >
-            {Icon && <Icon className="h-3.5 w-3.5" />}
+            {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
             {label}
+            {count != null && count > 0 && (
+              <span className="ml-0.5 min-w-[18px] h-5 px-1.5 flex items-center justify-center rounded-full bg-pg text-[11px] font-bold text-t2 tabular-nums">
+                {count}
+              </span>
+            )}
           </button>
         ))}
       </div>
       {trailing}
     </div>
+  )
+}
+
+/** Shared table pagination — icon chevrons, consistent copy. */
+export function TablePagination({
+  page,
+  totalPages,
+  onPageChange,
+  total,
+  pageSize,
+  countLabel,
+  hideWhenSingle = true,
+  disabled = false,
+  variant = "card",
+  className,
+}: {
+  page: number
+  totalPages: number
+  onPageChange: (page: number) => void
+  total?: number
+  pageSize?: number
+  countLabel?: React.ReactNode
+  hideWhenSingle?: boolean
+  disabled?: boolean
+  variant?: "card" | "inset" | "bare"
+  className?: string
+}) {
+  if (hideWhenSingle && totalPages <= 1) return null
+
+  const rangeLabel = total != null && pageSize != null
+    ? (
+      <>
+        {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of{" "}
+        <span className="font-semibold text-t2">{total.toLocaleString()}</span>
+      </>
+    )
+    : countLabel
+
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 text-xs text-t3",
+        variant === "card" && "px-4 py-3 mt-3 border border-bd rounded-xl bg-sr shadow-card",
+        variant === "inset" && "px-4 py-3 border-t border-bd",
+        variant === "bare" && "mt-4 px-1",
+        className,
+      )}
+    >
+      <p className="min-w-0 truncate">{rangeLabel}</p>
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          disabled={disabled || page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </Button>
+        <span className="text-xs text-t2 px-2 tabular-nums min-w-[56px] text-center">
+          {page} / {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          disabled={disabled || page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          aria-label="Next page"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Detail-page breadcrumb — Jobs › drawing number. */
+export function PageBreadcrumb({
+  items,
+}: {
+  items: { label: React.ReactNode; onClick?: () => void; mono?: boolean; strike?: boolean }[]
+}) {
+  return (
+    <nav className="flex items-center gap-1.5 text-xs text-t3 mb-6">
+      {items.map((item, i) => (
+        <Fragment key={i}>
+          {i > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+          {item.onClick ? (
+            <button
+              type="button"
+              className="hover:text-t1 transition-colors"
+              onClick={item.onClick}
+            >
+              {item.label}
+            </button>
+          ) : (
+            <span
+              className={cn(
+                "font-semibold text-t1 truncate",
+                item.mono && "font-mono",
+                item.strike && "line-through opacity-70",
+              )}
+            >
+              {item.label}
+            </span>
+          )}
+        </Fragment>
+      ))}
+    </nav>
   )
 }
 

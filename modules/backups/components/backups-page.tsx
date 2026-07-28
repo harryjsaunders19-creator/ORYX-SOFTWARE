@@ -256,7 +256,7 @@ function BackupsInner() {
   )
 
   return (
-    <PageShell>
+    <PageShell wide>
       <DataPanel className="mb-4 p-4 border border-bd bg-surface-low text-sm text-t1">
         <div className="flex items-start gap-3">
           <ShieldCheck className="h-5 w-5 text-ac shrink-0 mt-0.5" />
