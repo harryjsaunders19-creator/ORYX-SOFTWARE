@@ -1,7 +1,7 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
-import { GitBranch, ChevronDown, ChevronUp, Loader2, Plus, UserCircle2, PenTool, Receipt, Check } from "lucide-react"
+import { GitBranch, ChevronDown, ChevronUp, Plus, UserCircle2, PenTool, Receipt, Check } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Textarea } from "@/shared/ui/textarea"
 import { Label } from "@/shared/ui/label"
