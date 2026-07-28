@@ -73,7 +73,7 @@ export default function SetPasswordPage() {
       <AuthLayout>
         <div className="text-center py-4">
           <div className="w-12 h-12 rounded-full bg-ok-bg flex items-center justify-center mx-auto mb-4">
-            <Check className="h-6 w-6 text-ok-ic" />
+            <Check className="h-5 w-5 text-ok-ic" />
           </div>
           <p className="text-base font-semibold text-t1">Password set</p>
           <p className="text-sm text-t3 mt-1">Redirecting to dashboard…</p>

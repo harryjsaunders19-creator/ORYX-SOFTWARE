@@ -239,10 +239,10 @@ export default function CalendarPage() {
           )}
           <div className="flex items-center gap-3 text-[10px] text-t3">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "#15803D" }} /> Approved
+              <span className="w-2 h-2 rounded-sm bg-ok-ic" /> Approved
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: "#CA8A04" }} /> Pending
+              <span className="w-2 h-2 rounded-sm bg-yl" /> Pending
             </span>
           </div>
         </div>

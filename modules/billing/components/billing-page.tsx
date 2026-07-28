@@ -215,7 +215,7 @@ function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved }: {
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-bd/60">
         <HandoffQuoteValue item={item} view={view} onQuoteSaved={onQuoteSaved} />
         <Link href={`/jobs/${item.sourceJobId}`} className="text-xs text-ac hover:text-ach font-medium inline-flex items-center gap-1 shrink-0">
-          View job <ArrowUpRight className="h-3 w-3" />
+          View job <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
       </div>
 
@@ -264,7 +264,7 @@ function BatchMobileCard({ batch }: { batch: BillingExportBatch }) {
         disabled={downloading}
         className="text-xs text-ac hover:text-ach font-medium inline-flex items-center gap-1 disabled:opacity-50"
       >
-        {downloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+        {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
         Download
       </button>
     </div>
@@ -302,7 +302,7 @@ function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
       )}
       <td className="px-4 py-3 text-right whitespace-nowrap">
         <Link href={`/jobs/${item.sourceJobId}`} className="text-xs text-ac hover:text-ach font-medium inline-flex items-center gap-1">
-          View job <ArrowUpRight className="h-3 w-3" />
+          View job <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
       </td>
     </tr>
@@ -336,7 +336,7 @@ function BatchRow({ batch }: { batch: BillingExportBatch }) {
       <td className="px-4 py-3 text-t3 max-w-[260px] truncate">{batch.notes || "—"}</td>
       <td className="px-4 py-3 text-right whitespace-nowrap">
         <button onClick={redownload} disabled={downloading} className="text-xs text-ac hover:text-ach font-medium inline-flex items-center gap-1 disabled:opacity-50">
-          {downloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+          {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
           Download
         </button>
       </td>
@@ -426,8 +426,8 @@ function BillingPageInner() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <KpiTile label="Awaiting Accounts Action" value={stats?.awaitingCount ?? "—"} sub={stats ? formatGBP(stats.awaitingValue) : undefined} accent="#B45309" valueClassName="text-wn-tx" />
-        <KpiTile label="Cleared" value={stats?.clearedCount ?? "—"} accent="#15803D" valueClassName="text-ok-ic" />
+        <KpiTile label="Awaiting Accounts Action" value={stats?.awaitingCount ?? "—"} sub={stats ? formatGBP(stats.awaitingValue) : undefined} accent="var(--color-wn)" valueClassName="text-wn-tx" />
+        <KpiTile label="Cleared" value={stats?.clearedCount ?? "—"} accent="var(--color-ok-ic)" valueClassName="text-ok-ic" />
       </div>
 
       <TabBar

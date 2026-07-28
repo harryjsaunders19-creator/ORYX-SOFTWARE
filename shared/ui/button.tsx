@@ -16,7 +16,7 @@ const VARIANT_STYLES: Record<string, React.CSSProperties> = {
   secondary: { backgroundColor: "var(--color-sr)", color: "var(--color-t1)", border: "1px solid var(--color-bd)" },
   outline:   { backgroundColor: "transparent", color: "var(--color-t2)", border: "1px solid var(--color-bd)" },
   ghost:     { backgroundColor: "transparent", color: "var(--color-t3)" },
-  danger:    { backgroundColor: "var(--color-dn)", color: "#ffffff" },
+  danger:    { backgroundColor: "var(--color-dn)", color: "var(--color-on-ac)" },
 }
 
 const SIZE_STYLES: Record<string, React.CSSProperties> = {

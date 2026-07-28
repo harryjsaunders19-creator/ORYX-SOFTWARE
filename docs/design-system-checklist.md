@@ -68,9 +68,9 @@ Status: `P0` = foundation this PR · `P1` = next pass · `P2` = later · `Defer`
 
 ## Phase 4 — Colour & polish sweep (`P1`)
 
-- [ ] Grep remaining hardcoded hex in UI components; migrate to tokens
-- [ ] Icon size scale: 14 / 16 / 20 only
-- [ ] 8px spacing audit on job detail / parent dashboard sections
+- [x] Grep remaining hardcoded hex in UI components; migrate to tokens
+- [x] Icon size scale: 14 / 16 / 20 only
+- [x] 8px spacing audit on job detail / parent dashboard sections
 
 ## Phase 5 — Expansion (explicitly deferred)
 

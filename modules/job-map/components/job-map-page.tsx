@@ -295,7 +295,7 @@ export default function JobMapPage() {
         <>
           <div className="flex flex-wrap gap-3 mb-3 text-[11px] text-t3">
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#16a34a]" /> Completed projects with coordinates
+                <span className="w-2.5 h-2.5 rounded-full bg-ok-ic" /> Completed projects with coordinates
             </span>
             {(filters.locationFilter ?? "completed") === "manual" && (
               <span className="inline-flex items-center gap-1.5">

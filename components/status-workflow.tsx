@@ -64,9 +64,9 @@ export function StatusWorkflow({ jobId, currentStatus, onStatusChange, patchUrl 
                   !done && !current && "bg-sr border-bd",
                 )}>
                   {loading
-                    ? <Loader2 className="h-3 w-3 text-t3 animate-spin" />
+                    ? <Loader2 className="h-3.5 w-3.5 text-t3 animate-spin" />
                     : done
-                    ? <Check className="h-3 w-3 text-sr" strokeWidth={2.5} />
+                    ? <Check className="h-3.5 w-3.5 text-sr" strokeWidth={2.5} />
                     : <span className={cn("text-[9px] font-bold tabular-nums", current ? "text-ac" : "text-t4")}>
                         {idx + 1}
                       </span>}

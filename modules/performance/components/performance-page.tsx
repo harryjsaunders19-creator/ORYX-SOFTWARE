@@ -16,7 +16,7 @@ function TrendBadge({ pct }: { pct: number | null }) {
   const up = pct >= 0
   return (
     <span className={cn("inline-flex items-center gap-1 text-[11px] font-medium", up ? "text-ok-tx" : "text-er")}>
-      {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+      {up ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
       {Math.abs(pct).toFixed(1)}%
     </span>
   )

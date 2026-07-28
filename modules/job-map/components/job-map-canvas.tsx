@@ -57,7 +57,7 @@ function markerDivIcon(marker: JobMapMarker, dimmed: boolean): L.DivIcon {
     className: "job-map-marker-icon",
     html: `<div style="
       width:28px;height:28px;border-radius:50%;
-      background:${COMPLETED_MARKER_COLOR};border:2px solid #fff;
+      background:${COMPLETED_MARKER_COLOR};border:2px solid var(--color-sr,#fff);
       box-shadow:0 2px 6px rgba(0,0,0,.35);
       display:flex;align-items:center;justify-content:center;
       font-size:14px;line-height:1;opacity:${opacity};
@@ -71,17 +71,17 @@ function markerDivIcon(marker: JobMapMarker, dimmed: boolean): L.DivIcon {
 function popupHtml(marker: JobMapMarker): string {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${marker.lat},${marker.lng}`
   return `<div class="job-map-popup space-y-2 text-sm" style="min-width:240px;font-family:system-ui,sans-serif">
-    <p style="font-weight:600;margin:0">${escHtml(marker.drawingNumber)}</p>
-    <p style="color:#6b7280;font-size:12px;margin:0">${escHtml(marker.address)}</p>
+    <p style="font-weight:600;margin:0;color:var(--color-t1,#191c1d)">${escHtml(marker.drawingNumber)}</p>
+    <p style="color:var(--color-t3,#76777d);font-size:12px;margin:0">${escHtml(marker.address)}</p>
     <dl style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px;margin:0">
-      <dt style="color:#9ca3af">Client</dt><dd style="margin:0">${escHtml(marker.clientCompany)}</dd>
-      <dt style="color:#9ca3af">Type</dt><dd style="margin:0">${escHtml(marker.description)}</dd>
-      <dt style="color:#9ca3af">Designer</dt><dd style="margin:0">${escHtml(marker.designer)}</dd>
-      <dt style="color:#9ca3af">Created</dt><dd style="margin:0">${escHtml(formatMarkerDate(marker.dateCreated))}</dd>
+      <dt style="color:var(--color-t4,#a1a1aa)">Client</dt><dd style="margin:0;color:var(--color-t1,#191c1d)">${escHtml(marker.clientCompany)}</dd>
+      <dt style="color:var(--color-t4,#a1a1aa)">Type</dt><dd style="margin:0;color:var(--color-t1,#191c1d)">${escHtml(marker.description)}</dd>
+      <dt style="color:var(--color-t4,#a1a1aa)">Designer</dt><dd style="margin:0;color:var(--color-t1,#191c1d)">${escHtml(marker.designer)}</dd>
+      <dt style="color:var(--color-t4,#a1a1aa)">Created</dt><dd style="margin:0;color:var(--color-t1,#191c1d)">${escHtml(formatMarkerDate(marker.dateCreated))}</dd>
     </dl>
     <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:4px">
       <a href="/jobs/${escHtml(marker.id)}" style="font-size:12px;padding:4px 10px;background:var(--color-ac,#111827);color:var(--color-on-ac,#fff);border-radius:8px;text-decoration:none">Open Job</a>
-      <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="font-size:12px;padding:4px 10px;border:1px solid #d1d5db;border-radius:4px;text-decoration:none;color:inherit">Google Maps</a>
+      <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="font-size:12px;padding:4px 10px;border:1px solid var(--color-bd,#c6c6cd);border-radius:8px;text-decoration:none;color:inherit">Google Maps</a>
     </div>
   </div>`
 }

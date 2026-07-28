@@ -115,13 +115,13 @@ function ImportClientsInner() {
             <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} className="hidden" />
             {uploading ? (
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="h-8 w-8 text-ac" style={{ animation: "spin 1s linear infinite" }} />
+                <Loader2 className="h-5 w-5 text-ac" style={{ animation: "spin 1s linear infinite" }} />
                 <p className="text-sm font-medium text-t1">Parsing {selectedFile?.name}…</p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: "var(--color-ac-bg)" }}>
-                  <Upload className="h-6 w-6 text-ac" />
+                  <Upload className="h-5 w-5 text-ac" />
                 </div>
                 <p className="text-sm font-medium text-t1">Drop your spreadsheet here, or <span className="text-ac">browse</span></p>
                 <p className="text-xs text-t3">Accepts .csv and .xlsx — max 10 MB</p>
@@ -150,15 +150,15 @@ function ImportClientsInner() {
             <div className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4 text-ac" /><span className="text-sm font-medium text-t1">{preview.filename}</span></div>
             <span className="h-4 w-px bg-bd" />
             <span className="text-xs text-t3"><span className="font-semibold text-t2">{preview.summary.total}</span> rows</span>
-            {preview.summary.valid > 0 && <span className="text-xs flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-ok-ic" /><span className="font-semibold text-ok-tx">{preview.summary.valid}</span> valid</span>}
-            {preview.summary.errors > 0 && <span className="text-xs flex items-center gap-1"><XCircle className="h-3 w-3 text-dn" /><span className="font-semibold text-dn-tx">{preview.summary.errors}</span> errors</span>}
-            {preview.summary.warnings > 0 && <span className="text-xs flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-wn" /><span className="font-semibold text-wn-tx">{preview.summary.warnings}</span> warnings</span>}
+            {preview.summary.valid > 0 && <span className="text-xs flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-ok-ic" /><span className="font-semibold text-ok-tx">{preview.summary.valid}</span> valid</span>}
+            {preview.summary.errors > 0 && <span className="text-xs flex items-center gap-1"><XCircle className="h-3.5 w-3.5 text-dn" /><span className="font-semibold text-dn-tx">{preview.summary.errors}</span> errors</span>}
+            {preview.summary.warnings > 0 && <span className="text-xs flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5 text-wn" /><span className="font-semibold text-wn-tx">{preview.summary.warnings}</span> warnings</span>}
             <div className="ml-auto"><Button variant="outline" size="sm" onClick={reset}><Trash2 className="h-3.5 w-3.5" /> Start over</Button></div>
           </div>
 
           {preview.requiredFieldsMissing && (
             <div className="p-3 rounded-md text-xs font-medium" style={{ backgroundColor: "var(--color-dn-bg)", border: "1px solid var(--color-dn-bd)", color: "var(--color-dn-tx)", borderRadius: "14px" }}>
-              <XCircle className="h-3 w-3 inline mr-1" /> Required column "Company Name" not detected.
+              <XCircle className="h-3.5 w-3.5 inline mr-1" /> Required column "Company Name" not detected.
             </div>
           )}
 
@@ -194,8 +194,8 @@ function ImportClientsInner() {
                         <td className="px-3 py-2.5 text-xs text-t2 max-w-[110px] truncate">{row.phone || <span className="text-t4">—</span>}</td>
                         <td className="px-3 py-2.5 text-xs text-t2 max-w-[140px] truncate">{row.email || <span className="text-t4">—</span>}</td>
                         <td className="px-3 py-2.5 text-xs max-w-[200px]">
-                          {hasErrors && row.errors.map((e, i) => <p key={i} className="text-dn-tx flex items-start gap-1"><X className="h-3 w-3 shrink-0 mt-0.5" />{e}</p>)}
-                          {hasWarnings && row.warnings.map((w, i) => <p key={i} className="text-wn-tx flex items-start gap-1"><AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />{w}</p>)}
+                          {hasErrors && row.errors.map((e, i) => <p key={i} className="text-dn-tx flex items-start gap-1"><X className="h-3.5 w-3.5 shrink-0 mt-0.5" />{e}</p>)}
+                          {hasWarnings && row.warnings.map((w, i) => <p key={i} className="text-wn-tx flex items-start gap-1"><AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />{w}</p>)}
                           {!hasErrors && !hasWarnings && <span className="text-t4">—</span>}
                         </td>
                       </tr>
@@ -226,7 +226,7 @@ function ImportClientsInner() {
       {/* Importing */}
       {step === "importing" && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Loader2 className="h-8 w-8 text-ac mb-4" style={{ animation: "spin 1s linear infinite" }} />
+          <Loader2 className="h-5 w-5 text-ac mb-4" style={{ animation: "spin 1s linear infinite" }} />
           <p className="text-sm font-medium text-t1">Importing clients…</p>
         </div>
       )}
@@ -235,7 +235,7 @@ function ImportClientsInner() {
       {step === "done" && result && (
         <div className="space-y-4">
           <div className="p-6 text-center rounded-md" style={{ backgroundColor: "var(--color-ok-bg)", border: "1px solid var(--color-ok-bd)", borderRadius: "14px" }}>
-            <CheckCircle2 className="h-8 w-8 mx-auto mb-3" style={{ color: "var(--color-ok-ic)" }} />
+            <CheckCircle2 className="h-5 w-5 mx-auto mb-3" style={{ color: "var(--color-ok-ic)" }} />
             <p className="text-base font-semibold" style={{ color: "var(--color-ok-tx)" }}>
               {result.imported} client{result.imported !== 1 ? "s" : ""} imported
             </p>

@@ -50,7 +50,7 @@ const ClientTableRow = memo(function ClientTableRow({
           {c.name}
           {!c.active && <span className="text-[10px] bg-t1/[0.06] text-t3 rounded-full px-2 font-medium">Archived</span>}
           {c.onHold && <span className="text-[10px] bg-dn-bg text-dn rounded-full px-2 font-medium whitespace-nowrap">On Hold</span>}
-          <ChevronRight className="h-3 w-3 text-t4" />
+          <ChevronRight className="h-3.5 w-3.5 text-t4" />
         </Link>
       </td>
       <td className="px-4 py-3 text-xs text-t3">{c.contactName ?? "—"}</td>

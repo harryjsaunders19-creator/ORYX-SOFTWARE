@@ -29,7 +29,7 @@ function RoleBadge({ role }: { role: string }) {
       "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
       role === "ADMIN" ? "bg-ac-bg text-ac" : "bg-t1/[0.06] text-t2",
     )}>
-      {role === "ADMIN" && <ShieldCheck className="h-3 w-3" />}
+      {role === "ADMIN" && <ShieldCheck className="h-3.5 w-3.5" />}
       {role === "ADMIN" ? "Admin" : "Engineer"}
     </span>
   )
@@ -384,7 +384,7 @@ function UsersPageInner() {
               </button>
             </div>
             <p className="text-xs text-wn-tx mt-3 flex items-start gap-1.5">
-              <KeyRound className="h-3 w-3 shrink-0 mt-0.5" />
+              <KeyRound className="h-3.5 w-3.5 shrink-0 mt-0.5" />
               This password is shown once. If it's lost, use the key icon to reset it.
             </p>
           </DialogBody>

@@ -149,7 +149,7 @@ export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, c
             position: "absolute", zIndex: 200, marginTop: "4px", width: "100%",
             borderRadius: "6px", border: "1px solid var(--color-bd)",
             backgroundColor: "var(--color-sr)",
-            boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04)",
+            boxShadow: "var(--shadow-card)",
             overflow: "hidden",
           }}
         >

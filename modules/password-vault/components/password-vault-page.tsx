@@ -344,7 +344,7 @@ function VaultPageInner() {
                     className="inline-flex items-center gap-1 hover:text-t1"
                   >
                     Service
-                    <ArrowUpDown className="h-3 w-3" />
+                    <ArrowUpDown className="h-3.5 w-3.5" />
                     <span className="sr-only">Sort {sort === "asc" ? "descending" : "ascending"}</span>
                   </button>
                 </Th>
@@ -392,7 +392,7 @@ function VaultPageInner() {
                           className="inline-flex items-center gap-1 text-xs text-ac hover:text-ach truncate max-w-full"
                         >
                           <span className="truncate">{entry.loginUrl!.replace(/^https?:\/\//, "")}</span>
-                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                         </a>
                       ) : (
                         <span className="text-t4">—</span>

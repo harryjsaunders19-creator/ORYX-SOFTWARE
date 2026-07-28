@@ -164,7 +164,7 @@ export default function EmployeeProfilePage() {
     return (
       <PageShell>
         <div className="flex items-center justify-center py-24 text-t4">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       </PageShell>
     )
@@ -211,7 +211,7 @@ export default function EmployeeProfilePage() {
                 {emp.employeeId && <span className="font-mono">{emp.employeeId}</span>}
                 {emp.startDate && (
                   <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
+                    <Calendar className="h-3.5 w-3.5" />
                     Since {format(new Date(emp.startDate), "d MMM yyyy")}
                   </span>
                 )}
@@ -665,9 +665,9 @@ function LeaveTab({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-3">
-        <KpiTile label="Annual allowance" value={emp.leave.annualLeaveAllowance} accent="#111827" />
-        <KpiTile label="Taken" value={emp.leave.leaveTaken} accent="#76777d" />
-        <KpiTile label="Remaining" value={emp.leave.remaining} accent="#0E7A6E" />
+        <KpiTile label="Annual allowance" value={emp.leave.annualLeaveAllowance} accent="var(--color-ac)" />
+        <KpiTile label="Taken" value={emp.leave.leaveTaken} accent="var(--color-t3)" />
+        <KpiTile label="Remaining" value={emp.leave.remaining} accent="var(--color-ac2)" />
       </div>
 
       {canRequest && (

@@ -59,7 +59,7 @@ function TimelineEntry({
         )}
       >
         {entry.isCurrent ? (
-          <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
+          <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
         ) : (
           <div className="h-2 w-2 bg-ac" />
         )}
@@ -86,7 +86,7 @@ function TimelineEntry({
           <StatusBadge status={entry.status} />
           {entry.billable ? (
             <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-sm bg-ok-bg text-ok-tx border border-ok-bd uppercase tracking-wide">
-              <Receipt className="h-3 w-3" /> Billable
+              <Receipt className="h-3.5 w-3.5" /> Billable
             </span>
           ) : !entry.isOriginal ? (
             <span className="text-xs font-medium px-2 py-0.5 rounded-sm bg-pg text-t3 border border-bd uppercase tracking-wide">

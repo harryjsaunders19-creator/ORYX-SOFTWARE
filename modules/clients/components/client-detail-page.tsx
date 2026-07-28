@@ -137,12 +137,12 @@ export default function ClientDetailPage() {
                   </span>
                   {contact.email && (
                     <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-ac hover:text-ach">
-                      <Mail className="h-3 w-3" />{contact.email}
+                      <Mail className="h-3.5 w-3.5" />{contact.email}
                     </a>
                   )}
                   {contact.phone && (
                     <span className="flex items-center gap-1">
-                      <Phone className="h-3 w-3" />{contact.phone}
+                      <Phone className="h-3.5 w-3.5" />{contact.phone}
                     </span>
                   )}
                 </span>
@@ -152,15 +152,15 @@ export default function ClientDetailPage() {
                 {client.contactName && <span>{client.contactName}</span>}
                 {client.email && (
                   <a href={`mailto:${client.email}`} className="flex items-center gap-1 text-ac hover:text-ach">
-                    <Mail className="h-3 w-3" />{client.email}
+                    <Mail className="h-3.5 w-3.5" />{client.email}
                   </a>
                 )}
-                {client.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{client.phone}</span>}
+                {client.phone && <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{client.phone}</span>}
               </>
             )}
             {client.billingAddress && (
               <span className="flex items-center gap-1 w-full sm:w-auto">
-                <MapPin className="h-3 w-3" />{client.billingAddress}
+                <MapPin className="h-3.5 w-3.5" />{client.billingAddress}
               </span>
             )}
           </span>
@@ -190,7 +190,7 @@ export default function ClientDetailPage() {
               </div>
             </div>
             <Button variant="secondary" size="sm" onClick={() => setRemoveOpen(true)}
-              style={{ backgroundColor: "rgba(255,255,255,0.15)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.3)" }}>
+              className="!bg-white/15 !text-white !border-white/30">
               Remove hold
             </Button>
           </div>

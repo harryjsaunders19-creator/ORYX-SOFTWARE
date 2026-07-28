@@ -232,7 +232,7 @@ function ImportJobsInner() {
             />
             {uploading ? (
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="h-8 w-8 text-ac animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                <Loader2 className="h-5 w-5 text-ac animate-spin" style={{ animation: "spin 1s linear infinite" }} />
                 <p className="text-sm font-medium text-t1">Parsing {selectedFile?.name}…</p>
                 <p className="text-xs text-t3">Analysing headers and validating rows</p>
               </div>
@@ -242,7 +242,7 @@ function ImportJobsInner() {
                   className="w-12 h-12 rounded-xl bg-ac-bg flex items-center justify-center"
                   style={{ width: "48px", height: "48px", borderRadius: "12px", backgroundColor: "var(--color-ac-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                  <Upload className="h-6 w-6 text-ac" />
+                  <Upload className="h-5 w-5 text-ac" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-t1">
@@ -300,21 +300,21 @@ function ImportJobsInner() {
             </span>
             {preview.summary.valid > 0 && (
               <span className="text-xs flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3 text-ok-ic" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-ok-ic" />
                 <span className="font-semibold text-ok-tx">{preview.summary.valid}</span>
                 <span className="text-t3">valid</span>
               </span>
             )}
             {preview.summary.errors > 0 && (
               <span className="text-xs flex items-center gap-1">
-                <XCircle className="h-3 w-3 text-dn" />
+                <XCircle className="h-3.5 w-3.5 text-dn" />
                 <span className="font-semibold text-dn-tx">{preview.summary.errors}</span>
                 <span className="text-t3">with errors</span>
               </span>
             )}
             {preview.summary.warnings > 0 && (
               <span className="text-xs flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3 text-wn" />
+                <AlertTriangle className="h-3.5 w-3.5 text-wn" />
                 <span className="font-semibold text-wn-tx">{preview.summary.warnings}</span>
                 <span className="text-t3">with warnings</span>
               </span>
@@ -334,7 +334,7 @@ function ImportJobsInner() {
               style={{ backgroundColor: "var(--color-wn-bg)", border: "1px solid var(--color-wn-bd)", borderRadius: "14px", padding: "12px 16px" }}
             >
               <p className="text-xs font-medium text-wn-tx mb-1">
-                <AlertTriangle className="h-3 w-3 inline mr-1" />
+                <AlertTriangle className="h-3.5 w-3.5 inline mr-1" />
                 Unmapped columns (ignored): {preview.unmappedHeaders.join(", ")}
               </p>
               <p className="text-[11px] text-wn-tx/70">
@@ -349,7 +349,7 @@ function ImportJobsInner() {
               style={{ backgroundColor: "var(--color-dn-bg)", border: "1px solid var(--color-dn-bd)", borderRadius: "14px", padding: "12px 16px" }}
             >
               <p className="text-xs font-medium text-dn-tx">
-                <XCircle className="h-3 w-3 inline mr-1" />
+                <XCircle className="h-3.5 w-3.5 inline mr-1" />
                 Required columns not detected. Make sure your headers include "Site Address", "Client Company", and "Requested By".
               </p>
             </div>
@@ -385,7 +385,7 @@ function ImportJobsInner() {
                           "border-b border-bd last:border-0",
                           hasErrors ? "bg-dn-bg/40" : hasWarnings ? "bg-wn-bg/40" : "",
                         )}
-                        style={hasErrors ? { backgroundColor: "rgba(253,241,239,0.4)" } : hasWarnings ? { backgroundColor: "rgba(255,251,235,0.4)" } : undefined}
+                        style={hasErrors ? { backgroundColor: "color-mix(in srgb, var(--color-dn-bg) 40%, transparent)" } : hasWarnings ? { backgroundColor: "color-mix(in srgb, var(--color-wn-bg) 40%, transparent)" } : undefined}
                       >
                         <td className="px-3 py-2.5 text-xs text-t4 tabular-nums">{row.rowIndex}</td>
                         <td className="px-3 py-2.5">
@@ -431,7 +431,7 @@ function ImportJobsInner() {
                             <div className="space-y-0.5">
                               {row.errors.map((e, i) => (
                                 <p key={i} className="text-dn-tx flex items-start gap-1">
-                                  <X className="h-3 w-3 shrink-0 mt-0.5" />
+                                  <X className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                                   {e}
                                 </p>
                               ))}
@@ -441,7 +441,7 @@ function ImportJobsInner() {
                             <div className="space-y-0.5">
                               {row.warnings.map((w, i) => (
                                 <p key={i} className="text-wn-tx flex items-start gap-1">
-                                  <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                                   {w}
                                 </p>
                               ))}
@@ -494,7 +494,7 @@ function ImportJobsInner() {
       {step === "importing" && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Loader2
-            className="h-8 w-8 text-ac animate-spin mb-4"
+            className="h-5 w-5 text-ac animate-spin mb-4"
             style={{ animation: "spin 1s linear infinite" }}
           />
           <p className="text-sm font-medium text-t1">Importing jobs…</p>
@@ -512,7 +512,7 @@ function ImportJobsInner() {
             className="bg-ok-bg border border-ok-bd rounded-md px-6 py-5 text-center"
             style={{ backgroundColor: "var(--color-ok-bg)", border: "1px solid var(--color-ok-bd)", borderRadius: "14px", padding: "20px 24px", textAlign: "center" }}
           >
-            <CheckCircle2 className="h-8 w-8 text-ok-ic mx-auto mb-3" />
+            <CheckCircle2 className="h-5 w-5 text-ok-ic mx-auto mb-3" />
             <p className="text-base font-semibold text-ok-tx">
               {result.imported} job{result.imported !== 1 ? "s" : ""} imported successfully
             </p>

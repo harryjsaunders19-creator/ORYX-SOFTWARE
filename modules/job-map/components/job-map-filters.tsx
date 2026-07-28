@@ -217,7 +217,7 @@ export function JobMapFiltersBar(props: Props) {
             ))}
             {highlightClient && (
               <button type="button" onClick={() => onClientLegendClick("")} className="text-xs text-t4 hover:text-t2 inline-flex items-center gap-0.5">
-                <X className="h-3 w-3" /> Clear
+                <X className="h-3.5 w-3.5" /> Clear
               </button>
             )}
           </div>

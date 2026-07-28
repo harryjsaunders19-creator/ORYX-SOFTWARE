@@ -31,7 +31,7 @@ export const MAP_MARKER_ICONS: Record<string, string> = {
 }
 
 export const MAP_SESSION_KEY = "oryx-job-map-view"
-export const COMPLETED_MARKER_COLOR = "#16a34a"
+export const COMPLETED_MARKER_COLOR = "#15803D" // ok-ic
 export const MARKER_CHUNK_SIZE = 500
 /** At/above this zoom, refetch markers for the visible padded bbox. */
 export const VIEWPORT_FETCH_MIN_ZOOM = 9

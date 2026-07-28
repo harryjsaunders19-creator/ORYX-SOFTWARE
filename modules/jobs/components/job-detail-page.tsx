@@ -65,7 +65,7 @@ function Skeleton() {
 
 function InfoField({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div className="flex flex-col gap-1.5 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
+    <div className="flex flex-col gap-2 border-b border-bd/70 pb-4 last:border-0 last:pb-0">
       <span className="text-sm font-medium text-t3">{label}</span>
       <span className="text-base font-semibold text-t1 leading-snug">
         {value?.trim() ? value : <span className="font-normal text-t4 italic">Not set</span>}
@@ -76,7 +76,7 @@ function InfoField({ label, value }: { label: string; value?: string | null }) {
 
 function KpiCard({ label, value, badge }: { label: string; value: string; badge?: string | null }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <p className="text-xs font-semibold text-t3 uppercase tracking-wide">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
         <p className="text-lg font-bold text-t1 truncate font-mono tabular-nums">{value}</p>
@@ -111,7 +111,7 @@ function Pill({
   }
   return (
     <span className={cn(
-      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold",
+      "inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold",
       tones[tone],
     )}>
       <span className={cn("h-1.5 w-1.5 rounded-full", dots[tone])} />
@@ -307,7 +307,7 @@ export default function JobDetailPage({
 
   if (notFound || !job) return (
     <PageShell wide className="flex flex-col items-center justify-center py-24 text-center">
-      <FileText className="h-8 w-8 text-t4 mb-3" />
+      <FileText className="h-5 w-5 text-t4 mb-3" />
       <p className="text-sm font-medium text-t1 mb-1">Job not found</p>
       <p className="text-xs text-t3 mb-4">This job may have been deleted.</p>
       <Button variant="outline" onClick={() => router.push("/jobs")}>Back to jobs</Button>
@@ -337,7 +337,7 @@ export default function JobDetailPage({
       />
 
       {isCancelled && (
-        <div className="mb-5 rounded-xl border border-dn-bd bg-dn-bg px-4 py-3">
+        <div className="mb-6 rounded-xl border border-dn-bd bg-dn-bg px-4 py-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-dn-tx flex items-center gap-2 flex-wrap">
@@ -368,8 +368,8 @@ export default function JobDetailPage({
 
       {/* Master job card — Stitch layout */}
       <section className="oryx-surface-card mb-8 overflow-hidden rounded-xl border border-bd bg-sr p-6 sm:p-8 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-6">
-          <div className="min-w-0 space-y-2.5">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
+          <div className="min-w-0 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge status={job.status} />
               <span className="font-mono text-base text-t3 tabular-nums">{job.drawingNumber}</span>
@@ -392,7 +392,7 @@ export default function JobDetailPage({
               )}
             </div>
             {job.address && (
-              <p className="text-base text-t2 flex items-start gap-1.5">
+              <p className="text-base text-t2 flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-1 shrink-0" />
                 <span>{job.address}</span>
               </p>
@@ -442,7 +442,7 @@ export default function JobDetailPage({
         </div>
 
         {(job.tags ?? []).length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-5 pb-5 border-b border-bd">
+          <div className="flex flex-wrap gap-2 mb-6 pb-6 border-b border-bd">
             {(job.tags ?? []).map(tag => (
               <Pill key={tag} tone="neutral">{tag}</Pill>
             ))}
@@ -481,7 +481,7 @@ export default function JobDetailPage({
                     aria-selected={selected}
                     onClick={() => setActiveTab(tab.id)}
                     className={cn(
-                      "px-3.5 py-2.5 text-sm font-semibold rounded-t-lg border border-b-0 transition-colors",
+                      "px-4 py-2 text-sm font-semibold rounded-t-lg border border-b-0 transition-colors",
                       selected
                         ? "bg-sr text-t1 border-bd -mb-px"
                         : "bg-transparent text-t3 border-transparent hover:text-t1 hover:bg-sr/60",
@@ -493,10 +493,10 @@ export default function JobDetailPage({
               })}
             </div>
 
-            <div className="p-5 sm:p-6" role="tabpanel">
+            <div className="p-6 sm:p-6" role="tabpanel">
               {activeTab === "information" && (
                 <div>
-                  <div className="flex items-center justify-between gap-3 mb-5">
+                  <div className="flex items-center justify-between gap-3 mb-6">
                     <div>
                       <h2 className="text-lg font-semibold text-t1">Job Information</h2>
                       <p className="text-sm text-t3 mt-0.5">Site, client, and assignment details</p>
@@ -528,7 +528,7 @@ export default function JobDetailPage({
                     />
                     <InfoField label="Requested by" value={job.requestedBy} />
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wider text-t3 mb-1.5">
+                      <p className="text-xs font-medium uppercase tracking-wider text-t3 mb-2">
                         Engineer Assigned
                       </p>
                       {isCancelled ? (
@@ -575,7 +575,7 @@ export default function JobDetailPage({
               {activeTab === "documents" && (
                 <div>
                   <h2 className="text-lg font-semibold text-t1 mb-1">Documents</h2>
-                  <p className="text-sm text-t3 mb-5">PDFs and images — print emails to PDF to attach them</p>
+                  <p className="text-sm text-t3 mb-6">PDFs and images — print emails to PDF to attach them</p>
                   <JobDocumentsPanel
                     jobId={job.id}
                     showTitle={false}
@@ -586,7 +586,7 @@ export default function JobDetailPage({
 
               {activeTab === "financial" && (
                 <div>
-                  <div className="flex items-center justify-between gap-3 mb-5">
+                  <div className="flex items-center justify-between gap-3 mb-6">
                     <div>
                       <h2 className="text-lg font-semibold text-t1">Financial</h2>
                       <p className="text-sm text-t3 mt-0.5">Quote, variations, and invoicing</p>
@@ -672,7 +672,7 @@ export default function JobDetailPage({
               {activeTab === "status" && (
                 <div>
                   <h2 className="text-lg font-semibold text-t1 mb-1">Status</h2>
-                  <p className="text-sm text-t3 mb-5">Update the workflow for the current revision</p>
+                  <p className="text-sm text-t3 mb-6">Update the workflow for the current revision</p>
                   {isCancelled ? (
                     <StatusBadge status={job.status} />
                   ) : (
@@ -691,7 +691,7 @@ export default function JobDetailPage({
               {activeTab === "activity" && (
                 <div>
                   <h2 className="text-lg font-semibold text-t1 mb-1">Activity</h2>
-                  <p className="text-sm text-t3 mb-5">Status changes, notes, and document events</p>
+                  <p className="text-sm text-t3 mb-6">Status changes, notes, and document events</p>
                   <StatusHistory
                     key={historyKey}
                     jobId={workflowJobId}
@@ -712,7 +712,7 @@ export default function JobDetailPage({
                 : dl.severity === "soon" ? "bg-wn-bg/60 border-wn-bd/60"
                 : "bg-sr border-bd",
             )}>
-              <div className="flex items-center gap-1.5 mb-2">
+              <div className="flex items-center gap-2 mb-2">
                 {dl.severity === "overdue"
                   ? <AlertOctagon className="h-4 w-4 text-dn shrink-0" />
                   : <Clock className="h-4 w-4 text-t4 shrink-0" />}
@@ -732,14 +732,14 @@ export default function JobDetailPage({
             </div>
           )}
 
-          <section className="rounded-xl border border-bd bg-sr p-5">
+          <section className="rounded-xl border border-bd bg-sr p-6">
             <h2 className="text-base font-semibold text-t1 mb-4">Actions</h2>
             {isCancelled ? (
               <p className="text-xs text-t3">
                 This job is cancelled. Restore it to make changes or return it to active views.
               </p>
             ) : (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Button
                   variant={job.designer ? "outline" : "primary"}
                   size="sm"
@@ -777,7 +777,7 @@ export default function JobDetailPage({
             )}
           </section>
 
-          <section className="rounded-xl border border-bd bg-sr p-5">
+          <section className="rounded-xl border border-bd bg-sr p-6">
             <h2 className="text-base font-semibold text-t1 mb-3">Dates</h2>
             <dl className="space-y-2">
               {([
@@ -847,7 +847,7 @@ export default function JobDetailPage({
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
-            <label className="block text-xs font-medium text-t2 mb-1.5">
+            <label className="block text-xs font-medium text-t2 mb-2">
               Reason for cancellation <span className="text-dn">*</span>
             </label>
             <Textarea

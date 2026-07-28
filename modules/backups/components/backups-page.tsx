@@ -445,7 +445,7 @@ function BackupsInner() {
         </div>
       ) : backups.length === 0 ? (
         <div className={cn(surfaceCard, "p-10 text-center")}>
-          <DatabaseBackup className="h-8 w-8 text-t4 mx-auto mb-3" />
+          <DatabaseBackup className="h-5 w-5 text-t4 mx-auto mb-3" />
           <p className="text-sm font-medium text-t1 mb-1">
             {localBackupSupported ? "No local backups yet" : "No local backup history"}
           </p>

@@ -111,8 +111,8 @@ function SortTh({ field, label, current, dir, onSort, className }: {
       <span className="inline-flex items-center gap-1">
         {label}
         {active
-          ? dir === "asc" ? <ArrowUp className="h-3 w-3 text-t2" /> : <ArrowDown className="h-3 w-3 text-t2" />
-          : <ArrowUpDown className="h-3 w-3 text-t4" />}
+          ? dir === "asc" ? <ArrowUp className="h-3.5 w-3.5 text-t2" /> : <ArrowDown className="h-3.5 w-3.5 text-t2" />
+          : <ArrowUpDown className="h-3.5 w-3.5 text-t4" />}
       </span>
     </th>
   )
@@ -183,7 +183,7 @@ const JobMobileCard = memo(function JobMobileCard({
               : dl.severity === "today" ? "bg-wn-bg text-wn-tx border-wn-bd"
               : "bg-wn-bg/60 text-wn-tx border-wn-bd/60",
           )}>
-            <Clock className="h-3 w-3 shrink-0" />
+            <Clock className="h-3.5 w-3.5 shrink-0" />
             {dl.label}
           </span>
         )}
@@ -270,7 +270,7 @@ const JobTableRow = memo(
         <td className={cn("px-4 py-3.5 max-w-[170px]", COL_CLIENT)}>
           <div className="flex items-center gap-1.5 flex-wrap">
             {isOnHold && (
-              <span title="Client on hold"><AlertTriangle className="h-3 w-3 text-dn shrink-0" /></span>
+              <span title="Client on hold"><AlertTriangle className="h-3.5 w-3.5 text-dn shrink-0" /></span>
             )}
             <p className="text-xs font-medium text-t1 truncate">{job.clientCompany}</p>
             {isOnHold && (
@@ -283,7 +283,7 @@ const JobTableRow = memo(
 
         <td className={cn("px-4 py-3.5 max-w-[150px]", COL_REQUESTED_BY)}>
           <p className="text-xs text-t3 truncate flex items-center gap-1.5">
-            <UserCircle2 className="h-3 w-3 text-t4 shrink-0" />
+            <UserCircle2 className="h-3.5 w-3.5 text-t4 shrink-0" />
             {job.requestedBy || <span className="italic text-t4">—</span>}
           </p>
         </td>
@@ -323,7 +323,7 @@ const JobTableRow = memo(
 
         <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_DESIGNER)} onClick={e => e.stopPropagation()}>
           <div className="flex items-center gap-1.5">
-            <PenTool className="h-3 w-3 text-t4 shrink-0" />
+            <PenTool className="h-3.5 w-3.5 text-t4 shrink-0" />
             <InlineDesignerSelect
               designer={job.designer}
               designers={designers}
@@ -411,7 +411,7 @@ function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => 
         className="rounded-full p-0.5 hover:bg-ac/15 text-ac"
         aria-label={`Remove ${label} filter`}
       >
-        <X className="h-3 w-3" />
+        <X className="h-3.5 w-3.5" />
       </button>
     </span>
   )

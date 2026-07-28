@@ -151,7 +151,7 @@ export function NotificationsMenu() {
             </div>
           ) : visibleNotifications.length === 0 ? (
             <div className="py-10 px-4 text-center">
-              <Bell className="h-6 w-6 text-t4 mx-auto mb-2 opacity-60" />
+              <Bell className="h-5 w-5 text-t4 mx-auto mb-2 opacity-60" />
               <p className="text-sm text-t2 font-medium">All clear</p>
               <p className="text-xs text-t4 mt-1">
                 {isExperimentalEnabled("leave")

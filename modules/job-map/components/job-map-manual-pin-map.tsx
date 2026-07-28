@@ -32,7 +32,7 @@ export interface ManualPinMapProps {
 export function ManualPinMap({ position, onPlace, flyTo }: ManualPinMapProps) {
   const icon = L.divIcon({
     className: "job-map-marker-icon",
-    html: `<div style="width:28px;height:28px;border-radius:50%;background:#111827;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);"></div>`,
+    html: `<div style="width:28px;height:28px;border-radius:50%;background:var(--color-ac,#111827);border:2px solid var(--color-sr,#fff);box-shadow:0 2px 6px rgba(0,0,0,.35);"></div>`,
     iconSize: [28, 28],
     iconAnchor: [14, 28],
   })

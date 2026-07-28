@@ -294,7 +294,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
               {recent.length > 0 && (
                 <section>
                   <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-t3 flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" /> Recent searches
+                    <Clock className="h-3.5 w-3.5" /> Recent searches
                   </p>
                   <ul className="space-y-0.5">
                     {recent.map(r => (

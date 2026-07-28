@@ -128,7 +128,7 @@ export function StatusHistory({ jobId, onUpdate }: {
           onClick={() => setAddNote(true)}
           className="flex items-center gap-1.5 text-sm text-t4 hover:text-t2 mt-2 focus:outline-none"
         >
-          <Plus className="h-3 w-3" /> Add note
+          <Plus className="h-3.5 w-3.5" /> Add note
         </button>
       )}
     </div>
