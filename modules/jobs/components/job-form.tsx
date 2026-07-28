@@ -379,7 +379,11 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       <Section
         step={job ? 1 : 2}
         title="Project information"
-        question="Where is the work and what type of scaffold is involved?"
+        question={
+          needsTypeOfWorks
+            ? "Where is the work and what type of scaffold is involved?"
+            : "Where is the work taking place?"
+        }
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
