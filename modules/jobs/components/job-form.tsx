@@ -13,7 +13,7 @@ import {
 } from "@/shared/ui/select"
 import {
   JOB_STATUSES, CREATABLE_ITEM_TYPES, OTHER_WORKS_TYPE, getWorkItemRefHint,
-  WORKS_TYPES,
+  WORKS_TYPES, JOB_TAGS,
 } from "@/lib/constants"
 import { ClientCombobox } from "@/components/client-combobox"
 import { DesignerCombobox } from "@/components/designer-combobox"
@@ -294,6 +294,13 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const selectableTypes = CREATABLE_ITEM_TYPES
   const controlStyle = { height: "40px" } as const
   const controlClass = "h-10"
+
+  const toggleTag = (tag: string) => {
+    setForm(f => ({
+      ...f,
+      tags: f.tags.includes(tag) ? f.tags.filter(t => t !== tag) : [...f.tags, tag],
+    }))
+  }
 
   return (
     <form id={formId} onSubmit={handleSubmit} noValidate data-saving={saving ? "true" : undefined} className="space-y-8">
@@ -659,7 +666,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
         title="Additional information"
         question={
           isSiteVisit
-            ? "Any notes for the visit?"
+            ? "Any notes or tags for the visit?"
             : isCatIii
               ? "Anything the checker should know?"
               : "Anything else we need to know?"
@@ -681,12 +688,44 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
             />
           </Field>
 
+          <Field
+            label="Tags"
+            hint="Optional labels for search and filtering (scaffold type, site constraints)."
+          >
+            <div className="flex flex-wrap gap-2">
+              {JOB_TAGS.map(tag => {
+                const selected = form.tags.includes(tag)
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    aria-pressed={selected}
+                    className={cn(
+                      "rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-150",
+                      selected
+                        ? "border-rs-bd bg-rs-bg text-rs-tx"
+                        : "border-bd bg-sr text-t2 hover:border-bds hover:text-t1",
+                    )}
+                  >
+                    {tag}
+                  </button>
+                )
+              })}
+            </div>
+            {form.tags.length > 0 && (
+              <p className="mt-2 text-xs text-t3">
+                {form.tags.length} selected — used in global search and job filters.
+              </p>
+            )}
+          </Field>
+
           {(showCommercial || isDesign) && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Quote reference" hint="Optional operational reference">
                 <Input
                   className={controlClass}
-                style={controlStyle}
+                  style={controlStyle}
                   value={form.quoteReference}
                   onChange={setF("quoteReference")}
                   placeholder="e.g. QT-2026-047"
@@ -697,7 +736,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                 <Field label="Quote value (£)" hint="Optional">
                   <Input
                     className={controlClass}
-                style={controlStyle}
+                    style={controlStyle}
                     value={form.quoteValue}
                     onChange={setF("quoteValue")}
                     placeholder="e.g. 1250"
