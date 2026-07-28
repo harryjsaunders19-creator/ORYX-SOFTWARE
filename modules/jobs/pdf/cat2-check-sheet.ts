@@ -10,11 +10,20 @@ const MARGIN = 48
 const INK = rgb(0, 0, 0)
 
 const CERT_STATEMENT = "I certify that the Temporary Works Design has been checked with the independence specified for design category II and that the loads stated are deemed acceptable by inspection."
+const DEFAULT_STANDARDS = [
+  "TG4:25 Anchoring systems for scaffolding.",
+  "BS EN:12811-1:2003 Temporary works equipment. Scaffolds. Performance requirements and general design.",
+  "BS EN:12811-2: Temporary works equipment. Information on materials.",
+  "BS EN 1991-1-4:2005+A1:2010: Eurocode 1. Actions on structures. General actions. Wind actions.",
+  "BS 5975:2019: Code of practice for temporary works procedures and the permissible stress design of falsework.",
+  "Working at Height Regulations 2005.",
+  "The Construction (Design and Management) Regulations 2015.",
+  "NASC Document TG20:21 Good Practice Guidance for Tube and Fitting Scaffolding",
+]
 
 const CHECKER = {
   name: "Lee Saunders",
   positionHeld: "Principle Engineer",
-  signaturePath: process.env.CAT2_CHECK_SIGNATURE_PATH || path.join(process.cwd(), "private-assets", "cat2-signature.png"),
 }
 
 function wrapText(text: string, width: number, font: import("pdf-lib").PDFFont, size: number): string[] {
@@ -41,10 +50,31 @@ function wrapText(text: string, width: number, font: import("pdf-lib").PDFFont, 
 }
 
 function splitStandards(text: string | null | undefined): string[] {
-  return (text ?? "")
+  const parsed = (text ?? "")
     .split(/\r?\n/)
     .map(s => s.trim())
     .filter(Boolean)
+  return parsed.length ? parsed : DEFAULT_STANDARDS
+}
+
+async function loadSignatureAsset(): Promise<{ bytes: Uint8Array; isPng: boolean } | null> {
+  const candidates = [
+    process.env.CAT2_CHECK_SIGNATURE_PATH,
+    path.join(process.cwd(), "private-assets", "Lee Signature.png"),
+    path.join(process.cwd(), "private-assets", "cat2-signature.png"),
+  ].filter(Boolean) as string[]
+
+  for (const filePath of candidates) {
+    try {
+      const bytes = await fs.readFile(filePath)
+      // Ignore placeholders/empty files (e.g. 1-byte marker file).
+      if (bytes.byteLength < 256) continue
+      return { bytes, isPng: filePath.toLowerCase().endsWith(".png") }
+    } catch {
+      // Try next candidate
+    }
+  }
+  return null
 }
 
 export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
@@ -68,6 +98,8 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
 
   let y = PAGE_H - MARGIN
   const CONTENT_W = PAGE_W - (MARGIN * 2)
+  const BORDER = 1.1
+  const TITLE_BG = rgb(0.95, 0.95, 0.95)
 
   const drawText = (text: string, x: number, lineY: number, size = 10, bold = false) => {
     page.drawText(text, { x, y: lineY, size, font: bold ? fontBold : font, color: INK })
@@ -76,6 +108,11 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   const drawLabeledValue = (label: string, value: string, lineY: number) => {
     drawText(label, MARGIN + 8, lineY, 10, true)
     drawText(value, MARGIN + 150, lineY, 10, false)
+  }
+
+  const drawSectionHeader = (text: string, topY: number) => {
+    page.drawRectangle({ x: MARGIN, y: topY - 18, width: CONTENT_W, height: 18, color: TITLE_BG, borderColor: INK, borderWidth: BORDER })
+    drawText(text, MARGIN + 8, topY - 13, 10, true)
   }
 
   drawText("Oryx Scaffold Design Ltd.", MARGIN, y, 11, false)
@@ -92,7 +129,9 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   // Header information block
   const headerTop = y + 8
   const headerBottom = y - 78
-  page.drawRectangle({ x: MARGIN, y: headerBottom, width: CONTENT_W, height: headerTop - headerBottom, borderColor: INK, borderWidth: 1 })
+  page.drawRectangle({ x: MARGIN, y: headerBottom, width: CONTENT_W, height: headerTop - headerBottom, borderColor: INK, borderWidth: BORDER })
+  page.drawLine({ start: { x: MARGIN, y: y - 18 }, end: { x: MARGIN + CONTENT_W, y: y - 18 }, thickness: BORDER, color: INK })
+  page.drawLine({ start: { x: MARGIN, y: y - 38 }, end: { x: MARGIN + CONTENT_W, y: y - 38 }, thickness: BORDER, color: INK })
   drawLabeledValue("Design Company:", "Oryx Scaffold Design Ltd.", y - 8)
   drawLabeledValue("Project:", project, y - 28)
   drawLabeledValue("Description of Works:", works || "Not specified", y - 48)
@@ -102,12 +141,12 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   const standards = splitStandards(job.designStandards)
   const standardsLines = standards.length
     ? standards.flatMap((standard) => wrapText(standard, CONTENT_W - 18, font, 10))
-    : ["Not specified in job record."]
-  const standardsHeight = Math.max(56, 24 + (standardsLines.length * 13))
+    : DEFAULT_STANDARDS
+  const standardsHeight = Math.max(70, 26 + (standardsLines.length * 13))
   const standardsBottom = y - standardsHeight
-  page.drawRectangle({ x: MARGIN, y: standardsBottom, width: CONTENT_W, height: standardsHeight, borderColor: INK, borderWidth: 1 })
-  drawText("Design Standards / Codes of Practise used:", MARGIN + 8, y - 16, 10, true)
-  let standardsY = y - 34
+  page.drawRectangle({ x: MARGIN, y: standardsBottom, width: CONTENT_W, height: standardsHeight, borderColor: INK, borderWidth: BORDER })
+  drawSectionHeader("Design Standards / Codes of Practise used:", y)
+  let standardsY = y - 30
   for (const line of standardsLines) {
     drawText(line, MARGIN + 8, standardsY, 10, false)
     standardsY -= 13
@@ -116,17 +155,18 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
 
   // Documents checked block
   const documentsBottom = y - 42
-  page.drawRectangle({ x: MARGIN, y: documentsBottom, width: CONTENT_W, height: 42, borderColor: INK, borderWidth: 1 })
-  drawText("Documents Checked:", MARGIN + 8, y - 16, 10, true)
-  drawText(job.drawingNumber, MARGIN + 150, y - 16, 10, false)
+  page.drawRectangle({ x: MARGIN, y: documentsBottom, width: CONTENT_W, height: 42, borderColor: INK, borderWidth: BORDER })
+  drawSectionHeader("Documents Checked:", y)
+  drawText(job.drawingNumber, MARGIN + 8, y - 34, 10, false)
   y = documentsBottom - 16
 
   // Certification statement block
   const certLines = wrapText(CERT_STATEMENT, CONTENT_W - 16, font, 10)
-  const certHeight = 24 + (certLines.length * 13)
+  const certHeight = 26 + (certLines.length * 13)
   const certBottom = y - certHeight
-  page.drawRectangle({ x: MARGIN, y: certBottom, width: CONTENT_W, height: certHeight, borderColor: INK, borderWidth: 1 })
-  let certY = y - 16
+  page.drawRectangle({ x: MARGIN, y: certBottom, width: CONTENT_W, height: certHeight, borderColor: INK, borderWidth: BORDER })
+  drawSectionHeader("Certification:", y)
+  let certY = y - 30
   for (const line of certLines) {
     drawText(line, MARGIN + 8, certY, 10, false)
     certY -= 13
@@ -134,21 +174,24 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   y = certBottom - 14
 
   // Sign-off block
-  const signOffBottom = y - 110
-  page.drawRectangle({ x: MARGIN, y: signOffBottom, width: CONTENT_W, height: 110, borderColor: INK, borderWidth: 1 })
-  drawLabeledValue("Name:", CHECKER.name, y - 16)
-  drawText("Signature:", MARGIN + 8, y - 36, 10, true)
+  const signOffBottom = y - 124
+  page.drawRectangle({ x: MARGIN, y: signOffBottom, width: CONTENT_W, height: 124, borderColor: INK, borderWidth: BORDER })
+  drawSectionHeader("Checked By:", y)
+  drawLabeledValue("Name:", CHECKER.name, y - 30)
+  drawText("Signature:", MARGIN + 8, y - 50, 10, true)
+  page.drawRectangle({ x: MARGIN + 150, y: y - 66, width: 170, height: 40, borderColor: INK, borderWidth: 0.8 })
 
   const signatureY = y - 44
-  try {
-    const bytes = await fs.readFile(CHECKER.signaturePath)
-    const image = CHECKER.signaturePath.toLowerCase().endsWith(".png")
-      ? await doc.embedPng(bytes)
-      : await doc.embedJpg(bytes)
-    page.drawImage(image, { x: MARGIN + 150, y: signatureY - 8, width: 160, height: 46 })
-  } catch {
-    // If the fixed signature asset isn't provisioned yet, keep the signature
-    // area blank (so the PDF still matches the template structure).
+  const signatureAsset = await loadSignatureAsset()
+  if (signatureAsset) {
+    try {
+      const image = signatureAsset.isPng
+        ? await doc.embedPng(signatureAsset.bytes)
+        : await doc.embedJpg(signatureAsset.bytes)
+      page.drawImage(image, { x: MARGIN + 154, y: signatureY - 6, width: 162, height: 34 })
+    } catch {
+      // Keep blank signature box if image parse fails.
+    }
   }
 
   drawLabeledValue("Position held:", CHECKER.positionHeld, y - 70)
