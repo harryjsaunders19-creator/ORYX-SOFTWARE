@@ -494,7 +494,7 @@ export default function ClientsPage() {
   return (
     <Suspense
       fallback={
-        <PageShell>
+        <PageShell wide>
           <div className="skeleton h-9 w-36 rounded mb-2" />
           <div className="skeleton h-4 w-48 rounded mb-8" />
           <DataPanel>
