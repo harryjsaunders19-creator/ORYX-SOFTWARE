@@ -4,6 +4,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import type { JobRow } from "../types/job-types"
 import { BRAND_LOGO_DOCUMENT_PATH } from "@/shared/branding/branding"
+import { worksTypeDisplayLabel } from "@/lib/constants"
 
 const PAGE_W = 595.32
 const PAGE_H = 841.92
@@ -217,9 +218,7 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
 
   const page = doc.addPage([PAGE_W, PAGE_H])
 
-  const works = job.typeOfWorks === "Other" && job.customTypeDescription
-    ? `Other - ${job.customTypeDescription}`
-    : (job.typeOfWorks || "Scaffold")
+  const works = worksTypeDisplayLabel(job.typeOfWorks, job.customTypeDescription) || job.typeOfWorks || "Scaffold"
   const project = (job.siteName?.trim() || job.siteAddress?.trim() || job.address || "Not specified")
     .replace(/\.$/, "")
   const revision = (job.revisionLetter ?? "").trim() || "—"

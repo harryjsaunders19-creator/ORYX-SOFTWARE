@@ -163,6 +163,24 @@ export function isValidWorksType(value: string): value is WorksType {
   return (WORKS_TYPES as readonly string[]).includes(value)
 }
 
+/**
+ * Label shown in UI for a job/quote type of works.
+ * Custom entries are stored as Other + description — never surface the
+ * sentinel "Other" when a real description exists.
+ */
+export function worksTypeDisplayLabel(
+  typeOfWorks: string | null | undefined,
+  customTypeDescription?: string | null,
+): string {
+  const works = typeOfWorks?.trim() ?? ""
+  if (!works) return ""
+  if (works === OTHER_WORKS_TYPE) {
+    const custom = customTypeDescription?.trim() ?? ""
+    return custom || ""
+  }
+  return works
+}
+
 // ── Job tags (multi-select labels independent of Type of Works) ───
 export const JOB_TAGS = [
   "Temporary Roof",

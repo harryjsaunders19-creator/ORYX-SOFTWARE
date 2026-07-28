@@ -13,7 +13,7 @@ import {
 } from "@/shared/ui/select"
 import {
   JOB_STATUSES, CREATABLE_ITEM_TYPES, OTHER_WORKS_TYPE, getWorkItemRefHint,
-  WORKS_TYPES, JOB_TAGS,
+  WORKS_TYPES, JOB_TAGS, worksTypeDisplayLabel,
 } from "@/lib/constants"
 import { ClientCombobox } from "@/components/client-combobox"
 import { DesignerCombobox } from "@/components/designer-combobox"
@@ -166,8 +166,14 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const [showMoreTypes, setShowMoreTypes] = useState(false)
 
   useEffect(() => {
-    setCustomTypes(readCustomWorksTypes())
-  }, [])
+    const saved = readCustomWorksTypes()
+    // Surface the job's custom description as a chip when editing.
+    if (job?.typeOfWorks === OTHER_WORKS_TYPE && job.customTypeDescription?.trim()) {
+      setCustomTypes(addCustomWorksType(job.customTypeDescription.trim()))
+    } else {
+      setCustomTypes(saved)
+    }
+  }, [job?.id, job?.typeOfWorks, job?.customTypeDescription])
 
   const setF = (k: keyof JobFormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -187,17 +193,24 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const showCommercial = isDesign || (!isSiteVisit && !isCatIii) || !!job
 
   const selectedWorksLabel = useMemo(() => {
-    if (!form.typeOfWorks) return null
-    if (form.typeOfWorks === OTHER_WORKS_TYPE) return form.customTypeDescription || OTHER_WORKS_TYPE
-    return form.typeOfWorks
+    return worksTypeDisplayLabel(form.typeOfWorks, form.customTypeDescription) || null
   }, [form.typeOfWorks, form.customTypeDescription])
 
-  const selectWorksType = (value: string, customDescription = "") => {
-    if (value === OTHER_WORKS_TYPE || customDescription) {
+  /** True when Other is selected via a named custom chip (not freeform Other…). */
+  const selectedNamedCustom = useMemo(() => {
+    if (form.typeOfWorks !== OTHER_WORKS_TYPE || !form.customTypeDescription.trim()) return false
+    return customTypes.some(
+      t => t.toLowerCase() === form.customTypeDescription.trim().toLowerCase(),
+    )
+  }, [form.typeOfWorks, form.customTypeDescription, customTypes])
+
+  const selectWorksType = (value: string, customDescription?: string) => {
+    if (value === OTHER_WORKS_TYPE) {
       setForm(f => ({
         ...f,
         typeOfWorks: OTHER_WORKS_TYPE,
-        customTypeDescription: customDescription || f.customTypeDescription,
+        // Explicit "" clears for freeform Other…; omit arg to keep existing text.
+        customTypeDescription: customDescription !== undefined ? customDescription : f.customTypeDescription,
       }))
     } else {
       setForm(f => ({
@@ -542,11 +555,11 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                     })}
                     <button
                       type="button"
-                      onClick={() => selectWorksType(OTHER_WORKS_TYPE)}
-                      aria-pressed={form.typeOfWorks === OTHER_WORKS_TYPE && !customTypes.some(t => isWorksSelected(t, true))}
+                      onClick={() => selectWorksType(OTHER_WORKS_TYPE, "")}
+                      aria-pressed={form.typeOfWorks === OTHER_WORKS_TYPE && !selectedNamedCustom}
                       className={cn(
                         "rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
-                        form.typeOfWorks === OTHER_WORKS_TYPE && !form.customTypeDescription
+                        form.typeOfWorks === OTHER_WORKS_TYPE && !selectedNamedCustom
                           ? "border-rs-bd bg-rs-bg text-rs-tx"
                           : "border-bd bg-sr text-t2 hover:border-bds",
                       )}
@@ -556,7 +569,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                   </div>
                 )}
 
-                {form.typeOfWorks === OTHER_WORKS_TYPE && (
+                {form.typeOfWorks === OTHER_WORKS_TYPE && !selectedNamedCustom && (
                   <Field label="Describe type of works" required error={errors.customTypeDescription}>
                     <Input
                       className={controlClass}

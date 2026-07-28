@@ -22,7 +22,7 @@ import { useToast }            from "@/shared/ui/toast"
 import { formatGBP, getJobDeadlineInfo, parseLocalDate, totalJobCommercialValue, cn } from "@/shared/utils/utils"
 import { useUser }             from "@/shared/providers/user-context"
 import { PageShell, PageBreadcrumb } from "@/shared/layouts/page-layout"
-import { OTHER_WORKS_TYPE }    from "@/lib/constants"
+import { worksTypeDisplayLabel }    from "@/lib/constants"
 // Perf: SWR caches job detail across navigations; parent/billing keys follow when known.
 import { useApi } from "@/shared/hooks/use-api"
 import type { Job, JobFormData, BillingHandoff } from "@/lib/types"
@@ -516,11 +516,7 @@ export default function JobDetailPage({
                     <InfoField label="Site Address" value={job.address} />
                     <InfoField
                       label="Type of works"
-                      value={
-                        job.typeOfWorks === OTHER_WORKS_TYPE
-                          ? `Other — ${job.customTypeDescription || "no description"}`
-                          : job.typeOfWorks
-                      }
+                      value={worksTypeDisplayLabel(job.typeOfWorks, job.customTypeDescription) || null}
                     />
                     <InfoField
                       label="Initial Quote"

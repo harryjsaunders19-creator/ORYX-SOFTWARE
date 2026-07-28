@@ -23,6 +23,7 @@ import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
 import { useApi } from "@/shared/hooks/use-api"
 import { formatGBP, cn } from "@/shared/utils/utils"
+import { worksTypeDisplayLabel } from "@/lib/constants"
 import { PageShell, PageBreadcrumb } from "@/shared/layouts/page-layout"
 import { DesignerCombobox } from "@/components/designer-combobox"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
@@ -431,11 +432,7 @@ export default function ParentJobDashboardPage({
                 <InfoField label="Site Address" value={siteLine} />
                 <InfoField
                   label="Type of works"
-                  value={
-                    parent.typeOfWorks === "Other" && parent.customTypeDescription
-                      ? `Other — ${parent.customTypeDescription}`
-                      : parent.typeOfWorks
-                  }
+                  value={worksTypeDisplayLabel(parent.typeOfWorks, parent.customTypeDescription) || null}
                 />
                 <InfoField
                   label="Initial Quote"
