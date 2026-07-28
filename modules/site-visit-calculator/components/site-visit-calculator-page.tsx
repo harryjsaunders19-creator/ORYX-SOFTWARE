@@ -19,7 +19,6 @@ import {
   SelectValue,
 } from "@/shared/ui/select"
 import { useToast } from "@/shared/ui/toast"
-import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi } from "@/shared/hooks/use-api"
 import { formatGBP } from "@/shared/utils/utils"
 import {
@@ -53,7 +52,6 @@ export default function SiteVisitCalculatorPage() {
   const [saveLabel, setSaveLabel] = useState("")
   const [showSaved, setShowSaved] = useState(false)
 
-  const debouncedAddress = useDebouncedValue(siteAddress, 500)
   const hours = parseFloat(siteHours)
   const calcRef = useRef(0)
   // Perf: cache identical calculate POSTs (same address/hours/coords) in-session — avoids
@@ -66,10 +64,10 @@ export default function SiteVisitCalculatorPage() {
   const saved = savedData?.items ?? []
 
   useEffect(() => {
-    const addr = debouncedAddress.trim()
-    if (!addr) {
+    if (!selection) {
       setResult(null)
       setError(null)
+      setLoading(false)
       return
     }
     if (!Number.isFinite(hours) || hours <= 0) {
@@ -78,10 +76,10 @@ export default function SiteVisitCalculatorPage() {
     }
 
     const cacheKey = JSON.stringify({
-      addr,
+      addr: selection.label,
       hours,
-      lat: selection?.lat ?? null,
-      lng: selection?.lng ?? null,
+      lat: selection.lat,
+      lng: selection.lng,
     })
     const cached = calcCacheRef.current.get(cacheKey)
     if (cached) {
@@ -99,9 +97,9 @@ export default function SiteVisitCalculatorPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        siteAddress: addr,
-        siteLat: selection?.lat,
-        siteLng: selection?.lng,
+        siteAddress: selection.label,
+        siteLat: selection.lat,
+        siteLng: selection.lng,
         siteHours: hours,
       }),
     })
@@ -124,7 +122,7 @@ export default function SiteVisitCalculatorPage() {
       .finally(() => {
         if (id === calcRef.current) setLoading(false)
       })
-  }, [debouncedAddress, hours, selection?.lat, selection?.lng])
+  }, [selection, hours])
 
   const copySummary = async () => {
     if (!result) return
@@ -242,6 +240,7 @@ export default function SiteVisitCalculatorPage() {
 
                 <AddressAutocomplete
                   value={siteAddress}
+                  selected={selection}
                   onChange={setSiteAddress}
                   onSelect={setSelection}
                   disabled={loading}
