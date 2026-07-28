@@ -7,22 +7,22 @@ import { BRAND_LOGO_DOCUMENT_PATH } from "@/shared/branding/branding"
 
 const PAGE_W = 595.32
 const PAGE_H = 841.92
-const MARGIN_X = 42
+const MARGIN_X = 44
 const CONTENT_W = PAGE_W - MARGIN_X * 2
 const CONTENT_RIGHT = MARGIN_X + CONTENT_W
 
-/** Oryx design cobalt — restrained accent (globals --color-tag-design). */
-const ORYX_BLUE = rgb(0.118, 0.353, 0.588) // #1E5A96
-const INK = rgb(0.1, 0.11, 0.12)
-const LABEL = rgb(0.45, 0.47, 0.49)
-const MUTED = rgb(0.38, 0.4, 0.42)
-const RULE_GREY = rgb(0.78, 0.8, 0.82)
-const PANEL = rgb(0.975, 0.977, 0.98)
+/** ISO-style neutral palette */
+const CHARCOAL = rgb(0.184, 0.184, 0.184) // #2F2F2F
+const GREY = rgb(0.4, 0.4, 0.4) // #666666
+const RULE = rgb(0.851, 0.851, 0.851) // #D9D9D9
+const PANEL = rgb(0.961, 0.961, 0.961) // #F5F5F5
+const INK = CHARCOAL
+const LABEL = GREY
 
 const TITLE = 20
 const SECTION = 10
 const BODY = 10
-const LINE = 12.8
+const LINE = 13
 
 const DEFAULT_STANDARDS = [
   "TG4:25 Anchoring systems for scaffolding.",
@@ -57,6 +57,14 @@ const UNCONTROLLED_COPY =
 export function cat2ExportFilename(drawingNumber: string): string {
   const safeDrawing = drawingNumber.replace(/[\\/:*?"<>|]/g, "-").trim() || "drawing"
   return `${safeDrawing}-CATII Check Certificate.pdf`
+}
+
+/** Display reference without .pdf — includes revision when present. */
+export function cat2DocumentReference(drawingNumber: string, revisionLetter?: string | null): string {
+  const safeDrawing = drawingNumber.replace(/[\\/:*?"<>|]/g, "-").trim() || "drawing"
+  const rev = (revisionLetter ?? "").trim()
+  const revPart = rev ? ` Rev ${rev}` : ""
+  return `${safeDrawing}${revPart}-CATII Check Certificate`
 }
 
 function wrapText(text: string, width: number, font: PDFFont, size: number): string[] {
@@ -123,19 +131,19 @@ function t(
   page.drawText(text, { x, y, size, font, color })
 }
 
-function hRule(page: PDFPage, y: number, color = RULE_GREY, fromX = MARGIN_X, toX = CONTENT_RIGHT) {
+function hRule(page: PDFPage, y: number, color = RULE, fromX = MARGIN_X, toX = CONTENT_RIGHT) {
   page.drawLine({
     start: { x: fromX, y },
     end: { x: toX, y },
-    thickness: 0.6,
+    thickness: 0.55,
     color,
   })
 }
 
 function sectionHeading(page: PDFPage, title: string, y: number, fonts: Fonts): number {
-  t(page, title.toUpperCase(), MARGIN_X, y, fonts.bold, SECTION, ORYX_BLUE)
-  hRule(page, y - 5, RULE_GREY)
-  return y - 18
+  t(page, title.toUpperCase(), MARGIN_X, y, fonts.bold, SECTION, CHARCOAL)
+  hRule(page, y - 6, RULE)
+  return y - 20
 }
 
 function para(
@@ -156,7 +164,7 @@ function para(
   return y
 }
 
-function metaPair(
+function metaField(
   page: PDFPage,
   label: string,
   value: string,
@@ -164,14 +172,33 @@ function metaPair(
   y: number,
   fonts: Fonts,
   maxW: number,
+  valueSize = 10.5,
 ): number {
   t(page, label.toUpperCase(), x, y, fonts.regular, 7.5, LABEL)
-  y -= 11
-  for (const line of wrapText(value, maxW, fonts.bold, 10)) {
-    t(page, line, x, y, fonts.bold, 10, INK)
-    y -= 12.5
+  y -= 12
+  for (const line of wrapText(value, maxW, fonts.bold, valueSize)) {
+    t(page, line, x, y, fonts.bold, valueSize, INK)
+    y -= valueSize + 3
   }
   return y
+}
+
+/** Fit text to width by reducing size slightly — never truncate. */
+function fitText(
+  text: string,
+  font: PDFFont,
+  maxWidth: number,
+  preferred: number,
+  minSize: number,
+): { size: number; lines: string[] } {
+  let size = preferred
+  while (size > minSize && font.widthOfTextAtSize(text, size) > maxWidth) {
+    size -= 0.25
+  }
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) {
+    return { size, lines: [text] }
+  }
+  return { size: minSize, lines: wrapText(text, maxWidth, font, minSize) }
 }
 
 export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
@@ -195,162 +222,174 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
     : (job.typeOfWorks || "Scaffold")
   const project = (job.siteName?.trim() || job.siteAddress?.trim() || job.address || "Not specified")
     .replace(/\.$/, "")
-  const documentRef = cat2ExportFilename(job.drawingNumber)
   const revision = (job.revisionLetter ?? "").trim() || "—"
+  const documentRef = cat2DocumentReference(job.drawingNumber, job.revisionLetter)
   const standards = splitStandards(job.designStandards)
   const completedAt = job.dateCompleted ? new Date(job.dateCompleted) : new Date()
   const issueDate = completedAt.toLocaleDateString("en-GB")
   const documents = [`${job.drawingNumber} — Scaffold design`]
 
-  // ── Header: title + controlled mark + logo ───────────────────────────────
+  // ── Header ──────────────────────────────────────────────────────────────
   let logoBottom = PAGE_H - 78
   try {
     const logoBytes = await fs.readFile(path.join(process.cwd(), BRAND_LOGO_DOCUMENT_PATH))
     const logo = await doc.embedJpg(logoBytes)
-    const logoW = 100
+    const logoW = 96
     const logoH = logoW * (logo.height / logo.width)
     const logoX = CONTENT_RIGHT - logoW
-    const logoY = PAGE_H - 22 - logoH
+    const logoY = PAGE_H - 24 - logoH
     page.drawImage(logo, { x: logoX, y: logoY, width: logoW, height: logoH })
     logoBottom = logoY
 
-    // Title optically centred with logo
     const logoCenterY = logoY + logoH / 2
     const titleBaseline = logoCenterY - TITLE * 0.32
-    t(page, "Temporary Works Design Certificate", MARGIN_X, titleBaseline, fonts.bold, TITLE, INK)
-    t(page, "CONTROLLED ENGINEERING DOCUMENT", MARGIN_X, titleBaseline - 16, fonts.regular, 8, ORYX_BLUE)
+    t(page, "Temporary Works Design Certificate", MARGIN_X, titleBaseline, fonts.bold, TITLE, CHARCOAL)
+    t(page, "CONTROLLED ENGINEERING DOCUMENT", MARGIN_X, titleBaseline - 15, fonts.regular, 8, GREY)
   } catch {
-    t(page, "Temporary Works Design Certificate", MARGIN_X, PAGE_H - 48, fonts.bold, TITLE, INK)
-    t(page, "CONTROLLED ENGINEERING DOCUMENT", MARGIN_X, PAGE_H - 64, fonts.regular, 8, ORYX_BLUE)
+    t(page, "Temporary Works Design Certificate", MARGIN_X, PAGE_H - 48, fonts.bold, TITLE, CHARCOAL)
+    t(page, "CONTROLLED ENGINEERING DOCUMENT", MARGIN_X, PAGE_H - 63, fonts.regular, 8, GREY)
   }
 
-  // Document control strip between blue rules
-  let y = Math.min(logoBottom, PAGE_H - 78) - 14
-  hRule(page, y, ORYX_BLUE)
-  y -= 14
+  // Document control band — full reference, no truncation / no .pdf
+  let y = Math.min(logoBottom, PAGE_H - 78) - 16
+  hRule(page, y, RULE)
+  y -= 16
 
-  const controlCols = [
-    { label: "DOCUMENT REFERENCE", value: documentRef, x: MARGIN_X, w: 280 },
-    { label: "REVISION", value: revision, x: MARGIN_X + 300, w: 70 },
-    { label: "ISSUE DATE", value: issueDate, x: MARGIN_X + 390, w: 100 },
-  ]
-  for (const col of controlCols) {
-    t(page, col.label, col.x, y, fonts.regular, 7, LABEL)
-    const val = col.value.length > 42 ? col.value.slice(0, 40) + "…" : col.value
-    t(page, val, col.x, y - 12, fonts.bold, 9, INK)
+  const controlTop = y
+  const revX = MARGIN_X + CONTENT_W * 0.7
+  const dateX = MARGIN_X + CONTENT_W * 0.85
+  const refMaxW = revX - MARGIN_X - 16
+
+  t(page, "DOCUMENT REFERENCE", MARGIN_X, controlTop, fonts.regular, 7, LABEL)
+  const refFit = fitText(documentRef, fonts.bold, refMaxW, 9.5, 7)
+  let refY = controlTop - 12
+  for (const line of refFit.lines) {
+    t(page, line, MARGIN_X, refY, fonts.bold, refFit.size, INK)
+    refY -= refFit.size + 2
   }
-  y -= 22
-  hRule(page, y, ORYX_BLUE)
-  y -= 22
 
-  // ── Project Information ─────────────────────────────────────────────────
+  t(page, "REVISION", revX, controlTop, fonts.regular, 7, LABEL)
+  t(page, revision, revX, controlTop - 12, fonts.bold, 9.5, INK)
+  t(page, "ISSUE DATE", dateX, controlTop, fonts.regular, 7, LABEL)
+  t(page, issueDate, dateX, controlTop - 12, fonts.bold, 9.5, INK)
+
+  y = Math.min(refY, controlTop - 26) - 10
+  hRule(page, y, RULE)
+  y -= 26
+
+  // ── Project Information (no document reference duplicate) ───────────────
   y = sectionHeading(page, "Project Information", y, fonts)
-  const colW = (CONTENT_W - 28) / 2
-  const leftX = MARGIN_X
-  const rightX = MARGIN_X + colW + 28
-  const metaTop = y
-  const l1 = metaPair(page, "Project", project.toUpperCase(), leftX, metaTop, fonts, colW)
-  const l2 = metaPair(page, "Type of Works", works.toUpperCase(), leftX, l1 - 6, fonts, colW)
-  const r1 = metaPair(page, "Design Org. Originator", "ORYX SCAFFOLD DESIGN LTD.", rightX, metaTop, fonts, colW)
-  const r2 = metaPair(page, "Document Reference", documentRef, rightX, r1 - 6, fonts, colW)
-  y = Math.min(l2, r2) - 16
+  y = metaField(page, "Project", project.toUpperCase(), MARGIN_X, y, fonts, CONTENT_W, 11)
+  y -= 10
+
+  const half = (CONTENT_W - 36) / 2
+  const rowY = y
+  const leftEnd = metaField(page, "Type of Works", works.toUpperCase(), MARGIN_X, rowY, fonts, half)
+  const rightEnd = metaField(
+    page,
+    "Design Org. Originator",
+    "ORYX SCAFFOLD DESIGN LTD.",
+    MARGIN_X + half + 36,
+    rowY,
+    fonts,
+    half,
+  )
+  y = Math.min(leftEnd, rightEnd) - 18
 
   // ── Certification Statement ─────────────────────────────────────────────
   y = sectionHeading(page, "Certification Statement", y, fonts)
-  y = para(page, CERT_INTRO, y, fonts, { leading: 13.5 })
-  y -= 14
+  y = para(page, CERT_INTRO, y, fonts, { width: CONTENT_W * 0.92, leading: 14 })
+  y -= 16
 
   // ── Applicable Standards ────────────────────────────────────────────────
   y = sectionHeading(page, "Applicable Standards", y, fonts)
-  y = para(page, CERT_STANDARDS_LEAD, y, fonts, { leading: 13.2 })
-  y -= 6
+  y = para(page, CERT_STANDARDS_LEAD, y, fonts, { width: CONTENT_W * 0.92, leading: 13.5 })
+  y -= 8
 
   const hang = 14
   for (const standard of standards) {
     const lines = wrapText(standard, CONTENT_W - hang, fonts.regular, BODY)
     lines.forEach((line, i) => {
-      if (i === 0) t(page, "–", MARGIN_X, y, fonts.regular, BODY, ORYX_BLUE)
+      if (i === 0) t(page, "–", MARGIN_X, y, fonts.regular, BODY, GREY)
       t(page, line, MARGIN_X + hang, y, fonts.regular, BODY, INK)
-      y -= 12.2
+      y -= 12.5
     })
-    y -= 2.5
+    y -= 3
   }
-  y -= 10
+  y -= 12
 
   // ── Referenced Documents ────────────────────────────────────────────────
   y = sectionHeading(page, "Referenced Documents", y, fonts)
-  y = para(page, CERT_DOCS_LEAD, y, fonts, { leading: 13.2 })
-  y -= 5
+  y = para(page, CERT_DOCS_LEAD, y, fonts, { leading: 13.5 })
+  y -= 6
   for (const docLine of documents) {
-    t(page, "–", MARGIN_X, y, fonts.regular, BODY, ORYX_BLUE)
+    t(page, "–", MARGIN_X, y, fonts.regular, BODY, GREY)
     t(page, docLine, MARGIN_X + hang, y, fonts.regular, BODY, INK)
-    y -= 13
+    y -= 13.5
   }
-  y -= 14
+  y -= 16
 
-  // ── Comments | Approval (side-by-side, subtle panel) ────────────────────
-  const footerReserve = 68
+  // ── Comments | Approval ─────────────────────────────────────────────────
+  const footerReserve = 72
   const blockTop = y
-  const blockBottom = footerReserve + 8
+  const blockBottom = footerReserve + 10
   const blockH = blockTop - blockBottom
-  const splitX = MARGIN_X + CONTENT_W * 0.48
+  const splitX = MARGIN_X + CONTENT_W * 0.46
 
   page.drawRectangle({
     x: MARGIN_X,
     y: blockBottom,
     width: CONTENT_W,
     height: blockH,
-    borderColor: RULE_GREY,
-    borderWidth: 0.7,
+    borderColor: RULE,
+    borderWidth: 0.6,
   })
   page.drawLine({
     start: { x: splitX, y: blockTop },
     end: { x: splitX, y: blockBottom },
-    thickness: 0.7,
-    color: RULE_GREY,
+    thickness: 0.6,
+    color: RULE,
   })
 
-  // Left — Comments
-  t(page, "COMMENTS", MARGIN_X + 12, blockTop - 16, fonts.bold, SECTION, ORYX_BLUE)
-  t(page, "Comments are as follows:", MARGIN_X + 12, blockTop - 34, fonts.regular, 9, MUTED)
+  // Comments
+  t(page, "COMMENTS", MARGIN_X + 14, blockTop - 18, fonts.bold, SECTION, CHARCOAL)
+  t(page, "Comments are as follows:", MARGIN_X + 14, blockTop - 36, fonts.regular, 9, GREY)
 
-  const noteTop = blockTop - 48
-  const noteH = 42
+  const noteTop = blockTop - 52
+  const noteH = 48
   page.drawRectangle({
-    x: MARGIN_X + 12,
+    x: MARGIN_X + 14,
     y: noteTop - noteH,
-    width: splitX - MARGIN_X - 24,
+    width: splitX - MARGIN_X - 28,
     height: noteH,
     color: PANEL,
-    borderColor: RULE_GREY,
-    borderWidth: 0.5,
   })
-  t(page, "GENERAL", MARGIN_X + 20, noteTop - 14, fonts.regular, 7, LABEL)
-  t(page, "Approved with no comments.", MARGIN_X + 20, noteTop - 30, fonts.bold, 11, INK)
+  t(page, "GENERAL", MARGIN_X + 22, noteTop - 16, fonts.regular, 7, LABEL)
+  t(page, "Approved with no comments.", MARGIN_X + 22, noteTop - 34, fonts.bold, 11, INK)
 
-  const liabilityWidth = splitX - MARGIN_X - 24
-  let ly = noteTop - noteH - 16
+  const liabilityWidth = splitX - MARGIN_X - 28
+  let ly = noteTop - noteH - 18
   for (const line of wrapText(LIABILITY, liabilityWidth, fonts.regular, 8)) {
-    t(page, line, MARGIN_X + 12, ly, fonts.regular, 8, MUTED)
-    ly -= 10.5
+    t(page, line, MARGIN_X + 14, ly, fonts.regular, 8, GREY)
+    ly -= 11
   }
 
-  // Right — Approval
-  const ax = splitX + 14
-  const aw = CONTENT_RIGHT - ax - 12
-  t(page, "APPROVAL", ax, blockTop - 16, fonts.bold, SECTION, ORYX_BLUE)
-  t(page, "Checked by", ax, blockTop - 34, fonts.regular, 8, LABEL)
+  // Approval — generous sign-off space
+  const ax = splitX + 16
+  const aw = CONTENT_RIGHT - ax - 14
+  t(page, "APPROVAL", ax, blockTop - 18, fonts.bold, SECTION, CHARCOAL)
+  t(page, "Checked by", ax, blockTop - 38, fonts.regular, 8, LABEL)
 
-  t(page, "NAME", ax, blockTop - 54, fonts.regular, 7, LABEL)
-  t(page, CHECKER.name, ax, blockTop - 68, fonts.bold, 11, INK)
+  t(page, "NAME", ax, blockTop - 60, fonts.regular, 7, LABEL)
+  t(page, CHECKER.name, ax, blockTop - 76, fonts.bold, 11, INK)
 
-  t(page, "POSITION", ax + aw * 0.48, blockTop - 54, fonts.regular, 7, LABEL)
-  t(page, CHECKER.title, ax + aw * 0.48, blockTop - 68, fonts.bold, 11, INK)
+  t(page, "POSITION", ax + aw * 0.5, blockTop - 60, fonts.regular, 7, LABEL)
+  t(page, CHECKER.title, ax + aw * 0.5, blockTop - 76, fonts.bold, 11, INK)
 
-  t(page, "DATE", ax, blockTop - 90, fonts.regular, 7, LABEL)
-  t(page, issueDate, ax, blockTop - 104, fonts.bold, 11, INK)
+  t(page, "DATE", ax, blockTop - 100, fonts.regular, 7, LABEL)
+  t(page, issueDate, ax, blockTop - 116, fonts.bold, 11, INK)
 
-  t(page, "SIGNATURE", ax, blockTop - 126, fonts.regular, 7, LABEL)
+  t(page, "SIGNATURE", ax, blockTop - 142, fonts.regular, 7, LABEL)
 
   const signatureAsset = await loadSignatureAsset()
   if (signatureAsset) {
@@ -358,8 +397,8 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
       const image = signatureAsset.isPng
         ? await doc.embedPng(signatureAsset.bytes)
         : await doc.embedJpg(signatureAsset.bytes)
-      const maxW = Math.min(160, aw)
-      const maxH = 36
+      const maxW = Math.min(170, aw)
+      const maxH = 40
       const ratio = image.width / image.height
       let sigW = maxW
       let sigH = sigW / ratio
@@ -369,31 +408,51 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
       }
       page.drawImage(image, {
         x: ax,
-        y: blockBottom + 14,
+        y: blockBottom + 18,
         width: sigW,
         height: sigH,
       })
     } catch {
-      // leave open
+      // leave open signature space
     }
   }
 
-  // ── Footer ──────────────────────────────────────────────────────────────
-  const footerY = 46
-  hRule(page, footerY + 14, ORYX_BLUE)
+  // Soft signature baseline
+  hRule(page, blockBottom + 14, RULE, ax, CONTENT_RIGHT - 14)
 
-  const f1 = "Oryx Scaffold Design Ltd"
-  const f2 = documentRef.length > 36 ? documentRef.slice(0, 34) + "…" : documentRef
-  const f3 = `Rev ${revision}`
-  const f4 = "Page 1 of 1"
-  t(page, f1, MARGIN_X, footerY, fonts.regular, 7.5, LABEL)
-  t(page, f2, MARGIN_X + 145, footerY, fonts.regular, 7.5, LABEL)
-  t(page, f3, MARGIN_X + 380, footerY, fonts.regular, 7.5, LABEL)
-  t(page, f4, CONTENT_RIGHT - fonts.regular.widthOfTextAtSize(f4, 7.5), footerY, fonts.regular, 7.5, LABEL)
+  // ── Footer: company · document reference · revision · page ──────────────
+  const footerY = 50
+  hRule(page, footerY + 14, RULE)
 
-  let dy = footerY - 12
+  const company = "Oryx Scaffold Design Ltd"
+  const revLabel = `Rev ${revision}`
+  const pageLabel = "Page 1 of 1"
+  const footerSize = 7.5
+  const companyW = fonts.regular.widthOfTextAtSize(company, footerSize)
+  const revW = fonts.regular.widthOfTextAtSize(revLabel, footerSize)
+  const pageW = fonts.regular.widthOfTextAtSize(pageLabel, footerSize)
+  const gap = 12
+  const footerRefMaxW = CONTENT_W - companyW - revW - pageW - gap * 3
+  const footerRef = fitText(documentRef, fonts.regular, Math.max(120, footerRefMaxW), footerSize, 6)
+
+  t(page, company, MARGIN_X, footerY, fonts.regular, footerSize, GREY)
+
+  let refDrawY = footerY
+  if (footerRef.lines.length > 1) {
+    refDrawY = footerY + ((footerRef.lines.length - 1) * (footerRef.size + 1)) / 2
+  }
+  const refX = MARGIN_X + companyW + gap
+  for (const line of footerRef.lines) {
+    t(page, line, refX, refDrawY, fonts.regular, footerRef.size, GREY)
+    refDrawY -= footerRef.size + 1
+  }
+
+  t(page, revLabel, CONTENT_RIGHT - pageW - gap - revW, footerY, fonts.regular, footerSize, GREY)
+  t(page, pageLabel, CONTENT_RIGHT - pageW, footerY, fonts.regular, footerSize, GREY)
+
+  let dy = footerY - 14
   for (const line of wrapText(UNCONTROLLED_COPY, CONTENT_W, fonts.italic, 6.5)) {
-    t(page, line, MARGIN_X, dy, fonts.italic, 6.5, LABEL)
+    t(page, line, MARGIN_X, dy, fonts.italic, 6.5, GREY)
     dy -= 8
   }
 
