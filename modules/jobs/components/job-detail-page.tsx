@@ -759,7 +759,7 @@ export default function JobDetailPage({
                 <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-3.5 w-3.5" /> Edit details
                 </Button>
-                {job.status === "ISSUED" && (
+                {(job.status === "ISSUED" || job.currentRevision?.status === "ISSUED") && (
                   <Button
                     variant="outline"
                     size="sm"

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import {
-  GitBranch, Plus, Receipt, ChevronRight, MapPin, UserCircle2,
+  GitBranch, Plus, Receipt, ChevronRight, MapPin, UserCircle2, Download,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Textarea } from "@/shared/ui/textarea"
@@ -170,15 +170,48 @@ export default function ParentJobDashboardPage({
   const [priority, setPriority] = useState("")
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<DetailTab>("information")
+  const [cat2Exporting, setCat2Exporting] = useState(false)
 
   const parent = data?.parent
   const workItems = data?.workItems ?? EMPTY_WORK_ITEMS
   const current = data?.currentActive
+  const canExportCat2 = useMemo(
+    () => workItems.some(w => w.status === "ISSUED") || current?.status === "ISSUED",
+    [workItems, current?.status],
+  )
 
   const sortedItems = useMemo(
     () => [...workItems].sort((a, b) => b.dateCreated.localeCompare(a.dateCreated)),
     [workItems],
   )
+
+  const handleCat2Export = async () => {
+    setCat2Exporting(true)
+    try {
+      const res = await fetch(`/api/jobs/${parentId}/cat2-check-sheet`, { method: "POST" })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "CAT II export failed", "error")
+        return
+      }
+      const blob = await res.blob()
+      const cd = res.headers.get("Content-Disposition") ?? ""
+      const match = cd.match(/filename="([^"]+)"/i)
+      const filename = match?.[1] || "CATII Check Certificate.pdf"
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toast("CAT II Check Sheet exported", "success")
+      void mutate()
+    } catch {
+      toast("CAT II export failed", "error")
+    } finally {
+      setCat2Exporting(false)
+    }
+  }
 
   const createRevision = async () => {
     const reason = description.trim()
@@ -308,6 +341,17 @@ export default function ParentJobDashboardPage({
               <Pill tone={pTone}>{priorityLabel(current.priority)}</Pill>
             )}
           </div>
+          {canExportCat2 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleCat2Export()}
+              loading={cat2Exporting}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CAT II Check Sheet
+            </Button>
+          )}
           {data.canAddRevision && (
             <Button variant="primary" size="sm" onClick={() => setRevOpen(true)}>
               <Plus className="h-3.5 w-3.5" />
