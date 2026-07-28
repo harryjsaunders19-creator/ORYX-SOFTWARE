@@ -62,10 +62,12 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   drawLine("TEMPORARY WORKS DESIGN & CHECK SHEET CAT II:", 13, true)
   y -= 4
 
-  drawLine("Design Company: ORYX Scaffold Design Ltd", 10, false)
+  drawLine("Design Company: Oryx Scaffold Design Ltd.", 10, false)
   y -= 3
 
-  drawLine(`Project: ${job.siteAddress?.trim() || job.address}`, 10, false)
+  const projectRaw = job.siteAddress?.trim() || job.address
+  const project = projectRaw.endsWith(".") ? projectRaw : `${projectRaw}.`
+  drawLine(`Project: ${project}`, 10, false)
   y -= 3
 
   const works = job.typeOfWorks === "Other" && job.customTypeDescription
@@ -87,7 +89,6 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   y -= 6
 
   drawLine("Documents Checked:", 10, false)
-  drawLine("List of drawings & documents used to check the design:", 10, false)
   drawLine(job.drawingNumber, 10, false)
   y -= 6
 
@@ -99,31 +100,23 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   drawLine("Signature:", 10, false)
 
   const signatureY = y - 8
-  let signaturePlaced = false
   try {
     const bytes = await fs.readFile(CHECKER.signaturePath)
     const image = CHECKER.signaturePath.toLowerCase().endsWith(".png")
       ? await doc.embedPng(bytes)
       : await doc.embedJpg(bytes)
     page.drawImage(image, { x: MARGIN + 85, y: signatureY - 16, width: 140, height: 40 })
-    signaturePlaced = true
   } catch {
-    // Fall back to typed signature text when the fixed asset is not yet provisioned.
-  }
-  if (!signaturePlaced) {
-    page.drawText(CHECKER.name, {
-      x: MARGIN + 85,
-      y: signatureY,
-      size: 14,
-      font: fontBold,
-      color: rgb(0.2, 0.2, 0.2),
-    })
+    // If the fixed signature asset isn't provisioned yet, keep the signature
+    // area blank (so the PDF still matches the template structure).
   }
 
   y = signatureY - 28
   drawLine(`Position held: ${CHECKER.positionHeld}`, 10, false)
-  drawLine("Name of Design Consultants: ORYX Scaffold Design Ltd", 10, false)
-  drawLine(`Date: ${new Date().toLocaleDateString("en-GB")}`, 10, false)
+  drawLine("Name of Design Consultants: Oryx Scaffold Designs Ltd", 10, false)
+
+  const completedAt = job.dateCompleted ? new Date(job.dateCompleted) : new Date()
+  drawLine(`Date: ${completedAt.toLocaleDateString("en-GB")}`, 10, false)
 
   page.drawText("-- 1 of 1 --", {
     x: PAGE_W / 2 - 24,
