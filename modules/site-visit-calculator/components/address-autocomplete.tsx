@@ -30,6 +30,7 @@ export function AddressAutocomplete({
   const [open, setOpen] = useState(false)
   const [results, setResults] = useState<AddressSelection[]>([])
   const [loading, setLoading] = useState(false)
+  const [requestError, setRequestError] = useState<string | null>(null)
   const debounced = useDebouncedValue(value, 350)
   const containerRef = useRef<HTMLDivElement>(null)
   const listboxId = "site-address-listbox"
@@ -38,18 +39,26 @@ export function AddressAutocomplete({
   useEffect(() => {
     if (debounced.trim().length < 2) {
       setResults([])
+      setRequestError(null)
       return
     }
     const ac = new AbortController()
     setLoading(true)
+    setRequestError(null)
     fetch(`/api/job-map/search?q=${encodeURIComponent(debounced.trim())}`, { signal: ac.signal })
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) {
+          throw new Error("Address lookup failed")
+        }
+        return r.json()
+      })
       .then(data => {
         setResults((data.results ?? []).map((r: AddressSelection) => r))
       })
       .catch(err => {
         if (err instanceof DOMException && err.name === "AbortError") return
         setResults([])
+        setRequestError("Address lookup is unavailable right now. Please try again.")
       })
       .finally(() => {
         if (!ac.signal.aborted) setLoading(false)
@@ -138,6 +147,11 @@ export function AddressAutocomplete({
       {!isConfirmed && value.trim().length > 0 && (
         <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
           Select an address from the list to calculate the visit cost.
+        </p>
+      )}
+      {requestError && (
+        <p className="mt-1.5 text-xs text-danger">
+          {requestError}
         </p>
       )}
     </div>
