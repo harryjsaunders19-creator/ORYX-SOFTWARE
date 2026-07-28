@@ -128,21 +128,21 @@ function drawFooter(page: PDFPage, font: PDFFont) {
   )
 }
 
-async function drawLogo(doc: PDFDocument, page: PDFPage) {
+async function drawLogo(doc: PDFDocument, page: PDFPage): Promise<{ bottom: number; left: number }> {
+  const fallback = { bottom: PAGE_H - 70, left: PAGE_W - 150 }
   try {
     const logoBytes = await fs.readFile(path.join(process.cwd(), BRAND_LOGO_DOCUMENT_PATH))
     const logo = await doc.embedJpg(logoBytes)
-    const inset = 22
-    const logoW = 128
+    const insetX = 28
+    const insetY = 18
+    const logoW = 118
     const logoH = logoW * (logo.height / logo.width)
-    page.drawImage(logo, {
-      x: PAGE_W - inset - logoW,
-      y: PAGE_H - inset - logoH,
-      width: logoW,
-      height: logoH,
-    })
+    const x = PAGE_W - insetX - logoW
+    const y = PAGE_H - insetY - logoH
+    page.drawImage(logo, { x, y, width: logoW, height: logoH })
+    return { bottom: y - 10, left: x - 12 }
   } catch {
-    // non-fatal
+    return fallback
   }
 }
 
@@ -225,20 +225,23 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   const dateStr = completedAt.toLocaleDateString("en-GB")
   const documents = [`${job.drawingNumber} — Scaffold design`]
 
-  await drawLogo(doc, page)
+  const logoBox = await drawLogo(doc, page)
 
-  // Single-line title, left-aligned with room for larger logo
+  // Single-line title kept clear of the logo on the right
   const title = "Temporary Works Design Certificate"
-  const titleSize = 16
-  drawText(page, title, MARGIN_X, PAGE_H - 52, fontBold, titleSize)
+  const titleSize = 15
+  const titleY = PAGE_H - 46
+  drawText(page, title, MARGIN_X, titleY, fontBold, titleSize)
+  const underlineEnd = Math.min(MARGIN_X + fontBold.widthOfTextAtSize(title, titleSize) + 8, logoBox.left)
   page.drawLine({
-    start: { x: MARGIN_X, y: PAGE_H - 62 },
-    end: { x: MARGIN_X + CONTENT_W - 140, y: PAGE_H - 62 },
+    start: { x: MARGIN_X, y: titleY - 8 },
+    end: { x: underlineEnd, y: titleY - 8 },
     thickness: 1,
     color: INK,
   })
 
-  let y = PAGE_H - 88
+  // Meta table starts below both title underline and logo
+  let y = Math.min(titleY - 22, logoBox.bottom)
   y = drawMetaTable(page, font, fontBold, y, [
     ["Project:", project.toUpperCase()],
     ["Type of Works:", works.toUpperCase()],
@@ -321,13 +324,13 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
     y -= LINE
   }
 
-  // Checked by only
+  // Checked by only — signature sits on its own band under Signed/Date
   y -= 16
   drawText(page, "Checked by:", MARGIN_X, y, fontBold, BODY)
   y -= 14
 
   const checkTop = y
-  const checkBottom = checkTop - 78
+  const checkBottom = checkTop - 96
   page.drawRectangle({
     x: MARGIN_X,
     y: checkBottom,
@@ -337,9 +340,9 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
     borderWidth: HAIRLINE,
   })
 
-  drawText(page, "Signed:", MARGIN_X + 10, checkTop - 20, font, BODY)
-  drawText(page, "Date:", MARGIN_X + 300, checkTop - 20, font, BODY)
-  drawText(page, dateStr, MARGIN_X + 338, checkTop - 20, font, BODY)
+  drawText(page, "Signed:", MARGIN_X + 10, checkTop - 18, font, BODY)
+  drawText(page, "Date:", MARGIN_X + 320, checkTop - 18, font, BODY)
+  drawText(page, dateStr, MARGIN_X + 358, checkTop - 18, font, BODY)
 
   const signatureAsset = await loadSignatureAsset()
   if (signatureAsset) {
@@ -347,8 +350,8 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
       const image = signatureAsset.isPng
         ? await doc.embedPng(signatureAsset.bytes)
         : await doc.embedJpg(signatureAsset.bytes)
-      const maxW = 155
-      const maxH = 30
+      const maxW = 148
+      const maxH = 28
       const ratio = image.width / image.height
       let sigW = maxW
       let sigH = sigW / ratio
@@ -356,9 +359,10 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
         sigH = maxH
         sigW = sigH * ratio
       }
+      // Place under the Signed label, clear of Date and Name rows
       page.drawImage(image, {
-        x: MARGIN_X + 68,
-        y: checkTop - 26 - sigH * 0.1,
+        x: MARGIN_X + 10,
+        y: checkTop - 22 - sigH - 4,
         width: sigW,
         height: sigH,
       })
@@ -367,11 +371,11 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
     }
   }
 
-  drawText(page, "Checker", MARGIN_X + 10, checkTop - 48, font, BODY)
-  drawText(page, "Name:", MARGIN_X + 10, checkTop - 66, font, BODY)
-  drawText(page, CHECKER.name, MARGIN_X + 54, checkTop - 66, fontBold, 11)
-  drawText(page, "Title:", MARGIN_X + 300, checkTop - 66, font, BODY)
-  drawText(page, CHECKER.title, MARGIN_X + 338, checkTop - 66, font, BODY)
+  drawText(page, "Checker", MARGIN_X + 10, checkTop - 62, font, BODY)
+  drawText(page, "Name:", MARGIN_X + 10, checkTop - 82, font, BODY)
+  drawText(page, CHECKER.name, MARGIN_X + 54, checkTop - 82, fontBold, 11)
+  drawText(page, "Title:", MARGIN_X + 320, checkTop - 82, font, BODY)
+  drawText(page, CHECKER.title, MARGIN_X + 358, checkTop - 82, font, BODY)
 
   drawFooter(page, font)
 
