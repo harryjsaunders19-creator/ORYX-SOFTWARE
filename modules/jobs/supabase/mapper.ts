@@ -4,6 +4,10 @@
 import type { JobRow } from "../types/job-types"
 import { parseJobTags } from "@/lib/constants"
 import { computeJobListSortKey } from "../job-list-sort"
+import {
+  todayIsoDate as calendarTodayIsoDate,
+  addDaysToIsoDate,
+} from "@/shared/utils/utils"
 
 export interface SupabaseJobRow {
   id: string
@@ -173,12 +177,11 @@ export function sortColumn(field: string): keyof SupabaseJobRow {
   return SORT_COLUMNS[field] ?? "date_created"
 }
 
+/** Calendar “today” for deadline filters — same helper as the rest of the app. */
 export function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  return calendarTodayIsoDate()
 }
 
 export function weekEndIsoDate(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + 7)
-  return d.toISOString().slice(0, 10)
+  return addDaysToIsoDate(new Date(), 7)
 }

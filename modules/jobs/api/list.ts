@@ -19,6 +19,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { resolveDirectoryDesigner } from "../services/designer-directory"
+import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils/utils"
 
 /**
  * Revision family flags + overlay current-revision status/designer onto parent rows.
@@ -50,13 +51,11 @@ function flagRevisions<T extends {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+  return todayIsoDate()
 }
 
 function weekEndIso(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + 7)
-  return d.toISOString().slice(0, 10)
+  return addDaysToIsoDate(new Date(), 7)
 }
 
 /** Filter parent rows by their *current revision* display fields. */

@@ -7,7 +7,7 @@ import { leaveTypeLabel } from "@/lib/leave/constants"
 import { jobService } from "@/lib/services/job-service"
 import { holdService } from "@/lib/services/hold-service"
 import { leaveService } from "@/lib/services/leave-service"
-import { getDeadlineInfo } from "@/shared/utils/utils"
+import { getDeadlineInfo, todayIsoDate } from "@/shared/utils/utils"
 import {
   sortNotifications,
   type AppNotification,
@@ -26,7 +26,7 @@ function formatLeaveRange(startDate: string, endDate: string): string {
 
 export const notificationService = {
   async list(viewer: UserRow): Promise<NotificationsPayload> {
-    const today = new Date().toISOString().split("T")[0]
+    const today = todayIsoDate()
     const [deadlineJobs, holds] = await Promise.all([
       jobService.findMany({
         where: { overdueOrDueToday: true },
@@ -35,8 +35,11 @@ export const notificationService = {
       }),
       holdService.allActive(),
     ])
-    const overdueJobs  = deadlineJobs.filter(j => j.requiredByDate != null && j.requiredByDate < today)
-    const dueTodayJobs = deadlineJobs.filter(j => j.requiredByDate === today)
+    const overdueJobs  = deadlineJobs.filter(j => {
+      const day = j.requiredByDate?.slice(0, 10)
+      return day != null && day < today
+    })
+    const dueTodayJobs = deadlineJobs.filter(j => j.requiredByDate?.slice(0, 10) === today)
 
     const items: AppNotification[] = []
 

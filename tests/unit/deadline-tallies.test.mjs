@@ -1,0 +1,102 @@
+/**
+ * Unit tests for current-revision deadline tallies (dashboard overdue KPI).
+ */
+import { describe, it } from "node:test"
+import assert from "node:assert/strict"
+import {
+  overdueOriginalIds,
+  tallyDeadlineStats,
+} from "../../modules/jobs/services/deadline-tallies.ts"
+
+const TODAY = "2026-07-28"
+
+function row(partial) {
+  return {
+    parentJobId: null,
+    revisionLetter: null,
+    requiredByDate: null,
+    ...partial,
+  }
+}
+
+describe("tallyDeadlineStats", () => {
+  it("counts an overdue original with no revisions", () => {
+    const rows = [
+      row({ id: "p1", status: "IN_DESIGN", requiredByDate: "2026-07-20" }),
+    ]
+    assert.deepEqual(tallyDeadlineStats(rows, TODAY), {
+      overdueCount: 1,
+      dueTodayCount: 0,
+      dueThisWeekCount: 0,
+    })
+  })
+
+  it("does not count revision rows separately when the current revision is on track", () => {
+    const rows = [
+      row({ id: "p1", status: "IN_DESIGN", requiredByDate: "2026-07-01" }),
+      row({
+        id: "r1",
+        parentJobId: "p1",
+        revisionLetter: "A",
+        status: "IN_DESIGN",
+        requiredByDate: "2026-07-15",
+      }),
+      row({
+        id: "r2",
+        parentJobId: "p1",
+        revisionLetter: "B",
+        status: "CHECKING",
+        requiredByDate: "2026-08-10",
+      }),
+    ]
+    assert.deepEqual(tallyDeadlineStats(rows, TODAY), {
+      overdueCount: 0,
+      dueTodayCount: 0,
+      dueThisWeekCount: 0,
+    })
+    assert.deepEqual(overdueOriginalIds(rows, TODAY), [])
+  })
+
+  it("counts the original once when the latest revision is overdue", () => {
+    const rows = [
+      row({ id: "p1", status: "ISSUED", requiredByDate: "2026-07-01" }),
+      row({
+        id: "r1",
+        parentJobId: "p1",
+        revisionLetter: "A",
+        status: "IN_DESIGN",
+        requiredByDate: "2026-07-15",
+      }),
+    ]
+    assert.deepEqual(tallyDeadlineStats(rows, TODAY), {
+      overdueCount: 1,
+      dueTodayCount: 0,
+      dueThisWeekCount: 0,
+    })
+    assert.deepEqual(overdueOriginalIds(rows, TODAY), ["p1"])
+  })
+
+  it("ignores ISSUED current work", () => {
+    const rows = [
+      row({ id: "p1", status: "ISSUED", requiredByDate: "2026-07-01" }),
+    ]
+    assert.deepEqual(tallyDeadlineStats(rows, TODAY), {
+      overdueCount: 0,
+      dueTodayCount: 0,
+      dueThisWeekCount: 0,
+    })
+  })
+
+  it("tallies due today and due this week on the current revision", () => {
+    const rows = [
+      row({ id: "p1", status: "IN_DESIGN", requiredByDate: "2026-07-28" }),
+      row({ id: "p2", status: "IN_DESIGN", requiredByDate: "2026-07-30" }),
+      row({ id: "p3", status: "IN_DESIGN", requiredByDate: "2026-08-20" }),
+    ]
+    assert.deepEqual(tallyDeadlineStats(rows, TODAY), {
+      overdueCount: 0,
+      dueTodayCount: 1,
+      dueThisWeekCount: 2,
+    })
+  })
+})

@@ -16,7 +16,7 @@ import {
   DropdownMenuItem, DropdownMenuSeparator,
 } from "@/shared/ui/dropdown-menu"
 import { useUser } from "@/shared/providers/user-context"
-import { cn, getDeadlineInfo } from "@/shared/utils/utils"
+import { cn, getJobDeadlineInfo } from "@/shared/utils/utils"
 import { useApi } from "@/shared/hooks/use-api"
 import { Typography } from "@/shared/design/typography"
 import type { StatsData, DashboardWeekEvent } from "../types/stats-types"
@@ -417,7 +417,7 @@ export function DashboardStats({
             ) : (
               <ul className="divide-y divide-bd">
                 {overdueJobs.map(job => {
-                  const dl = getDeadlineInfo(job.requiredByDate)
+                  const dl = getJobDeadlineInfo(job)
                   return (
                     <li key={job.id}>
                       <Link
