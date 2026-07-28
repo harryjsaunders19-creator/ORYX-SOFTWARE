@@ -3,7 +3,7 @@ import { z } from "zod"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/modules/clients"
 import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE, sanitizeJobTags, type JobStatusValue } from "@/lib/constants"
-import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, requireRole, actorName } from "@/shared/auth/auth"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { cancelRecordForJob } from "@/modules/archive/cancel-record"
@@ -41,7 +41,7 @@ const patchJobBodySchema = z.object({
 
 export async function GET(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { listResponse } from "@/shared/utils/api-cache"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { calendarService } from "../services/calendar-service"
 import { userService } from "@/modules/users"
 import { filterLeaveEventsForViewer } from "@/modules/leave/permissions"
@@ -16,7 +16,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { ANNUAL_LEAVE_CATEGORY_ID } from "@/modules/leave/constants"
 
 export async function GET(req: NextRequest) {
-  const auth = await requireSignIn()
+  const auth = await requireModuleAccess("calendar")
   if (auth instanceof NextResponse) return auth
 
   try {
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireSignIn()
+  const auth = await requireModuleAccess("calendar")
   if (auth instanceof NextResponse) return auth
 
   try {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { userService } from "@/modules/users"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { listResponse } from "@/shared/utils/api-cache"
 import { apiInternalError } from "@/shared/api-errors"
 
@@ -10,7 +10,7 @@ import { apiInternalError } from "@/shared/api-errors"
  */
 export async function GET() {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
     const users = await userService.findMany({ activeOnly: true })

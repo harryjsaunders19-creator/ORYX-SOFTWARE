@@ -1,6 +1,6 @@
 import { apiInternalError } from "@/shared/api-errors"
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import {
   employeeService,
   readEmployeeFile,
@@ -35,7 +35,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     const disabled = experimentalDisabledResponse("employees")
     if (disabled) return disabled
 
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id, docId } = await ctx.params
     const doc = await loadDocument(docId)
@@ -72,7 +72,7 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     const disabled = experimentalDisabledResponse("employees")
     if (disabled) return disabled
 
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id, docId } = await ctx.params
     const doc = await loadDocument(docId)

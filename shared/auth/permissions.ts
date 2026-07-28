@@ -105,9 +105,14 @@ export function parseModuleAccessJson(value: string | null | undefined): ModuleK
   }
 }
 
+/**
+ * Module visibility for a role + optional per-user allow-list.
+ * Unknown keys fail-open here for nav/UI only — API routes must use
+ * `requireModuleAccess`, which fails closed on unknown keys.
+ */
 export function canAccessModule(role: Role, key: string, moduleAccess?: ModuleKey[] | null): boolean {
   const m = getModule(key)
-  if (!m) return true // unknown modules default open — fail-open on nav, never on the API
+  if (!m) return true
   if (!m.roles.includes(role)) return false
   if (role === "ADMIN") return true
   if (moduleAccess == null) return true

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireSignIn, requireRole } from "@/shared/auth/auth"
+import { requireModuleAccess, requireRole } from "@/shared/auth/auth"
 import type { UpdateCalendarEventData } from "../types/calendar-types"
 import { calendarService } from "../services/calendar-service"
 import { userService } from "@/modules/users"
@@ -10,7 +10,7 @@ import { isUserSelectableCategory } from "../config/category-config"
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireSignIn()
+  const auth = await requireModuleAccess("calendar")
   if (auth instanceof NextResponse) return auth
 
   try {
@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const auth = await requireSignIn()
+  const auth = await requireModuleAccess("calendar")
   if (auth instanceof NextResponse) return auth
 
   try {

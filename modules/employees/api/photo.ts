@@ -2,7 +2,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import path from "path"
 import { NextRequest, NextResponse } from "next/server"
 import { createId } from "@paralleldrive/cuid2"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
 import { employeeProfileDb } from "@/lib/db/stores"
 import {
@@ -95,7 +95,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     const disabled = experimentalDisabledResponse("employees")
     if (disabled) return disabled
 
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
     const profile = await loadProfile(id)
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     const disabled = experimentalDisabledResponse("employees")
     if (disabled) return disabled
 
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
     const access = await employeeService.getAccess(auth.user, id)
@@ -176,7 +176,7 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     const disabled = experimentalDisabledResponse("employees")
     if (disabled) return disabled
 
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
     const access = await employeeService.getAccess(auth.user, id)

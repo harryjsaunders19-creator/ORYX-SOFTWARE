@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { quoteService } from "../services/quote-service"
 import { buildQuotePdfBuffer, generateQuotePdf } from "../pdf/generate"
 import { getCachedQuotePdf, setCachedQuotePdf, invalidateQuotePdf } from "../pdf/cache"
@@ -17,7 +17,7 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(_req: Request, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("quotes")
     if (auth instanceof NextResponse) return auth
 
     const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")
@@ -41,7 +41,7 @@ export async function POST(_req: Request, { params }: Ctx) {
 
 export async function GET(req: Request, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("quotes")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

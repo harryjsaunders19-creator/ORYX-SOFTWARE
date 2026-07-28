@@ -3,7 +3,7 @@ import { z } from "zod"
 import { listResponse } from "@/shared/utils/api-cache"
 import { quoteService } from "../services/quote-service"
 import { clientService } from "@/modules/clients"
-import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "../quote-works"
 import { ensureSequencesSeeded } from "@/shared/supabase/seed-sequences"
 import { apiInternalError } from "@/shared/api-errors"
@@ -45,7 +45,7 @@ function parseLineItems(raw: unknown): { description: string; amount: number; va
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("quotes")
     if (auth instanceof NextResponse) return auth
 
     const sp     = req.nextUrl.searchParams
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("quotes")
     if (auth instanceof NextResponse) return auth
 
     await ensureSequencesSeeded()

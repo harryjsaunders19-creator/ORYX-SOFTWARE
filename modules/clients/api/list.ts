@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { listResponse } from "@/shared/utils/api-cache"
 import { clientService } from "../services/client-service"
 import { createId } from "@paralleldrive/cuid2"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { parseContactsFromBody } from "./parse-contacts"
 import { canViewClientAnalytics } from "@/shared/auth/permissions"
 import { apiInternalError } from "@/shared/api-errors"
@@ -10,7 +10,7 @@ import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("clients")
     if (auth instanceof NextResponse) return auth
 
     const sp         = req.nextUrl.searchParams
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("clients")
     if (auth instanceof NextResponse) return auth
 
     let body: Record<string, unknown>

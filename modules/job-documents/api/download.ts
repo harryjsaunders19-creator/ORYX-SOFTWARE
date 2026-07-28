@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { jobDocumentService } from "@/modules/job-documents/services/document-service"
 import { documentBelongsToFamily, resolveDocumentFamily } from "@/modules/job-documents/services/resolve-family"
@@ -19,7 +19,7 @@ async function loadBytes(jobRouteId: string, docId: string) {
 
 export async function GET(req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
     const { id, docId } = await ctx.params
     const loaded = await loadBytes(id, docId)
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 /** Preview = inline for images/PDFs only. */
 export async function preview(req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
     const { id, docId } = await ctx.params
     const loaded = await loadBytes(id, docId)

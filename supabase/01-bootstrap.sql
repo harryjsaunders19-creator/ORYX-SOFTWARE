@@ -1508,15 +1508,775 @@ $$;
 revoke all on function public.quote_stats_agg() from public, anon, authenticated;
 grant execute on function public.quote_stats_agg() to service_role;
 
+-- ─── 028_employee_files_storage.sql ───
+-- Private bucket for employee photos/documents (service-role only; no public policies).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'employee-files',
+  'employee-files',
+  false,
+  15728640,
+  array[
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ]
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+-- ─── 029_job_billable.sql ───
+-- Oryx Design — migration 029: job billable flag for revision invoicing
+-- Revisions only enter Ready for Invoicing when billable=true and status=ISSUED.
+-- Existing revision rows that already have a handoff stay billable; others default false.
+
+alter table public.jobs
+  add column if not exists billable boolean not null default true;
+
+-- New default for revisions: not chargeable unless marked. Preserve handoff queue.
+update public.jobs
+set billable = false
+where parent_job_id is not null;
+
+update public.jobs j
+set billable = true
+where j.parent_job_id is not null
+  and exists (
+    select 1 from public.billing_handoffs b where b.source_job_id = j.id
+  );
+
+comment on column public.jobs.billable is
+  'When true and status=ISSUED, creates a Ready for Invoicing handoff. Originals default true; new revisions default false.';
+
+-- ─── 030_parent_jobs_work_items.sql ───
+-- =============================================================================
+-- Oryx Design — migration 030: parent_jobs + work_items (design projects)
+-- Run after 029_job_billable.sql
+--
+-- Design drawings become permanent parent_jobs with billable work_items.
+-- Non-design jobs (site visits, surveys, etc.) remain in public.jobs unchanged.
+-- Enable reads with WORK_ITEMS_MODEL=true after backfill (Phase 2+).
+-- =============================================================================
+
+-- ── parent_jobs ───────────────────────────────────────────────────────────────
+create table if not exists public.parent_jobs (
+  id                      text primary key,
+  drawing_number          text not null,
+  client_id               text references public.clients (id) on delete set null,
+  client_company          text not null,
+  site_name               text,
+  site_address            text,
+  address                 text not null,
+  type_of_works           text not null,
+  custom_type_description text,
+  legacy_type_of_works    text,
+  description             text,
+  requested_by            text not null,
+  item_type               text not null default 'DESIGN',
+  archived_at             timestamptz,
+  archived_by             text,
+  latitude                double precision,
+  longitude               double precision,
+  geocoded_at             timestamptz,
+  geocoded_address        text,
+  location_status         text,
+  location_source         text,
+  legacy_job_id           text not null,
+  migrated_at             timestamptz not null default now(),
+  created_at              timestamptz not null default now(),
+  updated_at              timestamptz not null default now(),
+  constraint parent_jobs_drawing_number_unique unique (drawing_number),
+  constraint parent_jobs_legacy_job_unique unique (legacy_job_id)
+);
+
+create index if not exists idx_parent_jobs_client_id on public.parent_jobs (client_id);
+create index if not exists idx_parent_jobs_client_company on public.parent_jobs (client_company);
+create index if not exists idx_parent_jobs_archived on public.parent_jobs (archived_at);
+create index if not exists idx_parent_jobs_created_at on public.parent_jobs (created_at);
+
+drop trigger if exists parent_jobs_updated_at on public.parent_jobs;
+create trigger parent_jobs_updated_at
+  before update on public.parent_jobs
+  for each row execute function public.set_updated_at();
+
+alter table public.parent_jobs enable row level security;
+
+drop policy if exists "Service role full access on parent_jobs" on public.parent_jobs;
+create policy "Service role full access on parent_jobs"
+  on public.parent_jobs for all to service_role
+  using (true) with check (true);
+
+-- ── work_items ────────────────────────────────────────────────────────────────
+create table if not exists public.work_items (
+  id                      text primary key,
+  parent_job_id           text not null references public.parent_jobs (id) on delete restrict,
+  work_type               text not null,
+  revision_letter         text,
+  title                   text not null,
+  description             text,
+  status                  text not null default 'NEW_REQUEST',
+  designer                text not null default '',
+  priority                text,
+  billable                boolean not null default true,
+  requested_date          date,
+  required_by_date        date,
+  notes                   text,
+  commercial_notes        text,
+  quote_value             numeric,
+  quote_reference         text,
+  quote_date              date,
+  variation_fees          numeric,
+  additional_charges      numeric,
+  invoice_status          text not null default 'NONE',
+  invoice_number          text,
+  invoice_date            date,
+  billed_value            numeric,
+  date_created            timestamptz not null,
+  completed_at            date,
+  legacy_job_id           text,
+  migrated_at             timestamptz not null default now(),
+  created_at              timestamptz not null default now(),
+  updated_at              timestamptz not null default now(),
+  constraint work_items_work_type_check check (work_type in ('ORIGINAL', 'REVISION')),
+  constraint work_items_invoice_status_check check (
+    invoice_status in ('NONE', 'READY', 'INVOICED', 'WRITTEN_OFF')
+  )
+);
+
+create unique index if not exists idx_work_items_one_original_per_parent
+  on public.work_items (parent_job_id)
+  where work_type = 'ORIGINAL';
+
+create unique index if not exists idx_work_items_revision_letter_per_parent
+  on public.work_items (parent_job_id, revision_letter)
+  where work_type = 'REVISION' and revision_letter is not null;
+
+create index if not exists idx_work_items_parent_job_id on public.work_items (parent_job_id);
+create index if not exists idx_work_items_status on public.work_items (status);
+create index if not exists idx_work_items_designer_status on public.work_items (designer, status);
+create index if not exists idx_work_items_legacy_job_id on public.work_items (legacy_job_id);
+create index if not exists idx_work_items_invoice_status on public.work_items (invoice_status);
+
+drop trigger if exists work_items_updated_at on public.work_items;
+create trigger work_items_updated_at
+  before update on public.work_items
+  for each row execute function public.set_updated_at();
+
+alter table public.work_items enable row level security;
+
+drop policy if exists "Service role full access on work_items" on public.work_items;
+create policy "Service role full access on work_items"
+  on public.work_items for all to service_role
+  using (true) with check (true);
+
+-- ── migration id map ──────────────────────────────────────────────────────────
+create table if not exists public.work_item_id_map (
+  legacy_job_id   text primary key,
+  work_item_id    text not null references public.work_items (id) on delete cascade,
+  parent_job_id   text not null references public.parent_jobs (id) on delete cascade,
+  migrated_at     timestamptz not null default now()
+);
+
+create index if not exists idx_work_item_id_map_work_item on public.work_item_id_map (work_item_id);
+create index if not exists idx_work_item_id_map_parent on public.work_item_id_map (parent_job_id);
+
+alter table public.work_item_id_map enable row level security;
+
+drop policy if exists "Service role full access on work_item_id_map" on public.work_item_id_map;
+create policy "Service role full access on work_item_id_map"
+  on public.work_item_id_map for all to service_role
+  using (true) with check (true);
+
+-- ── FK remap columns (nullable until backfill) ────────────────────────────────
+alter table public.status_history
+  add column if not exists work_item_id text references public.work_items (id) on delete cascade;
+
+create index if not exists idx_status_history_work_item_id
+  on public.status_history (work_item_id);
+
+alter table public.billing_handoffs
+  add column if not exists source_work_item_id text references public.work_items (id);
+
+create index if not exists idx_billing_handoffs_source_work_item
+  on public.billing_handoffs (source_work_item_id);
+
+alter table public.quotes
+  add column if not exists parent_job_id text references public.parent_jobs (id) on delete set null;
+
+create index if not exists idx_quotes_parent_job_id on public.quotes (parent_job_id);
+
+alter table public.calendar_events
+  add column if not exists work_item_id text references public.work_items (id) on delete set null;
+
+create index if not exists idx_calendar_events_work_item_id on public.calendar_events (work_item_id);
+
+comment on table public.parent_jobs is
+  'Permanent design project shell — one row per drawing number. Never duplicated.';
+
+comment on table public.work_items is
+  'Billable work on a design project: Original Issue or Revision A/B/C. Engineers work items, not parents.';
+
+notify pgrst, 'reload schema';
+
+-- ─── 031_work_item_fk_nullable.sql ───
+-- =============================================================================
+-- Oryx Design — migration 031: allow work-item-only history and billing FKs
+-- Required for Phase 2 when new DESIGN projects no longer create jobs rows.
+-- =============================================================================
+
+alter table public.status_history
+  alter column job_id drop not null;
+
+alter table public.billing_handoffs
+  alter column source_job_id drop not null;
+
+create unique index if not exists idx_billing_handoffs_active_work_item_unique
+  on public.billing_handoffs (source_work_item_id)
+  where cleared_by_accounts_at is null and source_work_item_id is not null;
+
+comment on column public.status_history.work_item_id is
+  'Preferred FK when WORK_ITEMS_MODEL is on; job_id kept for legacy rows.';
+
+comment on column public.billing_handoffs.source_work_item_id is
+  'Preferred FK when WORK_ITEMS_MODEL is on; source_job_id kept for legacy rows.';
+
+notify pgrst, 'reload schema';
+
+-- ─── 032_audit_rpc_rate_limit_billing_export.sql ───
+-- 032: Audit follow-ups — atomic rate limiting + transactional billing export commit.
+-- Addresses production-readiness audit M10 (rate-limit race) and H2 (export integrity).
+
+-- ── Atomic rate limit check (single row lock) ─────────────────────────────────
+create or replace function public.check_rate_limit(
+  p_rate_key text,
+  p_window_ms bigint,
+  p_max_attempts integer
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_now timestamptz := now();
+  v_reset_at timestamptz;
+  v_count integer;
+begin
+  if p_rate_key is null or length(trim(p_rate_key)) = 0 then
+    return true;
+  end if;
+  if p_window_ms is null or p_window_ms <= 0 or p_max_attempts is null or p_max_attempts <= 0 then
+    return true;
+  end if;
+
+  select reset_at, attempt_count
+  into v_reset_at, v_count
+  from public.login_rate_limits
+  where rate_key = p_rate_key
+  for update;
+
+  if not found or v_reset_at <= v_now then
+    insert into public.login_rate_limits (rate_key, attempt_count, reset_at)
+    values (
+      p_rate_key,
+      1,
+      v_now + make_interval(secs => p_window_ms / 1000.0)
+    )
+    on conflict (rate_key) do update
+      set attempt_count = 1,
+          reset_at = excluded.reset_at;
+    return true;
+  end if;
+
+  if v_count >= p_max_attempts then
+    return false;
+  end if;
+
+  update public.login_rate_limits
+  set attempt_count = attempt_count + 1
+  where rate_key = p_rate_key;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.check_rate_limit(text, bigint, integer) from public, anon, authenticated;
+grant execute on function public.check_rate_limit(text, bigint, integer) to service_role;
+
+-- ── Billing export: batch + snapshots + clear in one transaction ─────────────
+create or replace function public.commit_billing_export(
+  p_batch jsonb,
+  p_snapshots jsonb,
+  p_handoff_ids text[],
+  p_cleared_at timestamptz,
+  p_cleared_by text,
+  p_notes text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_expected integer;
+  v_cleared integer;
+  v_batch_id text;
+  snap jsonb;
+begin
+  if p_batch is null or p_snapshots is null or p_handoff_ids is null then
+    raise exception 'commit_billing_export: missing required arguments';
+  end if;
+
+  v_batch_id := p_batch->>'id';
+  if v_batch_id is null or length(trim(v_batch_id)) = 0 then
+    raise exception 'commit_billing_export: batch id required';
+  end if;
+
+  v_expected := coalesce(array_length(p_handoff_ids, 1), 0);
+  if v_expected = 0 then
+    raise exception 'commit_billing_export: no handoff ids';
+  end if;
+
+  insert into public.billing_export_batches (
+    id, batch_number, export_date, exported_by, record_count, notes, created_at
+  )
+  values (
+    v_batch_id,
+    p_batch->>'batch_number',
+    (p_batch->>'export_date')::date,
+    coalesce(p_batch->>'exported_by', 'System'),
+    coalesce((p_batch->>'record_count')::integer, v_expected),
+    nullif(p_batch->>'notes', ''),
+    coalesce((p_batch->>'created_at')::timestamptz, now())
+  );
+
+  for snap in select value from jsonb_array_elements(p_snapshots)
+  loop
+    insert into public.billing_export_snapshots (
+      id, batch_id, handoff_id, snapshot_json, created_at
+    )
+    values (
+      snap->>'id',
+      coalesce(snap->>'batch_id', v_batch_id),
+      snap->>'handoff_id',
+      snap->>'snapshot_json',
+      coalesce((snap->>'created_at')::timestamptz, now())
+    );
+  end loop;
+
+  update public.billing_handoffs
+  set
+    cleared_by_accounts_at = p_cleared_at,
+    cleared_by = p_cleared_by,
+    export_batch_id = v_batch_id,
+    notes = coalesce(p_notes, notes),
+    updated_at = p_cleared_at
+  where id = any (p_handoff_ids)
+    and cleared_by_accounts_at is null;
+
+  get diagnostics v_cleared = row_count;
+
+  if v_cleared <> v_expected then
+    raise exception
+      'commit_billing_export: expected % handoffs cleared, got % (already cleared or missing)',
+      v_expected, v_cleared;
+  end if;
+end;
+$$;
+
+revoke all on function public.commit_billing_export(jsonb, jsonb, text[], timestamptz, text, text)
+  from public, anon, authenticated;
+grant execute on function public.commit_billing_export(jsonb, jsonb, text[], timestamptz, text, text)
+  to service_role;
+
+-- ─── 033_convert_quote_to_job.sql ───
+-- 033: Atomic quote → job convert (audit M5).
+-- Inserts the job + initial status history and links the quote in one transaction.
+-- Fails (rolls back) if the quote is missing, not ACCEPTED, or already converted.
+
+create or replace function public.convert_quote_to_job(
+  p_quote_id text,
+  p_job jsonb,
+  p_history_id text,
+  p_changed_by text default 'System'
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_quote public.quotes%rowtype;
+  v_job_id text;
+  v_updated integer;
+begin
+  if p_quote_id is null or length(trim(p_quote_id)) = 0 then
+    raise exception 'convert_quote_to_job: quote id required';
+  end if;
+  if p_job is null or p_job->>'id' is null then
+    raise exception 'convert_quote_to_job: job payload required';
+  end if;
+
+  v_job_id := p_job->>'id';
+
+  select * into v_quote
+  from public.quotes
+  where id = p_quote_id
+  for update;
+
+  if not found then
+    raise exception 'convert_quote_to_job: quote not found';
+  end if;
+
+  if v_quote.status is distinct from 'ACCEPTED' then
+    raise exception 'convert_quote_to_job: quote is not ACCEPTED';
+  end if;
+
+  if v_quote.job_id is not null then
+    raise exception 'convert_quote_to_job: quote already converted';
+  end if;
+
+  insert into public.jobs (
+    id, drawing_number, item_type, address, type_of_works, custom_type_description,
+    legacy_type_of_works, client_company, client_id, requested_by, status, designer,
+    date_created, date_completed, notes, quote_value, quote_reference, quote_date,
+    commercial_notes, variation_fees, additional_charges, invoice_id, billing_status,
+    billing_batch_id, requested_date, required_by_date, parent_job_id, revision_letter,
+    billable, archived_at, archived_by, latitude, longitude, geocoded_at, geocoded_address,
+    site_name, site_address, location_status, location_source, list_sort_key,
+    created_at, updated_at
+  )
+  values (
+    v_job_id,
+    coalesce(p_job->>'drawing_number', 'TBC'),
+    coalesce(p_job->>'item_type', 'DESIGN'),
+    coalesce(p_job->>'address', 'Address TBC'),
+    coalesce(p_job->>'type_of_works', 'Other'),
+    nullif(p_job->>'custom_type_description', ''),
+    nullif(p_job->>'legacy_type_of_works', ''),
+    coalesce(p_job->>'client_company', ''),
+    nullif(p_job->>'client_id', ''),
+    coalesce(p_job->>'requested_by', ''),
+    coalesce(p_job->>'status', 'NEW_REQUEST'),
+    coalesce(p_job->>'designer', ''),
+    coalesce((p_job->>'date_created')::timestamptz, now()),
+    nullif(p_job->>'date_completed', '')::date,
+    nullif(p_job->>'notes', ''),
+    nullif(p_job->>'quote_value', '')::numeric,
+    nullif(p_job->>'quote_reference', ''),
+    nullif(p_job->>'quote_date', '')::date,
+    nullif(p_job->>'commercial_notes', ''),
+    nullif(p_job->>'variation_fees', '')::numeric,
+    nullif(p_job->>'additional_charges', '')::numeric,
+    nullif(p_job->>'invoice_id', ''),
+    nullif(p_job->>'billing_status', ''),
+    nullif(p_job->>'billing_batch_id', ''),
+    nullif(p_job->>'requested_date', '')::date,
+    nullif(p_job->>'required_by_date', '')::date,
+    nullif(p_job->>'parent_job_id', ''),
+    nullif(p_job->>'revision_letter', ''),
+    coalesce((p_job->>'billable')::boolean, true),
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    nullif(p_job->>'site_name', ''),
+    nullif(p_job->>'site_address', ''),
+    null,
+    null,
+    nullif(p_job->>'list_sort_key', ''),
+    coalesce((p_job->>'created_at')::timestamptz, now()),
+    coalesce((p_job->>'updated_at')::timestamptz, now())
+  );
+
+  insert into public.status_history (
+    id, job_id, from_status, to_status, changed_by, changed_at, note
+  )
+  values (
+    coalesce(nullif(p_history_id, ''), gen_random_uuid()::text),
+    v_job_id,
+    null,
+    coalesce(p_job->>'status', 'NEW_REQUEST'),
+    coalesce(nullif(p_changed_by, ''), 'System'),
+    coalesce((p_job->>'created_at')::timestamptz, now()),
+    null
+  );
+
+  update public.quotes
+  set
+    job_id = v_job_id,
+    updated_at = now()
+  where id = p_quote_id
+    and job_id is null
+    and status = 'ACCEPTED';
+
+  get diagnostics v_updated = row_count;
+  if v_updated <> 1 then
+    raise exception 'convert_quote_to_job: failed to link quote (already converted or status changed)';
+  end if;
+
+  -- Optional column from migration 030 — ignore if absent (handled by app best-effort).
+  begin
+    update public.quotes
+    set parent_job_id = v_job_id
+    where id = p_quote_id
+      and parent_job_id is null;
+  exception
+    when undefined_column then
+      null;
+  end;
+
+  return jsonb_build_object(
+    'job_id', v_job_id,
+    'quote_id', p_quote_id,
+    'drawing_number', p_job->>'drawing_number'
+  );
+end;
+$$;
+
+revoke all on function public.convert_quote_to_job(text, jsonb, text, text)
+  from public, anon, authenticated;
+grant execute on function public.convert_quote_to_job(text, jsonb, text, text)
+  to service_role;
+
+-- ─── 034_session_revocations.sql ───
+-- =============================================================================
+-- Oryx Design — Supabase migration 034: session revocation table
+-- =============================================================================
+
+create table if not exists public.session_revocations (
+  token_sig   text primary key,
+  revoked_at  timestamptz not null default now(),
+  expires_at  timestamptz not null
+);
+
+create index if not exists idx_session_revocations_expires
+  on public.session_revocations (expires_at);
+
+alter table public.session_revocations enable row level security;
+
+drop policy if exists "Service role full access on session_revocations" on public.session_revocations;
+create policy "Service role full access on session_revocations"
+  on public.session_revocations for all to service_role
+  using (true) with check (true);
+
+notify pgrst, 'reload schema';
+
+-- ─── 035_perf_hot_path_indexes.sql ───
+-- =============================================================================
+-- Oryx Design — Supabase migration 035: hot-path performance indexes
+-- Additive only — matches list/billing/notifications/history query patterns.
+-- Idempotent: CREATE INDEX IF NOT EXISTS.
+-- =============================================================================
+
+-- Default jobs list: archived_at IS NULL ORDER BY list_sort_key, created_at
+create index if not exists idx_jobs_list_sort_key_active
+  on public.jobs (list_sort_key, created_at)
+  where archived_at is null;
+
+-- Deadline / notifications: non-issued active jobs with a due date
+create index if not exists idx_jobs_required_by_active_open
+  on public.jobs (required_by_date)
+  where archived_at is null
+    and status <> 'ISSUED'
+    and required_by_date is not null;
+
+-- Billing "Awaiting Accounts Action" queue sort
+create index if not exists idx_billing_handoffs_queue_at_active
+  on public.billing_handoffs (added_to_billing_queue_at)
+  where cleared_by_accounts_at is null;
+
+-- Job status timeline (filter by job, order by changed_at)
+create index if not exists idx_status_history_job_changed
+  on public.status_history (job_id, changed_at);
+
+-- Active hold list ordered by added_at
+create index if not exists idx_client_holds_active_added
+  on public.client_holds (added_at desc)
+  where status = 'ACTIVE';
+
+-- Quotes list: archived_at IS NULL ORDER BY created_at DESC
+create index if not exists idx_quotes_created_at_active
+  on public.quotes (created_at desc)
+  where archived_at is null;
+
+-- Parent jobs work-items UI orders by updated_at
+create index if not exists idx_parent_jobs_updated_at
+  on public.parent_jobs (updated_at desc);
+
+-- Low-traffic FK covers (advisor: unindexed_foreign_keys)
+create index if not exists idx_leave_requests_reviewed_by
+  on public.leave_requests (reviewed_by)
+  where reviewed_by is not null;
+
+create index if not exists idx_leave_calendar_links_user_id
+  on public.leave_calendar_links (user_id);
+
+create index if not exists idx_site_visit_calculations_created_by
+  on public.site_visit_calculations (created_by);
+
+notify pgrst, 'reload schema';
+
+-- ─── 036_job_tags.sql ───
+-- Oryx Design — migration 036: multi-select job tags
+-- Controlled list lives in lib/constants.ts (JOB_TAGS). Independent of type_of_works.
+
+alter table public.jobs
+  add column if not exists tags text[] not null default '{}';
+
+alter table public.parent_jobs
+  add column if not exists tags text[] not null default '{}';
+
+create index if not exists idx_jobs_tags on public.jobs using gin (tags);
+create index if not exists idx_parent_jobs_tags on public.parent_jobs using gin (tags);
+
+comment on column public.jobs.tags is
+  'Multi-select scaffold/site labels from the controlled JOB_TAGS list (e.g. Temporary Roof, Network Rail).';
+
+comment on column public.parent_jobs.tags is
+  'Multi-select scaffold/site labels from the controlled JOB_TAGS list.';
+
+notify pgrst, 'reload schema';
+
+-- ─── 037_job_documents.sql ───
+-- Oryx Design — migration 037: job documents + private Storage bucket
+-- Metadata for every file attached to a job/revision family.
+-- Files live in the private `job-files` bucket (service-role only).
+
+-- ── Storage bucket ────────────────────────────────────────────────────────────
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'job-files',
+  'job-files',
+  false,
+  52428800,
+  array[
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/octet-stream',
+    'application/acad',
+    'application/x-acad',
+    'application/dxf',
+    'image/vnd.dwg',
+    'image/vnd.dxf',
+    'message/rfc822',
+    'application/vnd.ms-outlook',
+    'text/plain'
+  ]
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+-- ── Metadata table ────────────────────────────────────────────────────────────
+create table if not exists public.job_documents (
+  id                  text primary key,
+  root_job_id         text not null,
+  job_id              text references public.jobs (id) on delete cascade,
+  parent_job_id       text references public.parent_jobs (id) on delete cascade,
+  work_item_id        text references public.work_items (id) on delete set null,
+  revision_letter     text,
+  filename            text not null,
+  original_filename   text not null,
+  mime_type           text not null,
+  file_ext            text not null default '',
+  file_size           bigint not null default 0,
+  category            text not null default 'General',
+  description         text,
+  storage_path        text not null,
+  uploaded_by         text not null,
+  uploaded_by_name    text not null,
+  email_subject       text,
+  email_from          text,
+  email_to            text,
+  email_cc            text,
+  email_date          timestamptz,
+  email_preview       text,
+  parse_status        text not null default 'none'
+                      check (parse_status in ('none', 'ok', 'failed')),
+  version_group_id    text,
+  approval_status     text,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now(),
+  deleted_at          timestamptz,
+  constraint job_documents_storage_path_unique unique (storage_path),
+  constraint job_documents_has_anchor check (
+    job_id is not null or parent_job_id is not null
+  )
+);
+
+create index if not exists idx_job_documents_root
+  on public.job_documents (root_job_id, deleted_at, created_at desc);
+create index if not exists idx_job_documents_job
+  on public.job_documents (job_id) where deleted_at is null;
+create index if not exists idx_job_documents_parent
+  on public.job_documents (parent_job_id) where deleted_at is null;
+create index if not exists idx_job_documents_work_item
+  on public.job_documents (work_item_id) where deleted_at is null;
+create index if not exists idx_job_documents_category
+  on public.job_documents (category) where deleted_at is null;
+create index if not exists idx_job_documents_filename
+  on public.job_documents (lower(filename));
+create index if not exists idx_job_documents_email_subject
+  on public.job_documents (lower(email_subject)) where email_subject is not null;
+
+drop trigger if exists job_documents_updated_at on public.job_documents;
+create trigger job_documents_updated_at
+  before update on public.job_documents
+  for each row execute function public.set_updated_at();
+
+alter table public.job_documents enable row level security;
+
+drop policy if exists "Service role full access on job_documents" on public.job_documents;
+create policy "Service role full access on job_documents"
+  on public.job_documents for all to service_role
+  using (true) with check (true);
+
+comment on table public.job_documents is
+  'Files attached to a job/revision family. Bytes live in the private job-files Storage bucket.';
+
+notify pgrst, 'reload schema';
+
+-- ─── 038_user_module_access.sql ───
+-- Per-user module visibility controls (admin-managed toggles).
+alter table public.app_users
+  add column if not exists module_access_json jsonb;
+
+notify pgrst, 'reload schema';
+
+-- ─── 039_job_design_standards.sql ───
+-- 039: Structured design standards field for CAT II check sheets.
+alter table public.jobs
+  add column if not exists design_standards text;
+
 notify pgrst, 'reload schema';
 
 -- ─── seed-admin.sql (default logins) ───
--- Default login accounts after a clean bootstrap (local dev / first-time recovery only).
+-- Default login accounts after a clean bootstrap (local / first-time recovery ONLY).
 -- Initial passwords: admin@test.com → admin123, engineer@test.com → engineer123
 -- Users must set a new password on first login (must_change_password = true).
 --
--- Re-running bootstrap will NOT reset existing passwords (on conflict skips credential updates).
--- For production: sync real users via npm run supabase:sync-users, then disable or delete these accounts.
+-- Security: ON CONFLICT never reactivates disabled accounts and never resets
+-- passwords. For production, sync real users and keep these rows inactive
+-- (or delete them). Re-running seed must not reopen known test logins.
 
 insert into public.app_users (
   id, name, email, email_lower, role, active,
@@ -1549,7 +2309,7 @@ insert into public.app_users (
 on conflict (email_lower) do update set
   name = excluded.name,
   role = excluded.role,
-  active = true,
+  -- Never force active=true or reset passwords (would reopen disabled prod accounts).
   updated_at = now();
 
 notify pgrst, 'reload schema';

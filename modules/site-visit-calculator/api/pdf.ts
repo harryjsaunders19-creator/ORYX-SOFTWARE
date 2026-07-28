@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { buildSiteVisitPdfBuffer } from "../pdf/generate-summary"
 import type { SiteVisitCalculationResult } from "../types"
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("site-visit-calculator")
     if (auth instanceof NextResponse) return auth
 
     const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")

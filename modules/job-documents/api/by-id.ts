@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn, requireRole, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { jobDocumentService } from "@/modules/job-documents/services/document-service"
@@ -20,7 +20,7 @@ async function loadOwnedDoc(jobRouteId: string, docId: string) {
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
     const { id, docId } = await ctx.params
     const loaded = await loadOwnedDoc(id, docId)
@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireRole(["ADMIN", "ENGINEER"])
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
     const { id, docId } = await ctx.params
     const loaded = await loadOwnedDoc(id, docId)
@@ -88,7 +88,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireRole(["ADMIN", "ENGINEER"])
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
     const { id, docId } = await ctx.params
     const loaded = await loadOwnedDoc(id, docId)

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { holdService } from "../hold/services/hold-service"
 import { clientService } from "../services/client-service"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("clients")
     if (auth instanceof NextResponse) return auth
     const q      = req.nextUrl.searchParams.get("q") ?? ""
     const limit  = parseInt(req.nextUrl.searchParams.get("limit") ?? "10")

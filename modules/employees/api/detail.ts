@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { resourceResponse } from "@/shared/utils/api-cache"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
 import type { UpdateEmployeeProfileData } from "@/modules/employees"
 import { EMPLOYMENT_TYPES, EMPLOYMENT_STATUSES } from "@/modules/employees"
@@ -10,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
     const employee = await employeeService.getDetail(auth.user, id)
@@ -23,7 +24,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
 

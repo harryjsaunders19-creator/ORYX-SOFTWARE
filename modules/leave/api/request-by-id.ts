@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { canAcceptLeave } from "../permissions"
 import { leaveService } from "../services/leave-service"
 
@@ -9,7 +10,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

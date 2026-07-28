@@ -9,7 +9,7 @@ import { z } from "zod"
 import { quoteService } from "../services/quote-service"
 import { createId } from "@paralleldrive/cuid2"
 import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
-import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { isSupabaseOnly, isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { ensureSequencesSeeded } from "@/shared/supabase/seed-sequences"
@@ -33,7 +33,7 @@ const convertQuoteBodySchema = z.object({
 }).passthrough()
 
 export async function POST(req: NextRequest, { params }: Ctx) {
-  const auth = await requireSignIn()
+  const auth = await requireModuleAccess("quotes")
   if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params

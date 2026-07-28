@@ -1,14 +1,15 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { listResponse } from "@/shared/utils/api-cache"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { leaveService } from "../services/leave-service"
 import type { LeaveRequestStatus } from "../constants"
 import { LEAVE_REQUEST_STATUSES } from "../constants"
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
 
     const sp = req.nextUrl.searchParams
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
 
     let body: Record<string, unknown>

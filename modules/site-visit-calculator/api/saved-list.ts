@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { savedCalculationService } from "../services/saved-service"
 import { parseSaveBody } from "./validation"
 
 export async function GET() {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("site-visit-calculator")
     if (auth instanceof NextResponse) return auth
     const items = await savedCalculationService.findMany()
     return NextResponse.json({ items })
@@ -17,7 +17,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("site-visit-calculator")
     if (auth instanceof NextResponse) return auth
 
     let body: Record<string, unknown>

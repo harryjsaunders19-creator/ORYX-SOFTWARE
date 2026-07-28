@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { requireSignIn } from "@/shared/auth/auth"
+import { requireModuleAccess } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { ORYX_OFFICE } from "../constants"
 import { savedCalculationService } from "../services/saved-service"
@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: Request, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("site-visit-calculator")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
@@ -41,7 +41,7 @@ export async function GET(_req: Request, { params }: Ctx) {
 
 export async function DELETE(_req: Request, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("site-visit-calculator")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

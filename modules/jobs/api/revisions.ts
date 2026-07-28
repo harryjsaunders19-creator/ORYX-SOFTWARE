@@ -5,7 +5,7 @@ import { nextRevisionLetter, REVISION_LETTERS } from "@/lib/constants"
 import { canAddRevisionFrom, buildRevisionFamilyIndex } from "@/lib/revision-chain"
 import { revisionFamilyService } from "../services/revision-family-service"
 import { createId } from "@paralleldrive/cuid2"
-import { requireSignIn, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { defaultRequiredByDate } from "@/shared/utils/utils"
 import { apiInternalError } from "@/shared/api-errors"
 import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
@@ -32,7 +32,7 @@ async function resolveParentIdForWorkItems(id: string): Promise<string | null> {
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
@@ -89,7 +89,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireSignIn()
+    const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params
