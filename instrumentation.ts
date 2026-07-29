@@ -9,21 +9,29 @@
  * pattern throughout this codebase; this file doesn't change that.
  */
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return   // skip on the edge runtime — better-sqlite3 and the scheduler both need real Node
+  if (process.env.NEXT_RUNTIME !== "nodejs") return
 
-  // Fail the Vercel deploy loudly if required production secrets are missing.
+  // ── Required secrets ──────────────────────────────────────────
+  // Hard-fail on any production deployment (Vercel or otherwise) if
+  // critical secrets are missing. Better to fail at boot than at first
+  // user request.
+  const isProd = process.env.VERCEL === "1" || process.env.NODE_ENV === "production"
+
+  if (isProd) {
+    if (!process.env.AUTH_SECRET?.trim()) {
+      throw new Error("AUTH_SECRET is not set — session cookies cannot be secured.")
+    }
+    if (!process.env.VAULT_ENCRYPTION_KEY?.trim()) {
+      throw new Error("VAULT_ENCRYPTION_KEY is not set — password vault cannot encrypt secrets.")
+    }
+  }
+
   if (process.env.VERCEL === "1") {
     const { isSupabaseAdminConfigured } = await import("@/shared/supabase/config")
     if (!isSupabaseAdminConfigured()) {
       throw new Error(
         "VERCEL=1 but Supabase admin is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
       )
-    }
-    if (!process.env.AUTH_SECRET?.trim()) {
-      throw new Error("VERCEL=1 but AUTH_SECRET is not set — session cookies cannot be secured.")
-    }
-    if (!process.env.VAULT_ENCRYPTION_KEY?.trim()) {
-      throw new Error("VERCEL=1 but VAULT_ENCRYPTION_KEY is not set — password vault cannot encrypt secrets.")
     }
     if (!process.env.ORS_API_KEY?.trim()) {
       const { logEvent } = await import("@/shared/logger")
