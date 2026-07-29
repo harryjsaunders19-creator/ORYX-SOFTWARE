@@ -15,6 +15,9 @@ import { fileURLToPath } from "node:url"
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..")
 process.chdir(root)
 
+const migrationsDir = path.join(root, "supabase", "migrations")
+const migrationsParked = path.join(root, "supabase", "migrations.parked")
+
 function sh(cmd, opts = {}) {
   return execSync(cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], ...opts })
 }
@@ -48,27 +51,55 @@ function parseEnvOutput(raw) {
   )
 }
 
+/**
+ * Park migration files so `supabase start` does not apply them.
+ * Filenames share version prefixes (004_*, 005_*) which break the CLI
+ * schema_migrations unique constraint. Bootstrap is applied via psql instead.
+ */
+function parkMigrations() {
+  if (!fs.existsSync(migrationsDir)) return
+  if (fs.existsSync(migrationsParked)) {
+    fs.rmSync(migrationsParked, { recursive: true, force: true })
+  }
+  fs.renameSync(migrationsDir, migrationsParked)
+  fs.mkdirSync(migrationsDir, { recursive: true })
+}
+
+function restoreMigrations() {
+  if (!fs.existsSync(migrationsParked)) return
+  fs.rmSync(migrationsDir, { recursive: true, force: true })
+  fs.renameSync(migrationsParked, migrationsDir)
+}
+
+parkMigrations()
+
 console.log("[e2e-supabase] Starting local Supabase stack…")
 try {
   sh(supabaseCmd("start -x realtime,logflare,vector,imgproxy"), { stdio: "inherit" })
 } catch (err) {
+  restoreMigrations()
   console.error("[e2e-supabase] supabase start failed. Docker is required.")
   console.error(err instanceof Error ? err.message : err)
   process.exit(1)
 }
 
-const status = parseEnvOutput(sh(supabaseCmd("status -o env")))
+let status
+try {
+  status = parseEnvOutput(sh(supabaseCmd("status -o env")))
+} catch (err) {
+  restoreMigrations()
+  console.error("[e2e-supabase] supabase status failed:", err instanceof Error ? err.message : err)
+  process.exit(1)
+}
+
 const apiUrl = status.API_URL || status.SUPABASE_URL
 const anonKey = status.ANON_KEY || status.SUPABASE_ANON_KEY
 const serviceKey = status.SERVICE_ROLE_KEY || status.SUPABASE_SERVICE_ROLE_KEY
 const dbUrl = status.DB_URL || status.POSTGRES_URL || status.DATABASE_URL
 
-if (!apiUrl || !anonKey || !serviceKey) {
+if (!apiUrl || !anonKey || !serviceKey || !dbUrl) {
+  restoreMigrations()
   console.error("[e2e-supabase] Could not parse supabase status keys:", status)
-  process.exit(1)
-}
-if (!dbUrl) {
-  console.error("[e2e-supabase] Could not parse DB_URL from supabase status:", status)
   process.exit(1)
 }
 
@@ -77,14 +108,16 @@ const dropSql = path.join(root, "supabase", "00-drop-all.sql")
 const bootSql = path.join(root, "supabase", "01-bootstrap.sql")
 const seedSql = path.join(root, "supabase", "seed-e2e-users.sql")
 try {
-  // Migrations are disabled in config.toml (duplicate version prefixes).
   sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${dropSql}"`, { stdio: "inherit" })
   sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${bootSql}"`, { stdio: "inherit" })
   sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${seedSql}"`, { stdio: "inherit" })
 } catch (err) {
+  restoreMigrations()
   console.error("[e2e-supabase] Schema apply failed:", err instanceof Error ? err.message : err)
   process.exit(1)
 }
+
+restoreMigrations()
 
 const authSecret = process.env.AUTH_SECRET?.trim() || "e2e-auth-secret-not-for-production"
 const envBody = [

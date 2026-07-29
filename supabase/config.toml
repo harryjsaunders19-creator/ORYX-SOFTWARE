@@ -1,5 +1,8 @@
 # ORYX local Supabase (CLI) — used for e2e / local Postgres Path A.
-# Migrations live in supabase/migrations/; seed applies after db reset/start.
+#
+# App SQL lives in supabase/migrations/*.sql for documentation + bootstrap
+# generation, but filenames share version prefixes (004_*, 005_*) that the
+# CLI cannot apply. CI applies supabase/01-bootstrap.sql via psql instead.
 
 project_id = "oryx-local"
 
@@ -14,9 +17,13 @@ max_rows = 10000
 port = 54322
 major_version = 15
 
+# Do not auto-apply supabase/migrations — duplicate version prefixes break
+# `supabase start`. scripts/e2e-supabase-up.mjs applies 01-bootstrap.sql.
+[db.migrations]
+enabled = false
+
 [db.seed]
-enabled = true
-sql_paths = ["./seed-e2e-users.sql"]
+enabled = false
 
 [studio]
 enabled = true
