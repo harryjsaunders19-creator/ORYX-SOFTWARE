@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import { useRouter, useParams } from "next/navigation"
 import { FileText } from "lucide-react"
@@ -20,7 +20,6 @@ import { Skeleton } from "./job-page-primitives"
 import { downloadCat2CheckSheet } from "./cat2-check-sheet-export"
 import { JobDetailHeader } from "./job-detail-header"
 import { JobDetailPrimaryActions } from "./job-detail-primary-actions"
-import { JobDetailAttention, buildAttentionItems, type AttentionAction } from "./job-detail-attention"
 import { JobDetailCurrentRevision } from "./job-detail-current-revision"
 import { JobDetailSidebar } from "./job-detail-sidebar"
 import { JobDetailDialogs } from "./job-detail-dialogs"
@@ -237,29 +236,6 @@ export default function JobDetailPage({
     finally { setDnEditSaving(false) }
   }
 
-  const attentionItems = useMemo(
-    () => (job ? buildAttentionItems(job, revisionFamily ?? null) : []),
-    [job, revisionFamily],
-  )
-
-  const handleAttentionAction = (action: AttentionAction) => {
-    switch (action) {
-      case "assign":
-        setAssignOpen(true)
-        break
-      case "create-quote":
-        handleCreateQuote()
-        break
-      case "status":
-      case "deadline":
-        setEditOpen(true)
-        break
-      case "billing":
-        router.push("/billing")
-        break
-    }
-  }
-
   if (loading) return <PageShell wide><Skeleton /></PageShell>
 
   if (notFound || !job) return (
@@ -314,11 +290,6 @@ export default function JobDetailPage({
               onCat2Export={() => void handleCat2Export()}
               onEditDrawingNumber={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
               onDelete={() => setDelOpen(true)}
-            />
-
-            <JobDetailAttention
-              items={attentionItems}
-              onAction={handleAttentionAction}
             />
 
             <JobDetailCurrentRevision
