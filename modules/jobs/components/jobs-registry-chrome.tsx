@@ -1,48 +1,30 @@
 "use client"
 
 import Link from "next/link"
-import { AlertTriangle } from "lucide-react"
+import {
+  CheckCircle2, Circle, ClipboardCheck, Loader2, PenLine, Send,
+} from "lucide-react"
 import { cn } from "@/shared/utils/utils"
 import { Typography } from "@/shared/design/typography"
+import { getJobStatus } from "@/lib/constants"
 
-/** Stitch Job Registry page title + active-count badge. */
+/** Stitch Accordion List — Job Registry page title. */
 export function JobsRegistryHeader({
   title = "Job Registry",
   description = "Monitor and manage all ongoing scaffold design projects.",
-  activeCount,
-  countLabel = "active jobs",
-  actions,
 }: {
   title?: string
   description?: string
-  activeCount?: number | null
-  countLabel?: string
-  actions?: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
-      <div className="min-w-0">
-        <h1 className={cn(Typography.PageTitle, "oryx-page-title text-t1")}>{title}</h1>
-        <p className={cn(Typography.Small, "mt-2 text-t3")}>{description}</p>
-      </div>
-      <div className="flex items-center gap-2 shrink-0 flex-wrap">
-        {activeCount != null && (
-          <span
-            className={cn(
-              Typography.Badge,
-              "px-3 py-1.5 rounded-lg border border-bd bg-surface-low text-t2 tabular-nums",
-            )}
-          >
-            {activeCount.toLocaleString()} {countLabel}
-          </span>
-        )}
-        {actions}
-      </div>
+    <div className="mb-4">
+      <h1 className={cn(Typography.PageTitle, "oryx-page-title text-t1")}>{title}</h1>
+      <p className={cn(Typography.Small, "mt-1 text-t3")}>{description}</p>
     </div>
   )
 }
 
-/** Active ↔ Archive scope toggle — Archive opens the real archive module. */
+/** Active ↔ Archive segmented control. */
 export function JobsScopeToggle({
   active = true,
   className,
@@ -53,7 +35,7 @@ export function JobsScopeToggle({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-md border border-bd p-0.5 bg-sr shrink-0",
+        "inline-flex items-center gap-0.5 rounded border border-bd bg-surface-low p-0.5 shrink-0",
         className,
       )}
       role="group"
@@ -63,8 +45,8 @@ export function JobsScopeToggle({
         href="/jobs"
         className={cn(
           Typography.Badge,
-          "px-3 py-1.5 rounded-sm transition-colors",
-          active ? "bg-t1 text-sr font-semibold" : "text-t3 hover:text-t2",
+          "px-3 py-1 rounded-sm transition-colors",
+          active ? "bg-t1 text-sr font-semibold" : "text-t3 hover:bg-pg hover:text-t2",
         )}
         aria-current={active ? "page" : undefined}
       >
@@ -74,8 +56,8 @@ export function JobsScopeToggle({
         href="/archive"
         className={cn(
           Typography.Badge,
-          "px-3 py-1.5 rounded-sm transition-colors",
-          !active ? "bg-t1 text-sr font-semibold" : "text-t3 hover:text-t2",
+          "px-3 py-1 rounded-sm transition-colors",
+          !active ? "bg-t1 text-sr font-semibold" : "text-t3 hover:bg-pg hover:text-t2",
         )}
       >
         Archived
@@ -84,21 +66,20 @@ export function JobsScopeToggle({
   )
 }
 
-/** Stitch REV pill beside drawing numbers. */
+/** Stitch REV pill — muted for A, filled for later revisions. */
 export function RevisionPill({
   letter,
   emphasized = false,
 }: {
   letter: string | null | undefined
-  /** Black fill for current / non-A revisions (Stitch treatment). */
   emphasized?: boolean
 }) {
   if (!letter) return null
   return (
     <span
       className={cn(
-        "inline-flex items-center shrink-0 rounded-sm px-1.5 py-0.5 font-bold uppercase tracking-wide",
-        "text-[10px] leading-none",
+        "inline-flex items-center shrink-0 rounded-sm px-1 py-0.5 font-bold uppercase tracking-wide",
+        "text-[9px] leading-none",
         emphasized
           ? "bg-t1 text-sr"
           : "bg-surface-low text-t2 border border-bd",
@@ -110,7 +91,6 @@ export function RevisionPill({
   )
 }
 
-/** Designer initials avatar — Stitch registry column. */
 export function DesignerAvatar({
   name,
   size = "sm",
@@ -119,13 +99,24 @@ export function DesignerAvatar({
   size?: "sm" | "md"
 }) {
   const initials = designerInitials(name)
-  if (!initials) return null
-  const dim = size === "md" ? "h-7 w-7 text-[11px]" : "h-6 w-6 text-[10px]"
+  if (!initials) {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center justify-center rounded-full bg-surface-low text-t4 font-bold shrink-0 border border-bd",
+          size === "md" ? "h-6 w-6 text-[10px]" : "h-5 w-5 text-[9px]",
+        )}
+        aria-hidden
+      >
+        ?
+      </span>
+    )
+  }
   return (
     <span
       className={cn(
         "inline-flex items-center justify-center rounded-full bg-surface-low text-t2 font-bold shrink-0 border border-bd",
-        dim,
+        size === "md" ? "h-6 w-6 text-[10px]" : "h-5 w-5 text-[9px]",
       )}
       aria-hidden
     >
@@ -141,78 +132,67 @@ export function designerInitials(name: string | null | undefined): string | null
   return `${parts[0]![0] ?? ""}${parts[parts.length - 1]![0] ?? ""}`.toUpperCase()
 }
 
-/** Footer insight tiles — only real metrics (no invented averages / forecasts). */
-export function JobsRegistryInsights({
-  onHoldCount,
-  matchingCount,
+/** Compact status line for accordion summary — Inter, uppercase, icon. */
+export function AccordionStatus({
+  status,
+  isOnHold,
 }: {
-  onHoldCount: number
-  matchingCount?: number | null
+  status: string
+  isOnHold?: boolean
 }) {
-  const tiles = [
-    matchingCount != null && (
-      <InsightTile
-        key="matching"
-        label="Matching jobs"
-        value={matchingCount.toLocaleString()}
-      />
-    ),
-    <InsightTile
-      key="hold"
-      label="On hold clients"
-      value={`${onHoldCount.toLocaleString()} flagged`}
-      icon={<AlertTriangle className="h-5 w-5 text-t2" aria-hidden />}
-      href="/clients/hold-list"
-    />,
-  ].filter(Boolean)
+  const s = getJobStatus(status)
+  const Icon =
+    status === "ISSUED" ? CheckCircle2
+      : status === "CHECKING" ? ClipboardCheck
+        : status === "READY_TO_SEND" ? Send
+          : status === "IN_DESIGN" ? Loader2
+            : status === "NEW_REQUEST" ? Circle
+              : PenLine
 
   return (
-    <div className={cn(
-      "mt-6 grid gap-4",
-      tiles.length > 1 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 max-w-md",
-    )}>
-      {tiles}
-    </div>
+    <span className="inline-flex items-center gap-1.5 min-w-0 flex-wrap">
+      <Icon
+        className={cn(
+          "h-3.5 w-3.5 shrink-0",
+          status === "ISSUED" ? "text-ok-ic" : "text-t3",
+          status === "IN_DESIGN" && "animate-pulse",
+        )}
+        aria-hidden
+      />
+      <span
+        className={cn(
+          Typography.Badge,
+          "font-bold uppercase tracking-wide truncate",
+          status === "ISSUED" ? "text-ok-tx" : "text-t2",
+        )}
+      >
+        {s.label}
+      </span>
+      {isOnHold && (
+        <span className="px-1 py-0.5 rounded-sm bg-dn-bg text-dn-tx border border-dn-bd text-[8px] font-bold uppercase tracking-wide">
+          Hold
+        </span>
+      )}
+    </span>
   )
 }
 
-function InsightTile({
-  label,
-  value,
-  icon,
-  href,
-}: {
-  label: string
-  value: string
-  icon?: React.ReactNode
-  href?: string
-}) {
-  const inner = (
-    <>
-      <div className="h-12 w-12 rounded-lg bg-surface-low border border-bd flex items-center justify-center shrink-0">
-        {icon ?? <span className={cn(Typography.Badge, "text-t2 font-bold")}>#</span>}
-      </div>
-      <div className="min-w-0">
-        <p className={cn(Typography.Label, "text-t3 uppercase tracking-wide")}>{label}</p>
-        <p className={cn(Typography.SectionHeading, "text-t1 mt-0.5 tabular-nums")}>{value}</p>
-      </div>
-    </>
-  )
-
-  if (href) {
-    return (
-      <Link
-        href={href}
-        className="oryx-surface-card bg-sr border border-bd rounded-xl px-5 py-4 flex items-center gap-4 hover:border-bds transition-colors"
-      >
-        {inner}
-      </Link>
-    )
-  }
-
+/** Accordion column header row. */
+export function AccordionListHeader() {
   return (
-    <div className="oryx-surface-card bg-sr border border-bd rounded-xl px-5 py-4 flex items-center gap-4">
-      {inner}
+    <div
+      className={cn(
+        "hidden md:grid grid-cols-12 gap-2 px-4 py-2",
+        Typography.Label,
+        "text-t3 uppercase tracking-widest border-b border-bd/40",
+      )}
+    >
+      <div className="col-span-2">Drawing No</div>
+      <div className="col-span-1">Rev</div>
+      <div className="col-span-4">Project / Client</div>
+      <div className="col-span-2">Status</div>
+      <div className="col-span-2">Designer</div>
+      <div className="col-span-1" />
     </div>
   )
 }

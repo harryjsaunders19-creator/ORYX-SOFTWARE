@@ -3,24 +3,20 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   Search, Plus, Download, Upload, SlidersHorizontal,
-  X, ClipboardCheck,
+  X, ClipboardCheck, LayoutList, LayoutGrid, FolderOpen,
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
-import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
 import { useToast }      from "@/shared/ui/toast"
 import { useUser }       from "@/shared/providers/user-context"
 import { cn } from "@/shared/utils/utils"
-import { ToolbarCard, DataPanel, TablePagination } from "@/shared/layouts/page-layout"
+import { ToolbarCard, TablePagination, EmptyPanel } from "@/shared/layouts/page-layout"
 import { notifyRevisionsChanged } from "@/lib/revision-events"
 import type { Job, JobFormData, JobsResponse, SortField, SortDir } from "@/lib/types"
 import { WORK_ITEM_TYPES } from "@/lib/constants"
-import { LIMIT, COL_TYPE_OF_WORKS, COL_CLIENT, COL_REQUESTED_BY, COL_QUOTATION, COL_DESIGNER } from "./jobs-table-columns"
-import {
-  SkeletonRows, EmptyState, SortTh, JobMobileCard, JobTableRow,
-} from "./jobs-table-row"
+import { LIMIT } from "./jobs-table-columns"
 import { JobsActiveFilterChips, JobsFilterBar } from "./jobs-filter-bar"
 import { exportJobsToCsv } from "./job-csv-export"
 import { JobsDialogs } from "./jobs-dialogs"
@@ -28,8 +24,12 @@ import { AddRevisionModal } from "./add-revision-modal"
 import {
   JobsRegistryHeader,
   JobsScopeToggle,
-  JobsRegistryInsights,
+  AccordionListHeader,
 } from "./jobs-registry-chrome"
+import {
+  JobsAccordionList,
+  useAccordionExpand,
+} from "./jobs-accordion-list"
 
 /** Filter keys persisted to sessionStorage per user. */
 interface JobsFilterState {
@@ -102,8 +102,9 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const { isAdmin, user } = useUser()
   const userId = user?.id
 
-  const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
   const searchParams = useSearchParams()
+  const { expandedId, onToggle: onAccordionToggle } = useAccordionExpand()
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list")
 
   // Initialise filters: URL params override sessionStorage; sessionStorage overrides defaults.
   const initFilters = useMemo(() => {
@@ -129,8 +130,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const [typeOfWorksFilter, setTypeOfWorksFilter] = useState(initFilters.typeOfWorksFilter)
   const [deadlineFilter,  setDeadlineFilter]  = useState(initFilters.deadlineFilter)
   const [page,         setPage]         = useState(1)
-  const [sortBy,       setSortBy]       = useState<SortField>("drawingNumber")
-  const [sortDir,      setSortDir]      = useState<SortDir>("asc")
+  const [sortBy] = useState<SortField>("drawingNumber")
+  const [sortDir] = useState<SortDir>("asc")
   const [showFilters,  setShowFilters]  = useState(false)
   const [createOpen,   setCreateOpen]   = useState(false)
   const [createSaving, setCreateSaving] = useState(false)
@@ -197,7 +198,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
 
   const loading = isLoading && !data
   const refreshing = isValidating && !!data
-  const showListTags = debouncedSearch.trim().length > 0
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
@@ -207,11 +207,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
   }, [])
-
-  const handleSort = (field: SortField) => {
-    const dir: SortDir = sortBy === field && sortDir === "desc" ? "asc" : "desc"
-    setSortBy(field); setSortDir(dir); setPage(1)
-  }
 
   const exitCheckingQueue = () => router.push("/jobs")
 
@@ -316,53 +311,8 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     } finally { setDeleting(false) }
   }
 
-  const patchJobField = useCallback(async (job: Job, field: "status" | "designer", value: string) => {
-    const targetId = job.id
-    await mutate(
-      current => current ? { ...current, jobs: current.jobs.map(j => j.id === job.id ? { ...j, [field]: value } : j) } : current,
-      { revalidate: false },
-    )
-    try {
-      const res = await fetch(`/api/jobs/${targetId}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: value }),
-      })
-      if (!res.ok) {
-        toast(field === "status" ? "Failed to change status" : "Failed to assign designer", "error")
-        await mutate()
-        return
-      }
-      const updated = await res.json() as Job
-      // Keep parent row id in the list; overlay the patched fields from the current revision.
-      // Preserve revision-family flags (canAddRevision, etc.) — the PATCH body is a raw JobRow.
-      await mutate(
-        current => current ? {
-          ...current,
-          jobs: current.jobs.map(j => j.id === job.id
-            ? {
-                ...j,
-                [field]: value,
-                status: field === "status" ? value : (j.status),
-                designer: field === "designer" ? value : (j.designer),
-                currentRevisionId: j.currentRevisionId ?? updated.id,
-                updatedAt: updated.updatedAt,
-              }
-            : j),
-        } : current,
-        { revalidate: false },
-      )
-    } catch {
-      toast("Network error", "error")
-      await mutate()
-    }
-  }, [mutate, toast])
-
-  // Perf: stable handlers so JobMobileCard memo is not busted by inline lambdas per row.
+  // Perf: stable handlers for accordion actions
   const openJob = useCallback((jobId: string) => { router.push(`/jobs/${jobId}`) }, [router])
-  const navigateTo = useCallback((path: string) => { router.push(path) }, [router])
-  const patchMobileStatus = useCallback((job: Job, status: string) => {
-    void patchJobField(job, "status", status)
-  }, [patchJobField])
 
   // Open the revision modal instead of creating immediately.
   const handleQuickRevision = useCallback((job: Job) => {
@@ -419,50 +369,60 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     onlyRevisions,
   ].filter(Boolean).length
   const totalPages = data ? Math.ceil(data.total / LIMIT) : 0
-  const sp = { current: sortBy, dir: sortDir, onSort: handleSort }
-
-  const holdCount = holdData?.holds.length ?? 0
 
   return (
     <>
-      {!isCheckingQueue && (
-        <JobsRegistryHeader
-          activeCount={data && !loading ? data.total : null}
-          countLabel={hasFilters ? "matching" : "active jobs"}
-        />
-      )}
+      {!isCheckingQueue && <JobsRegistryHeader />}
 
-      {/* Toolbar — Stitch Industrial Mono: scope · search · filters · import/export · create */}
-      <ToolbarCard className="justify-between">
-        <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+      {/* Stitch Accordion List — unified compact toolbar */}
+      <ToolbarCard className="justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
           {!isCheckingQueue && <JobsScopeToggle active />}
 
-          <div className="relative flex-1 min-w-48 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-t4 pointer-events-none" />
-            <Input
-              id="jobs-search"
-              value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search jobs…"
-              className="pl-10 pr-8 h-9 rounded-lg bg-surface-low border border-bd shadow-none"
-              style={{ paddingLeft: "40px", height: "36px" }}
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-t4 hover:text-t2">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+          {!isCheckingQueue && (
+            <div className="hidden sm:block h-6 w-px bg-bd shrink-0" aria-hidden />
+          )}
 
           <Button
-            variant={showFilters ? "secondary" : "outline"} size="sm"
+            variant={showFilters ? "secondary" : "outline"}
+            size="sm"
             onClick={() => setShowFilters(v => !v)}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Filters
             {activeFilterCount > 0 && (
-              <span className="ml-1 bg-ac text-on-ac rounded-full h-4 w-4 type-helper flex items-center justify-center font-bold shrink-0">{activeFilterCount}</span>
+              <span className="ml-1 bg-t1 text-sr rounded-full h-4 w-4 type-helper flex items-center justify-center font-bold shrink-0">
+                {activeFilterCount}
+              </span>
             )}
           </Button>
+
+          {data && !loading && (
+            <span className="type-badge px-3 py-1.5 rounded border border-bd bg-surface-low text-t3 tabular-nums">
+              {data.total.toLocaleString()} {hasFilters ? "matching" : "active jobs"}
+            </span>
+          )}
+
+          <div className="relative min-w-[140px] max-w-xs flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-t4 pointer-events-none" />
+            <Input
+              id="jobs-search"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search…"
+              className="pl-8 pr-7 h-8 rounded-md bg-surface-low border border-bd shadow-none text-sm"
+              style={{ paddingLeft: "32px", height: "32px" }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-t4 hover:text-t2"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
 
           {isCheckingQueue ? (
             <Button variant="outline" size="sm" onClick={exitCheckingQueue}>
@@ -472,12 +432,37 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           ) : (
             <Button variant="outline" size="sm" onClick={() => router.push("/jobs/checking")}>
               <ClipboardCheck className="h-3.5 w-3.5" />
-              Checking queue
+              Checking
             </Button>
           )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <div className="inline-flex items-center gap-0.5 rounded border border-bd bg-surface-low p-0.5">
+            <button
+              type="button"
+              title="Accordion list"
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "h-7 w-7 inline-flex items-center justify-center rounded-sm transition-colors",
+                viewMode === "list" ? "bg-t1 text-sr" : "text-t3 hover:text-t2",
+              )}
+            >
+              <LayoutList className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="Grid"
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "h-7 w-7 inline-flex items-center justify-center rounded-sm transition-colors",
+                viewMode === "grid" ? "bg-t1 text-sr" : "text-t3 hover:text-t2",
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+
           {isAdmin && (
             <Button variant="ghost" size="sm" className="text-t3" onClick={() => router.push("/jobs/import")}>
               <Upload className="h-3.5 w-3.5" />
@@ -490,7 +475,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               Export
             </Button>
           )}
-          {(isAdmin) && <div className="hidden sm:block w-px h-6 bg-bd" aria-hidden />}
+          <div className="hidden sm:block h-6 w-px bg-bd" aria-hidden />
           <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="h-3.5 w-3.5" />
             Create design job
@@ -498,7 +483,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         </div>
       </ToolbarCard>
 
-      {/* Active filters — always visible so status/deadline chips can be cleared without opening the panel */}
       <JobsActiveFilterChips
         isCheckingQueue={isCheckingQueue}
         hasFilters={hasFilters}
@@ -520,7 +504,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         clearAllFilters={clearAllFilters}
       />
 
-      {/* Filter bar */}
       {showFilters && (
         <JobsFilterBar
           statusFilter={statusFilter}
@@ -548,107 +531,45 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         </div>
       )}
 
-      {/* Mobile field view — compact cards for site / phone use */}
-      {mediaReady && isMobile && (
-      <div className="space-y-2.5 mb-4">
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-28 rounded-xl border border-bd bg-sr skeleton" />
-          ))
-        ) : !data || data.jobs.length === 0 ? (
-          <div className="rounded-xl border border-bd bg-sr py-12 text-center">
-            <p className="text-sm font-medium text-t1">{hasFilters ? "No jobs match" : "No jobs yet"}</p>
-          </div>
-        ) : (
-          <div className={cn("space-y-2.5 transition-opacity", refreshing && "opacity-60")}>
-          {data.jobs.map(job => (
-            <JobMobileCard
-              key={job.id}
-              job={job}
-              isOnHold={!!(job.clientId && holdClientIds.has(job.clientId))}
-              showTags={showListTags}
-              onOpen={openJob}
-              onNavigate={navigateTo}
-              onStatusChange={patchMobileStatus}
+      {/* High-density accordion list — Stitch Accordion List (Inter) */}
+      <div className={cn("transition-opacity", refreshing && "opacity-60")}>
+        {viewMode === "list" && <AccordionListHeader />}
+        <JobsAccordionList
+          jobs={data?.jobs ?? []}
+          holdClientIds={holdClientIds}
+          expandedId={expandedId}
+          onToggle={onAccordionToggle}
+          onOpenJob={openJob}
+          onEdit={setEditJob}
+          onDelete={setDeleteJob}
+          isAdmin={isAdmin}
+          onQuickRevision={handleQuickRevision}
+          creatingRevisionFor={creatingRevisionFor}
+          loading={loading}
+          layout={viewMode}
+          empty={
+            <EmptyPanel
+              icon={FolderOpen}
+              title={hasFilters || isCheckingQueue ? "No jobs match" : "No jobs yet"}
+              description={hasFilters ? "Try clearing your filters" : "Create your first job to get started"}
+              action={hasFilters
+                ? <Button variant="outline" size="sm" onClick={clearAllFilters}>Clear filters</Button>
+                : <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}><Plus className="h-3.5 w-3.5" />Create design job</Button>
+              }
             />
-          ))}
-          </div>
-        )}
-        <TablePagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          total={data?.total}
-          pageSize={LIMIT}
-          hideWhenSingle={!data || data.total === 0}
+          }
         />
       </div>
-      )}
 
-      {/* Desktop table — Stitch Industrial Mono registry */}
-      {(!mediaReady || !isMobile) && (
-      <DataPanel className={cn("transition-opacity", refreshing && "opacity-60")}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse text-left">
-            <thead>
-              <tr className="bg-surface-low border-b border-bd">
-                <SortTh field="drawingNumber" label="Drawing No." {...sp} />
-                <SortTh field="address" label="Job Address" {...sp} />
-                <th className={cn("px-4 py-3 text-left type-table-head text-t3 whitespace-nowrap uppercase tracking-wider", COL_TYPE_OF_WORKS)}>
-                  Works Type
-                </th>
-                <SortTh field="clientCompany" label="Client" className={COL_CLIENT} {...sp} />
-                <th className={cn("px-4 py-3 text-left type-table-head text-t3 whitespace-nowrap uppercase tracking-wider", COL_REQUESTED_BY)}>
-                  Requester
-                </th>
-                <SortTh field="quoteValue" label="Quotation" className={COL_QUOTATION} {...sp} />
-                <SortTh field="status" label="Status" {...sp} />
-                <SortTh field="designer" label="Designer" className={COL_DESIGNER} {...sp} />
-                <th className="px-4 py-3 text-right type-table-head text-t3 whitespace-nowrap w-12">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? <SkeletonRows /> :
-               !data || data.jobs.length === 0 ? (
-                <EmptyState hasFilters={hasFilters || isCheckingQueue} onCreate={() => setCreateOpen(true)} onClear={clearAllFilters} />
-               ) : data.jobs.map(job => (
-                <JobTableRow
-                  key={job.id}
-                  job={job}
-                  isOnHold={!!(job.clientId && holdClientIds.has(job.clientId))}
-                  designers={designers}
-                  isAdmin={isAdmin}
-                  creatingRevisionFor={creatingRevisionFor}
-                  showTags={showListTags}
-                  onPatchField={patchJobField}
-                  onEdit={setEditJob}
-                  onDelete={setDeleteJob}
-                  onQuickRevision={handleQuickRevision}
-                  onNavigate={router.push}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <TablePagination
-          variant="inset"
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          total={data?.total}
-          pageSize={LIMIT}
-          hideWhenSingle={!data || data.total === 0}
-        />
-      </DataPanel>
-      )}
-
-      {!isCheckingQueue && (
-        <JobsRegistryInsights
-          onHoldCount={holdCount}
-        />
-      )}
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        total={data?.total}
+        pageSize={LIMIT}
+        hideWhenSingle={!data || data.total === 0}
+        className="mt-4"
+      />
 
       <JobsDialogs
         createOpen={createOpen}
