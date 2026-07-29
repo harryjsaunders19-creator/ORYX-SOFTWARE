@@ -17,6 +17,7 @@ import { MemoQuoteTableRow } from "./quotes-table-row"
 import { QuoteMobileCard } from "./quotes-mobile-card"
 import { QuotesFilterBar } from "./quotes-filter-bar"
 import { QuotesDialogs } from "./quotes-dialogs"
+import { LinkJobModal } from "./link-job-modal"
 
 type QuotesData = {
   quotes: Quote[]
@@ -109,6 +110,8 @@ function QuotesInner() {
   const handleEdit = useCallback((q: Quote) => setEditQuote(q), [])
   const handleConvert = useCallback((q: Quote) => setConvertQuote(q), [])
   const handleArchiveOpen = useCallback((q: Quote) => setArchiveQuote(q), [])
+  const [linkJobQuote, setLinkJobQuote] = useState<Quote | null>(null)
+  const handleLinkJob = useCallback((q: Quote) => setLinkJobQuote(q), [])
 
   const doCreate = async (form: QuoteFormData) => {
     setSaving(true)
@@ -299,6 +302,7 @@ function QuotesInner() {
               onSetStatus={setStatus}
               onConvert={handleConvert}
               onArchive={handleArchiveOpen}
+              onLinkJob={handleLinkJob}
             />
           ))}
         </div>
@@ -328,6 +332,7 @@ function QuotesInner() {
                   onSetStatus={setStatus}
                   onConvert={handleConvert}
                   onArchive={handleArchiveOpen}
+                  onLinkJob={handleLinkJob}
                 />
               ))}
             </tbody>
@@ -366,6 +371,12 @@ function QuotesInner() {
         expiredClearableCount={expiredClearableCount}
         onClearClose={() => setClearConfirmOpen(false)}
         onClearConfirm={clearExpired}
+      />
+
+      <LinkJobModal
+        quote={linkJobQuote}
+        onClose={() => setLinkJobQuote(null)}
+        onLinked={() => { setLinkJobQuote(null); mutate(); toast("Quote linked to job", "success") }}
       />
     </PageShell>
   )

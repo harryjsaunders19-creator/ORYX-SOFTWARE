@@ -3,7 +3,7 @@ import { memo } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import {
-  FileDown, Download, Clock, CheckCircle2, XCircle, Archive, Loader2,
+  FileDown, Download, Clock, CheckCircle2, XCircle, Archive, Loader2, Link2,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { formatGBP, parseLocalDate, getQuoteExpiryInfo } from "@/shared/utils/utils"
@@ -12,7 +12,7 @@ import { resolveQuotePdfUrl } from "../pdf/urls"
 import type { Quote } from "@/lib/types"
 import { QuoteStatusBadge, QuoteExpiryCell, statusMeta } from "./quote-status-badge"
 
-export function QuoteRowActions({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
+export function QuoteRowActions({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive, onLinkJob }: {
   quote: Quote
   isPdfBusy: boolean
   onGeneratePdf: (q: Quote) => void
@@ -20,6 +20,7 @@ export function QuoteRowActions({ quote: q, isPdfBusy, onGeneratePdf, onEdit, on
   onSetStatus: (q: Quote, status: string) => void
   onConvert: (q: Quote) => void
   onArchive: (q: Quote) => void
+  onLinkJob?: (q: Quote) => void
 }) {
   return (
     <div className="flex items-center gap-1 justify-end flex-wrap">
@@ -36,6 +37,11 @@ export function QuoteRowActions({ quote: q, isPdfBusy, onGeneratePdf, onEdit, on
         </button>
       )}
       <Button variant="ghost" size="sm" onClick={() => onEdit(q)}>Edit</Button>
+      {onLinkJob && (
+        <Button variant="ghost" size="sm" onClick={() => onLinkJob(q)} title={q.jobId ? "Change linked job" : "Attach to job"}>
+          <Link2 className="h-3.5 w-3.5" /> {q.jobId ? "Change job" : "Attach to job"}
+        </Button>
+      )}
       {q.status === "DRAFT" && (
         <Button variant="ghost" size="sm" onClick={() => onSetStatus(q, "SENT")}>
           <Clock className="h-3.5 w-3.5" /> Sent
@@ -64,7 +70,7 @@ export function QuoteRowActions({ quote: q, isPdfBusy, onGeneratePdf, onEdit, on
   )
 }
 
-function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive }: {
+function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus, onConvert, onArchive, onLinkJob }: {
   quote: Quote
   isPdfBusy: boolean
   onGeneratePdf: (q: Quote) => void
@@ -72,6 +78,7 @@ function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus
   onSetStatus: (q: Quote, status: string) => void
   onConvert: (q: Quote) => void
   onArchive: (q: Quote) => void
+  onLinkJob?: (q: Quote) => void
 }) {
   return (
     <tr className="border-b border-bd last:border-0 hover:bg-pg">
@@ -114,6 +121,7 @@ function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus
           onSetStatus={onSetStatus}
           onConvert={onConvert}
           onArchive={onArchive}
+          onLinkJob={onLinkJob}
         />
       </td>
     </tr>

@@ -16,6 +16,7 @@ export const QuoteMobileCard = memo(function QuoteMobileCard({
   onSetStatus,
   onConvert,
   onArchive,
+  onLinkJob,
 }: {
   quote: Quote
   isPdfBusy: boolean
@@ -24,6 +25,7 @@ export const QuoteMobileCard = memo(function QuoteMobileCard({
   onSetStatus: (q: Quote, status: string) => void
   onConvert: (q: Quote) => void
   onArchive: (q: Quote) => void
+  onLinkJob?: (q: Quote) => void
 }) {
   return (
     <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5">
@@ -65,6 +67,7 @@ export const QuoteMobileCard = memo(function QuoteMobileCard({
           onSetStatus={onSetStatus}
           onConvert={onConvert}
           onArchive={onArchive}
+          onLinkJob={onLinkJob}
         />
       </div>
     </div>
