@@ -19,6 +19,7 @@ const createRevisionBodySchema = z.object({
   notes: z.string().optional(),
   designer: z.string().optional(),
   billable: z.union([z.boolean(), z.string()]).optional(),
+  quoteValue: z.union([z.number(), z.string(), z.null()]).optional(),
   priority: z.string().nullable().optional(),
   letter: z.string().optional(),
 }).passthrough()
@@ -211,6 +212,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const baseDrawingNumber = parent.drawingNumber.replace(/ Rev [A-Z]$/, "")
     const revDrawingNumber  = `${baseDrawingNumber} Rev ${letter}`
 
+    const revBillable = body.billable === true || body.billable === "true"
+    const revQuoteValue = body.quoteValue != null ? Math.round((parseFloat(String(body.quoteValue)) || 0) * 100) / 100 : null
+
     const revision = await jobService.create({
       id:             createId(),
       drawingNumber:  revDrawingNumber,
@@ -219,6 +223,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       typeOfWorks:    parent.typeOfWorks,
       customTypeDescription: parent.customTypeDescription,
       clientCompany:  parent.clientCompany,
+      clientId:       parent.clientId,
       requestedBy:    parent.requestedBy,
       status:         "NEW_REQUEST",
       designer:       "",
@@ -227,7 +232,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       designStandards: parent.designStandards ?? null,
       parentJobId:    parent.id,
       revisionLetter: letter,
-      billable:       false,
+      billable:       revBillable,
+      quoteValue:     revQuoteValue,
       requiredByDate: defaultRequiredByDate(),
       changedBy,
     })

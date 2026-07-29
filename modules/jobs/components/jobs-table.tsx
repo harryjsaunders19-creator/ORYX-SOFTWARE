@@ -24,6 +24,7 @@ import {
 import { JobsActiveFilterChips, JobsFilterBar } from "./jobs-filter-bar"
 import { exportJobsToCsv } from "./job-csv-export"
 import { JobsDialogs } from "./jobs-dialogs"
+import { AddRevisionModal } from "./add-revision-modal"
 
 /** Filter keys persisted to sessionStorage per user. */
 interface JobsFilterState {
@@ -134,6 +135,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const [cancelReason, setCancelReason] = useState("")
   const [deleting,     setDeleting]     = useState(false)
   const [creatingRevisionFor, setCreatingRevisionFor] = useState<string | null>(null)
+  const [revisionModalJob, setRevisionModalJob] = useState<Job | null>(null)
 
   useEffect(() => {
     if (searchParams.get("new") !== "1") return
@@ -356,26 +358,34 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     void patchJobField(job, "status", status)
   }, [patchJobField])
 
-  // One-click revision — create and stay on the list; the revision appears as its own row.
-  const handleQuickRevision = useCallback(async (job: Job) => {
-    // Resolve the original parent (in case the user clicked from a revision card).
+  // Open the revision modal instead of creating immediately.
+  const handleQuickRevision = useCallback((job: Job) => {
+    setRevisionModalJob(job)
+  }, [])
+
+  // Called when the user confirms the revision modal form.
+  const handleRevisionSubmit = useCallback(async (
+    job: Job,
+    data: { notes: string; billable: boolean; quoteValue: number },
+  ) => {
     const parentId = job.parentJobId ?? job.id
     setCreatingRevisionFor(job.id)
     try {
       const res = await fetch(`/api/jobs/${parentId}/revisions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(data),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
-        toast(body.error ?? "Failed to create revision", "error"); return
+        toast(body.error ?? "Failed to create revision", "error")
+        throw new Error(body.error ?? "Failed")
       }
       const revision = await res.json() as Job
-      toast(`${revision.drawingNumber} created`, "success")
+      toast(`${revision.drawingNumber} added successfully`, "success")
       notifyRevisionsChanged(parentId)
+      setRevisionModalJob(null)
       mutate()
-    } catch { toast("Network error", "error") }
-    finally { setCreatingRevisionFor(null) }
+    } finally { setCreatingRevisionFor(null) }
   }, [mutate, toast])
 
   const handleExport = async () => {
@@ -628,6 +638,12 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         onDeleteClose={() => { setDeleteJob(null); setCancelReason("") }}
         onDeleteConfirm={handleDelete}
         designers={designers}
+      />
+
+      <AddRevisionModal
+        job={revisionModalJob}
+        onClose={() => setRevisionModalJob(null)}
+        onSubmit={handleRevisionSubmit}
       />
     </>
   )
