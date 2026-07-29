@@ -43,9 +43,9 @@ describe("enrichRevisionFamily", () => {
     assert.equal(original.hasRevisions, true)
     assert.equal(original.revisionCount, 2)
     assert.equal(original.latestRevisionLetter, "B")
-    // Parent cards always offer Add revision; create API still anchors on the latest letter.
-    assert.equal(original.canAddRevision, true)
-    assert.equal(original.status, "IN_DESIGN") // overlaid from Rev B
+    // Parent cards offer Add revision only when complete (ISSUED).
+    assert.equal(original.canAddRevision, true) // status is ISSUED
+    assert.equal(original.status, "ISSUED") // parent retains its own status
     assert.equal(original.currentRevisionLetter, "B")
   })
 

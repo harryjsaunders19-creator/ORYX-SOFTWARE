@@ -126,27 +126,17 @@ export function enrichRevisionFamily<T extends RevisionAnchorJob & {
       ? job.id === latest.id
       : isOriginal && revisionCount === 0
 
-    // Parent cards present the current (latest) revision's live fields.
+    // Parent cards retain their own status — revisions are separate billable items.
+    // The latest revision's fields are available via currentRevisionId for navigation,
+    // but the parent's completion/invoice state must never be visually overridden.
     const current = latest && isOriginal ? latest : null
-    const overlay = current
-      ? {
-          status: current.status ?? job.status,
-          designer: current.designer ?? job.designer,
-          requiredByDate: current.requiredByDate !== undefined
-            ? current.requiredByDate
-            : job.requiredByDate,
-          updatedAt: current.updatedAt ?? job.updatedAt,
-          dateCompleted: current.dateCompleted !== undefined
-            ? current.dateCompleted
-            : job.dateCompleted,
-        }
-      : {}
 
     return {
       ...job,
-      ...overlay,
-      // Parent cards own "Add revision" — server still requires creating from the latest letter.
-      canAddRevision: isOriginal ? true : canAddRevisionFrom(job, latestMap),
+      // Parent cards own "Add revision" — only when parent is complete (ISSUED).
+      canAddRevision: isOriginal
+        ? job.status === "ISSUED"
+        : canAddRevisionFrom(job, latestMap),
       hasRevisions: revisionCount > 0,
       revisionCount,
       latestRevisionId: latest?.id ?? null,

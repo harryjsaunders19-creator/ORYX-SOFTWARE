@@ -45,7 +45,9 @@ export default function JobDetailPage({
   })
   const parentJob = job?.parentJob ?? null
   const billingHandoff = job?.billingHandoff ?? null
-  const workflowJobId = job?.currentRevisionId ?? job?.id ?? id
+  // Parent detail page: status/PATCH operations target the parent itself.
+  // Revisions are independent items with their own detail pages.
+  const workflowJobId = job?.id ?? id
 
   // Revisions are not separate pages — one project card / one detail URL.
   useEffect(() => {
