@@ -1,9 +1,10 @@
 /**
- * Deadline tallies aligned with the jobs list “current revision” display.
+ * Deadline tallies aligned with dashboard “current revision” semantics.
  *
- * Parent cards overlay the latest revision’s status / required-by date. Dashboard
- * overdue counts must use the same rule — never sum raw parent + every revision
- * row, or the KPI drifts from /jobs?deadline=overdue.
+ * Dashboard overdue / active KPIs use the latest revision’s status and
+ * required-by date overlaid onto each original. The Job List no longer
+ * overlays those fields onto parent cards (parents own their own status);
+ * list filters therefore apply in SQL on parent columns.
  */
 import { buildRevisionFamilyIndex, type RevisionChainRow } from "@/lib/revision-chain"
 import { addDaysToIsoDate, todayIsoDate } from "@/shared/utils/utils"

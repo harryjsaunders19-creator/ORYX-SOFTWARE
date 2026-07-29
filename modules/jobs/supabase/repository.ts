@@ -645,11 +645,11 @@ export const supabaseJobRepo = {
     if (!parentIds.length) return map
     for (const id of parentIds) map.set(id, [])
     const { data, error } = await table()
-      .select("*")
+      .select(buildJobListSelect())
       .in("parent_job_id", parentIds)
       .order("revision_letter", { ascending: true })
     if (error) throw error
-    for (const row of data ?? []) {
+    for (const row of (data ?? []) as unknown as SupabaseJobRow[]) {
       const job = toJobRow(row)
       if (!job.parentJobId) continue
       const list = map.get(job.parentJobId) ?? []
@@ -662,11 +662,11 @@ export const supabaseJobRepo = {
   async findLatestRevisionsForParents(parentIds: string[]): Promise<JobRow[]> {
     if (!parentIds.length) return []
     const { data, error } = await table()
-      .select("*")
+      .select(buildJobListSelect())
       .in("parent_job_id", parentIds)
     if (error) throw error
     const latestByParent = new Map<string, JobRow>()
-    for (const row of data ?? []) {
+    for (const row of (data ?? []) as unknown as SupabaseJobRow[]) {
       const job = toJobRow(row)
       if (!job.parentJobId || !job.revisionLetter) continue
       const prev = latestByParent.get(job.parentJobId)

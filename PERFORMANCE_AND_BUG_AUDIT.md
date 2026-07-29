@@ -21,6 +21,7 @@ Highest-impact issues found and fixed in this pass:
 4. **Job List hold badges** called full `/api/hold-list`, which enriched every active hold with client + per-client job stats — far more work than a `Set` of `clientId`s.
 5. **Quote enrich for job list** selected `*` from quotes when only linkage/summary fields are needed.
 6. **Hold dashboard preview** loaded all active holds then `.slice(0, take)`.
+7. **`needsCurrentFilter`** loaded up to 5 000 full parent rows + sidecars then filtered in Node — obsolete after parent-status protection removed revision overlays; filters now stay in SQL with normal pagination.
 
 No P0 request loops, realtime subscription leaks, or production build failures were found. No new indexes were added — existing migrations already cover confirmed list/deadline/hold patterns.
 
@@ -59,7 +60,7 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 
 **Estimated DB round-trips to paint the list (happy path):** ~3–5 from the jobs API + 1 slim holds + 1 users/designers (designers is users table, not jobs). Exact counts depend on schema-fallback retries and whether revision parents exist on the page.
 
-**Heavy path (`onlyOriginals` + status/deadline/unassigned):** `needsCurrentFilter` loads up to `MAX_JOB_LIST_EXPORT_ROWS` (5000) then filters in Node — documented as remaining P1/P2 risk (see QUERY-003).
+**Heavy path (removed):** Previously `onlyOriginals` + status/deadline/unassigned triggered `needsCurrentFilter`, loading up to 5000 parents then filtering in Node. That path is gone — those filters always apply in SQL with `skip`/`take` pagination (parents own status/deadline after revision-status protection).
 
 ---
 
@@ -132,15 +133,17 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 * **Fix applied:** `QUOTE_JOB_LINK_SELECT` (id, number, value, status, job_id, updated_at, archived_at).  
 * **Expected benefit:** Smaller payloads per list page (≤25 job ids).
 
-### [QUERY-003] `needsCurrentFilter` materialises up to 5000 parents
+### [QUERY-003] `needsCurrentFilter` materialised up to 5000 parents
 
-* **Priority:** P1 (remaining) · **Confidence:** Confirmed  
-* **Affected location:** `modules/jobs/api/list.ts` when `onlyOriginals` + status/deadline/unassigned  
-* **Evidence:** `take: MAX_JOB_LIST_EXPORT_ROWS` then `filterByCurrentDisplay` + slice.  
-* **Root cause:** Current-revision display fields live on overlay, not parent row columns.  
-* **Fix applied or recommended:** **Recommended** — SQL/RPC that filters by effective current-revision status/deadline, or denormalised display columns on parents. Not implemented here (higher behavioural risk).  
-* **Risk of change:** High if naive.  
-* **Expected benefit:** Avoid multi-thousand-row transfers on filtered “originals only” views.
+* **Priority:** P1 · **Confidence:** Confirmed  
+* **Affected location:** `modules/jobs/api/list.ts`  
+* **Evidence:** Special path called `findManyWithCount` with `take: 5000`, then `filterByCurrentDisplay` + slice. After commit `00454e4`, `enrichRevisionFamily` no longer overlays revision status onto parents, so the JS filter matched parent columns only — identical to SQL `where` but without pagination.  
+* **Root cause:** Leftover from current-revision overlay list semantics.  
+* **User impact:** Slow filtered “originals only” list views; wrong totals possible when >5000 originals.  
+* **Fix applied:** Removed `needsCurrentFilter` / `filterByCurrentDisplay`; status, unassigned, and deadline filters always go to SQL.  
+* **Risk of change:** Low vs current post-overlay behaviour; aligns list with parent-owns-status. Dashboard overdue KPI still uses current-revision overlay (intentional; list `/jobs?deadline=overdue` was already SQL without `onlyOriginals`).  
+* **Validation:** tsc / unit / e2e / build.  
+* **Expected benefit:** Filtered originals lists stay O(page size) instead of O(all originals).
 
 ### [QUERY-004] Hold list full enrich on Job List
 
@@ -231,6 +234,10 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 4. Job detail GET parallelisation and `include=current` gating (`modules/jobs/api/by-id.ts`)  
 5. Hold list `fields=clientId` mode + SQL-limited preview  
 6. Jobs table uses slim hold endpoint  
+7. Removed obsolete `needsCurrentFilter` 5k materialisation — SQL filters + pagination (`modules/jobs/api/list.ts`)  
+8. Slim `revisionsForJobs` / `findLatestRevisionsForParents` selects  
+9. Opt-in list timing via `ORYX_PERF_LOG=1` in development  
+10. SWR fetcher accepts AbortSignal for obsolete-key cancellation  
 
 ---
 
@@ -254,11 +261,10 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 
 ## 13. Remaining recommendations
 
-1. **QUERY-003:** Replace `needsCurrentFilter` full materialisation with SQL/RPC or denormalised parent display columns.  
-2. Confirm migration **023** / **040** applied on production Supabase (list_sort_key + dashboard RPC).  
-3. Consider aborting in-flight job list fetches on rapid filter changes (SWR dedupe helps; AbortController would be stronger).  
-4. Slim `revisionsForJobs` / billing snapshot selects if billing payloads are large.  
-5. Optional DEV-only `performance.mark` around list API — not shipped to avoid production noise.
+1. Confirm migration **023** / **040** applied on production Supabase (`list_sort_key` + dashboard RPC).  
+2. If product later needs “filter originals by latest-revision status”, add denormalised parent display columns or an RPC — do not revive the 5k JS filter.  
+3. Slim billing snapshot history N+1 (`forWorkItem` loop) if billing batches grow.  
+4. Optional React Profiler recording on Job List in a browser with production-like data.
 
 ---
 
@@ -282,6 +288,7 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 | Job List holds | Full hold enrich (clients + job stats) | `client_id` only |
 | Quote enrich | `select("*")` | Slim link columns |
 | Revisions list select | `*` | Job list column set |
+| Originals + status/deadline | Up to 5k rows + JS filter | SQL filter + page-sized fetch |
 | Indexes | — | No change |
 | Wall-clock | Not measured | Not measured (no invented numbers) |
 
@@ -295,12 +302,14 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 | BUG-002 | Overdue full scan | P1 | Fixed |
 | QUERY-001 | Dashboard RPC | P1 | Fixed |
 | QUERY-002 | Quote `*` on list enrich | P1 | Fixed |
-| QUERY-003 | needsCurrentFilter 5k load | P1 | Remaining |
+| QUERY-003 | needsCurrentFilter 5k load | P1 | Fixed |
 | QUERY-004 | Hold enrich on Job List | P1 | Fixed |
 | QUERY-005 | Hold preview slice | P2 | Fixed |
 | PERF-001 | Detail sequential fetches | P1 | Fixed |
 | PERF-002 | revisionsForJob select | P2 | Fixed |
 | PERF-004 | Drawing sort fallback | P2 | Remaining (ops) |
+| PERF-005 | SWR AbortSignal | P2 | Fixed |
+| PERF-006 | DEV list timing (`ORYX_PERF_LOG`) | P3 | Fixed |
 | DB-001 | New indexes | P3 | Not needed |
 | RENDER-001–003 | Memo / debounce / virtualization | P3 | OK / skip |
 | BUNDLE-001 | Bundle weight | P3 | No change |

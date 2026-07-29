@@ -7,9 +7,30 @@ Related report: `PERFORMANCE_AND_BUG_AUDIT.md`
 
 ## Summary of files changed
 
+### `modules/jobs/api/list.ts` (follow-up)
+
+* **What:** Removed `needsCurrentFilter` / `filterByCurrentDisplay` path; always apply status/unassigned/deadline in SQL with normal pagination. Opt-in DEV timing via `ORYX_PERF_LOG=1`.  
+* **Why:** After parent-status protection, JS filter matched parent columns only but still loaded ≤5000 rows.  
+* **Behaviour:** Same as current post-overlay list semantics; faster and correctly paginated for `onlyOriginals` + filters.  
+* **Tested:** tsc, lint, unit, e2e, build.  
+* **Expected improvement:** Filtered originals lists no longer materialise the full originals set.  
+* **Rollback:** Restore previous GET branch from git history.
+
+### `shared/hooks/use-api.ts` (follow-up)
+
+* **What:** Fetcher forwards SWR `AbortSignal` when provided.  
+* **Why:** Reduce stale response races on rapid filter/search key changes.  
+* **Behaviour:** None when signal unused; aborted fetches throw AbortError (SWR handles).  
+* **Rollback:** Drop second fetcher argument.
+
+### `modules/jobs/services/deadline-tallies.ts` (follow-up)
+
+* **What:** Comment clarified — dashboard uses current-revision overlay; list does not.  
+* **Behaviour:** Documentation only.
+
 ### `modules/jobs/supabase/repository.ts`
 
-* **What:** Prefer `job_dashboard_counts` RPC; rewrite `findOverduePreview` to DB-filtered candidates; slim `revisionsForJob` select; add `findLatestRevisionForParent` and `countRevisionsForParent`.  
+* **What:** Prefer `job_dashboard_counts` RPC; rewrite `findOverduePreview` to DB-filtered candidates; slim `revisionsForJob` / bulk revision selects; add `findLatestRevisionForParent` and `countRevisionsForParent`.  
 * **Why:** Confirmed full-table / full-family reads on dashboard and detail hot paths.  
 * **Behaviour:** Same dashboard tallies and overdue semantics when RPC matches scan rules; detail still returns latest revision + accurate count.  
 * **Tested:** tsc, lint, unit + e2e, production build.  
@@ -88,7 +109,7 @@ Related report: `PERFORMANCE_AND_BUG_AUDIT.md`
 | User-visible behaviour | Changed? |
 |------------------------|----------|
 | Job statuses / revisions / drawing numbers | No |
-| Job List filters, search, sort, pagination | No |
+| Job List filters, search, sort, pagination | Pagination now correct for `onlyOriginals` + status/deadline (was JS over ≤5k) |
 | Hold badges on Job List | No (same clientId set) |
 | Hold list page | No |
 | Dashboard KPI semantics | No (RPC preferred when available) |

@@ -5,8 +5,9 @@ export function apiFetch(url: string, init?: RequestInit) {
   return fetch(url, { ...init, cache: "no-store" })
 }
 
-async function fetcher<T>(url: string): Promise<T> {
-  const res = await apiFetch(url)
+/** SWR passes AbortSignal so obsolete keys do not overwrite newer responses. */
+async function fetcher<T>(url: string, init?: { signal?: AbortSignal }): Promise<T> {
+  const res = await apiFetch(url, init?.signal ? { signal: init.signal } : undefined)
   if (!res.ok) {
     const body = await res.json().catch(() => ({})) as { error?: string }
     throw new Error(body.error ?? `HTTP ${res.status}`)
