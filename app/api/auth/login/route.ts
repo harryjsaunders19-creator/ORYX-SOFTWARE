@@ -71,19 +71,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
     }
 
-    // When Supabase is the primary user store, ensure this user exists there
-    // before issuing a session cookie. On Vercel every request may land on a
-    // fresh serverless container with an empty /tmp SQLite, so the session
-    // must be resolvable via Supabase on subsequent requests.
+    // Path A (Supabase-only): findByEmail already loaded this row from
+    // app_users. A post-login upsert is best-effort — never block sign-in on
+    // schema drift (e.g. missing module_access_json before migration 038).
+    // Historically this blocked when SQLite was primary and rows had to be
+    // dual-written to Supabase before the session cookie was issued.
     if (isSupabaseOnly()) {
       try {
         await supabaseUserRepo.upsert(user)
       } catch (err) {
-        logError("auth.login.supabase_sync", err, { userId: user.id })
-        return NextResponse.json(
-          { error: "Database sync error. Check Supabase configuration and ensure the users migration has been applied." },
-          { status: 503 },
-        )
+        const existing = await supabaseUserRepo.findUnique(user.id).catch(() => null)
+        if (existing) {
+          logError("auth.login.supabase_sync_nonfatal", err, { userId: user.id })
+        } else {
+          logError("auth.login.supabase_sync", err, { userId: user.id })
+          return NextResponse.json(
+            {
+              error:
+                "Database sync error. Check Supabase configuration and ensure the users migration has been applied.",
+            },
+            { status: 503 },
+          )
+        }
       }
     }
 

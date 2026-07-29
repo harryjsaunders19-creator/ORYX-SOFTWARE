@@ -6,6 +6,16 @@ function table() {
   return createAdminClient().from("app_users")
 }
 
+function isMissingModuleAccessColumn(error: unknown): boolean {
+  const msg = JSON.stringify(error ?? {}).toLowerCase()
+  return msg.includes("module_access_json") && (
+    msg.includes("does not exist")
+    || msg.includes("could not find")
+    || msg.includes("schema cache")
+    || msg.includes("pgrst204")
+  )
+}
+
 export const supabaseUserRepo = {
   async findMany(opts: { activeOnly?: boolean } = {}): Promise<UserRow[]> {
     let q = table().select("*").order("name")
@@ -54,8 +64,19 @@ export const supabaseUserRepo = {
   },
 
   async upsert(user: UserRow): Promise<void> {
-    const { error } = await table().upsert(toSupabaseAppUserRow(user), { onConflict: "id" })
-    if (error) throw error
+    const row = toSupabaseAppUserRow(user)
+    const { error } = await table().upsert(row, { onConflict: "id" })
+    if (!error) return
+
+    // Production may lag code if migration 038 has not been applied yet.
+    if (isMissingModuleAccessColumn(error)) {
+      const { module_access_json: _omit, ...legacy } = row
+      const retry = await table().upsert(legacy, { onConflict: "id" })
+      if (retry.error) throw retry.error
+      return
+    }
+
+    throw error
   },
 
   async delete(id: string): Promise<boolean> {
