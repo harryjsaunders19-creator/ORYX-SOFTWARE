@@ -132,6 +132,25 @@ export const supabaseQuoteRepo = {
     if (error) throwSupabaseError(error)
   },
 
+  async findByJobIds(jobIds: string[]): Promise<QuoteRow[]> {
+    if (!jobIds.length) return []
+    let q = quotesTable().select("*").in("job_id", jobIds).order("updated_at", { ascending: false })
+    if (quotesArchivedFilterEnabled()) q = q.is("archived_at", null)
+    const { data, error } = await q
+    if (error) throw error
+    return (data ?? []).map(toQuoteRow)
+  },
+
+  async setJobId(quoteId: string, jobId: string | null): Promise<QuoteRow | null> {
+    const { data, error } = await quotesTable()
+      .update({ job_id: jobId, updated_at: new Date().toISOString() })
+      .eq("id", quoteId)
+      .select("*")
+      .maybeSingle()
+    if (error) throwSupabaseError(error)
+    return data ? toQuoteRow(data) : null
+  },
+
   /** Link quote to job only when not already converted (idempotent under concurrency). */
   async linkJobId(quoteId: string, jobId: string): Promise<QuoteRow | null> {
     const { data, error } = await quotesTable()

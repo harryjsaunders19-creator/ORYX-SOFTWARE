@@ -153,11 +153,13 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
     { width: 14 }, { width: 12 }, { width: 28 }, { width: 20 },
     { width: 35 }, { width: 30 }, { width: 12 }, { width: 10 },
     { width: 12 }, { width: 16 }, { width: 20 }, { width: 30 },
+    { width: 16 },
   ]
   quoteSheet.addRow([
     "Quote Number", "Status", "Client", "Contact",
     "Site Address", "Description", "Quote Value (£)", "VAT Rate (%)",
     "Quote Date", "Expiry Date", "Created By", "Notes",
+    "Linked Job ID",
   ])
   styleHeader(quoteSheet)
   for (const q of quotes) {
@@ -174,6 +176,7 @@ export async function buildGlobalExportWorkbook(): Promise<ExcelJS.Workbook> {
       fmtDate(q.expiryDate),
       q.createdBy,
       q.notes ?? "",
+      q.jobId ?? "",
     ]))
   }
   applyColFmt(quoteSheet, 7, GBP_FMT, quotes.length)

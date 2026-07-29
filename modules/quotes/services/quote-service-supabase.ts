@@ -138,6 +138,16 @@ export const quoteService = {
     return quote
   },
 
+  async findByJobIds(jobIds: string[]): Promise<QuoteRow[]> {
+    return supabaseQuoteRepo.findByJobIds(jobIds)
+  },
+
+  async setJobId(quoteId: string, jobId: string | null): Promise<QuoteRow | null> {
+    const updated = await supabaseQuoteRepo.setJobId(quoteId, jobId)
+    if (updated) invalidateQuotePdf(quoteId)
+    return updated
+  },
+
   async linkToJob(quoteId: string, jobId: string): Promise<QuoteRow | null> {
     const linked = await supabaseQuoteRepo.linkJobId(quoteId, jobId)
     if (linked) invalidateQuotePdf(quoteId)

@@ -49,8 +49,21 @@ export interface Job {
   currentRevisionLetter?: string | null
   /** Set when archived — latest cancellation record from ArchiveLog. */
   cancelRecord?:    CancelRecord | null
+  /** Linked quotes via quotes.job_id — populated by list/detail API. */
+  linkedQuotes?:   LinkedQuoteSummary[]
+  /** Convenience: the "current" linked quote (accepted > latest updated). */
+  currentQuote?:   LinkedQuoteSummary | null
   createdAt:       string
   updatedAt:       string
+}
+
+/** Lightweight quote summary for job cards — avoids loading full quote documents. */
+export interface LinkedQuoteSummary {
+  id:          string
+  quoteNumber: string
+  quoteValue:  number
+  status:      string
+  updatedAt:   string
 }
 
 /** Cancellation metadata attached to archived jobs. */

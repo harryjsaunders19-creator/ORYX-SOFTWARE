@@ -70,11 +70,21 @@ function QuotesInner() {
   const [archiveQuote, setArchiveQuote] = useState<Quote | null>(null)
   const [archiving,    setArchiving]    = useState(false)
 
+  // Prepopulate from URL params when navigated from "Create quote for job"
+  const [createInitial, setCreateInitial] = useState<Partial<QuoteFormData> & { jobId?: string }>({})
+
   useEffect(() => {
     if (searchParams.get("new") !== "1") return
+    const init: Partial<QuoteFormData> & { jobId?: string } = {}
+    if (searchParams.get("jobId")) init.jobId = searchParams.get("jobId")!
+    if (searchParams.get("clientCompany")) init.clientCompany = searchParams.get("clientCompany")!
+    if (searchParams.get("clientId")) init.clientId = searchParams.get("clientId")!
+    if (searchParams.get("address")) init.address = searchParams.get("address")!
+    if (searchParams.get("typeOfWorks")) init.typeOfWorks = searchParams.get("typeOfWorks")!
+    setCreateInitial(init)
     setCreateOpen(true)
     const next = new URLSearchParams(searchParams.toString())
-    next.delete("new")
+    for (const k of ["new", "jobId", "clientCompany", "clientId", "address", "typeOfWorks"]) next.delete(k)
     const qs = next.toString()
     router.replace(qs ? `/quotes?${qs}` : "/quotes", { scroll: false })
   }, [searchParams, router])
@@ -105,7 +115,7 @@ function QuotesInner() {
     try {
       const res = await fetch("/api/quotes", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, status: "DRAFT" }),
+        body: JSON.stringify({ ...form, status: "DRAFT", ...(createInitial.jobId && { jobId: createInitial.jobId }) }),
       })
       const body = await res.json() as Quote & { error?: string }
       if (!res.ok) { toast(body.error ?? "Failed to create quote", "error"); return }
@@ -336,9 +346,10 @@ function QuotesInner() {
 
       <QuotesDialogs
         createOpen={createOpen}
-        onCreateClose={() => setCreateOpen(false)}
+        onCreateClose={() => { setCreateOpen(false); setCreateInitial({}) }}
         saving={saving}
         onCreateSubmit={doCreate}
+        createInitialOverrides={createInitial}
         editQuote={editQuote}
         onEditClose={() => setEditQuote(null)}
         editInitial={editQuote ? quoteToForm(editQuote) : null}
