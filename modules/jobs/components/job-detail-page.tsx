@@ -6,6 +6,7 @@ import { FileText } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -411,15 +412,21 @@ export default function JobDetailPage({
       />
 
       <Dialog open={documentsOpen} onOpenChange={setDocumentsOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent
+          size="xl"
+          className="h-[min(90vh,960px)]"
+          aria-describedby={undefined}
+        >
           <DialogHeader>
             <DialogTitle>Job documents</DialogTitle>
           </DialogHeader>
-          <JobDocumentsPanel
-            jobId={job.id}
-            canWrite={!isCancelled}
-            showTitle={false}
-          />
+          <DialogBody>
+            <JobDocumentsPanel
+              jobId={job.id}
+              canWrite={!isCancelled}
+              showTitle={false}
+            />
+          </DialogBody>
         </DialogContent>
       </Dialog>
     </PageShell>

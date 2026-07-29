@@ -51,7 +51,7 @@ DialogOverlay.displayName = "DialogOverlay"
  */
 export interface DialogContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
-  size?: "sm" | "md" | "lg"
+  size?: "sm" | "md" | "lg" | "xl"
   /** Show the top-right close control (default true). */
   showClose?: boolean
 }
@@ -68,10 +68,11 @@ export const DialogContent = React.forwardRef<
         // Position: centred in viewport, above backdrop
         "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101]",
         // Sizing
-        "w-[calc(100vw-2rem)] max-h-[85vh]",
+        "w-[calc(100vw-2rem)] max-h-[90vh]",
         size === "sm" && "max-w-[400px]",
         size === "md" && "max-w-[640px]",
         size === "lg" && "max-w-[900px]",
+        size === "xl" && "max-w-[1120px]",
         // Appearance — bg-sr provides the Tailwind class; inline style is the fallback.
         // rounded-xl → --radius-xl (12px) for cards / modals.
         "bg-sr border border-bd rounded-xl shadow-modal",
