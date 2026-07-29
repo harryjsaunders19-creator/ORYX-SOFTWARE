@@ -412,10 +412,10 @@ export function AuthLayout({
     <div className="flex min-h-screen flex-col bg-pg text-t1">
       <main className="flex flex-grow flex-col items-center justify-center px-4 py-8 md:px-10">
         <div className="mb-8 flex flex-col items-center">
-          <OryxLogo variant="auth" className="mb-2 h-16 w-auto md:h-20" priority />
+          <OryxLogo variant="login" className="mb-3 bg-transparent" priority />
           <span
             className={cn(
-              Typography.Display,
+              Typography.SectionHeading,
               "tracking-tighter uppercase text-t1",
             )}
           >

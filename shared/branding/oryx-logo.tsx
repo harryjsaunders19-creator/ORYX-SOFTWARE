@@ -1,9 +1,13 @@
 import Image from "next/image"
 import { cn } from "@/shared/utils"
-import { BRAND_LOGO_DOCUMENT, BRAND_LOGO_MENU } from "@/shared/branding/branding"
+import {
+  BRAND_LOGO_AUTH,
+  BRAND_LOGO_DOCUMENT,
+  BRAND_LOGO_MENU,
+} from "@/shared/branding/branding"
 
 type OryxLogoProps = {
-  /** `menu` — sidebar nav (greyscale logo). `login` / `auth*` / `document` — LOGO2025. */
+  /** `menu` — sidebar nav (greyscale logo). `login` / `auth*` — transparent wordmark. */
   variant?: "menu" | "sidebar" | "login" | "auth" | "auth-panel" | "document"
   className?: string
   priority?: boolean
@@ -25,24 +29,24 @@ const VARIANTS = {
     alt: "Oryx Scaffold Design",
   },
   auth: {
-    src: BRAND_LOGO_DOCUMENT,
-    width: 160,
-    height: 58,
-    className: "w-[120px] h-auto sm:w-[140px]",
+    src: BRAND_LOGO_AUTH,
+    width: 613,
+    height: 380,
+    className: "h-auto w-[260px] sm:w-[320px] md:w-[360px]",
     alt: "Oryx Scaffold Design",
   },
   "auth-panel": {
-    src: BRAND_LOGO_DOCUMENT,
-    width: 280,
-    height: 100,
-    className: "w-full max-w-[260px] h-auto",
+    src: BRAND_LOGO_AUTH,
+    width: 613,
+    height: 380,
+    className: "h-auto w-full max-w-[320px]",
     alt: "Oryx Scaffold Design",
   },
   login: {
-    src: BRAND_LOGO_DOCUMENT,
-    width: 320,
-    height: 120,
-    className: "w-[180px] h-auto sm:w-[240px]",
+    src: BRAND_LOGO_AUTH,
+    width: 613,
+    height: 380,
+    className: "h-auto w-[280px] sm:w-[340px] md:w-[400px]",
     alt: "Oryx Scaffold Design",
   },
   document: {
@@ -75,7 +79,7 @@ export function OryxLogo({ variant = "menu", className, priority }: OryxLogoProp
       alt={s.alt}
       width={s.width}
       height={s.height}
-      className={cn("shrink-0 object-contain", s.className, className)}
+      className={cn("shrink-0 object-contain bg-transparent", s.className, className)}
       priority={priority}
     />
   )
