@@ -18,8 +18,8 @@ changing filenames can desync Supabase migration history
 
 ## Convention going forward
 
-- New migrations: next unused number (`040_…`, `041_…`, …) with a unique prefix.
+- New migrations: next unused number (`041_…`, `042_…`, …) with a unique prefix.
 - Never reuse a number that already appears in this folder.
 - After editing migrations, regenerate bootstrap: `npm run supabase:bootstrap`.
 - `scripts/build-supabase-bootstrap.mjs` `MIGRATION_ORDER` must list every file in
-  this folder (currently through `039_job_design_standards.sql`).
+  this folder (currently through `040_dashboard_active_jobs_statuses.sql`).

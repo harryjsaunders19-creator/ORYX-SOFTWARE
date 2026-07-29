@@ -4,6 +4,7 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 import {
+  countActiveOriginalJobs,
   overdueOriginalIds,
   tallyDeadlineStats,
 } from "../../modules/jobs/services/deadline-tallies.ts"
@@ -98,5 +99,45 @@ describe("tallyDeadlineStats", () => {
       dueTodayCount: 1,
       dueThisWeekCount: 2,
     })
+  })
+})
+
+describe("countActiveOriginalJobs", () => {
+  it("counts only New Request, In Progress, and Requires Checking", () => {
+    const rows = [
+      row({ id: "a", status: "NEW_REQUEST" }),
+      row({ id: "b", status: "IN_DESIGN" }),
+      row({ id: "c", status: "CHECKING" }),
+      row({ id: "d", status: "READY_TO_SEND" }),
+      row({ id: "e", status: "ISSUED" }),
+    ]
+    assert.equal(countActiveOriginalJobs(rows), 3)
+  })
+
+  it("uses current-revision status so a completed current rev is not active", () => {
+    const rows = [
+      row({ id: "p1", status: "IN_DESIGN", requiredByDate: "2026-07-01" }),
+      row({
+        id: "r1",
+        parentJobId: "p1",
+        revisionLetter: "A",
+        status: "ISSUED",
+        requiredByDate: "2026-07-15",
+      }),
+    ]
+    assert.equal(countActiveOriginalJobs(rows), 0)
+  })
+
+  it("counts a parent once when the current revision is still in progress", () => {
+    const rows = [
+      row({ id: "p1", status: "ISSUED" }),
+      row({
+        id: "r1",
+        parentJobId: "p1",
+        revisionLetter: "A",
+        status: "CHECKING",
+      }),
+    ]
+    assert.equal(countActiveOriginalJobs(rows), 1)
   })
 })

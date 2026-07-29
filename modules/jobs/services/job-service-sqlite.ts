@@ -234,7 +234,7 @@ export const jobService = {
         jobDb.groupByStatus(),
         jobDb.groupByItemType(),
         jobDb.countWhere({ unassigned: true }),
-        jobDb.countWhere({ onlyOriginals: true }),
+        jobDb.countActiveOriginals(),
         jobDb.countWhere({ onlyRevisions: true }),
         jobDb.deadlineStats(),
       ])

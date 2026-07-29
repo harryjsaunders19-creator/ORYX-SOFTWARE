@@ -12,6 +12,7 @@ import {
   displayDeadlineByOriginal,
   overdueOriginalIds,
   tallyDeadlineStats,
+  countActiveOriginalJobs,
 } from "@/modules/jobs/services/deadline-tallies"
 
 export type { JobRow, CreateJobData, UpdateJobData } from "../job-types"
@@ -356,6 +357,20 @@ export const jobDb = {
       requiredByDate: string | null
     }[]
     return tallyDeadlineStats(rows, todayIsoDate())
+  },
+
+  /** Originals whose current-revision status is New / In Progress / Checking. */
+  countActiveOriginals(): number {
+    const rows = db.prepare(
+      "SELECT id, parentJobId, revisionLetter, status, requiredByDate FROM Job WHERE archivedAt IS NULL",
+    ).all() as {
+      id: string
+      parentJobId: string | null
+      revisionLetter: string | null
+      status: string
+      requiredByDate: string | null
+    }[]
+    return countActiveOriginalJobs(rows)
   },
 
   /** Overdue originals for dashboard alert — current-revision deadline semantics. */
