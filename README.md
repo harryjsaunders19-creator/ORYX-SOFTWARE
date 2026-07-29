@@ -21,10 +21,18 @@ Default dev logins (SQLite only, when `ALLOW_BOOTSTRAP_TEST_ACCOUNTS` is not blo
 ```bash
 npm run test:unit
 npm run test:e2e:setup   # if Playwright browser missing
+
+# Local e2e against SQLite (no Supabase credentials):
 npm run test:e2e
+
+# Local e2e against Supabase (Docker + Supabase CLI required — matches CI):
+npm run test:e2e:supabase
 ```
 
-CI runs typecheck, unit tests, lint, build, and e2e on every push to `main`.
+CI starts a local Supabase stack, seeds `admin@test.com` / `engineer@test.com`,
+and runs Playwright with `FORCE_SUPABASE_ONLY=true`.
+
+CI runs typecheck, unit tests, lint, build, and Supabase e2e on every push to `main`.
 
 ## Production on Vercel + Supabase
 

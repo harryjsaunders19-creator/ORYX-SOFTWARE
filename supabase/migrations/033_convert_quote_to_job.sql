@@ -125,16 +125,9 @@ begin
     raise exception 'convert_quote_to_job: failed to link quote (already converted or status changed)';
   end if;
 
-  -- Optional column from migration 030 — ignore if absent (handled by app best-effort).
-  begin
-    update public.quotes
-    set parent_job_id = v_job_id
-    where id = p_quote_id
-      and parent_job_id is null;
-  exception
-    when undefined_column then
-      null;
-  end;
+  -- Do not set quotes.parent_job_id here: that column references parent_jobs(id)
+  -- (migration 030), not jobs(id). Legacy convert only links via quotes.job_id.
+  -- Work-items convert sets parent_job_id in the app layer when a parent_jobs row exists.
 
   return jsonb_build_object(
     'job_id', v_job_id,

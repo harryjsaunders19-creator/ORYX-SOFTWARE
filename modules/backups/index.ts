@@ -17,6 +17,9 @@ export { supabaseBackupRepo } from "./supabase/repository"
 export {
   BACKUPS_DIR,
   LOCAL_BACKUPS_EPHEMERAL_ON_VERCEL,
+} from "./backup-paths"
+
+export {
   SCHEMA_VERSION,
   DEFAULT_RETENTION_COUNT,
   runBackup,

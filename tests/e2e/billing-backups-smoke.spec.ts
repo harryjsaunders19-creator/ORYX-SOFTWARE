@@ -47,6 +47,10 @@ test.describe("Billing + backups smoke", () => {
     }
     expect(Array.isArray(backupsBody.backups)).toBeTruthy()
     expect(typeof backupsBody.localBackupSupported).toBe("boolean")
+    // CI / Path A e2e runs with Supabase admin configured → local SQLite dumps disabled.
+    if (process.env.FORCE_SUPABASE_ONLY === "true" || process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      expect(backupsBody.localBackupSupported).toBe(false)
+    }
 
     await page.request.delete(`/api/jobs/${job.id}`, {
       data: { reason: "E2E billing smoke cleanup" },
