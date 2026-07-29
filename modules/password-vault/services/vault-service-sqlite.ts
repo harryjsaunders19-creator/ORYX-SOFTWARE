@@ -1,18 +1,13 @@
 /**
- * Account password vault — shared business credentials.
+ * Password vault — SQLite path for local/CI when Supabase admin is not configured.
  *
- * When SUPABASE_PASSWORD_VAULT=true:
- *   - Reads come from Supabase
- *   - Writes go to SQLite first, then mirror to Supabase (encrypted password_enc)
- *
- * Passwords are encrypted at rest (AES-256-GCM) before storage in either database.
- * List responses omit decrypted passwords; findUnique / create / update decrypt once.
+ * Dual-write to Supabase was removed: when admin credentials are present the
+ * entry router loads vault-service-supabase.ts instead (isSupabaseOnly()).
+ * Passwords are encrypted at rest (AES-256-GCM) before storage.
  */
 import { createId } from "@paralleldrive/cuid2"
 import { passwordVaultDb, type VaultSortOrder } from "@/lib/db/stores/vault"
 import type { PasswordVaultEntryRow } from "@/lib/db/vault-types"
-import { useSupabasePasswordVault } from "@/shared/supabase/feature-flags"
-import { supabasePasswordVaultRepo } from "../supabase/repository"
 import { decryptVaultSecret, encryptVaultSecret } from "../crypto/vault-crypto"
 import type {
   CreatePasswordVaultInput,
@@ -49,27 +44,6 @@ function toPublic(row: PasswordVaultEntryRow): PasswordVaultEntry {
   }
 }
 
-async function mirrorEntry(row: PasswordVaultEntryRow | null): Promise<void> {
-  if (row && useSupabasePasswordVault()) await supabasePasswordVaultRepo.upsert(row)
-}
-
-async function deleteMirror(id: string): Promise<void> {
-  if (useSupabasePasswordVault()) await supabasePasswordVaultRepo.delete(id)
-}
-
-async function fetchMany(opts: {
-  search?: string
-  sort?: VaultSortOrder
-}): Promise<PasswordVaultEntryRow[]> {
-  if (useSupabasePasswordVault()) return supabasePasswordVaultRepo.findMany(opts)
-  return passwordVaultDb.findMany(opts)
-}
-
-async function fetchUnique(id: string): Promise<PasswordVaultEntryRow | null> {
-  if (useSupabasePasswordVault()) return supabasePasswordVaultRepo.findUnique(id)
-  return passwordVaultDb.findUnique(id)
-}
-
 export const passwordVaultService = {
   async findMany(opts: {
     search?: string
@@ -77,12 +51,12 @@ export const passwordVaultService = {
     /** When true, decrypt passwords (admin export only). Default: omit. */
     revealPasswords?: boolean
   } = {}): Promise<PasswordVaultEntry[]> {
-    const rows = await fetchMany(opts)
+    const rows = passwordVaultDb.findMany(opts)
     return rows.map(opts.revealPasswords ? toPublic : toListPublic)
   },
 
   async findUnique(id: string): Promise<PasswordVaultEntry | null> {
-    const row = await fetchUnique(id)
+    const row = passwordVaultDb.findUnique(id)
     return row ? toPublic(row) : null
   },
 
@@ -96,7 +70,6 @@ export const passwordVaultService = {
       category: input.category,
       notes: input.notes,
     })
-    await mirrorEntry(row)
     return toPublic(row)
   },
 
@@ -110,14 +83,10 @@ export const passwordVaultService = {
       ...(input.notes !== undefined && { notes: input.notes }),
     })
     if (!row) return null
-    await mirrorEntry(row)
     return toPublic(row)
   },
 
   async delete(id: string): Promise<boolean> {
-    const ok = passwordVaultDb.delete(id)
-    if (!ok) return false
-    await deleteMirror(id)
-    return true
+    return passwordVaultDb.delete(id)
   },
 }

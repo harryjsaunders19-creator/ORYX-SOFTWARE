@@ -1,13 +1,15 @@
 /**
- * lib/supabase/feature-flags.ts
+ * shared/supabase/feature-flags.ts
  *
- * When Supabase admin credentials are set (URL + anon + service-role keys),
- * modules read from Supabase by default. Disable a module with
- * SUPABASE_<MODULE>=false. Force SQLite-only by omitting SUPABASE_SERVICE_ROLE_KEY.
+ * When Supabase admin credentials are set (URL + anon + service-role),
+ * `isSupabaseOnly()` is true and module entry routers load `*-supabase.ts`.
+ * Omit `SUPABASE_SERVICE_ROLE_KEY` for SQLite-only local/CI.
  *
- * On Vercel, SQLite is ephemeral (/tmp) — Supabase must be the data store.
- * When process.env.VERCEL === "1" or FORCE_SUPABASE_ONLY=true, flag() always
- * returns true if admin is configured (ignores SUPABASE_*=false overrides).
+ * Per-module `SUPABASE_<MODULE>=false` can opt a module out **only** when
+ * admin is configured and neither `VERCEL=1` nor `FORCE_SUPABASE_ONLY=true`.
+ * On Vercel / forced mode those overrides are ignored (ephemeral SQLite).
+ *
+ * See docs/sqlite-sunset.md for the Path A sunset plan.
  */
 import { isSupabaseAdminConfigured } from "./config"
 
@@ -110,8 +112,9 @@ export function useSupabaseJobDocuments(): boolean {
 }
 
 /**
- * Production / Vercel mode: Supabase is the sole data store.
- * SQLite is only used when the service-role key is absent (local dev).
+ * Production / linked-project mode: Supabase admin is configured, so entry
+ * routers load `*-supabase.ts` (not SQLite hybrids). Equivalent to
+ * `isSupabaseAdminConfigured()` — not gated on VERCEL alone.
  */
 export function isSupabaseOnly(): boolean {
   return isSupabaseAdminConfigured()
