@@ -152,14 +152,49 @@ export async function buildQuotePdfBuffer(id: string): Promise<{ pdfBytes: Uint8
   }
 
   // ── HEADER ────────────────────────────────────────────────────────────────
-  // Logo (real brand asset)
+  //
+  // Vertical coordinate plan (y=0 at page bottom, y=841.89 at top):
+  //
+  //  805 ┬ logo top
+  //  780 │ QUOTATION baseline   (34pt → cap top ~804, margin from page top ~38pt)
+  //  748 │ logo bottom / company name baseline (22pt → cap top ~764)
+  //  730 │ address line 1
+  //  718 │ address line 2
+  //  706 │ T: phone
+  //  694 │ Prepared by
+  //  679 ┴ full-width header rule
+  //  667   CUSTOMER / SITE headings
+  //  662   heading underrule
+  //  650   customer primary text
+  //  638   customer secondary text
+  //  625 ┴ full-width section separator rule
+  //  613   table header top → charcoal rect [595–613], rowTop returns 595
+
+  // Logo (real brand asset) — unchanged from original position
   page.drawImage(logoImage, { x: 52.2, y: 748.29, width: 92.8, height: 56.9 })
 
-  // Company name — 22pt bold
-  const coTextX = 155
-  drawText(COMPANY.name, coTextX, 781, { size: 22, bold: true })
+  // QUOTATION — 34pt, right column, drawn FIRST so it sits above company name visually
+  drawText("QUOTATION", MARGIN_R, 780, { size: 34, bold: true, align: "right" })
 
-  // Company details — 8pt muted
+  // Meta block below QUOTATION (labels muted 8pt, values semibold 9pt, step 13pt)
+  const metaRows: [string, string][] = [
+    ["DATE",        fmtDate(quote.quoteDate)],
+    ["QUOTE #",     quote.quoteNumber],
+    ["CUSTOMER ID", customerId ?? "—"],
+    ["VALID UNTIL", fmtDate(quote.expiryDate)],
+  ]
+  let metaY = 754   // first meta row — well below QUOTATION descender (~773)
+  for (const [label, value] of metaRows) {
+    drawText(label, 478, metaY, { size: 8, align: "right", color: LABEL_C })
+    drawText(value, MARGIN_R, metaY, { size: 9, bold: true, align: "right" })
+    metaY -= 13
+  }
+
+  // Company name — 22pt bold, left column, baseline aligned with logo bottom
+  const coTextX = 155
+  drawText(COMPANY.name, coTextX, 748, { size: 22, bold: true })
+
+  // Company details — 8pt muted, 18pt gap below 22pt name, then 12pt steps
   const details = [
     COMPANY.addressLines[0],
     COMPANY.addressLines[1],
@@ -167,35 +202,19 @@ export async function buildQuotePdfBuffer(id: string): Promise<{ pdfBytes: Uint8
     `Prepared by: ${preparedBy}`,
   ]
   details.forEach((line, i) => {
-    drawText(line, coTextX, 765 - i * 12, { size: 8, color: LABEL_C })
+    drawText(line, coTextX, 730 - i * 12, { size: 8, color: LABEL_C })
   })
 
-  // QUOTATION title — 34pt bold, right-aligned
-  drawText("QUOTATION", MARGIN_R, 781, { size: 34, bold: true, align: "right" })
-
-  // Meta block (DATE / QUOTE # / CUSTOMER ID / VALID UNTIL) — right-aligned two-column
-  const metaRows: [string, string][] = [
-    ["DATE",        fmtDate(quote.quoteDate)],
-    ["QUOTE #",     quote.quoteNumber],
-    ["CUSTOMER ID", customerId ?? "—"],
-    ["VALID UNTIL", fmtDate(quote.expiryDate)],
-  ]
-  let metaY = 761
-  for (const [label, value] of metaRows) {
-    drawText(label, 482, metaY, { size: 8, align: "right", color: LABEL_C })
-    drawText(value, MARGIN_R, metaY, { size: 9, bold: true, align: "right" })
-    metaY -= 13
-  }
-
-  // Full-width header separator
-  drawHRule(715)
+  // Full-width header separator — 13pt below last detail baseline (694)
+  drawHRule(679)
 
   // ── CUSTOMER / SITE ───────────────────────────────────────────────────────
   const halfW    = (CONTENT_W - 16) / 2   // two equal columns with 16pt gap
   const siteColX = MARGIN_L + halfW + 16
 
-  drawSectionHeading("CUSTOMER", MARGIN_L, 703, halfW)
-  let custY = 691
+  // Headings 12pt below the header rule
+  drawSectionHeading("CUSTOMER", MARGIN_L, 667, halfW)
+  let custY = 650   // 17pt below heading baseline (accounts for 9pt heading + 5pt rule + gap)
   drawText(truncateToWidth(quote.clientCompany, fontRegular, 10, halfW - 4), MARGIN_L, custY, { size: 10 })
   custY -= 13
   if (quote.contactName) {
@@ -205,13 +224,14 @@ export async function buildQuotePdfBuffer(id: string): Promise<{ pdfBytes: Uint8
     )
   }
 
-  drawSectionHeading("SITE", siteColX, 703, halfW)
-  drawText(truncateToWidth(quote.address, fontRegular, 10, halfW - 4), siteColX, 691, { size: 10 })
+  drawSectionHeading("SITE", siteColX, 667, halfW)
+  drawText(truncateToWidth(quote.address, fontRegular, 10, halfW - 4), siteColX, 650, { size: 10 })
 
-  drawHRule(672)
+  // Section separator — 13pt below lowest customer/site content
+  drawHRule(625)
 
   // ── ITEM TABLE ────────────────────────────────────────────────────────────
-  // Column x boundaries — columns separated by whitespace, no vertical dividers
+  // Column x boundaries — whitespace creates visual columns, no vertical dividers
   const COL_DESC_X  = MARGIN_L
   const COL_PO_X    = 362          // Purchase Order column start
   const COL_VAT_X   = 427          // VAT column start
@@ -221,7 +241,7 @@ export async function buildQuotePdfBuffer(id: string): Promise<{ pdfBytes: Uint8
   const ROW_H_MIN  = 22
   const ROW_LINE_H = 13
   // Space reserved below table for totals + terms + footer
-  const FOOTER_RES = 200
+  const FOOTER_RES = 215
   const PAGE_SAFE  = 40
 
   function drawTableHeader(p: typeof page, topY: number): number {
@@ -239,7 +259,7 @@ export async function buildQuotePdfBuffer(id: string): Promise<{ pdfBytes: Uint8
     return topY - HDR_H
   }
 
-  let rowTop = drawTableHeader(page, 660)
+  let rowTop = drawTableHeader(page, 613)
   let paginationOccurred = false
   let bandIndex = 0
 
