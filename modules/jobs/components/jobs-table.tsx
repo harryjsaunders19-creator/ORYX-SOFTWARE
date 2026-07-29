@@ -7,19 +7,9 @@ import {
 } from "lucide-react"
 import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
-import { Textarea } from "@/shared/ui/textarea"
-import {
-  Dialog, DialogContent, DialogHeader, DialogFooter,
-  DialogTitle, DialogDescription, DialogBody,
-} from "@/shared/ui/dialog"
-import dynamic from "next/dynamic"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useApi, optimisticListRemove, optimisticListPrepend } from "@/shared/hooks/use-api"
-
-// Lazy-load heavy dialog components — only downloaded when the user first
-// opens a create/edit dialog, not on every initial page load.
-const JobForm            = dynamic(() => import("./job-form").then(m => m.JobForm), { ssr: false })
 import { useToast }      from "@/shared/ui/toast"
 import { useUser }       from "@/shared/providers/user-context"
 import { cn } from "@/shared/utils/utils"
@@ -33,6 +23,7 @@ import {
 } from "./jobs-table-row"
 import { JobsActiveFilterChips, JobsFilterBar } from "./jobs-filter-bar"
 import { exportJobsToCsv } from "./job-csv-export"
+import { JobsDialogs } from "./jobs-dialogs"
 
 export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" }) {
   const isCheckingQueue = mode === "checking"
@@ -527,86 +518,23 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         pageSize={LIMIT}
       />
 
-      {/* Create dialog */}
-      <Dialog open={createOpen} onOpenChange={o => { if (!createSaving) setCreateOpen(o) }}>
-        <DialogContent size="lg">
-          <DialogHeader>
-            <DialogTitle>New job</DialogTitle>
-            <DialogDescription>
-              Create a design, site visit, or CAT III check. Reference numbers are assigned automatically.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody>
-            <JobForm key={createOpen ? "open" : "closed"} formId="create-job-form" onSubmit={handleCreate} designers={designers} />
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSaving}>Cancel</Button>
-            <Button type="submit" form="create-job-form" variant="primary" loading={createSaving} disabled={createSaving}>
-              {createSaving ? "Creating…" : "Create job"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit dialog */}
-      <Dialog open={!!editJob} onOpenChange={o => { if (!o && !editSaving) setEditJob(null) }}>
-        <DialogContent size="lg">
-          <DialogHeader>
-            <DialogTitle>Edit job</DialogTitle>
-            <DialogDescription>Update job details and status.</DialogDescription>
-          </DialogHeader>
-          <DialogBody>
-            {editJob && <JobForm key={editJob.id} formId="edit-job-form" job={editJob} onSubmit={handleEdit} designers={designers} />}
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditJob(null)} disabled={editSaving}>Cancel</Button>
-            <Button type="submit" form="edit-job-form" variant="primary" loading={editSaving} disabled={editSaving}>
-              {editSaving ? "Saving…" : "Save changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Cancel dialog */}
-      <Dialog open={!!deleteJob} onOpenChange={o => {
-        if (!o && !deleting) { setDeleteJob(null); setCancelReason("") }
-      }}>
-        <DialogContent size="sm">
-          <DialogHeader>
-            <DialogTitle>Cancel job</DialogTitle>
-            <DialogDescription>
-              Cancel{" "}
-              <span className="font-mono font-semibold text-ac">{deleteJob?.drawingNumber}</span>?
-              The job moves to <strong>Archived Items</strong>. Its drawing number is kept on record and will not be reused. You can restore it later from Archive.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody>
-            <label className="block text-xs font-medium text-t2 mb-1.5">
-              Reason for cancellation <span className="text-dn">*</span>
-            </label>
-            <Textarea
-              value={cancelReason}
-              onChange={e => setCancelReason(e.target.value)}
-              placeholder="e.g. Client withdrew, duplicate entry, project cancelled…"
-              rows={3}
-              autoFocus
-            />
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setDeleteJob(null); setCancelReason("") }} disabled={deleting}>
-              Keep job
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleDelete}
-              loading={deleting}
-              disabled={deleting || cancelReason.trim().length < 3}
-            >
-              {deleting ? "Cancelling…" : "Cancel job"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <JobsDialogs
+        createOpen={createOpen}
+        createSaving={createSaving}
+        onCreateClose={() => setCreateOpen(false)}
+        onCreateSubmit={handleCreate}
+        editJob={editJob}
+        editSaving={editSaving}
+        onEditClose={() => setEditJob(null)}
+        onEditSubmit={handleEdit}
+        deleteJob={deleteJob}
+        deleting={deleting}
+        cancelReason={cancelReason}
+        onCancelReasonChange={setCancelReason}
+        onDeleteClose={() => { setDeleteJob(null); setCancelReason("") }}
+        onDeleteConfirm={handleDelete}
+        designers={designers}
+      />
     </>
   )
 }
