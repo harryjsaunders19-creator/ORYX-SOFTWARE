@@ -1,24 +1,26 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { FileText } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useToast } from "@/shared/ui/toast"
-import { totalJobCommercialValue, getJobDeadlineInfo } from "@/shared/utils/utils"
+import { totalJobCommercialValue } from "@/shared/utils/utils"
 import { useUser } from "@/shared/providers/user-context"
 import { PageShell, PageBreadcrumb } from "@/shared/layouts/page-layout"
-// Perf: SWR caches job detail across navigations; parent/billing keys follow when known.
 import { useApi } from "@/shared/hooks/use-api"
 import type { Job, JobFormData, BillingHandoff } from "@/lib/types"
 import { Skeleton } from "./job-page-primitives"
 import { downloadCat2CheckSheet } from "./cat2-check-sheet-export"
 import { JobDetailHeader } from "./job-detail-header"
+import { JobDetailPrimaryActions } from "./job-detail-primary-actions"
+import { JobDetailAttention, buildAttentionItems, type AttentionAction } from "./job-detail-attention"
+import { JobDetailCurrentRevision } from "./job-detail-current-revision"
+import { JobDetailSummary } from "./job-detail-summary"
 import { JobDetailTabs } from "./job-detail-tabs"
 import type { DetailTab } from "./job-detail-tabs"
 import { JobDetailSidebar } from "./job-detail-sidebar"
 import { JobDetailDialogs } from "./job-detail-dialogs"
 import type { RevisionFamilyResponse } from "../types/revision-types"
-import { JobRevisionOverview } from "./job-revision-overview"
 import { AddRevisionModal } from "./add-revision-modal"
 import { AttachExistingQuoteModal } from "./attach-existing-quote-modal"
 import { notifyRevisionsChanged } from "@/lib/revision-events"
@@ -29,9 +31,9 @@ export default function JobDetailPage({
   fallbackJob?: (Job & { parentJob?: Job | null; billingHandoff?: BillingHandoff | null }) | null
 } = {}) {
   const params = useParams()
-  const id     = params.id as string
+  const id = params.id as string
   const router = useRouter()
-  const { toast }    = useToast()
+  const { toast } = useToast()
   const { isAdmin } = useUser()
 
   const detailKey = id
@@ -48,10 +50,7 @@ export default function JobDetailPage({
   >(detailKey, {
     fallbackData: fallbackJob ?? undefined,
   })
-  const parentJob = job?.parentJob ?? null
   const billingHandoff = job?.billingHandoff ?? null
-  // Parent detail page: status/PATCH operations target the parent itself.
-  // Revisions are independent items with their own detail pages.
   const workflowJobId = job?.id ?? id
 
   const revisionsKey = id ? `/api/jobs/${id}/revisions` : null
@@ -65,14 +64,12 @@ export default function JobDetailPage({
   const [attachQuoteOpen, setAttachQuoteOpen] = useState(false)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
 
-  // Revisions are not separate pages — one project card / one detail URL.
   useEffect(() => {
     if (job?.parentJobId) {
       router.replace(`/jobs/${job.parentJobId}`)
     }
   }, [job?.parentJobId, router])
 
-  // Default selection to the current revision (or original) once family loads.
   useEffect(() => {
     if (!revisionFamily || selectedRevisionId) return
     const current = revisionFamily.chain.find(e => e.isCurrent)
@@ -82,17 +79,17 @@ export default function JobDetailPage({
   const notFound = !!jobError && /404|Not found/i.test(jobError.message)
   const loading = (isLoading && !job) || !!job?.parentJobId
 
-  const [editOpen,   setEditOpen]   = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [editSaving, setEditSaving] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
-  const [delOpen,    setDelOpen]    = useState(false)
-  const [deleting,   setDeleting]   = useState(false)
+  const [delOpen, setDelOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
-  const [restoring,  setRestoring]  = useState(false)
+  const [restoring, setRestoring] = useState(false)
   const [historyKey, setHistoryKey] = useState(0)
-  const [activeTab, setActiveTab] = useState<DetailTab>("information")
-  const [dnEditOpen,   setDnEditOpen]   = useState(false)
-  const [dnEditValue,  setDnEditValue]  = useState("")
+  const [activeTab, setActiveTab] = useState<DetailTab>("overview")
+  const [dnEditOpen, setDnEditOpen] = useState(false)
+  const [dnEditValue, setDnEditValue] = useState("")
   const [dnEditSaving, setDnEditSaving] = useState(false)
   const [cat2Exporting, setCat2Exporting] = useState(false)
 
@@ -124,7 +121,6 @@ export default function JobDetailPage({
     } finally { setEditSaving(false) }
   }
 
-  /** Reassign designer from the overview dropdown (Users directory only). */
   const handleDesignerChange = async (designer: string) => {
     if (!job) return
     const previous = job.designer ?? ""
@@ -186,11 +182,6 @@ export default function JobDetailPage({
       ...(job.typeOfWorks ? { typeOfWorks: job.typeOfWorks } : {}),
     })
     router.push(`/quotes?${p}`)
-  }
-
-  const handleAttachExistingQuote = () => {
-    if (!job) return
-    setAttachQuoteOpen(true)
   }
 
   const handleDelete = async () => {
@@ -264,6 +255,31 @@ export default function JobDetailPage({
     finally { setDnEditSaving(false) }
   }
 
+  const attentionItems = useMemo(
+    () => (job ? buildAttentionItems(job, revisionFamily ?? null) : []),
+    [job, revisionFamily],
+  )
+
+  const handleAttentionAction = (action: AttentionAction) => {
+    switch (action) {
+      case "assign":
+        setAssignOpen(true)
+        break
+      case "create-quote":
+        handleCreateQuote()
+        break
+      case "status":
+        setActiveTab("overview")
+        break
+      case "billing":
+        router.push("/billing")
+        break
+      case "deadline":
+        setActiveTab("overview")
+        break
+    }
+  }
+
   if (loading) return <PageShell wide><Skeleton /></PageShell>
 
   if (notFound || !job) return (
@@ -277,9 +293,11 @@ export default function JobDetailPage({
 
   const isRevision = job.parentJobId !== null
   const isCancelled = !!job.archivedAt
-  const revLetter = job.currentRevisionLetter ?? job.revisionLetter
   const commercialTotal = totalJobCommercialValue(job)
-  const dl = getJobDeadlineInfo(job)
+  const focus = job.currentRevision ?? job
+  const canExportCat2 = focus.status === "ISSUED" || job.status === "ISSUED"
+  const canAddRevision = !!revisionFamily?.canAddRevision
+  const hasDesigner = !!(focus.designer?.trim() || job.designer?.trim())
 
   return (
     <PageShell wide>
@@ -290,74 +308,95 @@ export default function JobDetailPage({
         ]}
       />
 
-      {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-        <div className="lg:col-span-7 space-y-6">
-          <JobDetailHeader
-            job={job}
-            isCancelled={isCancelled}
-            revLetter={revLetter}
-            isAdmin={isAdmin}
-            restoring={restoring}
-            onRestore={handleRestore}
-            onEdit={() => setEditOpen(true)}
-            onAssign={() => setAssignOpen(true)}
-            onDelete={() => setDelOpen(true)}
-            onEditDrawingNumber={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
-            revisionFamily={revisionFamily ?? null}
-            selectedRevisionId={selectedRevisionId}
-          />
-
-          <JobRevisionOverview
-            job={job}
-            revisionFamily={revisionFamily ?? null}
-            isLoading={revisionsLoading}
-            selectedRevisionId={selectedRevisionId}
-            onSelectedRevisionId={setSelectedRevisionId}
-            onAddRevision={() => setRevisionModalOpen(true)}
-          />
-
-          <JobDetailTabs
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            job={job}
-            workflowJobId={workflowJobId}
-            historyKey={historyKey}
-            isCancelled={isCancelled}
-            isRevision={isRevision}
-            parentJob={parentJob}
-            billingHandoff={billingHandoff}
-            commercialTotal={commercialTotal}
-            revisionFamily={revisionFamily ?? null}
-            onFamilyChanged={() => {
-              void mutateJob()
-              void mutateRevisionFamily()
-            }}
-            onOpenEdit={() => setEditOpen(true)}
-            onStatusChange={s => {
-              void mutateJob({ ...job, status: s }, { revalidate: false })
-              setHistoryKey(k => k + 1)
-            }}
-            onHistoryKeyIncrement={() => setHistoryKey(k => k + 1)}
-            onDesignerChange={v => void handleDesignerChange(v)}
-          />
-        </div>
-
-        <JobDetailSidebar
+      <div className="space-y-6">
+        <JobDetailHeader
           job={job}
-          dl={dl}
           isCancelled={isCancelled}
           isAdmin={isAdmin}
-          cat2Exporting={cat2Exporting}
+          restoring={restoring}
+          onRestore={handleRestore}
           revisionFamily={revisionFamily ?? null}
-          onAssign={() => setAssignOpen(true)}
-          onEdit={() => setEditOpen(true)}
-          onCreateQuote={() => handleCreateQuote()}
-          onAttachExistingQuote={() => handleAttachExistingQuote()}
-          onCat2Export={() => void handleCat2Export()}
-          onDelete={() => setDelOpen(true)}
-          onOpenDocumentsTab={() => setActiveTab("documents")}
         />
+
+        <JobDetailPrimaryActions
+          isCancelled={isCancelled}
+          isAdmin={isAdmin}
+          canAddRevision={canAddRevision}
+          canExportCat2={canExportCat2}
+          hasDesigner={hasDesigner}
+          cat2Exporting={cat2Exporting}
+          onAssign={() => setAssignOpen(true)}
+          onCreateQuote={handleCreateQuote}
+          onEdit={() => setEditOpen(true)}
+          onAddRevision={() => setRevisionModalOpen(true)}
+          onAttachQuote={() => setAttachQuoteOpen(true)}
+          onCat2Export={() => void handleCat2Export()}
+          onEditDrawingNumber={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
+          onDelete={() => setDelOpen(true)}
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+          <div className="lg:col-span-7 space-y-4">
+            <JobDetailAttention
+              items={attentionItems}
+              onAction={handleAttentionAction}
+            />
+
+            <JobDetailCurrentRevision
+              job={job}
+              revisionFamily={revisionFamily ?? null}
+              isLoading={revisionsLoading}
+              onOpenRevisions={() => setActiveTab("revisions")}
+              onAddRevision={() => setRevisionModalOpen(true)}
+            />
+
+            <JobDetailSummary
+              job={job}
+              revisionFamily={revisionFamily ?? null}
+            />
+
+            <JobDetailTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              job={job}
+              workflowJobId={workflowJobId}
+              historyKey={historyKey}
+              isCancelled={isCancelled}
+              billingHandoff={billingHandoff}
+              commercialTotal={commercialTotal}
+              revisionFamily={revisionFamily ?? null}
+              revisionsLoading={revisionsLoading}
+              selectedRevisionId={selectedRevisionId}
+              onSelectedRevisionId={setSelectedRevisionId}
+              onAddRevision={() => setRevisionModalOpen(true)}
+              onStatusChange={s => {
+                void mutateJob({ ...job, status: s }, { revalidate: false })
+                setHistoryKey(k => k + 1)
+              }}
+              onHistoryKeyIncrement={() => setHistoryKey(k => k + 1)}
+              onDesignerChange={v => void handleDesignerChange(v)}
+            />
+          </div>
+
+          <JobDetailSidebar
+            job={job}
+            isCancelled={isCancelled}
+            isAdmin={isAdmin}
+            cat2Exporting={cat2Exporting}
+            canExportCat2={canExportCat2}
+            canAddRevision={canAddRevision}
+            revisionFamily={revisionFamily ?? null}
+            onAssign={() => setAssignOpen(true)}
+            onEdit={() => setEditOpen(true)}
+            onCreateQuote={handleCreateQuote}
+            onAttachExistingQuote={() => setAttachQuoteOpen(true)}
+            onAddRevision={() => setRevisionModalOpen(true)}
+            onCat2Export={() => void handleCat2Export()}
+            onDelete={() => setDelOpen(true)}
+            onOpenDocumentsTab={() => setActiveTab("documents")}
+            onOpenRevisionsTab={() => setActiveTab("revisions")}
+          />
+        </div>
       </div>
 
       <JobDetailDialogs
