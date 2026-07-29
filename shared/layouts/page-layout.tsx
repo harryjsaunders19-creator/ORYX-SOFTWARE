@@ -1,11 +1,12 @@
 "use client"
 import { Fragment } from "react"
 import Link from "next/link"
-import { ArrowLeft, ChevronLeft, ChevronRight, Search } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, Lock, Search } from "lucide-react"
 import { cn } from "@/shared/utils"
 import { Input } from "@/shared/ui/input"
 import { Button } from "@/shared/ui/button"
 import { Typography } from "@/shared/design/typography"
+import { OryxLogo } from "@/shared/branding/oryx-logo"
 
 /** Stitch surface — bordered card, minimal shadow. */
 export const surfaceCard = "oryx-surface-card bg-sr border border-bd rounded-xl"
@@ -382,55 +383,73 @@ export function EmptyPanel({ icon: Icon, title, description, action }: {
   )
 }
 
-/** Auth brand block — form panel title. */
+/** Auth form title inside the login card — Stitch Login - ORYX OS. */
 export function AuthBrand({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <>
-      <div className="flex items-center gap-3 mb-6 lg:hidden">
-        <div className="size-8 text-t1 shrink-0">
-          <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-            <path d="M8.57829 8.57829C5.52816 11.6284 3.451 15.5145 2.60947 19.7452C1.76794 23.9758 2.19984 28.361 3.85056 32.3462C5.50128 36.3314 8.29667 39.7376 11.8832 42.134C15.4698 44.5305 19.6865 45.8096 24 45.8096C28.3135 45.8096 32.5302 44.5305 36.1168 42.134C39.7033 39.7375 42.4987 36.3314 44.1494 32.3462C45.8002 28.361 46.2321 23.9758 45.3905 19.7452C44.549 15.5145 42.4718 11.6284 39.4217 8.57829L24 24L8.57829 8.57829Z" fill="currentColor" />
-          </svg>
-        </div>
-        <div>
-          <p className={cn(Typography.Small, "font-semibold tracking-tight text-t1")}>Oryx Design</p>
-        </div>
-      </div>
-      <h1 className={cn(Typography.PageTitle, "text-t1 text-center lg:text-left")}>{title}</h1>
-      {subtitle && <p className={cn(Typography.Small, "text-t3 mt-1 mb-7 text-center lg:text-left")}>{subtitle}</p>}
-      {!subtitle && <div className="mb-7" />}
-    </>
+    <div className="mb-8 text-center">
+      <h1 className={cn(Typography.CardTitle, "font-semibold text-t1")}>{title}</h1>
+      {subtitle ? (
+        <p className={cn(Typography.Small, "mt-2 text-t3")}>{subtitle}</p>
+      ) : null}
+    </div>
   )
 }
 
-/** Centred auth — Stitch monochrome split layout. */
-export function AuthLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex bg-pg">
-      <div className="hidden lg:flex lg:w-[44%] xl:w-[42%] flex-col justify-between p-12 text-sr bg-t1 relative overflow-hidden">
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="size-10 text-sr shrink-0">
-              <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                <path d="M8.57829 8.57829C5.52816 11.6284 3.451 15.5145 2.60947 19.7452C1.76794 23.9758 2.19984 28.361 3.85056 32.3462C5.50128 36.3314 8.29667 39.7376 11.8832 42.134C15.4698 44.5305 19.6865 45.8096 24 45.8096C28.3135 45.8096 32.5302 44.5305 36.1168 42.134C39.7033 39.7375 42.4987 36.3314 44.1494 32.3462C45.8002 28.361 46.2321 23.9758 45.3905 19.7452C44.549 15.5145 42.4718 11.6284 39.4217 8.57829L24 24L8.57829 8.57829Z" fill="currentColor" />
-              </svg>
-            </div>
-            <div>
-              <h2 className={cn(Typography.CardTitle, "leading-none")}>Oryx Design</h2>
-            </div>
-          </div>
-          <p className={cn(Typography.SectionHeading, "max-w-sm text-sr/90")}>
-            Engineering operations dashboard for scaffold design consultancy.
-          </p>
-        </div>
-        <p className={cn(Typography.Helper, "text-t4 relative z-10")}>Oryx Design Ltd · Scaffold Consultancy</p>
-      </div>
+/**
+ * Centred auth shell — Stitch “Login - ORYX OS”.
+ * Brand mark above the card, secure badge below, footer chrome.
+ */
+export function AuthLayout({
+  children,
+  showSecureBadge = true,
+}: {
+  children: React.ReactNode
+  showSecureBadge?: boolean
+}) {
+  const year = new Date().getFullYear()
 
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-[420px] oryx-surface-card bg-sr border border-bd rounded-md p-8 sm:p-10">
+  return (
+    <div className="flex min-h-screen flex-col bg-pg text-t1">
+      <main className="flex flex-grow flex-col items-center justify-center px-4 py-8 md:px-10">
+        <div className="mb-8 flex flex-col items-center">
+          <OryxLogo variant="auth" className="mb-2 h-16 w-auto md:h-20" priority />
+          <span
+            className={cn(
+              Typography.Display,
+              "tracking-tighter uppercase text-t1",
+            )}
+          >
+            ORYX OS
+          </span>
+        </div>
+
+        <div className="w-full max-w-[440px] rounded border border-bd bg-sr p-6 shadow-sm md:p-8">
           {children}
         </div>
-      </div>
+
+        {showSecureBadge ? (
+          <div className="mt-6 flex items-center gap-1.5 text-t3">
+            <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <p className={cn(Typography.Helper, "font-semibold uppercase tracking-wide")}>
+              Secure enterprise authentication endpoint
+            </p>
+          </div>
+        ) : null}
+      </main>
+
+      <footer className="mt-auto flex w-full flex-col items-center justify-between gap-4 border-t border-bd bg-pg px-6 py-6 md:flex-row md:px-10">
+        <div className="flex flex-col items-center gap-2 md:flex-row md:gap-4">
+          <span className={cn(Typography.Helper, "font-bold text-t1")}>ORYX OS</span>
+          <span className={cn(Typography.Helper, "text-center text-t3 md:text-left")}>
+            © {year} ORYX OS. Engineering Precision for Scaffold Design.
+          </span>
+        </div>
+        <div className="flex flex-wrap justify-center gap-6">
+          <span className={cn(Typography.Helper, "text-t3")}>Terms of Service</span>
+          <span className={cn(Typography.Helper, "text-t3")}>Privacy Policy</span>
+          <span className={cn(Typography.Helper, "text-t3")}>System Status</span>
+        </div>
+      </footer>
     </div>
   )
 }
