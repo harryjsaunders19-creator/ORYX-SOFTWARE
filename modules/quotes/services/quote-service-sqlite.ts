@@ -45,6 +45,16 @@ export const quoteService = {
     return quote
   },
 
+  async findByJobIds(jobIds: string[]): Promise<QuoteRow[]> {
+    return quoteDb.findByJobIds(jobIds)
+  },
+
+  async setJobId(quoteId: string, jobId: string | null): Promise<QuoteRow | null> {
+    const quote = quoteDb.update(quoteId, { jobId })
+    if (quote) invalidateQuotePdf(quoteId)
+    return quote
+  },
+
   /**
    * Atomically link a quote to a job (convert flow).
    */

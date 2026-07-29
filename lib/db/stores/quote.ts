@@ -47,6 +47,14 @@ export const quoteDb = {
     return (db.prepare("SELECT * FROM Quote WHERE quoteNumber = ?").get(quoteNumber) as QuoteRow) ?? null
   },
 
+  findByJobIds(jobIds: string[]): QuoteRow[] {
+    if (!jobIds.length) return []
+    const placeholders = jobIds.map(() => "?").join(",")
+    return db.prepare(
+      `SELECT * FROM Quote WHERE jobId IN (${placeholders}) AND archivedAt IS NULL ORDER BY updatedAt DESC`,
+    ).all(...jobIds) as QuoteRow[]
+  },
+
   findMany(opts: { search?: string; status?: string; clientId?: string; skip?: number; take?: number; includeArchived?: boolean; onlyArchived?: boolean } = {}): QuoteRow[] {
     const clauses: string[] = []
     const params: unknown[] = []

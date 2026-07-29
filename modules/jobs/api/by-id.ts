@@ -57,9 +57,14 @@ export async function GET(req: NextRequest, { params }: Ctx) {
         .map(s => s.trim())
         .filter(Boolean),
     )
-    if (include.size === 0) return resourceResponse(payload)
+    // Always enrich with linked quotes
+    const { enrichJobsWithLinkedQuotes } = await import("./enrich-linked-quotes")
+    const [enriched] = await enrichJobsWithLinkedQuotes([payload])
+    const enrichedPayload = enriched ?? payload
 
-    const result: Record<string, unknown> = { ...payload }
+    if (include.size === 0) return resourceResponse(enrichedPayload)
+
+    const result: Record<string, unknown> = { ...enrichedPayload }
     if (include.has("parent")) {
       result.parentJob = job.parentJobId
         ? await jobService.findUnique(job.parentJobId)

@@ -18,6 +18,7 @@ import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { apiInternalError } from "@/shared/api-errors"
 import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
+import { enrichJobsWithLinkedQuotes } from "./enrich-linked-quotes"
 import { resolveDirectoryDesigner } from "../services/designer-directory"
 import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils/utils"
 
@@ -196,8 +197,9 @@ export async function GET(req: NextRequest) {
       if (needsCurrentFilter) {
         jobs = filterByCurrentDisplay(jobs, { status, unassigned, overdue, dueToday, dueThisWeek })
       }
+      const enrichedExport = await enrichJobsWithLinkedQuotes(jobs)
       return listResponse({
-        jobs,
+        jobs: enrichedExport,
         total: needsCurrentFilter ? jobs.length : total,
         exported: jobs.length,
         truncated: !needsCurrentFilter && total > jobs.length,
@@ -213,7 +215,8 @@ export async function GET(req: NextRequest) {
       let enriched = flagRevisions(rawJobs, allForRevisions)
       enriched = filterByCurrentDisplay(enriched, { status, unassigned, overdue, dueToday, dueThisWeek })
       const total = enriched.length
-      const jobs = enriched.slice((page - 1) * limit, page * limit)
+      const paged = enriched.slice((page - 1) * limit, page * limit)
+      const jobs = await enrichJobsWithLinkedQuotes(paged)
       return listResponse({ jobs, total, page, limit })
     }
 
@@ -223,7 +226,8 @@ export async function GET(req: NextRequest) {
       skip: (page - 1) * limit,
       take: limit,
     })
-    const jobs = flagRevisions(rawJobs, allForRevisions)
+    const paged = flagRevisions(rawJobs, allForRevisions)
+    const jobs = await enrichJobsWithLinkedQuotes(paged)
     return listResponse({ jobs, total, page, limit })
   } catch (err) {
     return apiInternalError("jobs.list.get", err)

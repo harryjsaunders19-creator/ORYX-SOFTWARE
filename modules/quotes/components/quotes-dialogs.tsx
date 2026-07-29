@@ -21,6 +21,7 @@ export interface QuotesDialogsProps {
   onCreateClose: () => void
   saving: boolean
   onCreateSubmit: (form: QuoteFormData) => Promise<void>
+  createInitialOverrides?: Partial<QuoteFormData>
   // Edit
   editQuote: Quote | null
   onEditClose: () => void
@@ -44,7 +45,7 @@ export interface QuotesDialogsProps {
 }
 
 export function QuotesDialogs({
-  createOpen, onCreateClose, saving, onCreateSubmit,
+  createOpen, onCreateClose, saving, onCreateSubmit, createInitialOverrides,
   editQuote, onEditClose, editInitial, onEditSubmit,
   convertQuote, onConvertClose, onConverted,
   archiveQuote, archiving, onArchiveClose, onArchiveConfirm,
@@ -57,7 +58,7 @@ export function QuotesDialogs({
         <DialogContent size="md">
           <DialogHeader><DialogTitle>New quote</DialogTitle></DialogHeader>
           <DialogBody>
-            <QuoteForm formId="create-quote-form" initial={EMPTY_FORM} onSubmit={onCreateSubmit} />
+            <QuoteForm formId="create-quote-form" initial={{ ...EMPTY_FORM, ...createInitialOverrides }} onSubmit={onCreateSubmit} />
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={onCreateClose} disabled={saving}>Cancel</Button>

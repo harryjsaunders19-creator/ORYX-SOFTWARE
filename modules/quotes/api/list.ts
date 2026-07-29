@@ -24,6 +24,7 @@ const createQuoteBodySchema = z.object({
   expiryDate: z.union([z.string(), z.null()]).optional(),
   status: z.string().optional(),
   notes: z.union([z.string(), z.null()]).optional(),
+  jobId: z.union([z.string(), z.null()]).optional(),
   vatRate: z.union([z.string(), z.number(), z.null()]).optional(),
   lineItems: z.array(z.object({
     description: z.string().optional(),
@@ -133,7 +134,7 @@ export async function POST(req: NextRequest) {
     let status = body.status ? String(body.status) : "DRAFT"
     if (shouldAutoExpireQuote(status, expiryDate)) status = "EXPIRED"
 
-    const quote = await quoteService.create({
+    let quote = await quoteService.create({
       clientId,
       clientCompany,
       contactName:  body.contactName ? String(body.contactName).trim() : null,
@@ -151,6 +152,13 @@ export async function POST(req: NextRequest) {
     })
 
     if (lineItems.length) await quoteService.replaceLineItems(quote.id, lineItems)
+
+    // Link to a job if jobId was provided (e.g. "Create quote for job" flow)
+    const jobIdStr = body.jobId ? String(body.jobId).trim() : ""
+    if (jobIdStr) {
+      await quoteService.setJobId(quote.id, jobIdStr)
+      quote = { ...quote, jobId: jobIdStr }
+    }
 
     return NextResponse.json(quote, { status: 201 })
   } catch (err) {

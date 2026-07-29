@@ -265,18 +265,38 @@ export const JobTableRow = memo(
         </td>
 
         <td className={cn("px-4 py-3.5 whitespace-nowrap text-right", COL_QUOTATION)}>
-          <p className="text-xs tabular-nums font-medium text-t2">
-            {totalJobCommercialValue(job) != null
-              ? formatGBP(totalJobCommercialValue(job))
-              : job.quoteValue != null
-                ? formatGBP(job.quoteValue)
-                : <span className="text-t4">—</span>}
-          </p>
-          {(job.variationFees != null || job.additionalCharges != null) && job.quoteValue != null && (
-            <p className="type-helper text-t4 tabular-nums">incl. extras</p>
-          )}
-          {job.quoteReference && (
-            <p className="type-helper font-mono text-t4 tabular-nums">{job.quoteReference}</p>
+          {job.currentQuote ? (
+            <>
+              <p className="text-xs tabular-nums font-medium text-t2">
+                {formatGBP(job.currentQuote.quoteValue)}
+              </p>
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onNavigate(`/quotes?search=${encodeURIComponent(job.currentQuote!.quoteNumber)}`) }}
+                className="type-helper font-mono text-ac hover:underline cursor-pointer tabular-nums"
+              >
+                {job.currentQuote.quoteNumber}
+              </button>
+              {(job.linkedQuotes?.length ?? 0) > 1 && (
+                <p className="type-helper text-t4">{job.linkedQuotes!.length} quotes</p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-xs tabular-nums font-medium text-t2">
+                {totalJobCommercialValue(job) != null
+                  ? formatGBP(totalJobCommercialValue(job))
+                  : job.quoteValue != null
+                    ? formatGBP(job.quoteValue)
+                    : <span className="text-t4">—</span>}
+              </p>
+              {(job.variationFees != null || job.additionalCharges != null) && job.quoteValue != null && (
+                <p className="type-helper text-t4 tabular-nums">incl. extras</p>
+              )}
+              {job.quoteReference && (
+                <p className="type-helper font-mono text-t4 tabular-nums">{job.quoteReference}</p>
+              )}
+            </>
           )}
         </td>
 
@@ -344,11 +364,27 @@ export const JobTableRow = memo(
                     <Building2 className="h-3.5 w-3.5 text-t4" /> View client
                   </DropdownMenuItem>
                 )}
-                {job.quoteReference && (
-                  <DropdownMenuItem onSelect={() => onNavigate(`/quotes?search=${encodeURIComponent(job.quoteReference!)}`)}>
-                    <FileText className="h-3.5 w-3.5 text-t4" /> Open quote
+                {(job.currentQuote || job.quoteReference) && (
+                  <DropdownMenuItem onSelect={() => {
+                    if (job.currentQuote) onNavigate(`/quotes?search=${encodeURIComponent(job.currentQuote.quoteNumber)}`)
+                    else if (job.quoteReference) onNavigate(`/quotes?search=${encodeURIComponent(job.quoteReference)}`)
+                  }}>
+                    <FileText className="h-3.5 w-3.5 text-t4" /> View quote
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuItem onSelect={() => {
+                  const p = new URLSearchParams({
+                    new: "1",
+                    jobId: job.id,
+                    clientCompany: job.clientCompany,
+                    ...(job.clientId ? { clientId: job.clientId } : {}),
+                    address: job.siteAddress || job.address || "",
+                    ...(job.typeOfWorks ? { typeOfWorks: job.typeOfWorks } : {}),
+                  })
+                  onNavigate(`/quotes?${p}`)
+                }}>
+                  <FileText className="h-3.5 w-3.5 text-t4" /> Create quote for job
+                </DropdownMenuItem>
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator />
