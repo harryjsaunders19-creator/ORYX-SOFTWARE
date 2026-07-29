@@ -1,8 +1,11 @@
 /**
- * lib/supabase/config.ts
+ * shared/supabase/config.ts
  *
- * Reads Supabase environment variables. The app still uses SQLite by default —
- * these vars are only needed once you start the Supabase migration.
+ * Reads Supabase environment variables.
+ *
+ * Local/CI: omit `SUPABASE_SERVICE_ROLE_KEY` → SQLite (`isSupabaseOnly()` false).
+ * Production: set URL + anon + service-role → Supabase-only routers.
+ * See docs/sqlite-sunset.md.
  *
  * Nothing breaks if they are missing; isSupabaseConfigured() returns false.
  */

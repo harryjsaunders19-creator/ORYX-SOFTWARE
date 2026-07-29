@@ -6,7 +6,7 @@ import {
   isSupabaseAdminConfigured,
   isSupabaseConfigured,
 } from "./config"
-import { supabaseModuleFlags } from "./feature-flags"
+import { supabaseModuleFlags, isSupabaseOnly } from "./feature-flags"
 import {
   SUPABASE_GO_LIVE_STEPS,
   SUPABASE_INFRA_MIGRATIONS,
@@ -55,7 +55,10 @@ export type SupabaseStatusReport = {
   issues: string[]
   warnings: string[]
   goLiveSteps: readonly string[]
+  /** True when SQLite entry routers are active (no Supabase admin). */
   sqliteStillActive: boolean
+  isSupabaseOnly: boolean
+  forceSupabaseOnly: boolean
   summary: {
     modulesReady: number
     modulesTotal: number
@@ -254,6 +257,8 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
       warnings: [],
       goLiveSteps: SUPABASE_GO_LIVE_STEPS,
       sqliteStillActive: true,
+      isSupabaseOnly: false,
+      forceSupabaseOnly: process.env.FORCE_SUPABASE_ONLY === "true" || process.env.VERCEL === "1",
       summary: { modulesReady: 0, modulesTotal: SUPABASE_MIGRATION_MODULES.length, tablesReady: 0, tablesTotal: 0, healthy: false },
       message: "Supabase is not configured.",
     }
@@ -369,7 +374,9 @@ export async function buildSupabaseStatusReport(): Promise<SupabaseStatusReport>
     issues: [...new Set(issues)],
     warnings: [...new Set(warnings)],
     goLiveSteps: SUPABASE_GO_LIVE_STEPS,
-    sqliteStillActive: !adminConfigured || !flags.jobs,
+    sqliteStillActive: !isSupabaseOnly(),
+    isSupabaseOnly: isSupabaseOnly(),
+    forceSupabaseOnly: process.env.FORCE_SUPABASE_ONLY === "true" || process.env.VERCEL === "1",
     summary: {
       modulesReady,
       modulesTotal: modules.length,

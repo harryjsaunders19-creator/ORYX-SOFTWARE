@@ -1,6 +1,7 @@
 # Oryx Design — Job Tracker
 
 Scaffold design job management for ORYX. **Local dev** uses SQLite; **production (Vercel)** uses Supabase Postgres.
+Path A sunset plan: [`docs/sqlite-sunset.md`](docs/sqlite-sunset.md).
 
 ## Quick start (local)
 
