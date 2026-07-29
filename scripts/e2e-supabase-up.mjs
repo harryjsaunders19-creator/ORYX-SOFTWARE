@@ -107,9 +107,11 @@ console.log("[e2e-supabase] Applying ORYX bootstrap schema via psql…")
 const dropSql = path.join(root, "supabase", "00-drop-all.sql")
 const bootSql = path.join(root, "supabase", "01-bootstrap.sql")
 const seedSql = path.join(root, "supabase", "seed-e2e-users.sql")
+const grantsSql = path.join(root, "supabase", "e2e-grants.sql")
 try {
   sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${dropSql}"`, { stdio: "inherit" })
   sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${bootSql}"`, { stdio: "inherit" })
+  sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${grantsSql}"`, { stdio: "inherit" })
   sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${seedSql}"`, { stdio: "inherit" })
 } catch (err) {
   restoreMigrations()
