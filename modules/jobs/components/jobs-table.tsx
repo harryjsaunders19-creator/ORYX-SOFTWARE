@@ -25,6 +25,11 @@ import { JobsActiveFilterChips, JobsFilterBar } from "./jobs-filter-bar"
 import { exportJobsToCsv } from "./job-csv-export"
 import { JobsDialogs } from "./jobs-dialogs"
 import { AddRevisionModal } from "./add-revision-modal"
+import {
+  JobsRegistryHeader,
+  JobsScopeToggle,
+  JobsRegistryInsights,
+} from "./jobs-registry-chrome"
 
 /** Filter keys persisted to sessionStorage per user. */
 interface JobsFilterState {
@@ -416,67 +421,81 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   const totalPages = data ? Math.ceil(data.total / LIMIT) : 0
   const sp = { current: sortBy, dir: sortDir, onSort: handleSort }
 
+  const holdCount = holdData?.holds.length ?? 0
+
   return (
     <>
-      {/* Toolbar */}
-      <ToolbarCard>
-        <div className="relative flex-1 min-w-48 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-t4 pointer-events-none" />
-          <Input
-            id="jobs-search"
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search jobs…"
-            className="pl-10 pr-8 h-9 rounded-lg bg-surface-low border border-bd shadow-none"
-            style={{ paddingLeft: "40px", height: "36px" }}
-          />
-          {search && (
-            <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-t4 hover:text-t2">
+      {!isCheckingQueue && (
+        <JobsRegistryHeader
+          activeCount={data && !loading ? data.total : null}
+          countLabel={hasFilters ? "matching" : "active jobs"}
+        />
+      )}
+
+      {/* Toolbar — Stitch Industrial Mono: scope · search · filters · import/export · create */}
+      <ToolbarCard className="justify-between">
+        <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+          {!isCheckingQueue && <JobsScopeToggle active />}
+
+          <div className="relative flex-1 min-w-48 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-t4 pointer-events-none" />
+            <Input
+              id="jobs-search"
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search jobs…"
+              className="pl-10 pr-8 h-9 rounded-lg bg-surface-low border border-bd shadow-none"
+              style={{ paddingLeft: "40px", height: "36px" }}
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-t4 hover:text-t2">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          <Button
+            variant={showFilters ? "secondary" : "outline"} size="sm"
+            onClick={() => setShowFilters(v => !v)}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-1 bg-ac text-on-ac rounded-full h-4 w-4 type-helper flex items-center justify-center font-bold shrink-0">{activeFilterCount}</span>
+            )}
+          </Button>
+
+          {isCheckingQueue ? (
+            <Button variant="outline" size="sm" onClick={exitCheckingQueue}>
               <X className="h-3.5 w-3.5" />
-            </button>
+              All jobs
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => router.push("/jobs/checking")}>
+              <ClipboardCheck className="h-3.5 w-3.5" />
+              Checking queue
+            </Button>
           )}
         </div>
 
-        <Button
-          variant={showFilters ? "secondary" : "outline"} size="sm"
-          onClick={() => setShowFilters(v => !v)}
-        >
-          <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filter
-          {activeFilterCount > 0 && (
-            <span className="ml-1 bg-ac text-on-ac rounded-full h-4 w-4 type-helper flex items-center justify-center font-bold shrink-0">{activeFilterCount}</span>
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          {isAdmin && (
+            <Button variant="ghost" size="sm" className="text-t3" onClick={() => router.push("/jobs/import")}>
+              <Upload className="h-3.5 w-3.5" />
+              Import
+            </Button>
           )}
-        </Button>
-
-        {isAdmin && (
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="h-3.5 w-3.5" />
-            Export
+          {isAdmin && (
+            <Button variant="ghost" size="sm" className="text-t3" onClick={handleExport}>
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </Button>
+          )}
+          {(isAdmin) && <div className="hidden sm:block w-px h-6 bg-bd" aria-hidden />}
+          <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            Create design job
           </Button>
-        )}
-
-        {isAdmin && (
-          <Button variant="outline" size="sm" onClick={() => router.push("/jobs/import")}>
-            <Upload className="h-3.5 w-3.5" />
-            Import
-          </Button>
-        )}
-
-        {isCheckingQueue ? (
-          <Button variant="outline" size="sm" onClick={exitCheckingQueue}>
-            <X className="h-3.5 w-3.5" />
-            All jobs
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm" onClick={() => router.push("/jobs/checking")}>
-            <ClipboardCheck className="h-3.5 w-3.5" />
-            Checking queue
-          </Button>
-        )}
-
-        <Button variant="primary" size="sm" className="ml-auto" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-3.5 w-3.5" />
-          New job
-        </Button>
+        </div>
       </ToolbarCard>
 
       {/* Active filters — always visible so status/deadline chips can be cleared without opening the panel */}
@@ -529,14 +548,6 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         </div>
       )}
 
-      {/* Count */}
-      {data && !loading && (
-        <p className="text-xs text-t3 mb-3">
-          <span className="font-semibold text-t2">{data.total.toLocaleString()}</span>
-          {" "}job{data.total !== 1 ? "s" : ""}{hasFilters && " matching filters"}
-        </p>
-      )}
-
       {/* Mobile field view — compact cards for site / phone use */}
       {mediaReady && isMobile && (
       <div className="space-y-2.5 mb-4">
@@ -563,30 +574,38 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           ))}
           </div>
         )}
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          total={data?.total}
+          pageSize={LIMIT}
+          hideWhenSingle={false}
+        />
       </div>
       )}
 
-      {/* Desktop table — show until media is ready to avoid a mobile flash on SSR */}
+      {/* Desktop table — Stitch Industrial Mono registry */}
       {(!mediaReady || !isMobile) && (
       <DataPanel className={cn("transition-opacity", refreshing && "opacity-60")}>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm border-collapse text-left">
             <thead>
               <tr className="bg-surface-low border-b border-bd">
                 <SortTh field="drawingNumber" label="Drawing No." {...sp} />
-                <SortTh field="address" label="Address"     {...sp} />
-                <th className={cn("px-4 py-2.5 text-left type-table-head text-t3 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
-                  Type of Works
+                <SortTh field="address" label="Job Address" {...sp} />
+                <th className={cn("px-4 py-3 text-left type-table-head text-t3 whitespace-nowrap uppercase tracking-wider", COL_TYPE_OF_WORKS)}>
+                  Works Type
                 </th>
                 <SortTh field="clientCompany" label="Client" className={COL_CLIENT} {...sp} />
-                <th className={cn("px-4 py-2.5 text-left type-table-head text-t3 whitespace-nowrap", COL_REQUESTED_BY)}>
-                  Requested By
+                <th className={cn("px-4 py-3 text-left type-table-head text-t3 whitespace-nowrap uppercase tracking-wider", COL_REQUESTED_BY)}>
+                  Requester
                 </th>
                 <SortTh field="quoteValue" label="Quotation" className={COL_QUOTATION} {...sp} />
-                <SortTh field="status" label="Completion Status" {...sp} />
+                <SortTh field="status" label="Status" {...sp} />
                 <SortTh field="designer" label="Designer" className={COL_DESIGNER} {...sp} />
-                <th className="px-4 py-2.5 text-right type-table-head text-t3 whitespace-nowrap min-w-[180px]">
-                  Actions
+                <th className="px-4 py-3 text-right type-table-head text-t3 whitespace-nowrap w-12">
+                  <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
@@ -613,16 +632,23 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
             </tbody>
           </table>
         </div>
+        <TablePagination
+          variant="inset"
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          total={data?.total}
+          pageSize={LIMIT}
+          hideWhenSingle={false}
+        />
       </DataPanel>
       )}
 
-      <TablePagination
-        page={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
-        total={data?.total}
-        pageSize={LIMIT}
-      />
+      {!isCheckingQueue && (
+        <JobsRegistryInsights
+          onHoldCount={holdCount}
+        />
+      )}
 
       <JobsDialogs
         createOpen={createOpen}
