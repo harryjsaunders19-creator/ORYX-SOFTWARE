@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 /**
- * Start local Supabase (Docker), export app env vars for e2e, seed test users.
+ * Start local Supabase (Docker), apply ORYX bootstrap schema, seed e2e users.
  *
- * Writes `.env.e2e` (gitignored) with:
- *   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
- *   SUPABASE_SERVICE_ROLE_KEY, FORCE_SUPABASE_ONLY, E2E, AUTH_SECRET
+ * Writes `.env.e2e` (gitignored) with Supabase URL/keys for Playwright.
  *
  * Usage (CI / local with Docker):
  *   node scripts/e2e-supabase-up.mjs
@@ -22,7 +20,6 @@ function sh(cmd, opts = {}) {
 }
 
 function supabaseCmd(args) {
-  // Prefer PATH binary from supabase/setup-cli; fall back to npx.
   try {
     execSync("supabase --version", { stdio: "ignore" })
     return `supabase ${args}`
@@ -31,9 +28,28 @@ function supabaseCmd(args) {
   }
 }
 
+function parseEnvOutput(raw) {
+  return Object.fromEntries(
+    raw
+      .split("\n")
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => {
+        const i = line.indexOf("=")
+        if (i < 0) return null
+        const k = line.slice(0, i)
+        let v = line.slice(i + 1)
+        if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+          v = v.slice(1, -1)
+        }
+        return [k, v]
+      })
+      .filter(Boolean),
+  )
+}
+
 console.log("[e2e-supabase] Starting local Supabase stack…")
 try {
-  // Skip heavy services we don't need for API e2e.
   sh(supabaseCmd("start -x realtime,logflare,vector,imgproxy"), { stdio: "inherit" })
 } catch (err) {
   console.error("[e2e-supabase] supabase start failed. Docker is required.")
@@ -41,31 +57,32 @@ try {
   process.exit(1)
 }
 
-const statusRaw = sh(supabaseCmd("status -o env"))
-const status = Object.fromEntries(
-  statusRaw
-    .split("\n")
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map(line => {
-      const i = line.indexOf("=")
-      if (i < 0) return null
-      const k = line.slice(0, i)
-      let v = line.slice(i + 1)
-      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-        v = v.slice(1, -1)
-      }
-      return [k, v]
-    })
-    .filter(Boolean),
-)
-
+const status = parseEnvOutput(sh(supabaseCmd("status -o env")))
 const apiUrl = status.API_URL || status.SUPABASE_URL
 const anonKey = status.ANON_KEY || status.SUPABASE_ANON_KEY
 const serviceKey = status.SERVICE_ROLE_KEY || status.SUPABASE_SERVICE_ROLE_KEY
+const dbUrl = status.DB_URL || status.POSTGRES_URL || status.DATABASE_URL
 
 if (!apiUrl || !anonKey || !serviceKey) {
-  console.error("[e2e-supabase] Could not parse supabase status keys:", statusRaw)
+  console.error("[e2e-supabase] Could not parse supabase status keys:", status)
+  process.exit(1)
+}
+if (!dbUrl) {
+  console.error("[e2e-supabase] Could not parse DB_URL from supabase status:", status)
+  process.exit(1)
+}
+
+console.log("[e2e-supabase] Applying ORYX bootstrap schema via psql…")
+const dropSql = path.join(root, "supabase", "00-drop-all.sql")
+const bootSql = path.join(root, "supabase", "01-bootstrap.sql")
+const seedSql = path.join(root, "supabase", "seed-e2e-users.sql")
+try {
+  // Migrations are disabled in config.toml (duplicate version prefixes).
+  sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${dropSql}"`, { stdio: "inherit" })
+  sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${bootSql}"`, { stdio: "inherit" })
+  sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${seedSql}"`, { stdio: "inherit" })
+} catch (err) {
+  console.error("[e2e-supabase] Schema apply failed:", err instanceof Error ? err.message : err)
   process.exit(1)
 }
 
@@ -81,15 +98,14 @@ const envBody = [
   "",
 ].join("\n")
 
-const envPath = path.join(root, ".env.e2e")
-fs.writeFileSync(envPath, envBody)
-console.log(`[e2e-supabase] Wrote ${envPath}`)
+fs.writeFileSync(path.join(root, ".env.e2e"), envBody)
+console.log("[e2e-supabase] Wrote .env.e2e")
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = apiUrl
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKey
 process.env.SUPABASE_SERVICE_ROLE_KEY = serviceKey
 
-console.log("[e2e-supabase] Seeding e2e users…")
+console.log("[e2e-supabase] Verifying e2e users via service role…")
 sh("node scripts/e2e-seed-supabase-users.mjs", { stdio: "inherit", env: process.env })
 
 console.log("[e2e-supabase] Ready.")
