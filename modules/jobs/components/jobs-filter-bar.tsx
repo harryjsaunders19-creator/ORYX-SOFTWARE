@@ -6,6 +6,11 @@ import {
 } from "@/shared/ui/select"
 import { JOB_STATUSES, WORK_ITEM_TYPES, WORKS_TYPES, getJobStatus } from "@/lib/constants"
 
+/** Item types shown in the filter bar — excludes retired Survey/Inspection. */
+const FILTERABLE_ITEM_TYPES = WORK_ITEM_TYPES.filter(
+  t => t.value !== "SURVEY" && t.value !== "INSPECTION",
+)
+
 export function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <span className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full border border-ac/30 bg-ac-bg type-badge text-ac">
@@ -184,7 +189,7 @@ export function JobsFilterBar({
           className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === "ALL" ? "bg-ac text-on-ac" : "border border-bd text-t3 hover:text-t2"}`}>
           All
         </button>
-        {WORK_ITEM_TYPES.map(t => (
+        {FILTERABLE_ITEM_TYPES.map(t => (
           <button key={t.value} onClick={() => { setItemTypeFilter(t.value); setPage(1) }}
             className={`type-helper px-2.5 py-0.5 rounded-full font-medium ${itemTypeFilter === t.value ? `${t.color}` : "border border-bd text-t3 hover:text-t2"}`}>
             {t.label}

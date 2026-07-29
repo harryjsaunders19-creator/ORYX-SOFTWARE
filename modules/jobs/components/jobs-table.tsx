@@ -17,6 +17,7 @@ import { ToolbarCard, DataPanel, TablePagination } from "@/shared/layouts/page-l
 import { notifyRevisionsChanged } from "@/lib/revision-events"
 import { revisionParentId } from "@/lib/revision-chain"
 import type { Job, JobFormData, JobsResponse, SortField, SortDir } from "@/lib/types"
+import { WORK_ITEM_TYPES } from "@/lib/constants"
 import { LIMIT, COL_TYPE_OF_WORKS, COL_CLIENT, COL_REQUESTED_BY, COL_QUOTATION, COL_DESIGNER } from "./jobs-table-columns"
 import {
   SkeletonRows, EmptyState, SortTh, JobMobileCard, JobTableRow,
@@ -25,24 +26,103 @@ import { JobsActiveFilterChips, JobsFilterBar } from "./jobs-filter-bar"
 import { exportJobsToCsv } from "./job-csv-export"
 import { JobsDialogs } from "./jobs-dialogs"
 
+/** Filter keys persisted to sessionStorage per user. */
+interface JobsFilterState {
+  search: string
+  statusFilter: string
+  onlyOriginals: boolean
+  onlyRevisions: boolean
+  itemTypeFilter: string
+  typeOfWorksFilter: string
+  deadlineFilter: string
+}
+
+const DEFAULT_FILTERS: JobsFilterState = {
+  search: "",
+  statusFilter: "ALL",
+  onlyOriginals: false,
+  onlyRevisions: false,
+  itemTypeFilter: "ALL",
+  typeOfWorksFilter: "ALL",
+  deadlineFilter: "ALL",
+}
+
+const VALID_DEADLINE_VALUES = new Set(["ALL", "overdue", "today", "this_week"])
+const VALID_ITEM_TYPE_VALUES = new Set(["ALL", ...WORK_ITEM_TYPES.map(t => t.value)])
+
+function sessionKey(userId: string): string {
+  return `oryx_jobs_filters_${userId}`
+}
+
+function loadFilters(userId: string | undefined): JobsFilterState {
+  if (!userId || typeof sessionStorage === "undefined") return DEFAULT_FILTERS
+  try {
+    const raw = sessionStorage.getItem(sessionKey(userId))
+    if (!raw) return DEFAULT_FILTERS
+    const parsed = JSON.parse(raw) as Partial<JobsFilterState>
+    return {
+      search: typeof parsed.search === "string" ? parsed.search : DEFAULT_FILTERS.search,
+      statusFilter: typeof parsed.statusFilter === "string" ? parsed.statusFilter : DEFAULT_FILTERS.statusFilter,
+      onlyOriginals: typeof parsed.onlyOriginals === "boolean" ? parsed.onlyOriginals : DEFAULT_FILTERS.onlyOriginals,
+      onlyRevisions: typeof parsed.onlyRevisions === "boolean" ? parsed.onlyRevisions : DEFAULT_FILTERS.onlyRevisions,
+      itemTypeFilter: typeof parsed.itemTypeFilter === "string" && VALID_ITEM_TYPE_VALUES.has(parsed.itemTypeFilter) ? parsed.itemTypeFilter : DEFAULT_FILTERS.itemTypeFilter,
+      typeOfWorksFilter: typeof parsed.typeOfWorksFilter === "string" ? parsed.typeOfWorksFilter : DEFAULT_FILTERS.typeOfWorksFilter,
+      deadlineFilter: typeof parsed.deadlineFilter === "string" && VALID_DEADLINE_VALUES.has(parsed.deadlineFilter) ? parsed.deadlineFilter : DEFAULT_FILTERS.deadlineFilter,
+    }
+  } catch {
+    return DEFAULT_FILTERS
+  }
+}
+
+function saveFilters(userId: string | undefined, state: JobsFilterState): void {
+  if (!userId || typeof sessionStorage === "undefined") return
+  const isDefault = state.search === DEFAULT_FILTERS.search
+    && state.statusFilter === DEFAULT_FILTERS.statusFilter
+    && state.onlyOriginals === DEFAULT_FILTERS.onlyOriginals
+    && state.onlyRevisions === DEFAULT_FILTERS.onlyRevisions
+    && state.itemTypeFilter === DEFAULT_FILTERS.itemTypeFilter
+    && state.typeOfWorksFilter === DEFAULT_FILTERS.typeOfWorksFilter
+    && state.deadlineFilter === DEFAULT_FILTERS.deadlineFilter
+  if (isDefault) {
+    sessionStorage.removeItem(sessionKey(userId))
+    return
+  }
+  try { sessionStorage.setItem(sessionKey(userId), JSON.stringify(state)) } catch { /* quota */ }
+}
+
 export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" }) {
   const isCheckingQueue = mode === "checking"
   const router       = useRouter()
   const { toast }    = useToast()
-  const { isAdmin } = useUser()
+  const { isAdmin, user } = useUser()
+  const userId = user?.id
 
   const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
   const searchParams = useSearchParams()
-  const [search,       setSearch]       = useState(() => searchParams.get("search") ?? "")
+
+  // Initialise filters: URL params override sessionStorage; sessionStorage overrides defaults.
+  const initFilters = useMemo(() => {
+    const stored = loadFilters(userId)
+    return {
+      search: searchParams.get("search") ?? stored.search,
+      statusFilter: isCheckingQueue ? "CHECKING" : (searchParams.get("status") ?? stored.statusFilter),
+      onlyOriginals: searchParams.has("onlyOriginals") ? searchParams.get("onlyOriginals") === "true" : stored.onlyOriginals,
+      onlyRevisions: searchParams.has("onlyRevisions") ? searchParams.get("onlyRevisions") === "true" : stored.onlyRevisions,
+      itemTypeFilter: searchParams.get("itemType") ?? stored.itemTypeFilter,
+      typeOfWorksFilter: searchParams.get("typeOfWorks") ?? stored.typeOfWorksFilter,
+      deadlineFilter: searchParams.get("deadline") ?? stored.deadlineFilter,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const [search,       setSearch]       = useState(initFilters.search)
   const debouncedSearch = useDebouncedValue(search, 280)
-  const [statusFilter,  setStatusFilter]  = useState(() =>
-    isCheckingQueue ? "CHECKING" : (searchParams.get("status")  ?? "ALL"))
-  const [onlyOriginals, setOnlyOriginals] = useState(() => searchParams.get("onlyOriginals") !== "false")
-  const [onlyRevisions, setOnlyRevisions] = useState(() => searchParams.get("onlyRevisions") === "true")
-  const [itemTypeFilter, setItemTypeFilter] = useState(() => searchParams.get("itemType") ?? "ALL")
-  const [typeOfWorksFilter, setTypeOfWorksFilter] = useState(() => searchParams.get("typeOfWorks") ?? "ALL")
-  const [deadlineFilter,  setDeadlineFilter]  = useState(() => searchParams.get("deadline") ?? "ALL")
-  const _initUnassigned = searchParams.get("unassigned") === "true"
+  const [statusFilter,  setStatusFilter]  = useState(initFilters.statusFilter)
+  const [onlyOriginals, setOnlyOriginals] = useState(initFilters.onlyOriginals)
+  const [onlyRevisions, setOnlyRevisions] = useState(initFilters.onlyRevisions)
+  const [itemTypeFilter, setItemTypeFilter] = useState(initFilters.itemTypeFilter)
+  const [typeOfWorksFilter, setTypeOfWorksFilter] = useState(initFilters.typeOfWorksFilter)
+  const [deadlineFilter,  setDeadlineFilter]  = useState(initFilters.deadlineFilter)
   const [page,         setPage]         = useState(1)
   const [sortBy,       setSortBy]       = useState<SortField>("drawingNumber")
   const [sortDir,      setSortDir]      = useState<SortDir>("asc")
@@ -66,6 +146,19 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   }, [searchParams, router])
 
   useEffect(() => { setPage(1) }, [debouncedSearch])
+
+  // Persist filter state to sessionStorage (per user) whenever it changes.
+  useEffect(() => {
+    saveFilters(userId, {
+      search: debouncedSearch,
+      statusFilter: isCheckingQueue ? "ALL" : statusFilter,
+      onlyOriginals,
+      onlyRevisions,
+      itemTypeFilter,
+      typeOfWorksFilter,
+      deadlineFilter,
+    })
+  }, [userId, debouncedSearch, statusFilter, onlyOriginals, onlyRevisions, itemTypeFilter, typeOfWorksFilter, deadlineFilter, isCheckingQueue])
 
   const jobsApiKey = useMemo(() => {
     const qs = new URLSearchParams({
@@ -147,6 +240,9 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     setOnlyOriginals(false)
     setOnlyRevisions(false)
     setPage(1)
+    if (userId && typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(sessionKey(userId))
+    }
   }
 
   const handleCreate = async (form: JobFormData) => {
