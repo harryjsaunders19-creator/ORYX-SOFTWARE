@@ -247,7 +247,10 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 13. Revisions work-items path resolves parent without double `getDashboard`  
 14. Billing snapshots: `forWorkItems` + `findByParents` (no N+1)  
 15. Client list meta: parallel counts + holds  
-16. Quotes status change: optimistic targeted mutate  
+17. Designers endpoint: active names only (no password hashes)  
+18. Notifications: less refetch on clear/open; leave in parallel; slim hold/client selects  
+19. Calendar: parallel category/event loads; reuse users in EventDialog  
+20. Client active-job counts via head counts; optimistic job/quote/client edits  
 
 ---
 
@@ -329,6 +332,11 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 | PERF-010 | Billing snapshot N+1 | P1 | Fixed |
 | PERF-011 | Client meta sequential | P2 | Fixed |
 | PERF-012 | Quotes status full mutate | P2 | Fixed |
+| PERF-013 | Designers full users select | P1 | Fixed |
+| PERF-014 | Notifications clear/open refetch | P1 | Fixed |
+| PERF-015 | Calendar sequential + duplicate users | P1 | Fixed |
+| PERF-016 | Client counts row shipping | P2 | Fixed |
+| PERF-017 | Edit mutations full mutate | P2 | Fixed |
 | DB-001 | New indexes | P3 | Not needed |
 | RENDER-001–003 | Memo / debounce / virtualization | P3 | OK / skip |
 | BUNDLE-001 | Bundle weight | P3 | No change |

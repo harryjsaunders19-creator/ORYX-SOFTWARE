@@ -25,6 +25,18 @@ export const supabaseUserRepo = {
     return (data ?? []).map(toUserRow)
   },
 
+  /** Job-list / form designer picker — names only (no password hashes). */
+  async findActiveNames(): Promise<string[]> {
+    const { data, error } = await table()
+      .select("name")
+      .eq("active", true)
+      .order("name")
+    if (error) throw error
+    return (data ?? [])
+      .map(r => String(r.name ?? "").trim().replace(/\s+/g, " "))
+      .filter(Boolean)
+  },
+
   async findUnique(id: string): Promise<UserRow | null> {
     const { data, error } = await table().select("*").eq("id", id).maybeSingle()
     if (error) throw error

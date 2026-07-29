@@ -141,7 +141,15 @@ function QuotesInner() {
       if (!res.ok) { toast(body.error ?? "Failed to save", "error"); return }
       toast("Quote updated", "success")
       setEditQuote(null)
-      mutate()
+      await mutate(
+        current => current
+          ? {
+              ...current,
+              quotes: current.quotes.map(q => q.id === editQuote.id ? { ...q, ...body } : q),
+            }
+          : current,
+        { revalidate: false },
+      )
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }

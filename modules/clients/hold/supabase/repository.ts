@@ -1,23 +1,33 @@
 import { createAdminClient } from "@/shared/supabase/admin"
 import { createId } from "@paralleldrive/cuid2"
 import type { ClientHoldRow } from "../types/hold-types"
-import { toClientHoldRow, toSupabaseClientHoldRow } from "./mapper"
+import { toClientHoldRow, toSupabaseClientHoldRow, type SupabaseClientHoldRow } from "./mapper"
 
 function table() {
   return createAdminClient().from("client_holds")
 }
 
+/** Columns needed for ClientHoldRow — avoid select("*"). */
+const HOLD_ROW_SELECT = [
+  "id", "client_id", "status", "reason", "notes",
+  "added_by", "added_at", "removed_by", "removed_at", "removed_reason",
+].join(",")
+
+function mapHold(row: unknown): ClientHoldRow {
+  return toClientHoldRow(row as SupabaseClientHoldRow)
+}
+
 export const supabaseHoldRepo = {
   async activeHoldForClient(clientId: string): Promise<ClientHoldRow | null> {
     const { data, error } = await table()
-      .select("*")
+      .select(HOLD_ROW_SELECT)
       .eq("client_id", clientId)
       .eq("status", "ACTIVE")
       .order("added_at", { ascending: false })
       .limit(1)
       .maybeSingle()
     if (error) throw error
-    return data ? toClientHoldRow(data) : null
+    return data ? mapHold(data) : null
   },
 
   async activeHoldReasonsFor(clientIds: string[]): Promise<{ clientId: string; reason: string }[]> {
@@ -32,31 +42,31 @@ export const supabaseHoldRepo = {
 
   async historyForClient(clientId: string): Promise<ClientHoldRow[]> {
     const { data, error } = await table()
-      .select("*")
+      .select(HOLD_ROW_SELECT)
       .eq("client_id", clientId)
       .order("added_at", { ascending: false })
     if (error) throw error
-    return (data ?? []).map(toClientHoldRow)
+    return (data ?? []).map(mapHold)
   },
 
   async allActiveHolds(): Promise<ClientHoldRow[]> {
     const { data, error } = await table()
-      .select("*")
+      .select(HOLD_ROW_SELECT)
       .eq("status", "ACTIVE")
       .order("added_at", { ascending: false })
     if (error) throw error
-    return (data ?? []).map(toClientHoldRow)
+    return (data ?? []).map(mapHold)
   },
 
   /** Dashboard / capped previews — avoid loading every active hold then slicing. */
   async allActiveHoldsPreview(take: number): Promise<ClientHoldRow[]> {
     const { data, error } = await table()
-      .select("*")
+      .select(HOLD_ROW_SELECT)
       .eq("status", "ACTIVE")
       .order("added_at", { ascending: false })
       .limit(Math.max(1, take))
     if (error) throw error
-    return (data ?? []).map(toClientHoldRow)
+    return (data ?? []).map(mapHold)
   },
 
   /** Job-list hold badges — client_id only. */

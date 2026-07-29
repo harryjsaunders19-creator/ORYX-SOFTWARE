@@ -13,12 +13,8 @@ export async function GET() {
     const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
-    const users = await userService.findMany({ activeOnly: true })
-    const designers = [...new Set(
-      users
-        .map(u => u.name.trim().replace(/\s+/g, " "))
-        .filter(Boolean),
-    )].sort((a, b) => a.localeCompare(b))
+    const names = await userService.findActiveNames()
+    const designers = [...new Set(names)].sort((a, b) => a.localeCompare(b))
 
     return listResponse({ designers })
   } catch (err) {

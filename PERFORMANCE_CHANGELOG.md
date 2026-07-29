@@ -102,15 +102,15 @@ Related report: `PERFORMANCE_AND_BUG_AUDIT.md`
 * **Why:** Required deliverables for the performance engagement.  
 * **Behaviour:** Documentation only.
 
-### Follow-up 2 — shell / job open / billing / clients / quotes
+### Follow-up 3 — designers / notifications / calendar / edits
 
-* **`notification-service` + hold services:** `allActiveWithNames()` — bell skips per-client job stats.  
-* **`app/jobs/[id]/page.tsx`:** RSC seeds quotes + current revision; billing uses currentRevisionId.  
-* **`job-detail-page` / `parent-job-dashboard`:** Skip SWR remount when fallback present.  
-* **`revisions.ts`:** Resolve parent without double `getDashboard`.  
-* **`status-history-repository.forWorkItems` + `work-item-repository.findByParents`:** Billing snapshot N+1 removed.  
-* **`client-service-supabase.batchClientMeta`:** Parallel counts + holds.  
-* **`quotes-page.setStatus`:** Optimistic targeted mutate.
+* **`/api/jobs/designers`:** `findActiveNames()` — no full `app_users` / password hashes on Job List.  
+* **Notifications menu:** clear is local-only; open refreshes only when cache empty.  
+* **Notification service:** leave pending fetched in parallel with jobs/holds.  
+* **Calendar:** parallel categories+events; EventDialog reuses page `users`; leave filter parallelises reports+profile.  
+* **Holds repo:** slim `HOLD_ROW_SELECT`; client name enrich via `findNamesByIds`.  
+* **Client directory counts:** parallel head counts (no row bodies).  
+* **Jobs / quotes / clients edit:** targeted optimistic mutate instead of full list refetch.
 
 ---
 
@@ -123,6 +123,7 @@ Related report: `PERFORMANCE_AND_BUG_AUDIT.md`
 | Hold badges on Job List | No (same clientId set) |
 | Hold list page | No |
 | Notifications content | No (same titles/messages; cheaper fetch) |
+| Notifications clear | Still clears visible items locally (no forced refetch) |
 | Job detail first paint | Richer RSC seed; no duplicate remount GET |
 | Dashboard KPI semantics | No (RPC preferred when available) |
 | Auth / RLS / validation | No |

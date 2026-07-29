@@ -13,6 +13,12 @@ export const userService = {
     return userDb.findMany(opts)
   },
 
+  async findActiveNames(): Promise<string[]> {
+    return userDb.findMany({ activeOnly: true })
+      .map(u => u.name.trim().replace(/\s+/g, " "))
+      .filter(Boolean)
+  },
+
   async findUnique(id: string): Promise<UserRow | null> {
     return userDb.findUnique(id)
   },

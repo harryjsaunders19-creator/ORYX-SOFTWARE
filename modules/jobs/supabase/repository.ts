@@ -547,19 +547,16 @@ export const supabaseJobRepo = {
   async activeJobCountsForClients(clientIds: string[]): Promise<Map<string, number>> {
     const map = new Map<string, number>()
     if (!clientIds.length) return map
-    // Perf: one select of client_id + in-memory GROUP BY replaces N parallel
-    // head-count round-trips (one per client on the directory page).
+    // Page-sized directories (≤50): parallel head counts transfer no row bodies.
     // Filter set matches prior behaviour (status only — no archived_at clause).
-    const { data, error } = await table()
-      .select("client_id")
-      .in("client_id", clientIds)
-      .neq("status", "ISSUED")
-    if (error) throw error
-    for (const row of data ?? []) {
-      const id = row.client_id as string
-      if (!id) continue
-      map.set(id, (map.get(id) ?? 0) + 1)
-    }
+    await Promise.all(clientIds.map(async (id) => {
+      const { count, error } = await table()
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", id)
+        .neq("status", "ISSUED")
+      if (error) throw error
+      if ((count ?? 0) > 0) map.set(id, count!)
+    }))
     return map
   },
 

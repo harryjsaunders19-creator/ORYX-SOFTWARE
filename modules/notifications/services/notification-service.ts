@@ -27,13 +27,19 @@ function formatLeaveRange(startDate: string, endDate: string): string {
 export const notificationService = {
   async list(viewer: UserRow): Promise<NotificationsPayload> {
     const today = todayIsoDate()
-    const [deadlineJobs, holds] = await Promise.all([
+    const leavePromise =
+      viewer.role === "ADMIN" && isExperimentalEnabled("leave")
+        ? leaveService.findMany(viewer, { status: "PENDING" })
+        : Promise.resolve([] as Awaited<ReturnType<typeof leaveService.findMany>>)
+
+    const [deadlineJobs, holds, pendingLeave] = await Promise.all([
       jobService.findMany({
         where: { overdueOrDueToday: true },
         orderBy: { field: "requiredByDate", dir: "asc" },
         take: 20,
       }),
       holdService.allActiveWithNames(),
+      leavePromise,
     ])
     const overdueJobs  = deadlineJobs.filter(j => {
       const day = j.requiredByDate?.slice(0, 10)
@@ -80,19 +86,16 @@ export const notificationService = {
       })
     }
 
-    if (viewer.role === "ADMIN" && isExperimentalEnabled("leave")) {
-      const pendingLeave = await leaveService.findMany(viewer, { status: "PENDING" })
-      for (const req of pendingLeave.slice(0, 15)) {
-        items.push({
-          id: `leave-pending-${req.id}`,
-          kind: "leave_pending",
-          title: `${req.userName} — leave request`,
-          message: `${leaveTypeLabel(req.leaveType)} · ${formatLeaveRange(req.startDate, req.endDate)}${req.reason ? ` · ${req.reason}` : ""}`,
-          href: "/calendar",
-          at: req.createdAt,
-          severity: "warning",
-        })
-      }
+    for (const req of pendingLeave.slice(0, 15)) {
+      items.push({
+        id: `leave-pending-${req.id}`,
+        kind: "leave_pending",
+        title: `${req.userName} — leave request`,
+        message: `${leaveTypeLabel(req.leaveType)} · ${formatLeaveRange(req.startDate, req.endDate)}${req.reason ? ` · ${req.reason}` : ""}`,
+        href: "/calendar",
+        at: req.createdAt,
+        severity: "warning",
+      })
     }
 
     const notifications = sortNotifications(items).slice(0, LIMIT)

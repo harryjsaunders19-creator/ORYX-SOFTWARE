@@ -69,8 +69,8 @@ export const holdService = {
     const holds = await supabaseHoldRepo.allActiveHoldsPreview(take)
     if (!holds.length) return []
     const clientIds = [...new Set(holds.map(h => h.clientId).filter(Boolean))]
-    const clients = await supabaseClientRepo.findManyByIds(clientIds)
-    const clientNameById = new Map(clients.filter(Boolean).map(c => [c!.id, c!.name]))
+    const clients = await supabaseClientRepo.findNamesByIds(clientIds)
+    const clientNameById = new Map(clients.map(c => [c.id, c.name]))
     return holds.map(hold => ({
       ...hold,
       clientName: clientNameById.get(hold.clientId) ?? "",
@@ -86,8 +86,8 @@ export const holdService = {
     const holds = await supabaseHoldRepo.allActiveHolds()
     if (!holds.length) return []
     const clientIds = [...new Set(holds.map(h => h.clientId).filter(Boolean))]
-    const clients = await supabaseClientRepo.findManyByIds(clientIds)
-    const clientNameById = new Map(clients.filter(Boolean).map(c => [c!.id, c!.name]))
+    const clients = await supabaseClientRepo.findNamesByIds(clientIds)
+    const clientNameById = new Map(clients.map(c => [c.id, c.name]))
     return holds.map(hold => ({
       ...hold,
       clientName: clientNameById.get(hold.clientId) ?? "",

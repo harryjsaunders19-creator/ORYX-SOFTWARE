@@ -309,6 +309,7 @@ export default function CalendarPage() {
         event={editEvent}
         defaultDate={defaultDate}
         defaultCategoryId={defaultCategoryId}
+        users={users}
       />
 
       {LEAVE_ENABLED && (

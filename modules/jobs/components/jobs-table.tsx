@@ -279,8 +279,20 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
         body: JSON.stringify({ ...form }),
       })
       if (!res.ok) { toast("Failed to save changes", "error"); throw new Error() }
+      const updated = await res.json() as Job
       toast("Changes saved", "success")
-      setEditJob(null); mutate()
+      setEditJob(null)
+      await mutate(
+        current => current
+          ? {
+              ...current,
+              jobs: current.jobs.map(j => j.id === editJob.id
+                ? { ...j, ...updated, id: j.id }
+                : j),
+            }
+          : current,
+        { revalidate: false },
+      )
     } finally { setEditSaving(false) }
   }
 
