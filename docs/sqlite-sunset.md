@@ -13,13 +13,14 @@ There is **no** `DATA_BACKEND` env var. Routing is:
 
 ## Invariant (split modules)
 
-For the seven modules with `*-service.ts` + `*-sqlite.ts` / `*-supabase.ts`
-routers, `useSupabase*()` is only true when admin credentials exist — which
-also makes `isSupabaseOnly()` true. All seven hybrids have been collapsed to
-pure SQLite local/CI services; dual-write branches were unreachable whenever
-Supabase was configured.
+For modules with `*-service.ts` + `*-sqlite.ts` / `*-supabase.ts` routers,
+`useSupabase*()` is only true when admin credentials exist — which also makes
+`isSupabaseOnly()` true. Hybrids collapsed to pure SQLite local/CI services;
+dual-write branches were unreachable whenever Supabase was configured.
 
 ## Progress
+
+### Seven core hybrids (complete)
 
 | Module | Status |
 |--------|--------|
@@ -31,13 +32,22 @@ Supabase was configured.
 | quotes | Hybrid collapsed → `quote-service-sqlite.ts` |
 | jobs | Hybrid collapsed → `job-service-sqlite.ts` |
 
-**Still dual-path in a single file** (no hybrid split yet): leave, employees,
-holds, history, site-visit saved calculations, job-documents, backups,
-client-contacts, identity/session helpers, import-export.
+### Inline dual-path collapses
+
+| Service | Status |
+|---------|--------|
+| client contacts | SQLite-only (`client-contact-service.ts`; Supabase stays in `client-service-supabase`) |
+| job status history | Split → `history-service-{sqlite,supabase}.ts` |
+| site-visit saved calculations | Split → `saved-service-{sqlite,supabase}.ts` |
+| client holds | Split → `hold-service-{sqlite,supabase}.ts` |
+| job documents | Split → `document-service-{sqlite,supabase}.ts` |
+
+**Still dual-path in a single file**: leave, employees (experimental),
+backups, identity/session helpers, import-export.
 
 ## Suggested order
 
-1. Split or collapse inline dual-path services
+1. Split or collapse remaining inline dual-path services
 2. Move e2e to Supabase (or a test Postgres) so `lib/db` can shrink
 3. Remove `better-sqlite3` / SQLite boot when CI no longer needs it
 
