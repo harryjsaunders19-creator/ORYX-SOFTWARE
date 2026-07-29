@@ -25,7 +25,7 @@ SQLite-only path when credentials are absent.
 |--------|--------|
 | password-vault | Hybrid collapsed → `vault-service-sqlite.ts` |
 | calendar | Hybrid collapsed → `calendar-service-sqlite.ts` |
-| billing | Hybrid still present |
+| billing | Hybrid collapsed → `billing-handoff-service-sqlite.ts` |
 | users | Hybrid still present |
 | clients | Hybrid still present |
 | quotes | Hybrid still present |
@@ -37,7 +37,7 @@ client-contacts, identity/session helpers, import-export.
 
 ## Suggested order
 
-1. Collapse remaining hybrids (billing → users → clients → quotes → jobs)
+1. Collapse remaining hybrids (users → clients → quotes → jobs)
 2. Split or collapse inline dual-path services
 3. Move e2e to Supabase (or a test Postgres) so `lib/db` can shrink
 4. Remove `better-sqlite3` / SQLite boot when CI no longer needs it
