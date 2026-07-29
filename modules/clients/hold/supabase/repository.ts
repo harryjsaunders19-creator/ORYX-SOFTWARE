@@ -48,6 +48,26 @@ export const supabaseHoldRepo = {
     return (data ?? []).map(toClientHoldRow)
   },
 
+  /** Dashboard / capped previews — avoid loading every active hold then slicing. */
+  async allActiveHoldsPreview(take: number): Promise<ClientHoldRow[]> {
+    const { data, error } = await table()
+      .select("*")
+      .eq("status", "ACTIVE")
+      .order("added_at", { ascending: false })
+      .limit(Math.max(1, take))
+    if (error) throw error
+    return (data ?? []).map(toClientHoldRow)
+  },
+
+  /** Job-list hold badges — client_id only. */
+  async allActiveClientIds(): Promise<{ clientId: string }[]> {
+    const { data, error } = await table()
+      .select("client_id")
+      .eq("status", "ACTIVE")
+    if (error) throw error
+    return (data ?? []).map(r => ({ clientId: r.client_id as string }))
+  },
+
   async activeCount(): Promise<number> {
     const { count, error } = await table()
       .select("client_id", { count: "exact", head: true })

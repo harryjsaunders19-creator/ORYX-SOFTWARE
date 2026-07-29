@@ -179,7 +179,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   }, [page, debouncedSearch, statusFilter, itemTypeFilter, typeOfWorksFilter, deadlineFilter, sortBy, sortDir, onlyOriginals, onlyRevisions])
 
   const { data, error, isLoading, isValidating, mutate } = useApi<JobsResponse>(jobsApiKey)
-  const { data: holdData } = useApi<{ holds: { clientId: string }[] }>("/api/hold-list")
+  const { data: holdData } = useApi<{ holds: { clientId: string }[] }>("/api/hold-list?fields=clientId")
   const { data: designersData } = useApi<{ designers: string[] }>("/api/jobs/designers")
 
   useEffect(() => { if (error) toast("Failed to load jobs", "error") }, [error, toast])

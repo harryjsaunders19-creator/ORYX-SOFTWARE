@@ -100,6 +100,14 @@ export const jobService = {
     return supabaseJobRepo.revisionsForJob(parentId)
   },
 
+  async findLatestRevisionForParent(parentId: string): Promise<JobRow | null> {
+    return supabaseJobRepo.findLatestRevisionForParent(parentId)
+  },
+
+  async countRevisionsForParent(parentId: string): Promise<number> {
+    return supabaseJobRepo.countRevisionsForParent(parentId)
+  },
+
   async findLatestRevisionsForParents(parentIds: string[]): Promise<JobRow[]> {
     if (!parentIds.length) return []
     return supabaseJobRepo.findLatestRevisionsForParents(parentIds)

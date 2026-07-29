@@ -118,6 +118,18 @@ export const jobService = {
     return jobDb.revisionsForJob(parentId)
   },
 
+  async findLatestRevisionForParent(parentId: string): Promise<JobRow | null> {
+    const revs = jobDb.revisionsForJob(parentId)
+    if (!revs.length) return null
+    return [...revs].sort((a, b) =>
+      (a.revisionLetter ?? "").localeCompare(b.revisionLetter ?? ""),
+    ).at(-1) ?? null
+  },
+
+  async countRevisionsForParent(parentId: string): Promise<number> {
+    return jobDb.revisionsForJob(parentId).length
+  },
+
   async findLatestRevisionsForParents(parentIds: string[]): Promise<JobRow[]> {
     if (!parentIds.length) return []
     return jobDb.findLatestRevisionsForParents(parentIds)

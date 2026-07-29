@@ -56,12 +56,17 @@ export const holdService = {
     return enrichAllWithClientStats(holds)
   },
 
+  /** Job-list badge set — client ids only, no enrichment. */
+  async allActiveClientIds(): Promise<{ clientId: string }[]> {
+    return supabaseHoldRepo.allActiveClientIds()
+  },
+
   /**
    * Dashboard preview: client names only (no per-client job stats), capped.
    * Use activeCount() for the badge total.
    */
   async allActivePreview(take = 5): Promise<ClientHoldWithClientRow[]> {
-    const holds = (await supabaseHoldRepo.allActiveHolds()).slice(0, take)
+    const holds = await supabaseHoldRepo.allActiveHoldsPreview(take)
     if (!holds.length) return []
     const clientIds = [...new Set(holds.map(h => h.clientId).filter(Boolean))]
     const clients = await supabaseClientRepo.findManyByIds(clientIds)

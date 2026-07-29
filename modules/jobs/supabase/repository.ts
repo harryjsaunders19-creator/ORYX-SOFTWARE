@@ -611,11 +611,32 @@ export const supabaseJobRepo = {
 
   async revisionsForJob(parentId: string): Promise<JobRow[]> {
     const { data, error } = await table()
-      .select("*")
+      .select(buildJobListSelect())
       .eq("parent_job_id", parentId)
       .order("revision_letter", { ascending: true })
     if (error) throw error
-    return (data ?? []).map(toJobRow)
+    return ((data ?? []) as unknown as SupabaseJobRow[]).map(toJobRow)
+  },
+
+  /** Latest revision child only — used by job detail include=current. */
+  async findLatestRevisionForParent(parentId: string): Promise<JobRow | null> {
+    const { data, error } = await table()
+      .select(buildJobListSelect())
+      .eq("parent_job_id", parentId)
+      .order("revision_letter", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) throw error
+    return data ? toJobRow(data as unknown as SupabaseJobRow) : null
+  },
+
+  /** Head count of revision children for a parent (avoids loading full rows). */
+  async countRevisionsForParent(parentId: string): Promise<number> {
+    const { count, error } = await table()
+      .select("id", { count: "exact", head: true })
+      .eq("parent_job_id", parentId)
+    if (error) throw error
+    return count ?? 0
   },
 
   /** Bulk-fetch revision children for many parent jobs — one query instead of N. */
@@ -730,11 +751,58 @@ export const supabaseJobRepo = {
   },
 
   /**
-   * Dashboard aggregates via job_dashboard_counts RPC when available for status /
-   * type / unassigned tallies. Deadline buckets always use current-revision
-   * semantics (originals only) so they match /jobs?deadline=overdue.
+   * Dashboard aggregates via job_dashboard_counts RPC when available.
+   * Falls back to a slim table scan if the RPC is missing / fails.
+   * Deadline buckets use the RPC when available (migration 040); fallback
+   * uses current-revision semantics via tallyDeadlineStats.
    */
   async dashboardCounts(): Promise<{
+    byStatus:         { status: string; count: number }[]
+    byItemType:       { itemType: string; count: number }[]
+    unassigned:       number
+    totalActiveJobs:  number
+    totalRevisions:   number
+    overdueCount:     number
+    dueTodayCount:    number
+    dueThisWeekCount: number
+  }> {
+    const rpc = await this.tryDashboardCountsRpc()
+    if (rpc) return rpc
+    return this.dashboardCountsViaScan()
+  },
+
+  /** Prefer Postgres aggregate RPC — O(1) round-trips vs full-table scan. */
+  async tryDashboardCountsRpc(): Promise<{
+    byStatus:         { status: string; count: number }[]
+    byItemType:       { itemType: string; count: number }[]
+    unassigned:       number
+    totalActiveJobs:  number
+    totalRevisions:   number
+    overdueCount:     number
+    dueTodayCount:    number
+    dueThisWeekCount: number
+  } | null> {
+    try {
+      const { data, error } = await createAdminClient().rpc("job_dashboard_counts")
+      if (error || data == null) return null
+      const raw = typeof data === "string" ? JSON.parse(data) : data
+      if (!raw || typeof raw !== "object") return null
+      return {
+        byStatus:        Array.isArray(raw.byStatus) ? raw.byStatus : [],
+        byItemType:      Array.isArray(raw.byItemType) ? raw.byItemType : [],
+        unassigned:      Number(raw.unassigned) || 0,
+        totalActiveJobs: Number(raw.totalActiveJobs) || 0,
+        totalRevisions:  Number(raw.totalRevisions) || 0,
+        overdueCount:    Number(raw.overdueCount) || 0,
+        dueTodayCount:   Number(raw.dueTodayCount) || 0,
+        dueThisWeekCount: Number(raw.dueThisWeekCount) || 0,
+      }
+    } catch {
+      return null
+    }
+  },
+
+  async dashboardCountsViaScan(): Promise<{
     byStatus:         { status: string; count: number }[]
     byItemType:       { itemType: string; count: number }[]
     unassigned:       number
@@ -841,28 +909,82 @@ export const supabaseJobRepo = {
   /**
    * Dashboard overdue strip — originals whose *current revision* is overdue
    * (same rule as /jobs?deadline=overdue), capped.
+   *
+   * Perf: seed from DB-filtered candidates (past-due, not issued) using the
+   * partial deadline index, then apply current-revision overlay in memory.
+   * Falls back to a full slim scan only when the filtered path is empty but
+   * we still need family overlays (rare).
    */
   async findOverduePreview(take = 5): Promise<JobRow[]> {
-    const pageSize = 1000
+    const today = todayIsoDate()
     let useArchived = jobsArchivedFilterEnabled()
-    const fetchPage = (from: number, archived: boolean) => {
-      let q = table().select(JOB_OVERDUE_PREVIEW_SELECT).range(from, from + pageSize - 1)
+
+    const fetchCandidates = async (archived: boolean) => {
+      let q = table()
+        .select(JOB_OVERDUE_PREVIEW_SELECT)
+        .neq("status", "ISSUED")
+        .not("required_by_date", "is", null)
+        .lt("required_by_date", today)
+        .order("required_by_date", { ascending: true })
+        .limit(500)
       if (archived) q = q.is("archived_at", null)
       return q
     }
 
-    let { data, error } = await fetchPage(0, useArchived)
+    let { data, error } = await fetchCandidates(useArchived)
     if (error && noteJobsArchivedFromError(error)) {
       useArchived = false
-      ;({ data, error } = await fetchPage(0, false))
+      ;({ data, error } = await fetchCandidates(false))
     }
     if (error) throw error
 
     const rows = [...((data ?? []) as SupabaseJobRow[])]
-    while ((data?.length ?? 0) === pageSize) {
-      ;({ data, error } = await fetchPage(rows.length, useArchived))
-      if (error) throw error
-      rows.push(...((data ?? []) as SupabaseJobRow[]))
+
+    // Load sibling revisions + originals for parents in the candidate set so
+    // current-revision overlay matches /jobs?deadline=overdue.
+    const overdueParentIds = [
+      ...new Set(
+        rows
+          .map(r => r.parent_job_id as string | null)
+          .filter((id): id is string => !!id),
+      ),
+    ]
+    const parentKeys = [
+      ...new Set([
+        ...rows.filter(r => r.parent_job_id == null).map(r => r.id),
+        ...overdueParentIds,
+      ]),
+    ]
+
+    if (parentKeys.length) {
+      let siblingQ = table()
+        .select(JOB_OVERDUE_PREVIEW_SELECT)
+        .in("parent_job_id", parentKeys)
+      if (useArchived) siblingQ = siblingQ.is("archived_at", null)
+      const siblings = await siblingQ
+      if (!siblings.error && siblings.data?.length) {
+        const seen = new Set(rows.map(r => r.id))
+        for (const row of siblings.data as SupabaseJobRow[]) {
+          if (!seen.has(row.id)) {
+            seen.add(row.id)
+            rows.push(row)
+          }
+        }
+      }
+      let originalsQ = table()
+        .select(JOB_OVERDUE_PREVIEW_SELECT)
+        .in("id", parentKeys)
+      if (useArchived) originalsQ = originalsQ.is("archived_at", null)
+      const originals = await originalsQ
+      if (!originals.error && originals.data?.length) {
+        const seen = new Set(rows.map(r => r.id))
+        for (const row of originals.data as SupabaseJobRow[]) {
+          if (!seen.has(row.id)) {
+            seen.add(row.id)
+            rows.push(row)
+          }
+        }
+      }
     }
 
     const tallyRows = rows.map(r => ({
@@ -873,7 +995,7 @@ export const supabaseJobRepo = {
       requiredByDate: r.required_by_date,
     }))
     const display = displayDeadlineByOriginal(tallyRows)
-    const overdueIds = overdueOriginalIds(tallyRows, todayIsoDate())
+    const overdueIds = overdueOriginalIds(tallyRows, today)
     const byId = new Map(rows.map(r => [r.id, r]))
 
     return overdueIds

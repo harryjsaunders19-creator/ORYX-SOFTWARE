@@ -22,6 +22,10 @@ export const holdService = {
     return holdDb.allActive()
   },
 
+  async allActiveClientIds(): Promise<{ clientId: string }[]> {
+    return holdDb.allActive().map(h => ({ clientId: h.clientId }))
+  },
+
   /**
    * Dashboard preview: client names only (no per-client job stats), capped.
    * Use activeCount() for the badge total.

@@ -57,31 +57,39 @@ export async function GET(req: NextRequest, { params }: Ctx) {
         .map(s => s.trim())
         .filter(Boolean),
     )
-    // Always enrich with linked quotes
+
+    // Parallel: quote enrich + optional parent + latest-revision meta.
     const { enrichJobsWithLinkedQuotes } = await import("./enrich-linked-quotes")
-    const [enriched] = await enrichJobsWithLinkedQuotes([payload])
-    const enrichedPayload = enriched ?? payload
+    const [enrichedList, parentJob, revisionMeta] = await Promise.all([
+      enrichJobsWithLinkedQuotes([payload]),
+      include.has("parent") && job.parentJobId
+        ? jobService.findUnique(job.parentJobId)
+        : Promise.resolve(null),
+      !job.parentJobId && include.has("current")
+        ? Promise.all([
+            jobService.findLatestRevisionForParent(job.id),
+            jobService.countRevisionsForParent(job.id),
+          ])
+        : Promise.resolve(null),
+    ])
+    const enrichedPayload = enrichedList[0] ?? payload
 
     if (include.size === 0) return resourceResponse(enrichedPayload)
 
     const result: Record<string, unknown> = { ...enrichedPayload }
     if (include.has("parent")) {
-      result.parentJob = job.parentJobId
-        ? await jobService.findUnique(job.parentJobId)
-        : null
+      result.parentJob = parentJob
     }
     // Parent project view: expose the latest revision for navigation but
     // preserve the parent's own status/completion/billing state.
-    if (!job.parentJobId) {
-      const revs = await jobService.revisionsForJob(job.id)
-      const latest = [...revs].sort((a, b) =>
-        (a.revisionLetter ?? "").localeCompare(b.revisionLetter ?? ""),
-      ).at(-1) ?? null
+    // Full revision family is loaded separately via GET /api/jobs/:id/revisions.
+    if (revisionMeta) {
+      const [latest, revisionCount] = revisionMeta
       result.currentRevision = latest
       result.currentRevisionId = latest?.id ?? job.id
       result.currentRevisionLetter = latest?.revisionLetter ?? null
-      result.hasRevisions = revs.length > 0
-      result.revisionCount = revs.length
+      result.hasRevisions = revisionCount > 0
+      result.revisionCount = revisionCount
     }
     if (include.has("billing") && auth.user.role === "ADMIN") {
       const sourceId = (result.currentRevisionId as string | undefined) ?? id
