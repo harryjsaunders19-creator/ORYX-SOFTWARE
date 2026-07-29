@@ -3,22 +3,20 @@ import { memo } from "react"
 import {
   Plus, Pencil, Trash2,
   FolderOpen, ArrowUp, ArrowDown, ArrowUpDown, GitBranch, AlertTriangle, Clock,
-  MoreVertical, Building2, FileText,
+  MoreHorizontal, Building2, FileText, UserCircle2, PenTool,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from "@/shared/ui/dropdown-menu"
-import { JOB_ROW_BG } from "@/modules/jobs/components/badges/status-badge"
+import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/modules/jobs/components/badges/status-badge"
 import { WorkItemTypeBadge } from "@/modules/jobs/components/badges/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/modules/jobs/components/badges/type-of-works-badge"
 import { InlineStatusSelect, InlineDesignerSelect } from "@/modules/jobs/components/inline-edit-selects"
 import { cn, formatGBP, getJobDeadlineInfo, totalJobCommercialValue } from "@/shared/utils/utils"
 import { EmptyPanel } from "@/shared/layouts/page-layout"
-import { DrawingNumber } from "@/shared/design/drawing-number"
-import { baseDrawingNumber } from "@/lib/revision-chain"
-import { RevisionPill, DesignerAvatar } from "./jobs-registry-chrome"
+import { RevisionFamilyBadge } from "@/modules/jobs/components/badges/revision-family-badge"
 import type { Job, SortField, SortDir } from "@/lib/types"
 import {
   COL_TYPE_OF_WORKS,
@@ -82,7 +80,7 @@ export function SortTh({ field, label, current, dir, onSort, className }: {
     <th
       onClick={() => onSort(field)}
       className={cn(
-        "px-4 py-3 text-left type-table-head text-t3 cursor-pointer select-none whitespace-nowrap uppercase tracking-wider",
+        "px-4 py-2.5 text-left type-table-head text-t3 cursor-pointer select-none whitespace-nowrap",
         className,
       )}
     >
@@ -126,19 +124,14 @@ export const JobMobileCard = memo(function JobMobileCard({
       className={cn(
         "rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5 cursor-pointer active:scale-[0.99] transition-transform",
         JOB_ROW_BG[job.status] ?? "",
+        JOB_ROW_BORDER[job.status] ?? "",
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <DrawingNumber className="type-badge text-t1">
-              {baseDrawingNumber(job.drawingNumber)}
-            </DrawingNumber>
-            <RevisionPill
-              letter={job.currentRevisionLetter ?? job.latestRevisionLetter ?? job.revisionLetter}
-              emphasized={(job.currentRevisionLetter ?? job.latestRevisionLetter ?? job.revisionLetter) != null
-                && (job.currentRevisionLetter ?? job.latestRevisionLetter ?? job.revisionLetter) !== "A"}
-            />
+            <RevisionFamilyBadge job={job} />
+            <span className="type-drawing-number type-badge text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
@@ -230,27 +223,21 @@ export const JobTableRow = memo(
   }: JobTableRowProps) {
     const dl = getJobDeadlineInfo(job)
     const showDeadlineFlag = dl.severity === "overdue" || dl.severity === "today" || dl.severity === "soon"
-    const revLetter = job.currentRevisionLetter ?? job.latestRevisionLetter ?? job.revisionLetter
-    const displayDrawing = baseDrawingNumber(job.drawingNumber)
 
     return (
       <tr
         onClick={() => onNavigate(`/jobs/${job.id}`)}
         className={cn(
           "border-b border-bd last:border-0 cursor-pointer group",
-          job.status === "ISSUED" ? "bg-ok-row" : (JOB_ROW_BG[job.status] ?? ""),
+          JOB_ROW_BG[job.status] ?? "",
+          JOB_ROW_BORDER[job.status] ?? "",
           "hover:brightness-[0.98]",
         )}
       >
         <td className="px-4 py-3.5 whitespace-nowrap">
           <span className="flex items-center gap-1.5 flex-wrap">
-            <DrawingNumber className="type-badge text-t1">
-              {displayDrawing}
-            </DrawingNumber>
-            <RevisionPill
-              letter={revLetter}
-              emphasized={!!revLetter && revLetter !== "A"}
-            />
+            <RevisionFamilyBadge job={job} />
+            <span className="type-drawing-number type-badge text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
@@ -265,19 +252,22 @@ export const JobTableRow = memo(
           </span>
         </td>
 
-        <td className="px-4 py-3.5 max-w-[240px]">
-          <p className="text-sm text-t1 leading-snug line-clamp-2" title={job.address}>{job.address}</p>
+        <td className="px-4 py-3.5 max-w-[220px]">
+          <p className="text-sm font-medium text-t1 truncate" title={job.address}>{job.address}</p>
         </td>
 
         <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
           <TypeOfWorksBadge typeOfWorks={job.typeOfWorks} customTypeDescription={job.customTypeDescription} size="sm" />
         </td>
 
-        <td className={cn("px-4 py-3.5 max-w-[180px]", COL_CLIENT)}>
+        <td className={cn("px-4 py-3.5 max-w-[170px]", COL_CLIENT)}>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="text-sm text-t1 truncate">{job.clientCompany}</p>
             {isOnHold && (
-              <span className="type-badge px-1.5 py-0.5 rounded-sm bg-dn-bg text-dn-tx uppercase tracking-wide text-[10px] font-bold whitespace-nowrap">
+              <span title="Client on hold"><AlertTriangle className="h-3.5 w-3.5 text-dn shrink-0" /></span>
+            )}
+            <p className="text-xs font-medium text-t1 truncate">{job.clientCompany}</p>
+            {isOnHold && (
+              <span className="type-badge px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx whitespace-nowrap">
                 On Hold
               </span>
             )}
@@ -285,41 +275,45 @@ export const JobTableRow = memo(
         </td>
 
         <td className={cn("px-4 py-3.5 max-w-[150px]", COL_REQUESTED_BY)}>
-          <p className="text-sm text-t3 truncate">
+          <p className="text-xs text-t3 truncate flex items-center gap-1.5">
+            <UserCircle2 className="h-3.5 w-3.5 text-t4 shrink-0" />
             {job.requestedBy || <span className="italic text-t4">—</span>}
           </p>
         </td>
 
-        <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_QUOTATION)}>
+        <td className={cn("px-4 py-3.5 whitespace-nowrap text-right", COL_QUOTATION)}>
           {job.currentQuote ? (
-            <div className="flex flex-col items-start gap-0.5">
+            <>
+              <p className="text-xs tabular-nums font-medium text-t2">
+                {formatGBP(job.currentQuote.quoteValue)}
+              </p>
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); onNavigate(`/quotes?search=${encodeURIComponent(job.currentQuote!.quoteNumber)}`) }}
-                className="type-badge type-drawing-number text-t1 hover:underline cursor-pointer tabular-nums"
+                className="type-helper type-drawing-number text-ac hover:underline cursor-pointer tabular-nums"
               >
                 {job.currentQuote.quoteNumber}
               </button>
-              <span className="type-helper text-t3 tabular-nums">
-                {formatGBP(job.currentQuote.quoteValue)}
-              </span>
               {(job.linkedQuotes?.length ?? 0) > 1 && (
-                <span className="type-helper text-t4">{job.linkedQuotes!.length} quotes</span>
+                <p className="type-helper text-t4">{job.linkedQuotes!.length} quotes</p>
               )}
-            </div>
+            </>
           ) : (
-            <div className="flex flex-col items-start gap-0.5">
-              {job.quoteReference ? (
-                <span className="type-badge type-drawing-number text-t1 tabular-nums">{job.quoteReference}</span>
-              ) : null}
-              <span className="type-helper text-t3 tabular-nums">
+            <>
+              <p className="text-xs tabular-nums font-medium text-t2">
                 {totalJobCommercialValue(job) != null
                   ? formatGBP(totalJobCommercialValue(job))
                   : job.quoteValue != null
                     ? formatGBP(job.quoteValue)
                     : <span className="text-t4">—</span>}
-              </span>
-            </div>
+              </p>
+              {(job.variationFees != null || job.additionalCharges != null) && job.quoteValue != null && (
+                <p className="type-helper text-t4 tabular-nums">incl. extras</p>
+              )}
+              {job.quoteReference && (
+                <p className="type-helper type-drawing-number text-t4 tabular-nums">{job.quoteReference}</p>
+              )}
+            </>
           )}
         </td>
 
@@ -341,8 +335,8 @@ export const JobTableRow = memo(
         </td>
 
         <td className={cn("px-4 py-3.5 whitespace-nowrap", COL_DESIGNER)} onClick={e => e.stopPropagation()}>
-          <div className="flex items-center gap-2 min-w-0">
-            <DesignerAvatar name={job.designer} />
+          <div className="flex items-center gap-1.5">
+            <PenTool className="h-3.5 w-3.5 text-t4 shrink-0" />
             <InlineDesignerSelect
               designer={job.designer}
               designers={designers}
@@ -370,13 +364,12 @@ export const JobTableRow = memo(
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    "h-8 w-8 rounded-md flex items-center justify-center text-t3 hover:text-t1 hover:bg-pg",
-                    "data-[state=open]:bg-pg data-[state=open]:text-t1",
+                    "h-7 w-7 rounded flex items-center justify-center text-t4 hover:text-t2 hover:bg-pg",
+                    "invisible group-hover:visible data-[state=open]:visible data-[state=open]:bg-pg data-[state=open]:text-t2",
                   )}
                   title="Quick actions"
-                  aria-label="Quick actions"
                 >
-                  <MoreVertical className="h-4 w-4" />
+                  <MoreHorizontal className="h-3.5 w-3.5" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
