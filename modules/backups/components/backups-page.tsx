@@ -326,7 +326,7 @@ function BackupsInner() {
         <KpiTile
           label="Storage location"
           value={
-            <span className="text-sm font-mono font-normal truncate block">
+            <span className="text-sm type-drawing-number font-normal truncate block">
               {localBackupSupported ? (backupsDir || "—") : "Supabase + downloads"}
             </span>
           }
@@ -357,7 +357,7 @@ function BackupsInner() {
                   {hasErrors && (
                     <div className="mt-1 space-y-0.5">
                       {r.errors.slice(0, 5).map((e, i) => (
-                        <p key={i} className="type-helper font-mono text-dn-tx">{e}</p>
+                        <p key={i} className="type-helper type-drawing-number text-dn-tx">{e}</p>
                       ))}
                       {r.errors.length > 5 && (
                         <p className="type-helper text-t4">…and {r.errors.length - 5} more errors</p>

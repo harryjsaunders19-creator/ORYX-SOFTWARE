@@ -42,7 +42,7 @@ export function DashboardWeekPanels({ events }: { events: DashboardWeekEvent[] }
                     {e.jobDrawingNumber && e.jobId && (
                       <Link
                         href={`/jobs/${e.jobId}`}
-                        className="font-mono text-xs font-medium text-t2 hover:text-t1 hover:underline"
+                        className="type-drawing-number text-xs font-medium text-t2 hover:text-t1 hover:underline"
                       >
                         {e.jobDrawingNumber}
                       </Link>

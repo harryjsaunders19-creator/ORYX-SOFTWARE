@@ -112,7 +112,7 @@ export function LinkJobModal({ quote, onClose, onLinked }: LinkJobModalProps) {
           <DialogTitle>{quote?.jobId ? "Change linked job" : "Attach to existing job"}</DialogTitle>
           {quote && (
             <DialogDescription>
-              Link <span className="font-mono font-semibold">{quote.quoteNumber}</span> to a job.
+              Link <span className="type-drawing-number">{quote.quoteNumber}</span> to a job.
             </DialogDescription>
           )}
         </DialogHeader>
@@ -144,7 +144,7 @@ export function LinkJobModal({ quote, onClose, onLinked }: LinkJobModalProps) {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-xs font-mono font-medium text-t1">{job.drawingNumber}</p>
+                        <p className="text-xs type-drawing-number text-t1">{job.drawingNumber}</p>
                         <p className="text-xs text-t3 truncate">{job.clientCompany}</p>
                         <p className="text-xs text-t4 truncate">{job.address}</p>
                       </div>

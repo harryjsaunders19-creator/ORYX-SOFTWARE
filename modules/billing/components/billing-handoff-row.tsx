@@ -25,7 +25,7 @@ export function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
           />
         </td>
       )}
-      <td className="px-4 py-3 font-mono text-ac whitespace-nowrap font-semibold">{item.drawingNumber}</td>
+      <td className="px-4 py-3 type-drawing-number text-ac whitespace-nowrap font-semibold">{item.drawingNumber}</td>
       <td className="px-4 py-3 whitespace-nowrap"><TypeOfWorksBadge typeOfWorks={item.typeOfWorks} customTypeDescription={item.customTypeDescription} size="sm" /></td>
       <td className="px-4 py-3 text-t1 whitespace-nowrap">{item.clientCompany}</td>
       <td className="px-4 py-3 text-t3 max-w-[220px] truncate">{item.address}</td>
@@ -73,7 +73,7 @@ export function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono type-badge text-ac">{item.drawingNumber}</span>
+            <span className="type-drawing-number type-badge text-ac">{item.drawingNumber}</span>
             <WorkItemTypeBadge itemType={item.itemType} size="sm" />
           </div>
           <p className="text-sm font-medium text-t1 mt-1">{item.clientCompany}</p>

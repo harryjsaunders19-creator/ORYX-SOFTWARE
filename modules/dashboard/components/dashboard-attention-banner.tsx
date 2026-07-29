@@ -40,7 +40,7 @@ export function DashboardAttentionBanner({
       {/* Greeting + New */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className={cn(Typography.PageTitle, "text-t1 max-md:text-[26px]")}>
+          <h1 className={cn(Typography.PageTitle, "text-t1")}>
             {greetingForHour(hour)}, {displayName}
           </h1>
           <p className={cn(Typography.Small, "mt-1 text-t3")}>{todayLabel}</p>

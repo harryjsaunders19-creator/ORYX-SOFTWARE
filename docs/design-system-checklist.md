@@ -85,29 +85,31 @@ Status: `P0` = foundation this PR · `P1` = next pass · `P2` = later · `Defer`
 
 ## Typography hierarchy
 
-Single family: **Inter** (`app/fonts.ts`). Mono (`JetBrains Mono`) only via `.font-mono` for IDs / drawing numbers / money.
+Single family: **Inter** (`app/fonts.ts`). No second font family in the product UI.
 
 Prefer `Typography.*` from `shared/design/typography.ts` (maps to `.type-*` in `app/globals.css`). Do not hardcode `text-[Npx]` or mix font families.
 
+Drawing numbers / job & quote IDs use `Typography.DrawingNumber` (`.type-drawing-number`): **bold Inter only** — never monospace, never italic, never a CAD face. Pair with a size role (`PageTitle`, `Table`, `Badge`, …) as needed.
+
 | Role | Token | Size / weight |
 |------|--------|----------------|
-| Display | `Typography.Display` | 36px / 700 |
-| Page title | `Typography.PageTitle` / `.oryx-page-title` | 30px / 700 |
-| Section heading | `Typography.SectionHeading` | 24px / 600 |
-| Card title | `Typography.CardTitle` | 20px / 600 |
-| Large statistic | `Typography.Stat` | 32px / 700 |
-| Body large | `Typography.BodyLarge` | 16px / 500 |
-| Body | `Typography.Body` | 15px / 400 |
-| Small body | `Typography.Small` | 14px / 400 |
+| Display | `Typography.Display` | 28px / 700 |
+| Page title | `Typography.PageTitle` / `.oryx-page-title` | 28px / 700 |
+| Section heading | `Typography.SectionHeading` | 22px / 600 |
+| Card title | `Typography.CardTitle` | 18px / 600 |
+| Large statistic | `Typography.Stat` | 28px / 700 |
+| Body large | `Typography.BodyLarge` | 14px / 500 |
+| Body / inputs | `Typography.Body` | 14px / 400 |
+| Secondary text | `Typography.Secondary` / `Typography.Small` | 13px / 400 |
 | Table text | `Typography.Table` | 14px / 400 |
-| Table head | `Typography.TableHead` | 13px / 500 |
-| Input label | `Typography.Label` | 13px / 500 |
+| Table head | `Typography.TableHead` | 14px / 700 |
+| Input label | `Typography.Label` | 12px / 500 |
 | Helper / caption | `Typography.Helper` | 12px / 400 |
-| Status badge | `Typography.Badge` | 12px / 600 |
+| Status badge | `Typography.Badge` | 12px / 500 |
 | Sidebar nav | `Typography.Nav` | 14px / 500 |
-| Button | `Typography.Button` | 14px / 600 |
+| Button | `Typography.Button` | 14px / 500 |
+| Drawing number | `Typography.DrawingNumber` | bold Inter (size inherits) |
 
-Sentence case throughout. Avoid uppercase headings and excessive bold — use status badges for emphasis in tables.
 
 ## Colour usage rule
 

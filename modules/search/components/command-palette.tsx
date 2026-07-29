@@ -338,7 +338,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
                               >
                                 <Icon className="mt-0.5 h-4 w-4 shrink-0 text-t4" />
                                 <span className="min-w-0 flex-1">
-                                  <span className="block text-sm font-semibold text-t1 font-mono">{hit.title}</span>
+                                  <span className="block text-sm font-semibold text-t1 type-drawing-number">{hit.title}</span>
                                   {hit.subtitle && (
                                     <span className="block truncate text-xs text-t3">{hit.subtitle}</span>
                                   )}
@@ -434,7 +434,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
                           </span>
                           <span className={cn(
                             "block text-sm font-semibold text-t1",
-                            (hit.type === "job" || hit.type === "revision" || hit.type === "quote") && "font-mono",
+                            (hit.type === "job" || hit.type === "revision" || hit.type === "quote") && "type-drawing-number",
                           )}>
                             <Highlight text={hit.title} query={query} />
                           </span>

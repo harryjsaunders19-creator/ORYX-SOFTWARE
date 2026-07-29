@@ -72,7 +72,7 @@ export function StatCard({
           {value}
         </span>
       </div>
-      <p className={cn(Typography.Stat, "text-t1 max-md:text-[28px]")}>
+      <p className={cn(Typography.Stat, "text-t1")}>
         {value}
       </p>
       <p className={cn(Typography.Small, "mt-2 font-medium text-t1")}>{label}</p>

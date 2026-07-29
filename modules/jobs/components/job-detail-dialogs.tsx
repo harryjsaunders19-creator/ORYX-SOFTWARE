@@ -115,7 +115,7 @@ export function JobDetailDialogs({
             <DialogTitle>Cancel {isRevision ? "revision" : "job"}</DialogTitle>
             <DialogDescription>
               Cancel{" "}
-              <span className="font-mono font-semibold text-ac">{job.drawingNumber}</span>?
+              <span className="type-drawing-number text-ac">{job.drawingNumber}</span>?
               The {isRevision ? "revision" : "job"} moves to <strong>Archived Items</strong>. Its drawing number is kept on record and will not be reused.
             </DialogDescription>
           </DialogHeader>
@@ -153,7 +153,7 @@ export function JobDetailDialogs({
           <DialogHeader>
             <DialogTitle>Edit drawing number</DialogTitle>
             <DialogDescription>
-              Current: <span className="font-mono font-semibold">{job.drawingNumber}</span>. The sequence counter will be updated automatically to prevent future duplicates.
+              Current: <span className="type-drawing-number">{job.drawingNumber}</span>. The sequence counter will be updated automatically to prevent future duplicates.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -161,7 +161,7 @@ export function JobDetailDialogs({
               value={dnEditValue}
               onChange={e => onDnEditValueChange(e.target.value)}
               placeholder="e.g. 26/ORYX/06/001"
-              className="font-mono"
+              className="type-drawing-number"
               autoFocus
             />
           </DialogBody>

@@ -59,7 +59,7 @@ export function AssignDesignerModal({ job, onClose, onSaved }: Props) {
           <DialogTitle>Assign designer</DialogTitle>
           {job && (
             <DialogDescription>
-              <span className="font-mono font-semibold text-ac">{job.drawingNumber}</span>
+              <span className="type-drawing-number text-ac">{job.drawingNumber}</span>
               {" — "}{job.address}
             </DialogDescription>
           )}

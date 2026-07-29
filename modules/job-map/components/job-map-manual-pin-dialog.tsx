@@ -144,7 +144,7 @@ export function JobMapManualPinDialog({ job, open, onOpenChange, onSaved }: Prop
             <ManualPinMap {...mapProps} />
           </div>
           {position && (
-            <p className="text-xs text-t4 font-mono tabular-nums">
+            <p className="text-xs text-t4 type-drawing-number tabular-nums">
               {position[0].toFixed(6)}, {position[1].toFixed(6)}
             </p>
           )}

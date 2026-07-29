@@ -48,7 +48,7 @@ export function KpiCard({
       <div className="space-y-2">
         <p className="type-label text-t3">{label}</p>
         <div className="flex items-center gap-2 min-w-0">
-          <p className="text-lg font-semibold text-t1 truncate font-mono tabular-nums">{value}</p>
+          <p className="text-lg font-semibold text-t1 truncate type-drawing-number tabular-nums">{value}</p>
           {badge ? (
             <span className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-wn-bg text-wn-tx">
               {badge}
@@ -63,7 +63,7 @@ export function KpiCard({
     <div className="rounded-xl border border-bd bg-sr p-4">
       <p className="type-label text-t3 mb-2">{label}</p>
       <div className="flex items-center gap-2 min-w-0">
-        <p className="type-body-lg text-t1 truncate font-mono tabular-nums">{value}</p>
+        <p className="type-body-lg text-t1 truncate type-drawing-number tabular-nums">{value}</p>
         {badge ? (
           <span className="shrink-0 px-2 py-0.5 rounded-md text-xs font-medium bg-wn-bg text-wn-tx">
             {badge}

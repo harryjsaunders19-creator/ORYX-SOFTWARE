@@ -385,7 +385,7 @@ export function RevisionHistory({
               <GitBranch className="h-5 w-5 text-ac" />
               Revision Timeline
             </h2>
-            <p className="text-sm text-t3 font-mono mt-0.5">{baseDrawing}</p>
+            <p className="text-sm text-t3 type-drawing-number mt-0.5">{baseDrawing}</p>
           </div>
           {hasRevisions && (
             <span className="text-sm font-semibold text-t3 tabular-nums shrink-0">
@@ -409,7 +409,7 @@ export function RevisionHistory({
         <GitBranch className="h-5 w-5 text-ac shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-lg font-semibold text-t1">Revision Timeline</p>
-          <p className="text-sm text-t3 font-mono truncate mt-0.5">{baseDrawing}</p>
+          <p className="text-sm text-t3 type-drawing-number truncate mt-0.5">{baseDrawing}</p>
         </div>
         {hasRevisions && (
           <span className="text-sm font-semibold text-t3 tabular-nums shrink-0">

@@ -28,7 +28,7 @@ export function JobImportResult({ result, onReset }: Props) {
         )}
         {result.nextDrawingNumber && (
           <p className="text-sm text-t2 mt-2">
-            Next drawing number: <span className="font-mono font-semibold text-ac">{result.nextDrawingNumber}</span>
+            Next drawing number: <span className="type-drawing-number text-ac">{result.nextDrawingNumber}</span>
           </p>
         )}
       </div>
@@ -45,7 +45,7 @@ export function JobImportResult({ result, onReset }: Props) {
                 {result.importedJobs.map((job, i) => (
                   <tr key={i} className="border-b border-bd last:border-0">
                     <td className="px-4 py-2.5">
-                      <span className="font-mono type-badge text-ac">{job.drawingNumber}</span>
+                      <span className="type-drawing-number type-badge text-ac">{job.drawingNumber}</span>
                     </td>
                     <td className="px-4 py-2.5 text-xs text-t1">{job.address}</td>
                     <td className="px-4 py-2.5 text-xs text-t3">{job.clientCompany}</td>

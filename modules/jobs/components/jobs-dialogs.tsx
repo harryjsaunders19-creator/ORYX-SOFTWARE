@@ -91,7 +91,7 @@ export function JobsDialogs({
             <DialogTitle>Cancel job</DialogTitle>
             <DialogDescription>
               Cancel{" "}
-              <span className="font-mono font-semibold text-ac">{deleteJob?.drawingNumber}</span>?
+              <span className="type-drawing-number text-ac">{deleteJob?.drawingNumber}</span>?
               The job moves to <strong>Archived Items</strong>. Its drawing number is kept on record and will not be reused. You can restore it later from Archive.
             </DialogDescription>
           </DialogHeader>

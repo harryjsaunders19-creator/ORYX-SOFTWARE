@@ -81,7 +81,7 @@ export function AddRevisionModal({ job, onClose, onSubmit }: AddRevisionModalPro
           <DialogTitle>Add revision</DialogTitle>
           {job && (
             <DialogDescription>
-              Revision for: <span className="font-mono font-semibold">{job.drawingNumber}</span>
+              Revision for: <span className="type-drawing-number">{job.drawingNumber}</span>
               <br />
               Enter the amendments required and confirm whether the revision is chargeable.
             </DialogDescription>

@@ -1,4 +1,4 @@
-import { Inter, JetBrains_Mono } from "next/font/google"
+import { Inter } from "next/font/google"
 
 export const inter = Inter({
   subsets: ["latin"],
@@ -10,9 +10,8 @@ export const inter = Inter({
 /** @deprecated Prefer `inter` — kept as alias for any residual imports. */
 export const figtree = inter
 
-export const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500"],
-  variable: "--font-mono",
-  display: "swap",
-})
+/**
+ * @deprecated Second family removed — typography is Inter-only.
+ * Alias kept so residual imports of `jetbrainsMono` still resolve.
+ */
+export const jetbrainsMono = inter

@@ -186,7 +186,7 @@ export function ActiveWorkItemsTable({
                   className="text-sm text-left w-full hover:text-ac transition-colors"
                   onClick={() => router.push(`/jobs/${p.id}`)}
                 >
-                  <span className="font-mono font-medium text-ac">{p.drawingNumber}</span>
+                  <span className="type-drawing-number text-ac">{p.drawingNumber}</span>
                   <span className="text-t3"> · {p.clientCompany}</span>
                   {p.siteName ? <span className="text-t4"> · {p.siteName}</span> : null}
                 </button>
@@ -201,12 +201,12 @@ export function ActiveWorkItemsTable({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-bd bg-surface-low">
-                <th className="px-4 py-2.5 text-left type-label text-t3">Drawing / Ref</th>
-                <th className="px-4 py-2.5 text-left type-label text-t3">Work</th>
-                <th className="px-4 py-2.5 text-left type-label text-t3 hidden sm:table-cell">Client</th>
-                <th className="px-4 py-2.5 text-left type-label text-t3 hidden md:table-cell">Site</th>
-                <th className="px-4 py-2.5 text-left type-label text-t3">Status</th>
-                <th className="px-4 py-2.5 text-left type-label text-t3 hidden lg:table-cell">Designer</th>
+                <th className="px-4 py-2.5 text-left type-table-head text-t3">Drawing / Ref</th>
+                <th className="px-4 py-2.5 text-left type-table-head text-t3">Work</th>
+                <th className="px-4 py-2.5 text-left type-table-head text-t3 hidden sm:table-cell">Client</th>
+                <th className="px-4 py-2.5 text-left type-table-head text-t3 hidden md:table-cell">Site</th>
+                <th className="px-4 py-2.5 text-left type-table-head text-t3">Status</th>
+                <th className="px-4 py-2.5 text-left type-table-head text-t3 hidden lg:table-cell">Designer</th>
               </tr>
             </thead>
             <tbody>
@@ -250,7 +250,7 @@ export function ActiveWorkItemsTable({
                     onClick={() => router.push(`/jobs/${row.parentJobId}`)}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-mono type-badge text-ac">{row.drawingNumber}</span>
+                      <span className="type-drawing-number type-badge text-ac">{row.drawingNumber}</span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1.5 text-sm font-medium text-t1 flex-wrap">

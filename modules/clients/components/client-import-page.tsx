@@ -167,14 +167,14 @@ function ImportClientsInner() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-pg border-b border-bd">
-                    <th className="px-3 py-2.5 text-left type-label text-t3 w-12">Row</th>
-                    <th className="px-3 py-2.5 text-left type-label text-t3 w-10" />
-                    <th className="px-3 py-2.5 text-left type-label text-t3">Company</th>
-                    <th className="px-3 py-2.5 text-left type-label text-t3">Customer ID</th>
-                    <th className="px-3 py-2.5 text-left type-label text-t3">Contact</th>
-                    <th className="px-3 py-2.5 text-left type-label text-t3">Phone</th>
-                    <th className="px-3 py-2.5 text-left type-label text-t3">Email</th>
-                    <th className="px-3 py-2.5 text-left type-label text-t3">Issues</th>
+                    <th className="px-3 py-2.5 text-left type-table-head text-t3 w-12">Row</th>
+                    <th className="px-3 py-2.5 text-left type-table-head text-t3 w-10" />
+                    <th className="px-3 py-2.5 text-left type-table-head text-t3">Company</th>
+                    <th className="px-3 py-2.5 text-left type-table-head text-t3">Customer ID</th>
+                    <th className="px-3 py-2.5 text-left type-table-head text-t3">Contact</th>
+                    <th className="px-3 py-2.5 text-left type-table-head text-t3">Phone</th>
+                    <th className="px-3 py-2.5 text-left type-table-head text-t3">Email</th>
+                    <th className="px-3 py-2.5 text-left type-table-head text-t3">Issues</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -181,7 +181,7 @@ export function KpiTile({ label, value, sub, valueClassName, className }: {
       "oryx-surface-card rounded-xl border border-bd bg-sr p-5 transition-colors duration-150 hover:border-bds",
       className,
     )}>
-      <p className={cn(Typography.Stat, "mb-2 max-md:text-[28px]", valueClassName ?? "text-t1")}>{value}</p>
+      <p className={cn(Typography.Stat, "mb-2", valueClassName ?? "text-t1")}>{value}</p>
       <p className={cn(Typography.Small, "font-medium text-t2")}>{label}</p>
       {sub != null && <p className={cn(Typography.Helper, "mt-1 text-t3")}>{sub}</p>}
     </div>
@@ -339,7 +339,7 @@ export function PageBreadcrumb({
             <span
               className={cn(
                 "font-medium text-t1 truncate",
-                item.mono && "font-mono",
+                item.mono && Typography.DrawingNumber,
                 item.strike && "line-through opacity-70",
               )}
             >

@@ -139,7 +139,7 @@ function PasswordCell({
 
   return (
     <div className="flex items-center gap-1.5 min-w-[140px]">
-      <span className="font-mono text-xs text-t1 truncate max-w-[120px]">
+      <span className="type-drawing-number text-xs text-t1 truncate max-w-[120px]">
         {visible && revealed ? revealed : "••••••••"}
       </span>
       <button

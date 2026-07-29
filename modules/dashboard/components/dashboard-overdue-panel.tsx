@@ -37,7 +37,7 @@ export function DashboardOverduePanel({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <RevisionFamilyBadge job={job} size="xs" />
-                      <span className="font-mono text-xs font-semibold text-t1">{job.drawingNumber}</span>
+                      <span className="type-drawing-number text-xs font-semibold text-t1">{job.drawingNumber}</span>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-t3">
                       {[job.clientCompany, job.address].filter(Boolean).join(" · ")}

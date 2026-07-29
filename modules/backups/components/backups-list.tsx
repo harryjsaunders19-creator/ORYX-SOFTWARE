@@ -56,14 +56,14 @@ export function BackupsList({ backups, loading, localBackupSupported }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-pg border-b border-bd text-xs">
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3 w-10" />
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Date & Time</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Status</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Trigger</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3">By</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-t3">Size</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-t3">Duration</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-t3">Folder</th>
+                  <th className="px-4 py-2.5 text-left  w-10" />
+                  <th className="px-4 py-2.5 text-left ">Date & Time</th>
+                  <th className="px-4 py-2.5 text-left ">Status</th>
+                  <th className="px-4 py-2.5 text-left ">Trigger</th>
+                  <th className="px-4 py-2.5 text-left ">By</th>
+                  <th className="px-4 py-2.5 text-right ">Size</th>
+                  <th className="px-4 py-2.5 text-right ">Duration</th>
+                  <th className="px-4 py-2.5 text-left ">Folder</th>
                 </tr>
               </thead>
               <tbody>
@@ -89,7 +89,7 @@ export function BackupsList({ backups, loading, localBackupSupported }: Props) {
                     <td className="px-4 py-3 text-xs text-t2">{b.triggeredByName}</td>
                     <td className="px-4 py-3 text-xs text-t2 text-right tabular-nums">{formatBytes(b.sizeBytes)}</td>
                     <td className="px-4 py-3 text-xs text-t2 text-right tabular-nums">{formatDuration(b.durationMs)}</td>
-                    <td className="px-4 py-3 text-xs font-mono text-t4 truncate max-w-[180px]" title={b.folderName}>{b.folderName}</td>
+                    <td className="px-4 py-3 text-xs type-drawing-number text-t4 truncate max-w-[180px]" title={b.folderName}>{b.folderName}</td>
                   </tr>
                 ))}
               </tbody>
@@ -107,7 +107,7 @@ export function BackupsList({ backups, loading, localBackupSupported }: Props) {
             {failedBackups.map(b => (
               <div key={b.id} className="px-4 py-3">
                 <p className="text-xs text-t2 mb-1">{format(new Date(b.startedAt), "d MMM yyyy, HH:mm:ss")}</p>
-                <p className="text-xs font-mono text-dn-tx">{b.errorMessage ?? "Unknown error"}</p>
+                <p className="text-xs type-drawing-number text-dn-tx">{b.errorMessage ?? "Unknown error"}</p>
               </div>
             ))}
           </div>

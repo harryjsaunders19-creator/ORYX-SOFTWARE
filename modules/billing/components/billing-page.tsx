@@ -159,11 +159,11 @@ function BillingPageInner() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-pg border-b border-bd">
-                <th className="px-4 py-2 text-left font-semibold text-t3">Batch Number</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Export Date</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Exported By</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Record Count</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Notes</th>
+                <th className="px-4 py-2 text-left ">Batch Number</th>
+                <th className="px-4 py-2 text-left ">Export Date</th>
+                <th className="px-4 py-2 text-left ">Exported By</th>
+                <th className="px-4 py-2 text-left ">Record Count</th>
+                <th className="px-4 py-2 text-left ">Notes</th>
                 <th className="px-4 py-2 w-1" />
               </tr>
             </thead>
@@ -230,18 +230,18 @@ function BillingPageInner() {
                     />
                   </th>
                 )}
-                <th className="px-4 py-2 text-left font-semibold text-t3">Job Number</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Project</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Client</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Site Address</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Job Type</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Completed</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Assigned Staff</th>
-                <th className="px-4 py-2 text-left font-semibold text-t3">Value</th>
+                <th className="px-4 py-2 text-left ">Job Number</th>
+                <th className="px-4 py-2 text-left ">Project</th>
+                <th className="px-4 py-2 text-left ">Client</th>
+                <th className="px-4 py-2 text-left ">Site Address</th>
+                <th className="px-4 py-2 text-left ">Job Type</th>
+                <th className="px-4 py-2 text-left ">Completed</th>
+                <th className="px-4 py-2 text-left ">Assigned Staff</th>
+                <th className="px-4 py-2 text-left ">Value</th>
                 {view === "cleared" && (
                   <>
-                    <th className="px-4 py-2 text-left font-semibold text-t3">Cleared</th>
-                    <th className="px-4 py-2 text-left font-semibold text-t3">Cleared By</th>
+                    <th className="px-4 py-2 text-left ">Cleared</th>
+                    <th className="px-4 py-2 text-left ">Cleared By</th>
                   </>
                 )}
                 <th className="px-4 py-2 w-1" />

@@ -164,7 +164,7 @@ export function JobMapMissingLocations({ isAdmin, onLocated }: Props) {
               return (
                 <div key={job.id} className="px-4 py-4 flex flex-col sm:flex-row sm:items-start gap-4">
                   <div className="flex-1 min-w-0 space-y-1">
-                    <p className="text-sm font-semibold text-t1 font-mono">{job.drawingNumber}</p>
+                    <p className="text-sm font-semibold text-t1 type-drawing-number">{job.drawingNumber}</p>
                     <p className="text-xs text-t3">
                       <span className="text-t4 font-medium">Site: </span>
                       {displaySiteName(job.siteName, job.address)}

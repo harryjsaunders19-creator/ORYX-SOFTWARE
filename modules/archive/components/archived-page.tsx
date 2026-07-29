@@ -149,7 +149,7 @@ function ArchivedInner() {
                   <div key={job.id} className="flex items-center justify-between gap-4 px-4 py-3 opacity-90">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-mono text-sm font-semibold text-t3 line-through truncate">
+                        <p className="type-drawing-number text-sm font-semibold text-t3 line-through truncate">
                           {job.drawingNumber}
                         </p>
                         <span className="type-badge px-2 py-0.5 rounded-full bg-dn-bg text-dn-tx border border-dn-bd shrink-0">
@@ -186,7 +186,7 @@ function ArchivedInner() {
                 {data.quotes.map(q => (
                   <div key={q.id} className="flex items-center justify-between gap-4 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="font-mono text-sm font-semibold text-t1">{q.quoteNumber}</p>
+                      <p className="type-drawing-number text-sm font-semibold text-t1">{q.quoteNumber}</p>
                       <p className="text-xs text-t3 truncate">{q.clientCompany} · {q.address}</p>
                       <p className="text-xs text-t4 mt-0.5">Archived {fmtDate(q.archivedAt)}</p>
                     </div>
@@ -254,7 +254,7 @@ function ArchivedInner() {
                           : "restored"}
                       </span>
                       {" "}
-                      <span className="font-mono text-ac">{entry.entityLabel}</span>
+                      <span className="type-drawing-number text-ac">{entry.entityLabel}</span>
                       {" "}
                       <span className="text-t4 text-xs">({entry.entityType})</span>
                       {entry.reason && <span className="text-t4 text-xs"> · {entry.reason}</span>}
@@ -277,7 +277,7 @@ function ArchivedInner() {
             <DialogTitle>Restore {confirmRestore?.type}</DialogTitle>
             <DialogDescription>
               Restore{" "}
-              <span className="font-mono font-semibold text-ac">{confirmRestore?.label}</span>?
+              <span className="type-drawing-number text-ac">{confirmRestore?.label}</span>?
               It will become visible again in active views.
             </DialogDescription>
           </DialogHeader>

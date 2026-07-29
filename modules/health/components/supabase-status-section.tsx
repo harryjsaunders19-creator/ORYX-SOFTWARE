@@ -136,17 +136,17 @@ export function SupabaseStatusSection() {
                         {mod.tables.filter(t => t.ready).length}/{mod.tables.length} tables
                       </p>
                     </div>
-                    <span className="type-helper font-mono text-t4 shrink-0">{mod.envVar}</span>
+                    <span className="type-helper type-drawing-number text-t4 shrink-0">{mod.envVar}</span>
                   </button>
                   {open && (
                     <div className="border-t border-bd bg-pg/30 px-4 py-3 text-xs space-y-2">
                       <p className="text-t3">
-                        Migration: <span className="font-mono text-t2">{mod.migration}</span>
+                        Migration: <span className="type-drawing-number text-t2">{mod.migration}</span>
                       </p>
-                      <p className="text-t3">Sync: <span className="font-mono text-t2">{mod.syncScript}</span></p>
+                      <p className="text-t3">Sync: <span className="type-drawing-number text-t2">{mod.syncScript}</span></p>
                       {mod.tables.map(t => (
                         <div key={t.name} className="flex justify-between gap-2">
-                          <span className="font-mono text-t2">{t.name}</span>
+                          <span className="type-drawing-number text-t2">{t.name}</span>
                           <span className={t.ready ? "text-ok-tx" : "text-dn-tx"}>
                             {t.ready ? `${t.count ?? 0} rows` : (t.error ?? "missing")}
                           </span>

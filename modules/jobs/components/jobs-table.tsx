@@ -575,17 +575,17 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               <tr className="bg-surface-low border-b border-bd">
                 <SortTh field="drawingNumber" label="Drawing No." {...sp} />
                 <SortTh field="address" label="Address"     {...sp} />
-                <th className={cn("px-4 py-2.5 text-left type-label text-t3 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
+                <th className={cn("px-4 py-2.5 text-left type-table-head text-t3 whitespace-nowrap", COL_TYPE_OF_WORKS)}>
                   Type of Works
                 </th>
                 <SortTh field="clientCompany" label="Client" className={COL_CLIENT} {...sp} />
-                <th className={cn("px-4 py-2.5 text-left type-label text-t3 whitespace-nowrap", COL_REQUESTED_BY)}>
+                <th className={cn("px-4 py-2.5 text-left type-table-head text-t3 whitespace-nowrap", COL_REQUESTED_BY)}>
                   Requested By
                 </th>
                 <SortTh field="quoteValue" label="Quotation" className={COL_QUOTATION} {...sp} />
                 <SortTh field="status" label="Completion Status" {...sp} />
                 <SortTh field="designer" label="Designer" className={COL_DESIGNER} {...sp} />
-                <th className="px-4 py-2.5 text-right type-label text-t3 whitespace-nowrap min-w-[180px]">
+                <th className="px-4 py-2.5 text-right type-table-head text-t3 whitespace-nowrap min-w-[180px]">
                   Actions
                 </th>
               </tr>

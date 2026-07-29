@@ -73,7 +73,7 @@ export function JobDetailHeader({
         <h1
           className={cn(
             Typography.PageTitle,
-            "font-mono tracking-tight text-t1",
+            "type-drawing-number tracking-tight text-t1",
             isCancelled && "line-through opacity-70",
           )}
         >

@@ -158,7 +158,7 @@ export function AttachExistingQuoteModal({
           <DialogTitle>{title}</DialogTitle>
           {job && (
             <DialogDescription>
-              Link a quote to <span className="font-mono font-semibold">{job.drawingNumber}</span>.
+              Link a quote to <span className="type-drawing-number">{job.drawingNumber}</span>.
             </DialogDescription>
           )}
         </DialogHeader>
@@ -201,7 +201,7 @@ export function AttachExistingQuoteModal({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-xs font-mono font-medium text-t1">{q.quoteNumber}</p>
+                        <p className="text-xs type-drawing-number text-t1">{q.quoteNumber}</p>
                         <p className="text-xs text-t3 truncate">{q.clientCompany}</p>
                         <p className="text-xs text-t4 truncate">{q.address}</p>
                       </div>

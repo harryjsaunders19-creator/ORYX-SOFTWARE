@@ -92,17 +92,17 @@ export function JobImportPreview({ preview, onReset, onCommit }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-pg border-b border-bd">
-                <th className="px-3 py-2.5 text-left type-label text-t3 w-12">Row</th>
-                <th className="px-3 py-2.5 text-left type-label text-t3 w-10">
+                <th className="px-3 py-2.5 text-left type-table-head text-t3 w-12">Row</th>
+                <th className="px-3 py-2.5 text-left type-table-head text-t3 w-10">
                   <span className="sr-only">Status</span>
                 </th>
-                <th className="px-3 py-2.5 text-left type-label text-t3">Address</th>
-                <th className="px-3 py-2.5 text-left type-label text-t3">Type of Works</th>
-                <th className="px-3 py-2.5 text-left type-label text-t3">Client</th>
-                <th className="px-3 py-2.5 text-left type-label text-t3">Requested By</th>
-                <th className="px-3 py-2.5 text-left type-label text-t3">Designer</th>
-                <th className="px-3 py-2.5 text-left type-label text-t3">Status</th>
-                <th className="px-3 py-2.5 text-left type-label text-t3">Issues</th>
+                <th className="px-3 py-2.5 text-left type-table-head text-t3">Address</th>
+                <th className="px-3 py-2.5 text-left type-table-head text-t3">Type of Works</th>
+                <th className="px-3 py-2.5 text-left type-table-head text-t3">Client</th>
+                <th className="px-3 py-2.5 text-left type-table-head text-t3">Requested By</th>
+                <th className="px-3 py-2.5 text-left type-table-head text-t3">Designer</th>
+                <th className="px-3 py-2.5 text-left type-table-head text-t3">Status</th>
+                <th className="px-3 py-2.5 text-left type-table-head text-t3">Issues</th>
               </tr>
             </thead>
             <tbody>

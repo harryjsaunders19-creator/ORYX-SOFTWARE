@@ -130,11 +130,11 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-surface-low border-b border-bd">
-                <th className="px-3 py-2 text-left font-semibold text-t3 w-6">Rev</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3">Drawing number</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3">Status</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3">Designer</th>
-                <th className="px-3 py-2 text-left font-semibold text-t3">Created</th>
+                <th className="px-3 py-2 text-left  w-6">Rev</th>
+                <th className="px-3 py-2 text-left ">Drawing number</th>
+                <th className="px-3 py-2 text-left ">Status</th>
+                <th className="px-3 py-2 text-left ">Designer</th>
+                <th className="px-3 py-2 text-left ">Created</th>
                 <th className="px-3 py-2 w-8" />
               </tr>
             </thead>
@@ -145,7 +145,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
                   onClick={() => router.push(`/jobs/${job.id}`)}
                 >
                   <td className="px-3 py-2.5 font-semibold text-t3 whitespace-nowrap">—</td>
-                  <td className="px-3 py-2.5 font-mono text-t2 whitespace-nowrap font-semibold">
+                  <td className="px-3 py-2.5 type-drawing-number text-t2 whitespace-nowrap font-semibold">
                     {job.drawingNumber}
                     <span className="ml-1.5 type-badge text-t4 normal-case">Original</span>
                   </td>
@@ -181,7 +181,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
                         )}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-ac whitespace-nowrap font-semibold">
+                    <td className="px-3 py-2.5 type-drawing-number text-ac whitespace-nowrap font-semibold">
                       {rev.drawingNumber}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
@@ -207,7 +207,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
       {!canAdd && latestRev && (
         <p className="text-xs text-t3">
           To add Rev {nextLetter}, open{" "}
-          <Link href={`/jobs/${latestRev.id}`} className="text-ac hover:text-ach font-mono font-semibold">
+          <Link href={`/jobs/${latestRev.id}`} className="text-ac hover:text-ach type-drawing-number">
             {latestRev.drawingNumber}
           </Link>{" "}
           and click Add revision.

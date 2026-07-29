@@ -140,7 +140,7 @@ function EmployeesInner() {
                           {emp.name}
                         </Link>
                         {emp.employeeId && (
-                          <p className="font-mono type-helper text-t4 mt-0.5">{emp.employeeId}</p>
+                          <p className="type-drawing-number type-helper text-t4 mt-0.5">{emp.employeeId}</p>
                         )}
                       </td>
                       <td className="px-4 py-3 text-t3">{emp.jobTitle ?? "—"}</td>

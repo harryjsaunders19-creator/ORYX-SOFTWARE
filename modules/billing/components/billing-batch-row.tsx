@@ -26,7 +26,7 @@ export function BatchRow({ batch }: { batch: BillingExportBatch }) {
   }
   return (
     <tr className="hover:bg-pg">
-      <td className="px-4 py-3 font-mono text-ac whitespace-nowrap font-semibold">{batch.batchNumber}</td>
+      <td className="px-4 py-3 type-drawing-number text-ac whitespace-nowrap font-semibold">{batch.batchNumber}</td>
       <td className="px-4 py-3 text-t3 tabular-nums whitespace-nowrap">{formatDisplayDate(batch.exportDate)}</td>
       <td className="px-4 py-3 text-t2 whitespace-nowrap">{batch.exportedBy}</td>
       <td className="px-4 py-3 text-t1 font-medium tabular-nums whitespace-nowrap">{batch.recordCount}</td>
@@ -64,7 +64,7 @@ export function BatchMobileCard({ batch }: { batch: BillingExportBatch }) {
     <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <span className="font-mono type-badge text-ac">{batch.batchNumber}</span>
+          <span className="type-drawing-number type-badge text-ac">{batch.batchNumber}</span>
           <p className="text-xs text-t3 mt-1 tabular-nums">{formatDisplayDate(batch.exportDate)}</p>
         </div>
         <span className="text-sm font-semibold text-t1 tabular-nums">{batch.recordCount} rows</span>

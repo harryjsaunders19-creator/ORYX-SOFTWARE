@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import "./globals.css"
-import { inter, jetbrainsMono } from "@/app/fonts"
+import { inter } from "@/app/fonts"
 import { ToastProvider }  from "@/components/ui/toast"
 import { UserProvider }   from "@/components/user-context"
 import { ThemeProvider }  from "@/components/theme-provider"
@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const fallbackSession = await buildSessionPayload().catch(() => null)
 
   return (
-    <html lang="en" className={`stitch-layout ${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`stitch-layout ${inter.variable}`} suppressHydrationWarning>
       <head>
         {/* Static theme-init only — not user-supplied HTML (safe). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

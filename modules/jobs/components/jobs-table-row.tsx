@@ -80,7 +80,7 @@ export function SortTh({ field, label, current, dir, onSort, className }: {
     <th
       onClick={() => onSort(field)}
       className={cn(
-        "px-4 py-2.5 text-left type-label text-t3 cursor-pointer select-none whitespace-nowrap",
+        "px-4 py-2.5 text-left type-table-head text-t3 cursor-pointer select-none whitespace-nowrap",
         className,
       )}
     >
@@ -131,7 +131,7 @@ export const JobMobileCard = memo(function JobMobileCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <RevisionFamilyBadge job={job} />
-            <span className="font-mono type-badge text-ac">{job.drawingNumber}</span>
+            <span className="type-drawing-number type-badge text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
@@ -178,7 +178,7 @@ export const JobMobileCard = memo(function JobMobileCard({
                 <button
                   type="button"
                   onClick={() => onNavigate(`/quotes?search=${encodeURIComponent(job.currentQuote!.quoteNumber)}`)}
-                  className="font-mono type-helper text-ac hover:underline text-left truncate"
+                  className="type-drawing-number type-helper text-ac hover:underline text-left truncate"
                 >
                   {job.currentQuote.quoteNumber}
                 </button>
@@ -237,7 +237,7 @@ export const JobTableRow = memo(
         <td className="px-4 py-3.5 whitespace-nowrap">
           <span className="flex items-center gap-1.5 flex-wrap">
             <RevisionFamilyBadge job={job} />
-            <span className="font-mono type-badge text-ac">{job.drawingNumber}</span>
+            <span className="type-drawing-number type-badge text-ac">{job.drawingNumber}</span>
             {job.itemType && job.itemType !== "DESIGN" && job.itemType !== "REVISION" && (
               <WorkItemTypeBadge itemType={job.itemType} size="sm" />
             )}
@@ -290,7 +290,7 @@ export const JobTableRow = memo(
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); onNavigate(`/quotes?search=${encodeURIComponent(job.currentQuote!.quoteNumber)}`) }}
-                className="type-helper font-mono text-ac hover:underline cursor-pointer tabular-nums"
+                className="type-helper type-drawing-number text-ac hover:underline cursor-pointer tabular-nums"
               >
                 {job.currentQuote.quoteNumber}
               </button>
@@ -311,7 +311,7 @@ export const JobTableRow = memo(
                 <p className="type-helper text-t4 tabular-nums">incl. extras</p>
               )}
               {job.quoteReference && (
-                <p className="type-helper font-mono text-t4 tabular-nums">{job.quoteReference}</p>
+                <p className="type-helper type-drawing-number text-t4 tabular-nums">{job.quoteReference}</p>
               )}
             </>
           )}

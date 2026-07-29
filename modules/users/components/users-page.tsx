@@ -214,11 +214,11 @@ function UsersPageInner() {
           <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
-                <th className="px-4 py-2.5 text-left font-semibold text-t3">Name</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3">Email</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3">Role</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3">Status</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3">Added</th>
+                <th className="px-4 py-2.5 text-left ">Name</th>
+                <th className="px-4 py-2.5 text-left ">Email</th>
+                <th className="px-4 py-2.5 text-left ">Role</th>
+                <th className="px-4 py-2.5 text-left ">Status</th>
+                <th className="px-4 py-2.5 text-left ">Added</th>
                 <th className="px-4 py-2.5 w-44" />
               </tr>
             </thead>
@@ -368,7 +368,7 @@ function UsersPageInner() {
               </div>
               <div>
                 <p className="type-helper text-t4 mb-0.5">Temporary password</p>
-                <p className="text-sm font-mono font-semibold text-ac">{tempPasswordInfo?.password}</p>
+                <p className="text-sm type-drawing-number text-ac">{tempPasswordInfo?.password}</p>
               </div>
               <button
                 onClick={() => {

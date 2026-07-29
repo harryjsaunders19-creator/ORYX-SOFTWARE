@@ -225,7 +225,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       {job && (
         <div className="flex items-center gap-3 rounded-xl border border-bd bg-pg px-4 py-3">
           <span className="text-xs text-t3 shrink-0">Reference</span>
-          <span className="font-mono text-sm font-semibold text-t1">{job.drawingNumber}</span>
+          <span className="type-drawing-number text-sm font-semibold text-t1">{job.drawingNumber}</span>
         </div>
       )}
 

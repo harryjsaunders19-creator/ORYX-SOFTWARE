@@ -195,7 +195,7 @@ export function JobRevisionOverview({
                     <span className="inline-flex items-center gap-2 flex-wrap">
                       {row.label}
                       {!preview && row.isCurrent && (
-                        <span className="bg-ac text-on-ac text-[9px] px-1.5 py-0.5 rounded-sm uppercase tracking-tighter font-bold">
+                        <span className={cn(Typography.Badge, "bg-ac text-on-ac px-1.5 py-0.5 rounded-sm uppercase tracking-tighter")}>
                           Current
                         </span>
                       )}

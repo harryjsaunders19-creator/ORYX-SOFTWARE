@@ -83,7 +83,7 @@ function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus
   return (
     <tr className="border-b border-bd last:border-0 hover:bg-pg">
       <td className="px-4 py-3 whitespace-nowrap">
-        <span className="font-mono type-badge text-ac">{q.quoteNumber}</span>
+        <span className="type-drawing-number type-badge text-ac">{q.quoteNumber}</span>
       </td>
       <td className="px-4 py-3 max-w-[140px]">
         <p className="text-xs font-medium text-t1 truncate">{q.clientCompany}</p>

@@ -119,7 +119,7 @@ function HealthPageInner() {
       {error && (
         <div className="rounded border border-dn-bd bg-dn-bg p-4 mb-4">
           <p className="text-sm font-medium text-dn-tx">Request failed</p>
-          <p className="text-xs font-mono text-dn mt-1">{error}</p>
+          <p className="text-xs type-drawing-number text-dn mt-1">{error}</p>
         </div>
       )}
 
@@ -269,7 +269,7 @@ function ResetDataSection() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>Type <span className="font-mono font-medium">RESET ALL DATA</span> to confirm</Label>
+                <Label>Type <span className="type-drawing-number">RESET ALL DATA</span> to confirm</Label>
                 <Input
                   value={phrase}
                   onChange={e => setPhrase(e.target.value)}

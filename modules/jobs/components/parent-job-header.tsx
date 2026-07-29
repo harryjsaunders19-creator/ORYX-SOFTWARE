@@ -52,7 +52,7 @@ export function ParentJobHeader({
       {/* Header — Stitch Job Details */}
       <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-8">
         <div className="min-w-0 space-y-2">
-          <h1 className="oryx-page-title text-t1 font-mono">
+          <h1 className="oryx-page-title text-t1 type-drawing-number">
             {parent.drawingNumber}
           </h1>
           {siteLine && (

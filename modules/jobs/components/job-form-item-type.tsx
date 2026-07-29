@@ -50,7 +50,7 @@ export function JobFormItemType({ selectableTypes, selectedItemType, onSelect }:
               <p className={cn("text-sm font-semibold", selected ? "text-rs-tx" : "text-t1")}>
                 {meta.title}
               </p>
-              <p className="mt-1 font-mono type-helper text-t3">
+              <p className="mt-1 type-drawing-number type-helper text-t3">
                 {getWorkItemRefHint(t.value)}
               </p>
               <p className="mt-2 text-xs leading-relaxed text-t3">

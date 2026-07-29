@@ -61,7 +61,7 @@ export function EmployeeProfileHeader({
               )}>
                 {STATUS_LABELS[emp.employmentStatus]}
               </span>
-              {emp.employeeId && <span className="font-mono">{emp.employeeId}</span>}
+              {emp.employeeId && <span className="type-drawing-number">{emp.employeeId}</span>}
               {emp.startDate && (
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />

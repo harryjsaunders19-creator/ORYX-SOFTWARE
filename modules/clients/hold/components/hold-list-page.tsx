@@ -156,11 +156,11 @@ export default function HoldListPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-pg border-b border-bd text-xs">
-                <th className="px-4 py-2.5 text-left font-semibold text-t3">Client</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3">Reason</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-t3">Date Added</th>
-                <th className="px-4 py-2.5 text-right font-semibold text-t3">Active Jobs</th>
-                <th className="px-4 py-2.5 text-right font-semibold text-t3">Quote Value</th>
+                <th className="px-4 py-2.5 text-left ">Client</th>
+                <th className="px-4 py-2.5 text-left ">Reason</th>
+                <th className="px-4 py-2.5 text-left ">Date Added</th>
+                <th className="px-4 py-2.5 text-right ">Active Jobs</th>
+                <th className="px-4 py-2.5 text-right ">Quote Value</th>
                 <th className="px-4 py-2.5 w-32" />
               </tr>
             </thead>

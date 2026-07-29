@@ -432,10 +432,10 @@ function JobsTable({ jobs }: { jobs: Job[] }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-pg border-b border-bd text-xs">
-            <th className="px-3 py-2 text-left font-semibold text-t3">Drawing No.</th>
-            <th className="px-3 py-2 text-left font-semibold text-t3">Address</th>
-            <th className="px-3 py-2 text-left font-semibold text-t3">Completion Status</th>
-            <th className="px-3 py-2 text-right font-semibold text-t3">Quote</th>
+            <th className="px-3 py-2 text-left ">Drawing No.</th>
+            <th className="px-3 py-2 text-left ">Address</th>
+            <th className="px-3 py-2 text-left ">Completion Status</th>
+            <th className="px-3 py-2 text-right ">Quote</th>
           </tr>
         </thead>
         <tbody>
@@ -444,7 +444,7 @@ function JobsTable({ jobs }: { jobs: Job[] }) {
               <td className="px-3 py-2.5 whitespace-nowrap">
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
                   <RevisionFamilyBadge job={j} size="xs" />
-                  <Link href={`/jobs/${j.id}`} className="font-mono type-badge text-ac hover:underline">
+                  <Link href={`/jobs/${j.id}`} className="type-drawing-number type-badge text-ac hover:underline">
                     {j.drawingNumber}
                   </Link>
                   {j.itemType && j.itemType !== "DESIGN" && j.itemType !== "REVISION" && (
