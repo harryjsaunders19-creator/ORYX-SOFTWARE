@@ -17,6 +17,11 @@ import { JobDetailTabs } from "./job-detail-tabs"
 import type { DetailTab } from "./job-detail-tabs"
 import { JobDetailSidebar } from "./job-detail-sidebar"
 import { JobDetailDialogs } from "./job-detail-dialogs"
+import type { RevisionFamilyResponse } from "../types/revision-types"
+import { JobRevisionOverview } from "./job-revision-overview"
+import { AddRevisionModal } from "./add-revision-modal"
+import { AttachExistingQuoteModal } from "./attach-existing-quote-modal"
+import { notifyRevisionsChanged } from "@/lib/revision-events"
 
 export default function JobDetailPage({
   fallbackJob,
@@ -48,6 +53,17 @@ export default function JobDetailPage({
   // Parent detail page: status/PATCH operations target the parent itself.
   // Revisions are independent items with their own detail pages.
   const workflowJobId = job?.id ?? id
+
+  const revisionsKey = id ? `/api/jobs/${id}/revisions` : null
+  const {
+    data: revisionFamily,
+    isLoading: revisionsLoading,
+    mutate: mutateRevisionFamily,
+  } = useApi<RevisionFamilyResponse>(revisionsKey)
+
+  const [revisionModalOpen, setRevisionModalOpen] = useState(false)
+  const [attachQuoteOpen, setAttachQuoteOpen] = useState(false)
+  const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
 
   // Revisions are not separate pages — one project card / one detail URL.
   useEffect(() => {
@@ -126,6 +142,48 @@ export default function JobDetailPage({
       toast("Network error", "error")
       void mutateJob({ ...job, designer: previous }, { revalidate: false })
     }
+  }
+
+  const handleRevisionSubmit = async (
+    jobForRevision: Job,
+    data: { notes: string; billable: boolean; quoteValue: number },
+  ) => {
+    const parentId = jobForRevision.parentJobId ?? jobForRevision.id
+    const res = await fetch(`/api/jobs/${parentId}/revisions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string }
+      toast(body.error ?? "Failed to create revision", "error")
+      return
+    }
+    const revision = await res.json() as Job
+    toast(`${revision.drawingNumber} added successfully`, "success")
+    notifyRevisionsChanged(parentId)
+    setRevisionModalOpen(false)
+    setSelectedRevisionId(null)
+    void mutateRevisionFamily()
+    void mutateJob()
+  }
+
+  const handleCreateQuote = () => {
+    if (!job) return
+    const p = new URLSearchParams({
+      new: "1",
+      jobId: job.id,
+      clientCompany: job.clientCompany,
+      ...(job.clientId ? { clientId: job.clientId } : {}),
+      address: job.siteAddress || job.address || "",
+      ...(job.typeOfWorks ? { typeOfWorks: job.typeOfWorks } : {}),
+    })
+    router.push(`/quotes?${p}`)
+  }
+
+  const handleAttachExistingQuote = () => {
+    if (!job) return
+    setAttachQuoteOpen(true)
   }
 
   const handleDelete = async () => {
@@ -225,22 +283,32 @@ export default function JobDetailPage({
         ]}
       />
 
-      <JobDetailHeader
-        job={job}
-        isCancelled={isCancelled}
-        revLetter={revLetter}
-        isAdmin={isAdmin}
-        restoring={restoring}
-        onRestore={handleRestore}
-        onEdit={() => setEditOpen(true)}
-        onAssign={() => setAssignOpen(true)}
-        onDelete={() => setDelOpen(true)}
-        onEditDrawingNumber={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
-      />
-
       {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-7 space-y-6">
+          <JobDetailHeader
+            job={job}
+            isCancelled={isCancelled}
+            revLetter={revLetter}
+            isAdmin={isAdmin}
+            restoring={restoring}
+            onRestore={handleRestore}
+            onEdit={() => setEditOpen(true)}
+            onAssign={() => setAssignOpen(true)}
+            onDelete={() => setDelOpen(true)}
+            onEditDrawingNumber={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
+            revisionFamily={revisionFamily ?? null}
+          />
+
+          <JobRevisionOverview
+            job={job}
+            revisionFamily={revisionFamily ?? null}
+            isLoading={revisionsLoading}
+            selectedRevisionId={selectedRevisionId}
+            onSelectedRevisionId={setSelectedRevisionId}
+            onAddRevision={() => setRevisionModalOpen(true)}
+          />
+
           <JobDetailTabs
             activeTab={activeTab}
             onTabChange={setActiveTab}
@@ -269,10 +337,14 @@ export default function JobDetailPage({
           isCancelled={isCancelled}
           isAdmin={isAdmin}
           cat2Exporting={cat2Exporting}
+          revisionFamily={revisionFamily ?? null}
           onAssign={() => setAssignOpen(true)}
           onEdit={() => setEditOpen(true)}
+          onCreateQuote={() => handleCreateQuote()}
+          onAttachExistingQuote={() => handleAttachExistingQuote()}
           onCat2Export={() => void handleCat2Export()}
           onDelete={() => setDelOpen(true)}
+          onOpenDocumentsTab={() => setActiveTab("documents")}
         />
       </div>
 
@@ -303,6 +375,23 @@ export default function JobDetailPage({
         onDnEditValueChange={setDnEditValue}
         onDnEditClose={() => setDnEditOpen(false)}
         onDnEditSave={handleDnEditSave}
+      />
+
+      <AddRevisionModal
+        job={revisionModalOpen ? job : null}
+        onClose={() => setRevisionModalOpen(false)}
+        onSubmit={handleRevisionSubmit}
+      />
+
+      <AttachExistingQuoteModal
+        job={job}
+        open={attachQuoteOpen}
+        onClose={() => setAttachQuoteOpen(false)}
+        onLinked={async () => {
+          await mutateJob()
+          await mutateRevisionFamily()
+          setAttachQuoteOpen(false)
+        }}
       />
     </PageShell>
   )

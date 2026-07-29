@@ -21,6 +21,8 @@ interface Props {
   defaultOpen?: boolean
   /** When true, skip the outer card/header (used inside a tab panel). */
   embedded?: boolean
+  /** When true, hide the create/add revision UI (keep the history display). */
+  hideCreate?: boolean
   onFamilyChanged?: () => void
 }
 
@@ -155,7 +157,14 @@ function TimelineEntry({
   )
 }
 
-export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, embedded = false, onFamilyChanged }: Props) {
+export function RevisionHistory({
+  job,
+  refreshKey = 0,
+  defaultOpen = true,
+  embedded = false,
+  hideCreate = false,
+  onFamilyChanged,
+}: Props) {
   const { toast } = useToast()
   const { isAdmin } = useUser()
 
@@ -299,7 +308,7 @@ export function RevisionHistory({ job, refreshKey = 0, defaultOpen = true, embed
             </div>
           )}
 
-          {family.canAddRevision && (
+          {!hideCreate && family.canAddRevision && (
             adding ? (
               <form onSubmit={handleCreate} className="border border-bd rounded-xl p-5 bg-pg space-y-3">
                 <p className="text-base font-semibold text-t1">

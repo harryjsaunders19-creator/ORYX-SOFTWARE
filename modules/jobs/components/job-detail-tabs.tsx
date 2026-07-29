@@ -168,6 +168,7 @@ export function JobDetailTabs({
             job={job}
             refreshKey={historyKey}
             embedded
+            hideCreate
             onFamilyChanged={() => { onFamilyChanged(); onHistoryKeyIncrement() }}
           />
         )}
