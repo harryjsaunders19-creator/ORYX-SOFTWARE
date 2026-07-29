@@ -1,7 +1,6 @@
 "use client"
 import { format } from "date-fns"
-import { ExternalLink, FileText } from "lucide-react"
-import { Button } from "@/shared/ui/button"
+import { FileText } from "lucide-react"
 import { cn, formatGBP, parseLocalDate } from "@/shared/utils/utils"
 import { Typography } from "@/shared/design/typography"
 import type { Job } from "@/lib/types"
@@ -11,14 +10,10 @@ export function JobDetailCurrentRevision({
   job,
   revisionFamily,
   isLoading,
-  onOpenRevisions,
-  onAddRevision,
 }: {
   job: Job & { currentRevision?: Job | null }
   revisionFamily: RevisionFamilyResponse | null
   isLoading: boolean
-  onOpenRevisions: () => void
-  onAddRevision: () => void
 }) {
   if (isLoading && !revisionFamily) {
     return (
@@ -66,17 +61,6 @@ export function JobDetailCurrentRevision({
             </p>
             <h2 className={cn(Typography.CardTitle, "font-bold text-t1")}>{label}</h2>
           </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {revisionFamily?.canAddRevision && (
-            <Button variant="ghost" size="sm" onClick={onAddRevision}>
-              Add
-            </Button>
-          )}
-          <Button variant="primary" size="md" onClick={onOpenRevisions}>
-            View Revision
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-          </Button>
         </div>
       </div>
 

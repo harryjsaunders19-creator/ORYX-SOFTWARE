@@ -1,10 +1,16 @@
 "use client"
 import { useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter, useParams } from "next/navigation"
 import { FileText } from "lucide-react"
 import { Button } from "@/shared/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/dialog"
 import { useToast } from "@/shared/ui/toast"
-import { totalJobCommercialValue } from "@/shared/utils/utils"
 import { useUser } from "@/shared/providers/user-context"
 import { PageShell, PageBreadcrumb } from "@/shared/layouts/page-layout"
 import { useApi } from "@/shared/hooks/use-api"
@@ -15,8 +21,6 @@ import { JobDetailHeader } from "./job-detail-header"
 import { JobDetailPrimaryActions } from "./job-detail-primary-actions"
 import { JobDetailAttention, buildAttentionItems, type AttentionAction } from "./job-detail-attention"
 import { JobDetailCurrentRevision } from "./job-detail-current-revision"
-import { JobDetailTabs } from "./job-detail-tabs"
-import type { DetailTab } from "./job-detail-tabs"
 import { JobDetailSidebar } from "./job-detail-sidebar"
 import { JobDetailDialogs } from "./job-detail-dialogs"
 import { JobRevisionOverview } from "./job-revision-overview"
@@ -25,6 +29,11 @@ import type { RevisionFamilyResponse } from "../types/revision-types"
 import { AddRevisionModal } from "./add-revision-modal"
 import { AttachExistingQuoteModal } from "./attach-existing-quote-modal"
 import { notifyRevisionsChanged } from "@/lib/revision-events"
+
+const JobDocumentsPanel = dynamic(
+  () => import("@/modules/job-documents/components/job-documents-panel").then(m => m.JobDocumentsPanel),
+  { ssr: false },
+)
 
 export default function JobDetailPage({
   fallbackJob,
@@ -51,7 +60,6 @@ export default function JobDetailPage({
   >(detailKey, {
     fallbackData: fallbackJob ?? undefined,
   })
-  const billingHandoff = job?.billingHandoff ?? null
   const workflowJobId = job?.id ?? id
 
   const revisionsKey = id ? `/api/jobs/${id}/revisions` : null
@@ -63,7 +71,9 @@ export default function JobDetailPage({
 
   const [revisionModalOpen, setRevisionModalOpen] = useState(false)
   const [attachQuoteOpen, setAttachQuoteOpen] = useState(false)
+  const [documentsOpen, setDocumentsOpen] = useState(false)
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null)
+  const [revisionsExpanded, setRevisionsExpanded] = useState(false)
 
   useEffect(() => {
     if (job?.parentJobId) {
@@ -87,7 +97,6 @@ export default function JobDetailPage({
   const [deleting, setDeleting] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
   const [restoring, setRestoring] = useState(false)
-  const [activeTab, setActiveTab] = useState<DetailTab>("overview")
   const [dnEditOpen, setDnEditOpen] = useState(false)
   const [dnEditValue, setDnEditValue] = useState("")
   const [dnEditSaving, setDnEditSaving] = useState(false)
@@ -119,31 +128,6 @@ export default function JobDetailPage({
       setEditOpen(false)
       load()
     } finally { setEditSaving(false) }
-  }
-
-  const handleDesignerChange = async (designer: string) => {
-    if (!job) return
-    const previous = job.designer ?? ""
-    if (designer === previous) return
-    void mutateJob({ ...job, designer }, { revalidate: false })
-    try {
-      const res = await fetch(`/api/jobs/${workflowJobId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ designer }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string }
-        toast(body.error ?? "Failed to assign designer", "error")
-        void mutateJob({ ...job, designer: previous }, { revalidate: false })
-        return
-      }
-      toast(designer ? `Assigned to ${designer}` : "Designer unassigned", "success")
-      void mutateJob()
-    } catch {
-      toast("Network error", "error")
-      void mutateJob({ ...job, designer: previous }, { revalidate: false })
-    }
   }
 
   const handleRevisionSubmit = async (
@@ -266,13 +250,11 @@ export default function JobDetailPage({
         handleCreateQuote()
         break
       case "status":
-        setActiveTab("overview")
+      case "deadline":
+        setEditOpen(true)
         break
       case "billing":
         router.push("/billing")
-        break
-      case "deadline":
-        setActiveTab("overview")
         break
     }
   }
@@ -290,7 +272,6 @@ export default function JobDetailPage({
 
   const isRevision = job.parentJobId !== null
   const isCancelled = !!job.archivedAt
-  const commercialTotal = totalJobCommercialValue(job)
   const focus = job.currentRevision ?? job
   const canExportCat2 = focus.status === "ISSUED" || job.status === "ISSUED"
   const canAddRevision = !!revisionFamily?.canAddRevision
@@ -343,48 +324,23 @@ export default function JobDetailPage({
               job={job}
               revisionFamily={revisionFamily ?? null}
               isLoading={revisionsLoading}
-              onOpenRevisions={() => setActiveTab("revisions")}
-              onAddRevision={() => setRevisionModalOpen(true)}
             />
 
-            {activeTab !== "revisions" && (
-              <JobRevisionOverview
-                job={job}
-                revisionFamily={revisionFamily ?? null}
-                isLoading={revisionsLoading}
-                selectedRevisionId={selectedRevisionId}
-                onSelectedRevisionId={id => {
-                  setSelectedRevisionId(id)
-                  setActiveTab("revisions")
-                }}
-                onAddRevision={() => setRevisionModalOpen(true)}
-                preview
-                onViewAll={() => setActiveTab("revisions")}
-              />
-            )}
-
-            <JobDetailLinkedRecords
+            <JobRevisionOverview
               job={job}
-              onOpenDocuments={() => setActiveTab("documents")}
-            />
-
-            <JobDetailTabs
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              job={job}
-              workflowJobId={workflowJobId}
-              isCancelled={isCancelled}
-              billingHandoff={billingHandoff}
-              commercialTotal={commercialTotal}
               revisionFamily={revisionFamily ?? null}
-              revisionsLoading={revisionsLoading}
+              isLoading={revisionsLoading}
               selectedRevisionId={selectedRevisionId}
               onSelectedRevisionId={setSelectedRevisionId}
               onAddRevision={() => setRevisionModalOpen(true)}
-              onStatusChange={s => {
-                void mutateJob({ ...job, status: s }, { revalidate: false })
-              }}
-              onDesignerChange={v => void handleDesignerChange(v)}
+              preview
+              collapsed={!revisionsExpanded}
+              onViewAll={() => setRevisionsExpanded(true)}
+            />
+
+            <JobDetailLinkedRecords
+              job={job}
+              onOpenDocuments={() => setDocumentsOpen(true)}
             />
           </section>
 
@@ -453,6 +409,19 @@ export default function JobDetailPage({
           setAttachQuoteOpen(false)
         }}
       />
+
+      <Dialog open={documentsOpen} onOpenChange={setDocumentsOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Job documents</DialogTitle>
+          </DialogHeader>
+          <JobDocumentsPanel
+            jobId={job.id}
+            canWrite={!isCancelled}
+            showTitle={false}
+          />
+        </DialogContent>
+      </Dialog>
     </PageShell>
   )
 }

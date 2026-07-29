@@ -1,7 +1,7 @@
 "use client"
 import type { ReactNode } from "react"
 import { format } from "date-fns"
-import { formatGBP, parseLocalDate, totalJobCommercialValue, cn, getJobDeadlineInfo } from "@/shared/utils/utils"
+import { parseLocalDate, cn, getJobDeadlineInfo } from "@/shared/utils/utils"
 import { Typography } from "@/shared/design/typography"
 import type { Job } from "@/lib/types"
 import type { RevisionFamilyResponse } from "../types/revision-types"
@@ -83,18 +83,6 @@ export function JobDetailSummary({
           <span className={cn(Typography.Small, "font-medium text-t3")}>—</span>
         </div>
       </div>
-
-      {/* Commercial glance kept available but secondary — not in Stitch mock chrome */}
-      {(job.quoteValue != null || totalJobCommercialValue(job) != null) && (
-        <div className="pt-2 border-t border-surface-low space-y-2">
-          <div className="flex justify-between items-center gap-3">
-            <span className={cn(Typography.Helper, "uppercase text-t3")}>Original Quote</span>
-            <span className={cn(Typography.Small, "font-semibold tabular-nums text-t1")}>
-              {job.quoteValue != null ? formatGBP(job.quoteValue) : "—"}
-            </span>
-          </div>
-        </div>
-      )}
     </section>
   )
 }

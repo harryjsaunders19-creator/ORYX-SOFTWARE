@@ -17,6 +17,8 @@ export function JobRevisionOverview({
   onAddRevision,
   defaultExpanded = false,
   preview = false,
+  /** When preview is true, collapse to the first 3 rows until View all. */
+  collapsed = true,
   onViewAll,
 }: {
   job: Job
@@ -27,6 +29,7 @@ export function JobRevisionOverview({
   onAddRevision: () => void
   defaultExpanded?: boolean
   preview?: boolean
+  collapsed?: boolean
   onViewAll?: () => void
 }) {
   if (isLoading && !revisionFamily) {
@@ -92,7 +95,8 @@ export function JobRevisionOverview({
   ]
 
   const ordered = [...rows].reverse()
-  const displayRows = preview ? ordered.slice(0, 3) : ordered
+  const displayRows = preview && collapsed ? ordered.slice(0, 3) : ordered
+  const showViewAll = preview && collapsed && ordered.length > 3 && !!onViewAll
 
   return (
     <section
@@ -120,7 +124,7 @@ export function JobRevisionOverview({
               Add revision
             </Button>
           )}
-          {preview && onViewAll && (
+          {showViewAll && (
             <button
               type="button"
               className={cn(
