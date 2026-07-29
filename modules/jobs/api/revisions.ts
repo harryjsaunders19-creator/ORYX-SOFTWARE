@@ -158,6 +158,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         { status: 409 },
       )
     }
+    if (parent.status !== "ISSUED") {
+      return NextResponse.json(
+        { error: "The original job must be marked complete before a revision can be added." },
+        { status: 422 },
+      )
+    }
 
     const existing = await jobService.revisionsForJob(parent.id)
     const { latestByParent } = buildRevisionFamilyIndex(

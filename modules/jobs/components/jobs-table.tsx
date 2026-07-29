@@ -15,7 +15,6 @@ import { useUser }       from "@/shared/providers/user-context"
 import { cn } from "@/shared/utils/utils"
 import { ToolbarCard, DataPanel, TablePagination } from "@/shared/layouts/page-layout"
 import { notifyRevisionsChanged } from "@/lib/revision-events"
-import { revisionParentId } from "@/lib/revision-chain"
 import type { Job, JobFormData, JobsResponse, SortField, SortDir } from "@/lib/types"
 import { WORK_ITEM_TYPES } from "@/lib/constants"
 import { LIMIT, COL_TYPE_OF_WORKS, COL_CLIENT, COL_REQUESTED_BY, COL_QUOTATION, COL_DESIGNER } from "./jobs-table-columns"
@@ -311,7 +310,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   }
 
   const patchJobField = useCallback(async (job: Job, field: "status" | "designer", value: string) => {
-    const targetId = job.currentRevisionId ?? job.id
+    const targetId = job.id
     await mutate(
       current => current ? { ...current, jobs: current.jobs.map(j => j.id === job.id ? { ...j, [field]: value } : j) } : current,
       { revalidate: false },
@@ -357,12 +356,13 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     void patchJobField(job, "status", status)
   }, [patchJobField])
 
-  // One-click revision — stays on the parent card (no new list row).
+  // One-click revision — create and stay on the list; the revision appears as its own row.
   const handleQuickRevision = useCallback(async (job: Job) => {
-    const anchorId = job.currentRevisionId ?? job.id
+    // Resolve the original parent (in case the user clicked from a revision card).
+    const parentId = job.parentJobId ?? job.id
     setCreatingRevisionFor(job.id)
     try {
-      const res = await fetch(`/api/jobs/${anchorId}/revisions`, {
+      const res = await fetch(`/api/jobs/${parentId}/revisions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       })
@@ -372,13 +372,11 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
       }
       const revision = await res.json() as Job
       toast(`${revision.drawingNumber} created`, "success")
-      notifyRevisionsChanged(revision.parentJobId ?? revisionParentId(job))
+      notifyRevisionsChanged(parentId)
       mutate()
-      // Stay on the parent project page, not a new card.
-      router.push(`/jobs/${revision.parentJobId ?? job.id}`)
     } catch { toast("Network error", "error") }
     finally { setCreatingRevisionFor(null) }
-  }, [mutate, router, toast])
+  }, [mutate, toast])
 
   const handleExport = async () => {
     await exportJobsToCsv(

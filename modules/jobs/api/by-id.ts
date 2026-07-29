@@ -70,7 +70,8 @@ export async function GET(req: NextRequest, { params }: Ctx) {
         ? await jobService.findUnique(job.parentJobId)
         : null
     }
-    // Parent project view: expose the active (latest) revision for status/designer UX.
+    // Parent project view: expose the latest revision for navigation but
+    // preserve the parent's own status/completion/billing state.
     if (!job.parentJobId) {
       const revs = await jobService.revisionsForJob(job.id)
       const latest = [...revs].sort((a, b) =>
@@ -81,16 +82,6 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       result.currentRevisionLetter = latest?.revisionLetter ?? null
       result.hasRevisions = revs.length > 0
       result.revisionCount = revs.length
-      if (latest) {
-        result.status = latest.status
-        result.designer = latest.designer
-        result.requiredByDate = latest.requiredByDate
-        result.dateCompleted = latest.dateCompleted
-        result.updatedAt = latest.updatedAt
-        result.notes = latest.notes
-        result.designStandards = latest.designStandards
-        result.billable = latest.billable
-      }
     }
     if (include.has("billing") && auth.user.role === "ADMIN") {
       const sourceId = (result.currentRevisionId as string | undefined) ?? id
