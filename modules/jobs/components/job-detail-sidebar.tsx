@@ -90,7 +90,7 @@ export function JobDetailSidebar({
   const invoice = invoiceLabel(job.currentRevision?.billingStatus ?? job.billingStatus ?? "")
 
   return (
-    <aside className="space-y-8 lg:sticky lg:top-6 self-start">
+    <aside className="w-full lg:w-auto space-y-8 lg:sticky lg:top-6 self-start">
       <div className="space-y-3">
         <p className={cn(Typography.Helper, "uppercase tracking-[0.05em] text-t3 px-1 mb-2")}>
           Actions

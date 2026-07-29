@@ -86,7 +86,6 @@ export default function JobDetailPage({
   const [deleting, setDeleting] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
   const [restoring, setRestoring] = useState(false)
-  const [historyKey, setHistoryKey] = useState(0)
   const [activeTab, setActiveTab] = useState<DetailTab>("overview")
   const [dnEditOpen, setDnEditOpen] = useState(false)
   const [dnEditValue, setDnEditValue] = useState("")
@@ -117,7 +116,7 @@ export default function JobDetailPage({
       }
       toast("Saved", "success")
       setEditOpen(false)
-      load(); setHistoryKey(k => k + 1)
+      load()
     } finally { setEditSaving(false) }
   }
 
@@ -139,7 +138,6 @@ export default function JobDetailPage({
         return
       }
       toast(designer ? `Assigned to ${designer}` : "Designer unassigned", "success")
-      setHistoryKey(k => k + 1)
       void mutateJob()
     } catch {
       toast("Network error", "error")
@@ -229,7 +227,6 @@ export default function JobDetailPage({
         return
       }
       toast("CAT II Check Sheet exported", "success")
-      setHistoryKey(k => k + 1)
     } catch {
       toast("CAT II export failed", "error")
     } finally {
@@ -249,7 +246,6 @@ export default function JobDetailPage({
       if (!res.ok) { toast(data.error ?? "Failed to update", "error"); return }
       void mutateJob(data, { revalidate: false })
       setDnEditOpen(false)
-      setHistoryKey(k => k + 1)
       toast("Drawing number updated", "success")
     } catch { toast("Network error", "error") }
     finally { setDnEditSaving(false) }
@@ -308,9 +304,9 @@ export default function JobDetailPage({
         ]}
       />
 
-      <div className="max-w-[1440px]">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8">
-          <section className="min-w-0 space-y-8">
+      <div className="w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6 xl:gap-8">
+          <section className="min-w-0 w-full space-y-8">
             <JobDetailHeader
               job={job}
               isCancelled={isCancelled}
@@ -374,7 +370,6 @@ export default function JobDetailPage({
               onTabChange={setActiveTab}
               job={job}
               workflowJobId={workflowJobId}
-              historyKey={historyKey}
               isCancelled={isCancelled}
               billingHandoff={billingHandoff}
               commercialTotal={commercialTotal}
@@ -385,9 +380,7 @@ export default function JobDetailPage({
               onAddRevision={() => setRevisionModalOpen(true)}
               onStatusChange={s => {
                 void mutateJob({ ...job, status: s }, { revalidate: false })
-                setHistoryKey(k => k + 1)
               }}
-              onHistoryKeyIncrement={() => setHistoryKey(k => k + 1)}
               onDesignerChange={v => void handleDesignerChange(v)}
             />
           </section>
@@ -423,7 +416,6 @@ export default function JobDetailPage({
         onAssignSaved={updated => {
           void mutateJob({ ...job, designer: updated.designer }, { revalidate: true })
           setAssignOpen(false)
-          setHistoryKey(k => k + 1)
         }}
         editOpen={editOpen}
         editSaving={editSaving}

@@ -12,10 +12,6 @@ import type { RevisionFamilyResponse } from "../types/revision-types"
 import { JobRevisionOverview } from "./job-revision-overview"
 import { invoiceLabel } from "./parent-job-helpers"
 
-const StatusHistory = dynamic(
-  () => import("@/components/status-history").then(m => m.StatusHistory),
-  { ssr: false },
-)
 const JobDocumentsPanel = dynamic(
   () => import("@/modules/job-documents/components/job-documents-panel").then(m => m.JobDocumentsPanel),
   { ssr: false },
@@ -35,7 +31,6 @@ interface JobDetailTabsProps {
   onTabChange: (tab: DetailTab) => void
   job: Job & { parentJob?: Job | null; billingHandoff?: BillingHandoff | null; currentRevision?: Job | null }
   workflowJobId: string
-  historyKey: number
   isCancelled: boolean
   billingHandoff: BillingHandoff | null
   commercialTotal: number | null
@@ -45,7 +40,7 @@ interface JobDetailTabsProps {
   onSelectedRevisionId: (id: string | null) => void
   onAddRevision: () => void
   onStatusChange: (status: string) => void
-  onHistoryKeyIncrement: () => void
+  onDocumentsChange?: () => void
   onDesignerChange: (designer: string) => void
 }
 
@@ -72,7 +67,6 @@ export function JobDetailTabs({
   onTabChange,
   job,
   workflowJobId,
-  historyKey,
   isCancelled,
   billingHandoff,
   commercialTotal,
@@ -82,7 +76,7 @@ export function JobDetailTabs({
   onSelectedRevisionId,
   onAddRevision,
   onStatusChange,
-  onHistoryKeyIncrement,
+  onDocumentsChange,
   onDesignerChange,
 }: JobDetailTabsProps) {
   const focus = job.currentRevision ?? job
@@ -209,11 +203,6 @@ export function JobDetailTabs({
                 )}
               </div>
             </div>
-
-            <div>
-              <h3 className={cn(Typography.Small, "font-semibold text-t1 mb-3")}>Recent activity</h3>
-              <StatusHistory key={historyKey} jobId={workflowJobId} onUpdate={onHistoryKeyIncrement} />
-            </div>
           </div>
         )}
 
@@ -234,7 +223,7 @@ export function JobDetailTabs({
             jobId={job.id}
             canWrite={!isCancelled}
             showTitle={false}
-            onTimelineChange={onHistoryKeyIncrement}
+            onTimelineChange={onDocumentsChange}
           />
         )}
 

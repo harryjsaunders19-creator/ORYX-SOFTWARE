@@ -66,7 +66,7 @@ export function JobDetailCurrentRevision({
     : "—"
 
   return (
-    <section className="rounded-xl border border-bd bg-sr px-6 py-6 shadow-sm">
+    <section className="rounded-xl border border-bd bg-sr px-6 py-6 shadow-sm w-full">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-2 min-w-0">
           <FileText className="h-[18px] w-[18px] text-t3 shrink-0" aria-hidden />

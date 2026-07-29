@@ -101,7 +101,7 @@ export function JobRevisionOverview({
       : ordered.filter(r => r.isCurrent)
 
   return (
-    <section className={cn(!preview && "rounded-xl border border-bd bg-sr px-5 py-4")}>
+    <section className={cn("w-full", !preview && "rounded-xl border border-bd bg-sr px-5 py-4")}>
       <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-2 min-w-0">
           {preview && <Clock className="h-[18px] w-[18px] text-t3 shrink-0" aria-hidden />}
@@ -125,9 +125,18 @@ export function JobRevisionOverview({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-bd bg-sr">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left border-collapse">
+      <div className="overflow-hidden rounded-xl border border-bd bg-sr w-full">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full table-fixed text-left border-collapse">
+            <colgroup>
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+              <col className="w-[12%]" />
+              <col className="w-[28%]" />
+              <col className="w-[10%]" />
+              <col className="w-[16%]" />
+              <col className="w-[6%]" />
+            </colgroup>
             <thead>
               <tr className="bg-surface-low border-b border-bd">
                 {(["Revision", "Status", "Completed", "Amendments", "Fee", "Designer"] as const).map(
@@ -176,7 +185,7 @@ export function JobRevisionOverview({
                   <td
                     className={cn(
                       Typography.Small,
-                      "px-4 py-4 max-w-[180px] truncate",
+                      "px-4 py-4 break-words",
                       row.amendments === "—" ? "text-t3" : "text-t1",
                     )}
                     title={row.amendments !== "—" ? row.amendments : undefined}
