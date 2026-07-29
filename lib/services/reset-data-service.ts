@@ -1,10 +1,10 @@
-import { resetAllData } from "@/lib/db/stores"
 import { isSupabaseAdminConfigured } from "@/shared/supabase/config"
 import { resetSupabaseOperationalData } from "@/shared/supabase/reset-all-data"
 
 /**
- * Wipes all operational data in SQLite and, when linked, Supabase.
- * User accounts are preserved in both stores.
+ * Wipes operational data.
+ * - Supabase admin configured: wipe Supabase only (no SQLite import).
+ * - Otherwise: wipe local SQLite.
  */
 export async function resetSystemData(): Promise<{
   jobCount: number
@@ -12,9 +12,8 @@ export async function resetSystemData(): Promise<{
   quoteCount: number
 }> {
   if (isSupabaseAdminConfigured()) {
-    const counts = await resetSupabaseOperationalData()
-    resetAllData()
-    return counts
+    return resetSupabaseOperationalData()
   }
+  const { resetAllData } = await import("@/lib/db/stores")
   return resetAllData()
 }

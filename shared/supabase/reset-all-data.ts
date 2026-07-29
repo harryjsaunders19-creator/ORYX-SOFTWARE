@@ -22,9 +22,17 @@ async function countTable(table: string): Promise<number> {
   return count ?? 0
 }
 
-/** Delete all rows — PostgREST requires a filter; every table uses text `id` PK. */
-async function deleteAll(table: string): Promise<void> {
+/** Delete all rows — PostgREST requires a filter; tables with text `id` PK. */
+async function deleteAllById(table: string): Promise<void> {
   const { error } = await createAdminClient().from(table).delete().neq("id", "")
+  if (error && !isMissingTableError(error)) throw error
+}
+
+async function deleteAllSessions(): Promise<void> {
+  const { error } = await createAdminClient()
+    .from("session_revocations")
+    .delete()
+    .neq("token_sig", "")
   if (error && !isMissingTableError(error)) throw error
 }
 
@@ -49,10 +57,14 @@ const WIPE_TABLES = [
   "status_history",
   "quote_line_items",
   "quotes",
+  "job_documents",
+  "work_items",
+  "parent_jobs",
   "jobs",
   "client_holds",
   "client_contacts",
   "archive_log",
+  "site_visit_calculations",
   "clients",
 ] as const
 
@@ -72,8 +84,9 @@ export async function resetSupabaseOperationalData(): Promise<{
   ])
 
   for (const table of WIPE_TABLES) {
-    await deleteAll(table)
+    await deleteAllById(table)
   }
+  await deleteAllSessions()
 
   return { jobCount, clientCount, quoteCount }
 }

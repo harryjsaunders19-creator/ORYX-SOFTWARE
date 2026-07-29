@@ -1,48 +1,47 @@
 # SQLite → Supabase sunset (Path A)
 
 ORYX is an **internal** ops app. Production (Vercel) uses **Supabase Postgres
-only**. Local/CI keep SQLite until e2e is moved off it.
+only**. CI e2e also runs against local Supabase (`supabase start`). Local
+`npm run dev` without service-role credentials can still use SQLite.
 
 There is **no** `DATA_BACKEND` env var. Routing is:
 
 | Condition | Data store |
 |-----------|------------|
 | `SUPABASE_SERVICE_ROLE_KEY` (+ URL + anon) set | Supabase (`isSupabaseOnly()` = true) |
-| Service role absent | SQLite (local/CI/e2e) |
+| Service role absent | SQLite (optional local-only) |
 | `VERCEL=1` or `FORCE_SUPABASE_ONLY=true` | Per-module `SUPABASE_*=false` overrides ignored when admin is configured |
 
 ## Invariant (split modules)
 
-For the seven modules with `*-service.ts` + `*-sqlite.ts` / `*-supabase.ts`
-routers, `useSupabase*()` is only true when admin credentials exist — which
-also makes `isSupabaseOnly()` true. All seven hybrids have been collapsed to
-pure SQLite local/CI services; dual-write branches were unreachable whenever
-Supabase was configured.
+For modules with `*-service.ts` + `*-sqlite.ts` / `*-supabase.ts` routers,
+`isSupabaseOnly()` selects the backend. Dual-write mirrors are removed.
 
 ## Progress
 
-| Module | Status |
-|--------|--------|
-| password-vault | Hybrid collapsed → `vault-service-sqlite.ts` |
-| calendar | Hybrid collapsed → `calendar-service-sqlite.ts` |
-| billing | Hybrid collapsed → `billing-handoff-service-sqlite.ts` |
-| users | Hybrid collapsed → `user-service-sqlite.ts` |
-| clients | Hybrid collapsed → `client-service-sqlite.ts` |
-| quotes | Hybrid collapsed → `quote-service-sqlite.ts` |
-| jobs | Hybrid collapsed → `job-service-sqlite.ts` |
+### Seven core hybrids + inline dual-path collapses
 
-**Still dual-path in a single file** (no hybrid split yet): leave, employees,
-holds, history, site-visit saved calculations, job-documents, backups,
-client-contacts, identity/session helpers, import-export.
+See recent Path A PRs — jobs/clients/quotes/users/billing/calendar/vault and
+inline services (holds, history, documents, employees, leave, backups,
+identity/session, import-excel, job-map) follow the router pattern.
 
-## Suggested order
+### E2E off SQLite (this step)
 
-1. Split or collapse inline dual-path services
-2. Move e2e to Supabase (or a test Postgres) so `lib/db` can shrink
-3. Remove `better-sqlite3` / SQLite boot when CI no longer needs it
+| Piece | Status |
+|-------|--------|
+| CI | `supabase start` + seed + Playwright with `FORCE_SUPABASE_ONLY` |
+| Seed | `supabase/seed-e2e-users.sql` + `scripts/e2e-seed-supabase-users.mjs` |
+| Local helper | `npm run e2e:supabase:up` / `npm run test:e2e:supabase` (Docker required) |
+| Hot paths | Backups GET no longer imports SQLite; reset-data / archive log skip SQLite when admin configured |
 
-## Out of scope for early slices
+## Suggested next steps
 
-- Deleting `lib/db` or `better-sqlite3`
-- Requiring Supabase for local/e2e
+1. Remove `better-sqlite3` / shrink `lib/db` once local SQLite is optional-only and unused in CI
+2. Optionally delete per-module `SUPABASE_*=false` override knobs
+
+## Out of scope until SQLite is unused locally
+
+- Deleting `lib/db` or `better-sqlite3` from `package.json`
+- Requiring Supabase for every `npm run dev`
 - Changing `isSupabaseOnly()` to mean something other than “admin configured”
+- Multi-tenancy / SaaS Path B

@@ -4,7 +4,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import { requireRole } from "@/shared/auth/auth"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { backupRecordService } from "../services/backup-record-service"
-import { startBackup, BACKUPS_DIR, LOCAL_BACKUPS_EPHEMERAL_ON_VERCEL } from "../backup-service"
+import { BACKUPS_DIR, LOCAL_BACKUPS_EPHEMERAL_ON_VERCEL } from "../backup-paths"
 
 export async function GET() {
   const auth = await requireRole(["ADMIN"])
@@ -58,6 +58,8 @@ export async function POST(_req: NextRequest) {
       return NextResponse.json({ error: "A backup is already in progress" }, { status: 409 })
     }
 
+    // Lazy-load SQLite dump path — never evaluate better-sqlite3 on GET / Supabase-only.
+    const { startBackup } = await import("../backup-service")
     const job = await startBackup({
       triggeredBy: auth.user.id,
       triggeredByName: auth.user.name,
