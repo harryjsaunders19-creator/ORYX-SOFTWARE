@@ -54,8 +54,20 @@ function todayIso(): string {
   return todayIsoDate()
 }
 
+function weekStartIso(): string {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  const dow = d.getDay()
+  const mondayOffset = dow === 0 ? -6 : 1 - dow
+  return addDaysToIsoDate(d, mondayOffset)
+}
+
 function weekEndIso(): string {
-  return addDaysToIsoDate(new Date(), 7)
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  const dow = d.getDay()
+  const sundayOffset = dow === 0 ? 0 : 7 - dow
+  return addDaysToIsoDate(d, sundayOffset)
 }
 
 /** Filter parent rows by their *current revision* display fields. */
@@ -75,7 +87,8 @@ function filterByCurrentDisplay<T extends {
   },
 ): T[] {
   const today = todayIso()
-  const weekEnd = weekEndIso()
+  const wkStart = weekStartIso()
+  const wkEnd = weekEndIso()
   return jobs.filter(j => {
     if (opts.status && j.status !== opts.status) return false
     if (opts.unassigned && (j.designer ?? "").trim() !== "") return false
@@ -85,7 +98,7 @@ function filterByCurrentDisplay<T extends {
     const due = j.requiredByDate
     if (opts.overdue && !(due != null && due < today)) return false
     if (opts.dueToday && due !== today) return false
-    if (opts.dueThisWeek && !(due != null && due >= today && due <= weekEnd)) return false
+    if (opts.dueThisWeek && !(due != null && due >= wkStart && due <= wkEnd)) return false
     return true
   })
 }
@@ -131,13 +144,11 @@ export async function GET(req: NextRequest) {
     const typeOfWorks    = sp.get("typeOfWorks")   ?? ""
     const unassigned     = sp.get("unassigned")    === "true"
     const onlyRevisions  = sp.get("onlyRevisions") === "true"
-    const includeRevisions = sp.get("includeRevisions") === "true"
+    const _includeRevisions = sp.get("includeRevisions") === "true"
     // One parent card per drawing by default — revisions stay in DB, not the list.
     const onlyOriginals = onlyRevisions
       ? false
-      : includeRevisions
-        ? sp.get("onlyOriginals") === "true"
-        : sp.get("onlyOriginals") !== "false"
+      : sp.get("onlyOriginals") === "true"
     const overdue        = sp.get("overdue")        === "true"
     const dueToday       = sp.get("dueToday")       === "true"
     const dueThisWeek    = sp.get("dueThisWeek")    === "true"
