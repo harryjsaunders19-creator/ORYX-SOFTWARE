@@ -320,7 +320,11 @@ export default function JobDetailPage({
             parentJob={parentJob}
             billingHandoff={billingHandoff}
             commercialTotal={commercialTotal}
-            onFamilyChanged={() => void mutateJob()}
+            revisionFamily={revisionFamily ?? null}
+            onFamilyChanged={() => {
+              void mutateJob()
+              void mutateRevisionFamily()
+            }}
             onOpenEdit={() => setEditOpen(true)}
             onStatusChange={s => {
               void mutateJob({ ...job, status: s }, { revalidate: false })

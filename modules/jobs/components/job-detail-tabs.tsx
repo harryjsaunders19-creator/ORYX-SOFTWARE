@@ -8,6 +8,7 @@ import { DesignerCombobox } from "@/components/designer-combobox"
 import { worksTypeDisplayLabel } from "@/lib/constants"
 import type { Job, BillingHandoff } from "@/lib/types"
 import { InfoField } from "./job-page-primitives"
+import type { RevisionFamilyResponse } from "../types/revision-types"
 
 const StatusHistory = dynamic(
   () => import("@/components/status-history").then(m => m.StatusHistory),
@@ -44,6 +45,7 @@ interface JobDetailTabsProps {
   parentJob: Job | null
   billingHandoff: BillingHandoff | null
   commercialTotal: number | null
+  revisionFamily: RevisionFamilyResponse | null
   onFamilyChanged: () => void
   onOpenEdit: () => void
   onStatusChange: (status: string) => void
@@ -62,6 +64,7 @@ export function JobDetailTabs({
   parentJob,
   billingHandoff,
   commercialTotal,
+  revisionFamily,
   onFamilyChanged,
   onOpenEdit,
   onStatusChange,
@@ -169,6 +172,7 @@ export function JobDetailTabs({
             refreshKey={historyKey}
             embedded
             hideCreate
+            family={revisionFamily}
             onFamilyChanged={() => { onFamilyChanged(); onHistoryKeyIncrement() }}
           />
         )}

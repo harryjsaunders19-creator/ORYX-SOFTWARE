@@ -23,6 +23,8 @@ interface Props {
   embedded?: boolean
   /** When true, hide the create/add revision UI (keep the history display). */
   hideCreate?: boolean
+  /** Optional pre-fetched family (used by Job Details page to avoid duplicate requests). */
+  family?: RevisionFamilyResponse | null
   onFamilyChanged?: () => void
 }
 
@@ -163,13 +165,14 @@ export function RevisionHistory({
   defaultOpen = true,
   embedded = false,
   hideCreate = false,
+  family: familyProp,
   onFamilyChanged,
 }: Props) {
   const { toast } = useToast()
   const { isAdmin } = useUser()
 
-  const [family, setFamily] = useState<RevisionFamilyResponse | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [family, setFamily] = useState<RevisionFamilyResponse | null>(familyProp ?? null)
+  const [loading, setLoading] = useState(!familyProp)
   const [open, setOpen] = useState(defaultOpen)
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -180,6 +183,7 @@ export function RevisionHistory({
 
   const load = useCallback(async () => {
     try {
+      setLoading(true)
       const res = await fetch(`/api/jobs/${job.id}/revisions`, { cache: "no-store" })
       if (!res.ok) return
       const data = await res.json() as RevisionFamilyResponse
@@ -190,17 +194,22 @@ export function RevisionHistory({
   }, [job.id])
 
   useEffect(() => {
+    if (familyProp) {
+      setFamily(familyProp)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     load()
-  }, [load, refreshKey])
+  }, [load, refreshKey, familyProp])
 
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible") load()
+      if (document.visibilityState === "visible" && !familyProp) load()
     }
     const onRevisionsChanged = (e: Event) => {
       const detail = (e as CustomEvent<{ parentJobId: string }>).detail
-      if (detail?.parentJobId === parentId) load()
+      if (detail?.parentJobId === parentId && !familyProp) load()
     }
 
     document.addEventListener("visibilitychange", onVisible)
@@ -209,7 +218,7 @@ export function RevisionHistory({
       document.removeEventListener("visibilitychange", onVisible)
       window.removeEventListener(REVISIONS_CHANGED, onRevisionsChanged)
     }
-  }, [load, parentId])
+  }, [load, parentId, familyProp])
 
   const createFromId =
     family?.chain.find(c => c.isCurrent)?.id
