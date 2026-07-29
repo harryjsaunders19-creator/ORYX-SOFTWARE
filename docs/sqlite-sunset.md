@@ -13,11 +13,11 @@ There is **no** `DATA_BACKEND` env var. Routing is:
 
 ## Invariant (split modules)
 
-For the seven modules with `*-service.ts` + `*-hybrid.ts` / `*-supabase.ts`
+For the seven modules with `*-service.ts` + `*-sqlite.ts` / `*-supabase.ts`
 routers, `useSupabase*()` is only true when admin credentials exist — which
-also makes `isSupabaseOnly()` true. The hybrid dual-write branches are therefore
-**unreachable** whenever Supabase is configured. Hybrids only run as the
-SQLite-only path when credentials are absent.
+also makes `isSupabaseOnly()` true. All seven hybrids have been collapsed to
+pure SQLite local/CI services; dual-write branches were unreachable whenever
+Supabase was configured.
 
 ## Progress
 
@@ -29,7 +29,7 @@ SQLite-only path when credentials are absent.
 | users | Hybrid collapsed → `user-service-sqlite.ts` |
 | clients | Hybrid collapsed → `client-service-sqlite.ts` |
 | quotes | Hybrid collapsed → `quote-service-sqlite.ts` |
-| jobs | Hybrid still present (+ `ensure*InSqlite` helpers) |
+| jobs | Hybrid collapsed → `job-service-sqlite.ts` |
 
 **Still dual-path in a single file** (no hybrid split yet): leave, employees,
 holds, history, site-visit saved calculations, job-documents, backups,
@@ -37,10 +37,9 @@ client-contacts, identity/session helpers, import-export.
 
 ## Suggested order
 
-1. Collapse remaining hybrids (jobs)
-2. Split or collapse inline dual-path services
-3. Move e2e to Supabase (or a test Postgres) so `lib/db` can shrink
-4. Remove `better-sqlite3` / SQLite boot when CI no longer needs it
+1. Split or collapse inline dual-path services
+2. Move e2e to Supabase (or a test Postgres) so `lib/db` can shrink
+3. Remove `better-sqlite3` / SQLite boot when CI no longer needs it
 
 ## Out of scope for early slices
 
