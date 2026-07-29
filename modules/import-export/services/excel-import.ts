@@ -37,7 +37,7 @@ import {
   formatImportError,
   shouldUseBulkImport,
 } from "./import-excel-bulk"
-import { useSupabaseClients, useSupabaseJobs, useSupabaseQuotes } from "@/shared/supabase/feature-flags"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import {
   MAX_IMPORT_LOOKUP_ROWS,
   MAX_IMPORT_SHEET_ROWS,
@@ -194,7 +194,7 @@ async function importClients(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 
   if (!toUpsert.length) return result
 
-  if (useSupabaseClients()) {
+  if (isSupabaseOnly()) {
     try {
       await bulkImportClients(toUpsert)
       result.created += createCount
@@ -331,7 +331,7 @@ async function importJobs(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 
   linkImportedRevisions(rows, jobByDrawingNumber)
 
-  if (useSupabaseJobs()) {
+  if (isSupabaseOnly()) {
     try {
       await bulkImportJobs(rows)
       result.created += createCount
@@ -467,7 +467,7 @@ async function importQuotes(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
 
   if (!rows.length) return result
 
-  if (useSupabaseQuotes()) {
+  if (isSupabaseOnly()) {
     try {
       await bulkImportQuotes(rows)
       result.created += createCount

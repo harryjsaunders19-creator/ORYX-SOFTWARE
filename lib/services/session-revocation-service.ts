@@ -1,40 +1,12 @@
+/**
+ * Session revocation — routes to Supabase-only or SQLite (local/CI).
+ * Dual-path hybrid was removed; see docs/sqlite-sunset.md.
+ */
+import { createRequire } from "node:module"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
-import { sessionRevocationDb } from "@/lib/db/stores/session-revocation"
-import { supabaseSessionRevocationRepo } from "@/lib/supabase/repositories/session-revocation"
 
-type TokenSig = string
+const require = createRequire(import.meta.url)
 
-function store() {
-  return isSupabaseOnly() ? supabaseSessionRevocationRepo : sessionRevocationDb
-}
-
-export const sessionRevocationService = {
-  async isTokenRevoked(tokenSig: TokenSig): Promise<boolean> {
-    // SQLite store is sync; Supabase store is async — normalize to async.
-    try {
-      return await store().isRevoked(tokenSig)
-    } catch (err) {
-      // If the revocation table isn't present yet (migration not applied),
-      // keep the app usable rather than hard-failing authentication.
-      console.warn("[auth.sessionRevocation] lookup failed; failing open.", err)
-      return false
-    }
-  },
-
-  async revokeToken(tokenSig: TokenSig, expiresAt: string): Promise<void> {
-    try {
-      await store().revoke(tokenSig, expiresAt)
-    } catch (err) {
-      console.warn("[auth.sessionRevocation] revoke failed; continuing.", err)
-    }
-  },
-
-  async pruneExpired(): Promise<void> {
-    try {
-      await store().pruneExpired()
-    } catch (err) {
-      console.warn("[auth.sessionRevocation] prune failed; continuing.", err)
-    }
-  },
-}
-
+export const sessionRevocationService = isSupabaseOnly()
+  ? (require("./session-revocation-service-supabase") as typeof import("./session-revocation-service-supabase")).sessionRevocationService
+  : (require("./session-revocation-service-sqlite") as typeof import("./session-revocation-service-sqlite")).sessionRevocationService

@@ -14,9 +14,8 @@ There is **no** `DATA_BACKEND` env var. Routing is:
 ## Invariant (split modules)
 
 For modules with `*-service.ts` + `*-sqlite.ts` / `*-supabase.ts` routers,
-`useSupabase*()` is only true when admin credentials exist — which also makes
-`isSupabaseOnly()` true. Hybrids collapsed to pure SQLite local/CI services;
-dual-write branches were unreachable whenever Supabase was configured.
+`isSupabaseOnly()` selects the backend. SQLite files never call `supabase*Repo`;
+Supabase files never call `*Db` or dual-write mirrors.
 
 ## Progress
 
@@ -32,7 +31,7 @@ dual-write branches were unreachable whenever Supabase was configured.
 | quotes | Hybrid collapsed → `quote-service-sqlite.ts` |
 | jobs | Hybrid collapsed → `job-service-sqlite.ts` |
 
-### Inline dual-path collapses
+### Inline dual-path collapses (complete)
 
 | Service | Status |
 |---------|--------|
@@ -41,18 +40,23 @@ dual-write branches were unreachable whenever Supabase was configured.
 | site-visit saved calculations | Split → `saved-service-{sqlite,supabase}.ts` |
 | client holds | Split → `hold-service-{sqlite,supabase}.ts` |
 | job documents | Split → `document-service-{sqlite,supabase}.ts` |
+| identity switch log | Split → `identity-switch-service-{sqlite,supabase}.ts` |
+| session revocation | Split → `session-revocation-service-{sqlite,supabase}.ts` |
+| backup records | Split → `backup-record-service-{sqlite,supabase}.ts` |
+| employees | Split → `employee-service-{sqlite,supabase}.ts` (+ API routes use service) |
+| leave | Split → `leave-service-{sqlite,supabase}.ts` (+ enrichment/permissions) |
+| import-excel bulk | Split → `import-excel-bulk-{sqlite,supabase}.ts` |
+| job map | Split → `job-map-service-{sqlite,supabase}.ts` |
 
-**Still dual-path in a single file**: leave, employees (experimental),
-backups, identity/session helpers, import-export.
+## Suggested next steps
 
-## Suggested order
-
-1. Split or collapse remaining inline dual-path services
-2. Move e2e to Supabase (or a test Postgres) so `lib/db` can shrink
-3. Remove `better-sqlite3` / SQLite boot when CI no longer needs it
+1. Move e2e to Supabase (or a test Postgres) so `lib/db` can shrink
+2. Remove `better-sqlite3` / SQLite boot when CI no longer needs it
+3. Optionally delete unused per-module `SUPABASE_*=false` override knobs once e2e is off SQLite
 
 ## Out of scope for early slices
 
 - Deleting `lib/db` or `better-sqlite3`
 - Requiring Supabase for local/e2e
 - Changing `isSupabaseOnly()` to mean something other than “admin configured”
+- Multi-tenancy / SaaS Path B

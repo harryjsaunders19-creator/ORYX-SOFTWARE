@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { createId } from "@paralleldrive/cuid2"
 import { requireModuleAccess } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
-import { employeeProfileDb } from "@/lib/db/stores"
 import {
   safeEmployeeFilename,
   writeEmployeeFile,
@@ -16,79 +15,9 @@ import {
   canEditEmployeeField,
 } from "@/modules/employees"
 import { userService } from "@/modules/users"
-import { useSupabaseEmployees as employeesUseSupabase } from "@/shared/supabase/feature-flags"
-import { supabaseEmployeeRepo } from "@/modules/employees/supabase/repository"
-import type { EmployeeProfileRow } from "@/modules/employees/types/employee-types"
-import { nowIso } from "@/lib/db/helpers"
 import { experimentalDisabledResponse } from "@/shared/experimental/experimental-features"
 
 type Ctx = { params: Promise<{ id: string }> }
-
-async function loadProfile(userId: string): Promise<EmployeeProfileRow | null> {
-  if (employeesUseSupabase()) return supabaseEmployeeRepo.findProfile(userId)
-  return employeeProfileDb.findUnique(userId)
-}
-
-async function ensureProfile(userId: string): Promise<EmployeeProfileRow> {
-  if (employeesUseSupabase()) {
-    const existing = await supabaseEmployeeRepo.findProfile(userId)
-    if (existing) return existing
-    const now = nowIso()
-    const created: EmployeeProfileRow = {
-      userId,
-      employeeId: null,
-      profilePhotoPath: null,
-      firstName: null,
-      lastName: null,
-      preferredName: null,
-      phone: null,
-      mobile: null,
-      dateOfBirth: null,
-      gender: null,
-      nationality: null,
-      address: null,
-      city: null,
-      county: null,
-      postcode: null,
-      country: null,
-      emergencyContactName: null,
-      emergencyContactPhone: null,
-      emergencyContactRelationship: null,
-      jobTitle: null,
-      department: null,
-      managerId: null,
-      officeLocation: null,
-      employmentType: "FULL_TIME",
-      employmentStatus: "ACTIVE",
-      startDate: null,
-      endDate: null,
-      probationEndDate: null,
-      workingHours: null,
-      salary: null,
-      annualLeaveAllowance: 25,
-      leaveTaken: 0,
-      createdAt: now,
-      updatedAt: now,
-    }
-    await supabaseEmployeeRepo.upsertProfile(created)
-    return created
-  }
-  return employeeProfileDb.ensure(userId)
-}
-
-async function setPhotoPath(userId: string, profilePhotoPath: string | null): Promise<void> {
-  if (employeesUseSupabase()) {
-    const profile = await ensureProfile(userId)
-    await supabaseEmployeeRepo.upsertProfile({
-      ...profile,
-      profilePhotoPath,
-      updatedAt: nowIso(),
-    })
-    return
-  }
-  employeeProfileDb.ensure(userId)
-  employeeProfileDb.update(userId, { profilePhotoPath })
-}
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
   try {
@@ -98,7 +27,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id } = await ctx.params
-    const profile = await loadProfile(id)
+    const profile = await employeeService.findProfile(id)
     if (!profile?.profilePhotoPath) {
       return NextResponse.json({ error: "No photo" }, { status: 404 })
     }
@@ -159,9 +88,9 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       contentType: file.type,
     })
 
-    const profile = await ensureProfile(id)
-    const old = profile.profilePhotoPath
-    await setPhotoPath(id, storedPath)
+    const profile = await employeeService.findProfile(id)
+    const old = profile?.profilePhotoPath ?? null
+    await employeeService.setPhotoPath(id, storedPath)
     if (old && old !== storedPath) await deleteEmployeeFile(old)
 
     await employeeService.logActivity(id, "PHOTO_UPLOADED", filename, auth.user)
@@ -183,9 +112,9 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     if (!canEditEmployeeField(access, "profilePhotoPath")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
-    const profile = await loadProfile(id)
+    const profile = await employeeService.findProfile(id)
     await deleteEmployeeFile(profile?.profilePhotoPath)
-    await setPhotoPath(id, null)
+    await employeeService.setPhotoPath(id, null)
     await employeeService.logActivity(id, "PHOTO_REMOVED", null, auth.user)
     return NextResponse.json({ ok: true })
   } catch (err) {

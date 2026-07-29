@@ -1,28 +1,29 @@
 /**
- * Fast bulk import path for Supabase-backed deployments.
- * Writes jobs/quotes to Supabase in batches (source of truth on Vercel),
- * then optionally mirrors to SQLite for local side-effects.
+ * Bulk Excel import helpers — routes to Supabase-only or SQLite (local/CI).
+ * Dual-write / mirror removed; see docs/sqlite-sunset.md.
+ *
+ * Row builders stay here (shared). Callers that prefer service-layer create/update
+ * loops on SQLite should keep using those; use bulkImport* when isSupabaseOnly().
  */
-import { db } from "@/lib/db/connection"
+import { createRequire } from "node:module"
 import { nowIso } from "@/lib/db/helpers"
 import type { ClientRow } from "@/modules/clients/types"
 import type { JobRow } from "@/modules/jobs/types/job-types"
 import type { QuoteRow } from "@/modules/quotes/types"
-import { clientDb, jobDb, quoteDb } from "@/lib/db/stores"
-import {
-  useSupabaseClients,
-  useSupabaseJobs,
-  useSupabaseQuotes,
-} from "@/shared/supabase/feature-flags"
-import { supabaseClientRepo } from "@/modules/clients/supabase/repository"
-import { supabaseJobRepo } from "@/modules/jobs/supabase/repository"
-import { supabaseQuoteRepo } from "@/modules/quotes/supabase/repository"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 
-const CHUNK = 100
+const require = createRequire(import.meta.url)
 
-/** On Vercel, SQLite is ephemeral — Supabase is the only store that matters for imports. */
-function mirrorToSqlite(): boolean {
-  return !process.env.VERCEL
+const backend = isSupabaseOnly()
+  ? (require("./import-excel-bulk-supabase") as typeof import("./import-excel-bulk-supabase"))
+  : (require("./import-excel-bulk-sqlite") as typeof import("./import-excel-bulk-sqlite"))
+
+export const bulkImportClients = backend.bulkImportClients
+export const bulkImportJobs = backend.bulkImportJobs
+export const bulkImportQuotes = backend.bulkImportQuotes
+
+export function shouldUseBulkImport(): boolean {
+  return isSupabaseOnly()
 }
 
 export function buildClientRowFromImport(data: {
@@ -165,67 +166,6 @@ export function buildQuoteRowFromImport(data: {
     createdAt: now,
     updatedAt: now,
   }
-}
-
-export async function bulkImportClients(clients: ClientRow[]): Promise<void> {
-  if (!clients.length) return
-
-  if (useSupabaseClients()) {
-    for (let i = 0; i < clients.length; i += CHUNK) {
-      await supabaseClientRepo.upsertMany(clients.slice(i, i + CHUNK))
-    }
-  }
-
-  if (mirrorToSqlite()) {
-    db.transaction(() => {
-      for (const client of clients) {
-        clientDb.rawInsertOrIgnore(client)
-      }
-    })()
-  }
-}
-
-export async function bulkImportJobs(jobs: JobRow[]): Promise<void> {
-  if (!jobs.length) return
-
-  if (useSupabaseJobs()) {
-    for (let i = 0; i < jobs.length; i += CHUNK) {
-      await supabaseJobRepo.upsertManyForImport(jobs.slice(i, i + CHUNK))
-    }
-  }
-
-  if (mirrorToSqlite()) {
-    db.transaction(() => {
-      for (const job of jobs) {
-        jobDb.rawInsertOrIgnore(job)
-        if (job.status === "ISSUED") {
-          jobDb._recordBillingHandoffIfIssued(job)
-        }
-      }
-    })()
-  }
-}
-
-export async function bulkImportQuotes(quotes: QuoteRow[]): Promise<void> {
-  if (!quotes.length) return
-
-  if (useSupabaseQuotes()) {
-    for (let i = 0; i < quotes.length; i += CHUNK) {
-      await supabaseQuoteRepo.upsertManyForImport(quotes.slice(i, i + CHUNK))
-    }
-  }
-
-  if (mirrorToSqlite()) {
-    db.transaction(() => {
-      for (const quote of quotes) {
-        quoteDb.rawInsertOrIgnore(quote)
-      }
-    })()
-  }
-}
-
-export function shouldUseBulkImport(): boolean {
-  return useSupabaseClients() || useSupabaseJobs() || useSupabaseQuotes()
 }
 
 /** Format Supabase/PostgREST errors for import result panels. */

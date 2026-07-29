@@ -2,7 +2,7 @@ import type { UserRow } from "@/modules/users/types"
 import type { Role } from "@/shared/types/role"
 import type { CalendarEventWithDetails } from "@/modules/calendar/types"
 import { ANNUAL_LEAVE_CATEGORY_ID } from "./constants"
-import { employeeProfileDb } from "@/lib/db/stores"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 
 export function isAnnualLeaveEvent(event: CalendarEventWithDetails): boolean {
   return event.categoryId === ANNUAL_LEAVE_CATEGORY_ID
@@ -12,8 +12,13 @@ export function canViewTeamLeave(role: Role): boolean {
   return role === "ADMIN" || role === "ENGINEER"
 }
 
-export function canReviewLeave(viewer: UserRow, targetUserId: string): boolean {
+export async function canReviewLeave(viewer: UserRow, targetUserId: string): Promise<boolean> {
   if (viewer.role === "ADMIN") return true
+  if (isSupabaseOnly()) {
+    const { supabaseEmployeeRepo } = await import("@/modules/employees/supabase/repository")
+    return (await supabaseEmployeeRepo.directReportIds(viewer.id)).includes(targetUserId)
+  }
+  const { employeeProfileDb } = await import("@/lib/db/stores")
   return employeeProfileDb.directReportIds(viewer.id).includes(targetUserId)
 }
 
@@ -27,7 +32,7 @@ export function canFilterAllEmployees(role: Role, directReportIds: string[]): bo
 }
 
 /** Filter calendar events for leave visibility based on role and filters. */
-export function filterLeaveEventsForViewer(
+export async function filterLeaveEventsForViewer(
   viewer: UserRow,
   events: CalendarEventWithDetails[],
   opts: {
@@ -37,9 +42,27 @@ export function filterLeaveEventsForViewer(
     department?: string
     filterUserId?: string
   },
-): CalendarEventWithDetails[] {
-  const reports = employeeProfileDb.directReportIds(viewer.id)
+): Promise<CalendarEventWithDetails[]> {
+  let reports: string[]
+  let viewerDepartment: string | null = null
   const isAdmin = viewer.role === "ADMIN"
+  const needsDeptCheck = !isAdmin && canViewTeamLeave(viewer.role as Role)
+
+  if (isSupabaseOnly()) {
+    const { supabaseEmployeeRepo } = await import("@/modules/employees/supabase/repository")
+    reports = await supabaseEmployeeRepo.directReportIds(viewer.id)
+    if (needsDeptCheck) {
+      const profile = await supabaseEmployeeRepo.findProfile(viewer.id)
+      viewerDepartment = profile?.department ?? null
+    }
+  } else {
+    const { employeeProfileDb } = await import("@/lib/db/stores")
+    reports = employeeProfileDb.directReportIds(viewer.id)
+    if (needsDeptCheck) {
+      const profile = employeeProfileDb.findUnique(viewer.id)
+      viewerDepartment = profile?.department ?? null
+    }
+  }
 
   return events.filter(event => {
     if (!isAnnualLeaveEvent(event)) return true
@@ -64,10 +87,9 @@ export function filterLeaveEventsForViewer(
     if (assigneeId === viewer.id) return true
     if (reports.includes(assigneeId ?? "")) return true
 
-    if (canViewTeamLeave(viewer.role as Role)) {
-      const viewerProfile = employeeProfileDb.findUnique(viewer.id)
+    if (needsDeptCheck) {
       const leaveStatusNorm = leaveStatus === "APPROVED" || event.status === "LEAVE_APPROVED"
-      if (leaveStatusNorm && viewerProfile?.department && event.employeeDepartment === viewerProfile.department) {
+      if (leaveStatusNorm && viewerDepartment && event.employeeDepartment === viewerDepartment) {
         return true
       }
     }

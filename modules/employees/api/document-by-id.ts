@@ -8,27 +8,10 @@ import {
   canManageDocuments,
   canUploadRestrictedDocuments,
   canViewDocuments,
-  type EmployeeDocumentRow,
 } from "@/modules/employees"
-import { employeeDocumentDb } from "@/lib/db/stores"
-import { useSupabaseEmployees as employeesUseSupabase } from "@/shared/supabase/feature-flags"
-import { supabaseEmployeeRepo } from "@/modules/employees/supabase/repository"
 import { experimentalDisabledResponse } from "@/shared/experimental/experimental-features"
 
 type Ctx = { params: Promise<{ id: string; docId: string }> }
-
-async function loadDocument(docId: string): Promise<EmployeeDocumentRow | null> {
-  if (employeesUseSupabase()) return supabaseEmployeeRepo.findDocument(docId)
-  return employeeDocumentDb.findUnique(docId)
-}
-
-async function removeDocument(docId: string): Promise<void> {
-  if (employeesUseSupabase()) {
-    await supabaseEmployeeRepo.deleteDocument(docId)
-    return
-  }
-  employeeDocumentDb.delete(docId)
-}
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
   try {
@@ -38,7 +21,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id, docId } = await ctx.params
-    const doc = await loadDocument(docId)
+    const doc = await employeeService.findDocument(docId)
     if (!doc || doc.userId !== id) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 })
     }
@@ -75,7 +58,7 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     const auth = await requireModuleAccess("employees")
     if (auth instanceof NextResponse) return auth
     const { id, docId } = await ctx.params
-    const doc = await loadDocument(docId)
+    const doc = await employeeService.findDocument(docId)
     if (!doc || doc.userId !== id) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 })
     }
@@ -85,7 +68,7 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     }
 
     await deleteEmployeeFile(doc.filePath)
-    await removeDocument(docId)
+    await employeeService.deleteDocument(docId)
     await employeeService.logActivity(id, "DOCUMENT_DELETED", doc.name, auth.user)
     return NextResponse.json({ deleted: true })
   } catch (err) {

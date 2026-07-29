@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { createId } from "@paralleldrive/cuid2"
 import { requireModuleAccess } from "@/shared/auth/auth"
 import { employeeService } from "@/modules/employees"
-import { employeeDocumentDb } from "@/lib/db/stores"
 import {
   safeEmployeeFilename,
   writeEmployeeFile,
@@ -15,40 +14,11 @@ import {
   canViewDocuments,
   DOCUMENT_CATEGORIES,
   type DocumentCategory,
-  type EmployeeDocumentRow,
 } from "@/modules/employees"
-import { useSupabaseEmployees as employeesUseSupabase } from "@/shared/supabase/feature-flags"
-import { supabaseEmployeeRepo } from "@/modules/employees/supabase/repository"
 import { nowIso } from "@/lib/db/helpers"
 import { experimentalDisabledResponse } from "@/shared/experimental/experimental-features"
 
 type Ctx = { params: Promise<{ id: string }> }
-
-async function listDocuments(userId: string, includeRestricted: boolean): Promise<EmployeeDocumentRow[]> {
-  if (employeesUseSupabase()) {
-    return supabaseEmployeeRepo.findDocumentsByUser(userId, includeRestricted)
-  }
-  return employeeDocumentDb.findByUser(userId, includeRestricted)
-}
-
-async function createDocument(row: EmployeeDocumentRow): Promise<EmployeeDocumentRow> {
-  if (employeesUseSupabase()) {
-    await supabaseEmployeeRepo.upsertDocument(row)
-    return row
-  }
-  return employeeDocumentDb.create({
-    id: row.id,
-    userId: row.userId,
-    name: row.name,
-    category: row.category,
-    filePath: row.filePath,
-    mimeType: row.mimeType,
-    fileSize: row.fileSize,
-    restricted: row.restricted,
-    uploadedBy: row.uploadedBy,
-    uploadedByName: row.uploadedByName,
-  })
-}
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
   try {
@@ -63,7 +33,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     const includeRestricted = canUploadRestrictedDocuments(access)
-    const documents = await listDocuments(id, includeRestricted)
+    const documents = await employeeService.listDocuments(id, includeRestricted)
     return NextResponse.json({ documents })
   } catch (err) {
     return apiInternalError("employees.api.documents", err)
@@ -113,7 +83,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       contentType: file.type,
     })
 
-    const docRow = {
+    const now = nowIso()
+    const doc = await employeeService.createDocument({
       id: createId(),
       userId: id,
       name,
@@ -124,10 +95,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       restricted: restricted ? 1 : 0,
       uploadedBy: auth.user.id,
       uploadedByName: auth.user.name,
-    }
-    const now = nowIso()
-    const doc = await createDocument({
-      ...docRow,
       createdAt: now,
       updatedAt: now,
     })

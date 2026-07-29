@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { userService } from "@/modules/users"
 import { supabaseUserRepo } from "@/modules/users/supabase/repository"
-import { useSupabaseUsers } from "@/shared/supabase/feature-flags"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { verifyPassword } from "@/shared/auth/password"
 import { checkLoginRateLimit } from "@/shared/auth/login-rate-limit"
 import { setSessionCookies } from "@/shared/auth/auth-cookies"
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     // before issuing a session cookie. On Vercel every request may land on a
     // fresh serverless container with an empty /tmp SQLite, so the session
     // must be resolvable via Supabase on subsequent requests.
-    if (useSupabaseUsers()) {
+    if (isSupabaseOnly()) {
       try {
         await supabaseUserRepo.upsert(user)
       } catch (err) {
