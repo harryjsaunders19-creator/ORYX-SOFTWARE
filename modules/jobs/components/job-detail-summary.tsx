@@ -2,14 +2,24 @@
 import type { ReactNode } from "react"
 import { format } from "date-fns"
 import { formatGBP, parseLocalDate, totalJobCommercialValue } from "@/shared/utils/utils"
+import { cn } from "@/shared/utils/utils"
+import { Typography } from "@/shared/design/typography"
 import type { Job } from "@/lib/types"
 import type { RevisionFamilyResponse } from "../types/revision-types"
 
-function Cell({ label, value }: { label: string; value: ReactNode }) {
+function Row({ label, value, muted }: { label: string; value: ReactNode; muted?: boolean }) {
   return (
-    <div className="py-2.5 border-b border-[#E5E7EB]">
-      <p className="text-[11px] uppercase tracking-wide text-t4 mb-1">{label}</p>
-      <p className="text-sm text-t1 min-w-0 break-words">{value}</p>
+    <div className="flex justify-between items-start gap-3 text-sm">
+      <span className={cn(Typography.Small, "text-t3 shrink-0")}>{label}</span>
+      <span
+        className={cn(
+          Typography.Small,
+          "font-semibold text-right min-w-0",
+          muted ? "text-t3 font-normal" : "text-t1",
+        )}
+      >
+        {value}
+      </span>
     </div>
   )
 }
@@ -22,12 +32,7 @@ export function JobDetailSummary({
   revisionFamily: RevisionFamilyResponse | null
 }) {
   const focus = job.currentRevision ?? job
-  const currentEntry = revisionFamily?.chain.find(e => e.isCurrent) ?? null
-  const revLabel = currentEntry?.isOriginal || !currentEntry?.revisionLetter
-    ? "Original"
-    : `Rev ${currentEntry.revisionLetter}`
 
-  const site = [job.siteAddress, job.siteName].filter(Boolean).join(" · ") || job.address || "—"
   const deadline = (focus.requiredByDate ?? job.requiredByDate)
     ? format(parseLocalDate((focus.requiredByDate ?? job.requiredByDate)!), "d MMM yyyy")
     : "—"
@@ -44,33 +49,42 @@ export function JobDetailSummary({
   }
   const outstanding = totalQuoted - totalInvoiced
 
+  const designer = focus.designer?.trim() || job.designer?.trim() || "Unassigned"
+
   return (
-    <section className="rounded-lg border border-[#E5E7EB] bg-white px-5 py-4">
-      <h2 className="text-sm font-semibold text-t1 mb-2">Job summary</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10">
-        <Cell label="Client" value={job.clientCompany} />
-        <Cell label="Site" value={site} />
-        <Cell label="Requested by" value={job.requestedBy || "—"} />
-        <Cell label="Created" value={format(new Date(job.dateCreated), "d MMM yyyy")} />
-        <Cell label="Deadline" value={<span className="tabular-nums">{deadline}</span>} />
-        <Cell label="Designer" value={focus.designer?.trim() || job.designer?.trim() || "—"} />
-        <Cell label="Current revision" value={revLabel} />
-        <Cell
-          label="Original quote"
+    <section className="rounded-xl border border-bd bg-sr p-5 space-y-6">
+      <h3
+        className={cn(
+          Typography.Small,
+          "font-bold uppercase tracking-wider text-t1 border-b border-surface-low pb-3",
+        )}
+      >
+        Job Summary
+      </h3>
+
+      <div className="space-y-4">
+        <Row label="Requested by" value={job.requestedBy || "—"} muted={!job.requestedBy} />
+        <Row label="Created" value={format(new Date(job.dateCreated), "d MMM yyyy")} />
+        <Row label="Deadline" value={<span className="tabular-nums">{deadline}</span>} />
+        <Row
+          label="Original Quote"
           value={
             <span className="tabular-nums">
               {job.quoteValue != null ? formatGBP(job.quoteValue) : "—"}
             </span>
           }
+          muted={job.quoteValue == null}
         />
-        <Cell
+        <Row
           label="Outstanding"
-          value={
-            <span className="tabular-nums font-medium">
-              {formatGBP(outstanding) ?? "—"}
-            </span>
-          }
+          value={<span className="tabular-nums">{formatGBP(outstanding) ?? "—"}</span>}
         />
+      </div>
+
+      <div className="pt-4 border-t border-surface-low space-y-3">
+        <Row label="Designer" value={designer} muted={designer === "Unassigned"} />
+        <Row label="Checker" value="—" muted />
+        <Row label="CAT II Reviewer" value="—" muted />
       </div>
     </section>
   )

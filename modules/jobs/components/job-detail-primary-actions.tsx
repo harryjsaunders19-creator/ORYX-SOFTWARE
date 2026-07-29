@@ -23,6 +23,7 @@ interface JobDetailPrimaryActionsProps {
   onDelete: () => void
 }
 
+/** Mobile / narrow viewport action bar. Desktop actions live in the sticky sidebar. */
 export function JobDetailPrimaryActions({
   isCancelled,
   isAdmin,
@@ -42,7 +43,7 @@ export function JobDetailPrimaryActions({
   if (isCancelled) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 lg:hidden">
       <Button variant={hasDesigner ? "outline" : "primary"} size="sm" onClick={onAssign}>
         {hasDesigner ? "Change designer" : "Assign designer"}
       </Button>

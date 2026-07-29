@@ -2,6 +2,8 @@
 import { Check } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { getJobDeadlineInfo } from "@/shared/utils/utils"
+import { cn } from "@/shared/utils/utils"
+import { Typography } from "@/shared/design/typography"
 import type { Job } from "@/lib/types"
 import type { RevisionFamilyResponse } from "../types/revision-types"
 
@@ -95,6 +97,7 @@ export function buildAttentionItems(
   return items
 }
 
+/** Hidden when there is nothing to act on — avoids clutter vs Stitch layout. */
 export function JobDetailAttention({
   items,
   onAction,
@@ -102,41 +105,44 @@ export function JobDetailAttention({
   items: AttentionItem[]
   onAction: (action: AttentionAction) => void
 }) {
+  if (items.length === 0) return null
+
   return (
-    <section className="rounded-lg border border-[#E5E7EB] bg-white px-5 py-4">
+    <section className="rounded-xl border border-bd bg-sr px-5 py-4">
       <div className="flex items-baseline justify-between gap-3 mb-3">
-        <h2 className="text-sm font-semibold text-t1">Attention required</h2>
-        {items.length > 0 && (
-          <span className="text-xs text-t4 tabular-nums">{items.length}</span>
-        )}
+        <h2 className={cn(Typography.Small, "font-semibold text-t1")}>Attention required</h2>
+        <span className={cn(Typography.Helper, "text-t4 tabular-nums")}>{items.length}</span>
       </div>
 
-      {items.length === 0 ? (
-        <p className="text-sm text-t2 flex items-center gap-2">
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-ok-bg text-ok-ic">
-            <Check className="h-3 w-3" strokeWidth={2.5} />
-          </span>
-          No outstanding actions
-        </p>
-      ) : (
-        <ul className="space-y-0 divide-y divide-[#E5E7EB]">
-          {items.map(item => (
-            <li key={item.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-              <p className="text-sm text-t1">{item.message}</p>
-              {item.action && item.actionLabel ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0 text-t2"
-                  onClick={() => onAction(item.action!)}
-                >
-                  {item.actionLabel}
-                </Button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="space-y-0 divide-y divide-bd">
+        {items.map(item => (
+          <li key={item.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+            <p className={cn(Typography.Small, "text-t1")}>{item.message}</p>
+            {item.action && item.actionLabel ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-t2"
+                onClick={() => onAction(item.action!)}
+              >
+                {item.actionLabel}
+              </Button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
     </section>
+  )
+}
+
+/** Kept for callers that still want an empty-state message. */
+export function JobDetailAttentionEmpty() {
+  return (
+    <p className={cn(Typography.Small, "text-t2 flex items-center gap-2")}>
+      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-ok-bg text-ok-ic">
+        <Check className="h-3 w-3" strokeWidth={2.5} />
+      </span>
+      No outstanding actions
+    </p>
   )
 }

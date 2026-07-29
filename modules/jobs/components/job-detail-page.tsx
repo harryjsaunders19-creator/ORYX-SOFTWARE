@@ -15,11 +15,11 @@ import { JobDetailHeader } from "./job-detail-header"
 import { JobDetailPrimaryActions } from "./job-detail-primary-actions"
 import { JobDetailAttention, buildAttentionItems, type AttentionAction } from "./job-detail-attention"
 import { JobDetailCurrentRevision } from "./job-detail-current-revision"
-import { JobDetailSummary } from "./job-detail-summary"
 import { JobDetailTabs } from "./job-detail-tabs"
 import type { DetailTab } from "./job-detail-tabs"
 import { JobDetailSidebar } from "./job-detail-sidebar"
 import { JobDetailDialogs } from "./job-detail-dialogs"
+import { JobRevisionOverview } from "./job-revision-overview"
 import type { RevisionFamilyResponse } from "../types/revision-types"
 import { AddRevisionModal } from "./add-revision-modal"
 import { AttachExistingQuoteModal } from "./attach-existing-quote-modal"
@@ -308,35 +308,38 @@ export default function JobDetailPage({
         ]}
       />
 
-      <div className="space-y-6">
-        <JobDetailHeader
-          job={job}
-          isCancelled={isCancelled}
-          isAdmin={isAdmin}
-          restoring={restoring}
-          onRestore={handleRestore}
-          revisionFamily={revisionFamily ?? null}
-        />
+      <div className="max-w-[1440px]">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8">
+          <section className="min-w-0 space-y-8">
+            <JobDetailHeader
+              job={job}
+              isCancelled={isCancelled}
+              isAdmin={isAdmin}
+              restoring={restoring}
+              onRestore={handleRestore}
+              revisionFamily={revisionFamily ?? null}
+              selectedRevisionId={selectedRevisionId}
+              onSelectRevision={setSelectedRevisionId}
+              onOpenRevisions={() => setActiveTab("revisions")}
+            />
 
-        <JobDetailPrimaryActions
-          isCancelled={isCancelled}
-          isAdmin={isAdmin}
-          canAddRevision={canAddRevision}
-          canExportCat2={canExportCat2}
-          hasDesigner={hasDesigner}
-          cat2Exporting={cat2Exporting}
-          onAssign={() => setAssignOpen(true)}
-          onCreateQuote={handleCreateQuote}
-          onEdit={() => setEditOpen(true)}
-          onAddRevision={() => setRevisionModalOpen(true)}
-          onAttachQuote={() => setAttachQuoteOpen(true)}
-          onCat2Export={() => void handleCat2Export()}
-          onEditDrawingNumber={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
-          onDelete={() => setDelOpen(true)}
-        />
+            <JobDetailPrimaryActions
+              isCancelled={isCancelled}
+              isAdmin={isAdmin}
+              canAddRevision={canAddRevision}
+              canExportCat2={canExportCat2}
+              hasDesigner={hasDesigner}
+              cat2Exporting={cat2Exporting}
+              onAssign={() => setAssignOpen(true)}
+              onCreateQuote={handleCreateQuote}
+              onEdit={() => setEditOpen(true)}
+              onAddRevision={() => setRevisionModalOpen(true)}
+              onAttachQuote={() => setAttachQuoteOpen(true)}
+              onCat2Export={() => void handleCat2Export()}
+              onEditDrawingNumber={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
+              onDelete={() => setDelOpen(true)}
+            />
 
-        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-          <div className="lg:col-span-7 space-y-4">
             <JobDetailAttention
               items={attentionItems}
               onAction={handleAttentionAction}
@@ -350,10 +353,21 @@ export default function JobDetailPage({
               onAddRevision={() => setRevisionModalOpen(true)}
             />
 
-            <JobDetailSummary
-              job={job}
-              revisionFamily={revisionFamily ?? null}
-            />
+            {activeTab !== "revisions" && (
+              <JobRevisionOverview
+                job={job}
+                revisionFamily={revisionFamily ?? null}
+                isLoading={revisionsLoading}
+                selectedRevisionId={selectedRevisionId}
+                onSelectedRevisionId={id => {
+                  setSelectedRevisionId(id)
+                  setActiveTab("revisions")
+                }}
+                onAddRevision={() => setRevisionModalOpen(true)}
+                preview
+                onViewAll={() => setActiveTab("revisions")}
+              />
+            )}
 
             <JobDetailTabs
               activeTab={activeTab}
@@ -376,7 +390,7 @@ export default function JobDetailPage({
               onHistoryKeyIncrement={() => setHistoryKey(k => k + 1)}
               onDesignerChange={v => void handleDesignerChange(v)}
             />
-          </div>
+          </section>
 
           <JobDetailSidebar
             job={job}
@@ -385,6 +399,7 @@ export default function JobDetailPage({
             cat2Exporting={cat2Exporting}
             canExportCat2={canExportCat2}
             canAddRevision={canAddRevision}
+            hasDesigner={hasDesigner}
             revisionFamily={revisionFamily ?? null}
             onAssign={() => setAssignOpen(true)}
             onEdit={() => setEditOpen(true)}
@@ -394,7 +409,7 @@ export default function JobDetailPage({
             onCat2Export={() => void handleCat2Export()}
             onDelete={() => setDelOpen(true)}
             onOpenDocumentsTab={() => setActiveTab("documents")}
-            onOpenRevisionsTab={() => setActiveTab("revisions")}
+            onEditDrawingNumber={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
           />
         </div>
       </div>
