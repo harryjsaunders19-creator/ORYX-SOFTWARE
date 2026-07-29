@@ -330,7 +330,7 @@ export function ActiveWorkItemsTable({
           onPageChange={setPage}
           total={total}
           pageSize={LIMIT}
-          hideWhenSingle={false}
+          hideWhenSingle={total === 0}
         />
       </DataPanel>
 

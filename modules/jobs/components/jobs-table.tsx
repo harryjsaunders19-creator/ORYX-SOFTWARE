@@ -580,7 +580,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           onPageChange={setPage}
           total={data?.total}
           pageSize={LIMIT}
-          hideWhenSingle={false}
+          hideWhenSingle={!data || data.total === 0}
         />
       </div>
       )}
@@ -639,7 +639,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
           onPageChange={setPage}
           total={data?.total}
           pageSize={LIMIT}
-          hideWhenSingle={false}
+          hideWhenSingle={!data || data.total === 0}
         />
       </DataPanel>
       )}
