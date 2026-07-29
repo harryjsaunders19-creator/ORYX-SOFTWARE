@@ -59,6 +59,8 @@ export default function JobDetailPage({
     }
   >(detailKey, {
     fallbackData: fallbackJob ?? undefined,
+    // RSC already seeded detail — skip an immediate duplicate remount fetch.
+    ...(fallbackJob ? { revalidateIfStale: false, revalidateOnMount: false } : {}),
   })
   const workflowJobId = job?.id ?? id
 

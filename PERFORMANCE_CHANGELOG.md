@@ -102,6 +102,16 @@ Related report: `PERFORMANCE_AND_BUG_AUDIT.md`
 * **Why:** Required deliverables for the performance engagement.  
 * **Behaviour:** Documentation only.
 
+### Follow-up 2 — shell / job open / billing / clients / quotes
+
+* **`notification-service` + hold services:** `allActiveWithNames()` — bell skips per-client job stats.  
+* **`app/jobs/[id]/page.tsx`:** RSC seeds quotes + current revision; billing uses currentRevisionId.  
+* **`job-detail-page` / `parent-job-dashboard`:** Skip SWR remount when fallback present.  
+* **`revisions.ts`:** Resolve parent without double `getDashboard`.  
+* **`status-history-repository.forWorkItems` + `work-item-repository.findByParents`:** Billing snapshot N+1 removed.  
+* **`client-service-supabase.batchClientMeta`:** Parallel counts + holds.  
+* **`quotes-page.setStatus`:** Optimistic targeted mutate.
+
 ---
 
 ## Behaviour change checklist
@@ -112,6 +122,8 @@ Related report: `PERFORMANCE_AND_BUG_AUDIT.md`
 | Job List filters, search, sort, pagination | Pagination now correct for `onlyOriginals` + status/deadline (was JS over ≤5k) |
 | Hold badges on Job List | No (same clientId set) |
 | Hold list page | No |
+| Notifications content | No (same titles/messages; cheaper fetch) |
+| Job detail first paint | Richer RSC seed; no duplicate remount GET |
 | Dashboard KPI semantics | No (RPC preferred when available) |
 | Auth / RLS / validation | No |
 

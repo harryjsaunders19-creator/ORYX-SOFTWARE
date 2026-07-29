@@ -22,6 +22,10 @@ Highest-impact issues found and fixed in this pass:
 5. **Quote enrich for job list** selected `*` from quotes when only linkage/summary fields are needed.
 6. **Hold dashboard preview** loaded all active holds then `.slice(0, take)`.
 7. **`needsCurrentFilter`** loaded up to 5 000 full parent rows + sidecars then filtered in Node — obsolete after parent-status protection removed revision overlays; filters now stay in SQL with normal pagination.
+8. **Notifications** used fully enriched holds (per-client job stats) on every shell poll.
+9. **Job open** paid RSC seed **plus** mandatory client remount of the same detail API.
+10. **Revisions GET** (work-items model) called `getDashboard` twice.
+11. **Billing export snapshots** queried status history once per work item and siblings once per parent.
 
 No P0 request loops, realtime subscription leaks, or production build failures were found. No new indexes were added — existing migrations already cover confirmed list/deadline/hold patterns.
 
@@ -238,6 +242,12 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 8. Slim `revisionsForJobs` / `findLatestRevisionsForParents` selects  
 9. Opt-in list timing via `ORYX_PERF_LOG=1` in development  
 10. SWR fetcher accepts AbortSignal for obsolete-key cancellation  
+11. Notifications use `allActiveWithNames` (no job-stat enrich)  
+12. Job/parent detail skip remount when RSC fallback present; RSC seeds current revision + quotes  
+13. Revisions work-items path resolves parent without double `getDashboard`  
+14. Billing snapshots: `forWorkItems` + `findByParents` (no N+1)  
+15. Client list meta: parallel counts + holds  
+16. Quotes status change: optimistic targeted mutate  
 
 ---
 
@@ -263,7 +273,7 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 
 1. Confirm migration **023** / **040** applied on production Supabase (`list_sort_key` + dashboard RPC).  
 2. If product later needs “filter originals by latest-revision status”, add denormalised parent display columns or an RPC — do not revive the 5k JS filter.  
-3. Slim billing snapshot history N+1 (`forWorkItem` loop) if billing batches grow.  
+3. Optional: SQL `GROUP BY` / RPC for `activeJobCountsForClients` if client directories grow large.  
 4. Optional React Profiler recording on Job List in a browser with production-like data.
 
 ---
@@ -289,6 +299,9 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 | Quote enrich | `select("*")` | Slim link columns |
 | Revisions list select | `*` | Job list column set |
 | Originals + status/deadline | Up to 5k rows + JS filter | SQL filter + page-sized fetch |
+| Notifications holds | Full job-stat enrich every poll | Names/reasons only |
+| Job card open | RSC + client remount of detail | RSC seed (enriched); skip remount |
+| Billing export | N history + N sibling queries | 1+1 bulk queries |
 | Indexes | — | No change |
 | Wall-clock | Not measured | Not measured (no invented numbers) |
 
@@ -310,6 +323,12 @@ No P0 request loops, realtime subscription leaks, or production build failures w
 | PERF-004 | Drawing sort fallback | P2 | Remaining (ops) |
 | PERF-005 | SWR AbortSignal | P2 | Fixed |
 | PERF-006 | DEV list timing (`ORYX_PERF_LOG`) | P3 | Fixed |
+| PERF-007 | Notifications full hold enrich | P1 | Fixed |
+| PERF-008 | Job open remount duplicate | P1 | Fixed |
+| PERF-009 | Revisions double getDashboard | P1 | Fixed |
+| PERF-010 | Billing snapshot N+1 | P1 | Fixed |
+| PERF-011 | Client meta sequential | P2 | Fixed |
+| PERF-012 | Quotes status full mutate | P2 | Fixed |
 | DB-001 | New indexes | P3 | Not needed |
 | RENDER-001–003 | Memo / debounce / virtualization | P3 | OK / skip |
 | BUNDLE-001 | Bundle weight | P3 | No change |

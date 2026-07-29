@@ -38,6 +38,14 @@ export const holdService = {
     }))
   },
 
+  async allActiveWithNames(): Promise<ClientHoldWithClientRow[]> {
+    return holdDb.allActive().map(h => ({
+      ...h,
+      activeJobCount: 0,
+      quoteValueTotal: 0,
+    }))
+  },
+
   async activeCount(): Promise<number> {
     return holdDb.activeCount()
   },

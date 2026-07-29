@@ -33,7 +33,7 @@ export const notificationService = {
         orderBy: { field: "requiredByDate", dir: "asc" },
         take: 20,
       }),
-      holdService.allActive(),
+      holdService.allActiveWithNames(),
     ])
     const overdueJobs  = deadlineJobs.filter(j => {
       const day = j.requiredByDate?.slice(0, 10)

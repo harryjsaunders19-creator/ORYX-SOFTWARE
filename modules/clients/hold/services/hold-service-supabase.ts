@@ -79,6 +79,23 @@ export const holdService = {
     }))
   },
 
+  /**
+   * Notifications / bell — client names + reasons only (no per-client job stats).
+   */
+  async allActiveWithNames(): Promise<ClientHoldWithClientRow[]> {
+    const holds = await supabaseHoldRepo.allActiveHolds()
+    if (!holds.length) return []
+    const clientIds = [...new Set(holds.map(h => h.clientId).filter(Boolean))]
+    const clients = await supabaseClientRepo.findManyByIds(clientIds)
+    const clientNameById = new Map(clients.filter(Boolean).map(c => [c!.id, c!.name]))
+    return holds.map(hold => ({
+      ...hold,
+      clientName: clientNameById.get(hold.clientId) ?? "",
+      activeJobCount: 0,
+      quoteValueTotal: 0,
+    }))
+  },
+
   async activeCount(): Promise<number> {
     return supabaseHoldRepo.activeCount()
   },
