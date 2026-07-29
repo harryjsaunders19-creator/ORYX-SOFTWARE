@@ -1,91 +1,100 @@
 "use client"
 import type { ReactNode } from "react"
 import { format } from "date-fns"
-import { formatGBP, parseLocalDate, totalJobCommercialValue } from "@/shared/utils/utils"
-import { cn } from "@/shared/utils/utils"
+import { formatGBP, parseLocalDate, totalJobCommercialValue, cn, getJobDeadlineInfo } from "@/shared/utils/utils"
 import { Typography } from "@/shared/design/typography"
 import type { Job } from "@/lib/types"
 import type { RevisionFamilyResponse } from "../types/revision-types"
 
-function Row({ label, value, muted }: { label: string; value: ReactNode; muted?: boolean }) {
+function MetaBlock({
+  label,
+  value,
+  accent,
+}: {
+  label: string
+  value: ReactNode
+  accent?: boolean
+}) {
   return (
-    <div className="flex justify-between items-start gap-3 text-sm">
-      <span className={cn(Typography.Small, "text-t3 shrink-0")}>{label}</span>
-      <span
-        className={cn(
-          Typography.Small,
-          "font-semibold text-right min-w-0",
-          muted ? "text-t3 font-normal" : "text-t1",
-        )}
-      >
+    <div className={cn("flex flex-col", accent && "border-l-2 border-bd pl-3")}>
+      <span className={cn(Typography.Helper, "uppercase tracking-tighter text-t3 mb-0.5")}>
+        {label}
+      </span>
+      <span className={cn(Typography.Small, accent ? "font-bold text-t1" : "font-semibold text-t1")}>
         {value}
       </span>
     </div>
   )
 }
 
+/** Sidebar “Project Metadata” card — Stitch High Precision layout. */
 export function JobDetailSummary({
   job,
-  revisionFamily,
+  revisionFamily: _revisionFamily,
 }: {
   job: Job & { currentRevision?: Job | null }
   revisionFamily: RevisionFamilyResponse | null
 }) {
   const focus = job.currentRevision ?? job
-
-  const deadline = (focus.requiredByDate ?? job.requiredByDate)
-    ? format(parseLocalDate((focus.requiredByDate ?? job.requiredByDate)!), "d MMM yyyy")
+  const deadlineRaw = focus.requiredByDate ?? job.requiredByDate
+  const deadline = deadlineRaw
+    ? format(parseLocalDate(deadlineRaw), "d MMM yyyy")
     : "—"
-
-  const revisions = revisionFamily?.revisions ?? []
-  const revisionFees = revisions.reduce((sum, r) => sum + (r.quoteValue ?? 0), 0)
-  const originalTotal = totalJobCommercialValue(job) ?? 0
-  const totalQuoted = originalTotal + revisionFees
-
-  let totalInvoiced = 0
-  if (job.billingStatus === "INVOICED") totalInvoiced += totalJobCommercialValue(job) ?? 0
-  for (const r of revisions) {
-    if (r.billingStatus === "INVOICED") totalInvoiced += r.quoteValue ?? 0
-  }
-  const outstanding = totalQuoted - totalInvoiced
-
-  const designer = focus.designer?.trim() || job.designer?.trim() || "Unassigned"
+  const dl = getJobDeadlineInfo({ requiredByDate: deadlineRaw, status: focus.status })
 
   return (
-    <section className="rounded-xl border border-bd bg-sr p-5 space-y-6">
+    <section className="rounded-lg border border-bd bg-sr p-5 space-y-4">
       <h3
         className={cn(
-          Typography.Small,
-          "font-bold uppercase tracking-wider text-t1 border-b border-surface-low pb-3",
+          Typography.Helper,
+          "font-bold uppercase tracking-widest text-t3 border-b border-surface-low pb-3",
         )}
       >
-        Job Summary
+        Project Metadata
       </h3>
 
       <div className="space-y-4">
-        <Row label="Requested by" value={job.requestedBy || "—"} muted={!job.requestedBy} />
-        <Row label="Created" value={format(new Date(job.dateCreated), "d MMM yyyy")} />
-        <Row label="Deadline" value={<span className="tabular-nums">{deadline}</span>} />
-        <Row
-          label="Original Quote"
+        <MetaBlock label="Created" value={format(new Date(job.dateCreated), "d MMM yyyy")} />
+        <MetaBlock label="Requested by" value={job.requestedBy || "—"} />
+        <MetaBlock
+          label="Required By (Deadline)"
           value={
-            <span className="tabular-nums">
-              {job.quoteValue != null ? formatGBP(job.quoteValue) : "—"}
+            <span
+              className={cn(
+                "tabular-nums",
+                dl.severity === "overdue" && "text-dn-tx",
+                (dl.severity === "today" || dl.severity === "soon") && "text-wn-tx",
+              )}
+            >
+              {deadline}
             </span>
           }
-          muted={job.quoteValue == null}
-        />
-        <Row
-          label="Outstanding"
-          value={<span className="tabular-nums">{formatGBP(outstanding) ?? "—"}</span>}
+          accent
         />
       </div>
 
-      <div className="pt-4 border-t border-surface-low space-y-3">
-        <Row label="Designer" value={designer} muted={designer === "Unassigned"} />
-        <Row label="Checker" value="—" muted />
-        <Row label="CAT II Reviewer" value="—" muted />
+      <div className="pt-2 border-t border-surface-low space-y-3">
+        <div className="flex justify-between items-center gap-3">
+          <span className={cn(Typography.Helper, "uppercase text-t3")}>Checker</span>
+          <span className={cn(Typography.Small, "font-medium text-t3")}>—</span>
+        </div>
+        <div className="flex justify-between items-center gap-3">
+          <span className={cn(Typography.Helper, "uppercase text-t3")}>CAT II Reviewer</span>
+          <span className={cn(Typography.Small, "font-medium text-t3")}>—</span>
+        </div>
       </div>
+
+      {/* Commercial glance kept available but secondary — not in Stitch mock chrome */}
+      {(job.quoteValue != null || totalJobCommercialValue(job) != null) && (
+        <div className="pt-2 border-t border-surface-low space-y-2">
+          <div className="flex justify-between items-center gap-3">
+            <span className={cn(Typography.Helper, "uppercase text-t3")}>Original Quote</span>
+            <span className={cn(Typography.Small, "font-semibold tabular-nums text-t1")}>
+              {job.quoteValue != null ? formatGBP(job.quoteValue) : "—"}
+            </span>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

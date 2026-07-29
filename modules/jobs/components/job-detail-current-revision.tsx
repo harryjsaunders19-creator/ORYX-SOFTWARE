@@ -1,22 +1,11 @@
 "use client"
-import type { ReactNode } from "react"
 import { format } from "date-fns"
 import { ExternalLink, FileText } from "lucide-react"
 import { Button } from "@/shared/ui/button"
-import { StatusBadge } from "@/modules/jobs/components/badges/status-badge"
 import { cn, formatGBP, parseLocalDate } from "@/shared/utils/utils"
 import { Typography } from "@/shared/design/typography"
 import type { Job } from "@/lib/types"
 import type { RevisionFamilyResponse } from "../types/revision-types"
-
-function Row({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex justify-between items-center gap-4 py-1 border-b border-surface-low last:border-0">
-      <dt className={cn(Typography.Helper, "uppercase tracking-widest font-bold text-t3")}>{label}</dt>
-      <dd className={cn(Typography.Small, "font-medium text-t1 text-right min-w-0")}>{value}</dd>
-    </div>
-  )
-}
 
 export function JobDetailCurrentRevision({
   job,
@@ -33,12 +22,11 @@ export function JobDetailCurrentRevision({
 }) {
   if (isLoading && !revisionFamily) {
     return (
-      <section className="rounded-xl border border-bd bg-sr px-6 py-6 shadow-sm">
+      <section className="rounded-xl border border-bd bg-sr px-8 py-8 shadow-sm w-full">
         <div className="h-5 w-40 skeleton rounded mb-4" />
         <div className="space-y-2">
           <div className="h-4 w-full skeleton rounded" />
           <div className="h-4 w-3/4 skeleton rounded" />
-          <div className="h-4 w-1/2 skeleton rounded" />
         </div>
       </section>
     )
@@ -53,11 +41,11 @@ export function JobDetailCurrentRevision({
 
   const label = currentEntry?.isOriginal || !currentEntry?.revisionLetter
     ? "Original"
-    : `Rev ${currentEntry.revisionLetter}`
+    : `Revision ${currentEntry.revisionLetter}`
   const amendmentText = currentEntry?.isOriginal
     ? ""
     : (currentEntry?.notes?.trim() || "")
-  const showReason = amendmentText.length > 0
+  const showAmendments = amendmentText.length > 0
   const fee = currentEntry?.isOriginal
     ? (revisionFamily?.original.quoteValue ?? job.quoteValue)
     : currentJob.quoteValue
@@ -66,13 +54,18 @@ export function JobDetailCurrentRevision({
     : "—"
 
   return (
-    <section className="rounded-xl border border-bd bg-sr px-6 py-6 shadow-sm w-full">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-2 min-w-0">
-          <FileText className="h-[18px] w-[18px] text-t3 shrink-0" aria-hidden />
-          <h2 className={cn(Typography.BodyLarge, "font-bold text-t1")}>
-            Latest Revision ({label})
-          </h2>
+    <section className="rounded-xl border border-bd bg-sr px-6 sm:px-8 py-6 sm:py-8 shadow-sm w-full ring-1 ring-black/5">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-md bg-surface-low flex items-center justify-center shrink-0">
+            <FileText className="h-5 w-5 text-t1" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <p className={cn(Typography.Helper, "uppercase tracking-[0.05em] text-t3 leading-none mb-1")}>
+              Current Version
+            </p>
+            <h2 className={cn(Typography.CardTitle, "font-bold text-t1")}>{label}</h2>
+          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {revisionFamily?.canAddRevision && (
@@ -80,33 +73,40 @@ export function JobDetailCurrentRevision({
               Add
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={onOpenRevisions}>
+          <Button variant="primary" size="md" onClick={onOpenRevisions}>
             View Revision
             <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           </Button>
         </div>
       </div>
 
-      <div className={cn("grid gap-8", showReason ? "grid-cols-1 md:grid-cols-2 md:gap-12" : "grid-cols-1")}>
-        <dl className="space-y-3">
-          <Row label="Status" value={<StatusBadge status={currentJob.status} />} />
-          <Row label="Completed" value={<span className="tabular-nums">{completed}</span>} />
-          <Row label="Designer" value={currentJob.designer?.trim() || "Unassigned"} />
-          <Row
-            label="Fee"
-            value={<span className="tabular-nums">{fee != null ? formatGBP(fee) : "—"}</span>}
-          />
-        </dl>
-
-        {showReason && (
+      <div
+        className={cn(
+          "grid gap-8 sm:gap-12",
+          showAmendments ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2",
+        )}
+      >
+        <div>
+          <p className={cn(Typography.Helper, "uppercase tracking-[0.05em] text-t3 mb-2")}>
+            Completed Date
+          </p>
+          <p className={cn(Typography.BodyLarge, "font-bold text-t1 tabular-nums")}>{completed}</p>
+        </div>
+        <div>
+          <p className={cn(Typography.Helper, "uppercase tracking-[0.05em] text-t3 mb-2")}>Fee</p>
+          <p className={cn(Typography.BodyLarge, "font-bold text-t1 tabular-nums")}>
+            {fee != null ? formatGBP(fee) : "—"}
+          </p>
+        </div>
+        {showAmendments && (
           <div>
-            <p className={cn(Typography.Helper, "uppercase tracking-widest font-bold text-t3 mb-3")}>
-              Reason for Revision
+            <p className={cn(Typography.Helper, "uppercase tracking-[0.05em] text-t3 mb-2")}>
+              Amendments
             </p>
             <div
               className={cn(
                 Typography.Small,
-                "bg-pg p-4 rounded-md min-h-[100px] italic text-t2 whitespace-pre-wrap",
+                "font-medium italic text-t2 border-l-2 border-bd pl-4 py-1 whitespace-pre-wrap",
               )}
             >
               &ldquo;{amendmentText}&rdquo;

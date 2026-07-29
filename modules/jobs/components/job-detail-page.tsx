@@ -20,6 +20,7 @@ import type { DetailTab } from "./job-detail-tabs"
 import { JobDetailSidebar } from "./job-detail-sidebar"
 import { JobDetailDialogs } from "./job-detail-dialogs"
 import { JobRevisionOverview } from "./job-revision-overview"
+import { JobDetailLinkedRecords } from "./job-detail-linked-records"
 import type { RevisionFamilyResponse } from "../types/revision-types"
 import { AddRevisionModal } from "./add-revision-modal"
 import { AttachExistingQuoteModal } from "./attach-existing-quote-modal"
@@ -305,7 +306,7 @@ export default function JobDetailPage({
       />
 
       <div className="w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6 xl:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-6 xl:gap-8">
           <section className="min-w-0 w-full space-y-8">
             <JobDetailHeader
               job={job}
@@ -314,9 +315,6 @@ export default function JobDetailPage({
               restoring={restoring}
               onRestore={handleRestore}
               revisionFamily={revisionFamily ?? null}
-              selectedRevisionId={selectedRevisionId}
-              onSelectRevision={setSelectedRevisionId}
-              onOpenRevisions={() => setActiveTab("revisions")}
             />
 
             <JobDetailPrimaryActions
@@ -365,6 +363,11 @@ export default function JobDetailPage({
               />
             )}
 
+            <JobDetailLinkedRecords
+              job={job}
+              onOpenDocuments={() => setActiveTab("documents")}
+            />
+
             <JobDetailTabs
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -401,7 +404,6 @@ export default function JobDetailPage({
             onAddRevision={() => setRevisionModalOpen(true)}
             onCat2Export={() => void handleCat2Export()}
             onDelete={() => setDelOpen(true)}
-            onOpenDocumentsTab={() => setActiveTab("documents")}
             onEditDrawingNumber={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
           />
         </div>
