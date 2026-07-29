@@ -18,11 +18,7 @@ import {
   bulkImportQuotes,
   formatImportError,
 } from "@/modules/import-export/services/import-excel-bulk"
-import {
-  useSupabaseClients,
-  useSupabaseJobs,
-  useSupabaseQuotes,
-} from "@/shared/supabase/feature-flags"
+import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { MAX_IMPORT_LOOKUP_ROWS } from "@/modules/import-export/constants"
 import {
   LOGICAL_BACKUP_VERSION,
@@ -191,7 +187,7 @@ async function importClients(
 
   if (!toUpsert.length) return result
 
-  if (useSupabaseClients()) {
+  if (isSupabaseOnly()) {
     try {
       await bulkImportClients(toUpsert)
       result.created = createCount
@@ -333,7 +329,7 @@ async function importJobs(
 
   if (!built.length) return result
 
-  if (useSupabaseJobs()) {
+  if (isSupabaseOnly()) {
     try {
       await bulkImportJobs(built)
       result.created = createCount
@@ -470,7 +466,7 @@ async function importQuotes(
 
   if (!built.length) return result
 
-  if (useSupabaseQuotes()) {
+  if (isSupabaseOnly()) {
     try {
       await bulkImportQuotes(built)
       result.created = createCount

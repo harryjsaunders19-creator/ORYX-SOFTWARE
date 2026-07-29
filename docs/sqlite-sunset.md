@@ -13,13 +13,13 @@ There is **no** `DATA_BACKEND` env var. Routing is:
 
 ## Invariant (split modules)
 
-For the seven modules with `*-service.ts` + `*-sqlite.ts` / `*-supabase.ts`
-routers, `useSupabase*()` is only true when admin credentials exist — which
-also makes `isSupabaseOnly()` true. All seven hybrids have been collapsed to
-pure SQLite local/CI services; dual-write branches were unreachable whenever
-Supabase was configured.
+For modules with `*-service.ts` + `*-sqlite.ts` / `*-supabase.ts` routers,
+`isSupabaseOnly()` selects the backend. SQLite files never call `supabase*Repo`;
+Supabase files never call `*Db` or dual-write mirrors.
 
 ## Progress
+
+### Seven core hybrids (complete)
 
 | Module | Status |
 |--------|--------|
@@ -31,18 +31,32 @@ Supabase was configured.
 | quotes | Hybrid collapsed → `quote-service-sqlite.ts` |
 | jobs | Hybrid collapsed → `job-service-sqlite.ts` |
 
-**Still dual-path in a single file** (no hybrid split yet): leave, employees,
-holds, history, site-visit saved calculations, job-documents, backups,
-client-contacts, identity/session helpers, import-export.
+### Inline dual-path collapses (complete)
 
-## Suggested order
+| Service | Status |
+|---------|--------|
+| client contacts | SQLite-only (`client-contact-service.ts`; Supabase stays in `client-service-supabase`) |
+| job status history | Split → `history-service-{sqlite,supabase}.ts` |
+| site-visit saved calculations | Split → `saved-service-{sqlite,supabase}.ts` |
+| client holds | Split → `hold-service-{sqlite,supabase}.ts` |
+| job documents | Split → `document-service-{sqlite,supabase}.ts` |
+| identity switch log | Split → `identity-switch-service-{sqlite,supabase}.ts` |
+| session revocation | Split → `session-revocation-service-{sqlite,supabase}.ts` |
+| backup records | Split → `backup-record-service-{sqlite,supabase}.ts` |
+| employees | Split → `employee-service-{sqlite,supabase}.ts` (+ API routes use service) |
+| leave | Split → `leave-service-{sqlite,supabase}.ts` (+ enrichment/permissions) |
+| import-excel bulk | Split → `import-excel-bulk-{sqlite,supabase}.ts` |
+| job map | Split → `job-map-service-{sqlite,supabase}.ts` |
 
-1. Split or collapse inline dual-path services
-2. Move e2e to Supabase (or a test Postgres) so `lib/db` can shrink
-3. Remove `better-sqlite3` / SQLite boot when CI no longer needs it
+## Suggested next steps
+
+1. Move e2e to Supabase (or a test Postgres) so `lib/db` can shrink
+2. Remove `better-sqlite3` / SQLite boot when CI no longer needs it
+3. Optionally delete unused per-module `SUPABASE_*=false` override knobs once e2e is off SQLite
 
 ## Out of scope for early slices
 
 - Deleting `lib/db` or `better-sqlite3`
 - Requiring Supabase for local/e2e
 - Changing `isSupabaseOnly()` to mean something other than “admin configured”
+- Multi-tenancy / SaaS Path B

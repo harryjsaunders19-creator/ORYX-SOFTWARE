@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
       return listResponse({ events })
     }
 
-    events = filterLeaveEventsForViewer(auth.user, events, {
+    events = await filterLeaveEventsForViewer(auth.user, events, {
       showLeave,
       hideRejected,
       leaveStatus,
