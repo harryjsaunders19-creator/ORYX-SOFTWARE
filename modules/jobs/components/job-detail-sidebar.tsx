@@ -121,7 +121,7 @@ export function JobDetailSidebar({
                 onClick={onCat2Export}
                 loading={cat2Exporting}
               >
-                <Download className="h-3.5 w-3.5" /> Export
+                <Download className="h-3.5 w-3.5" /> Export CAT II Check Sheet
               </Button>
             )}
 

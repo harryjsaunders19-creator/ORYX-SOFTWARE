@@ -354,6 +354,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
 
   // Perf: stable handlers so JobMobileCard memo is not busted by inline lambdas per row.
   const openJob = useCallback((jobId: string) => { router.push(`/jobs/${jobId}`) }, [router])
+  const navigateTo = useCallback((path: string) => { router.push(path) }, [router])
   const patchMobileStatus = useCallback((job: Job, status: string) => {
     void patchJobField(job, "status", status)
   }, [patchJobField])
@@ -556,6 +557,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
               isOnHold={!!(job.clientId && holdClientIds.has(job.clientId))}
               showTags={showListTags}
               onOpen={openJob}
+              onNavigate={navigateTo}
               onStatusChange={patchMobileStatus}
             />
           ))}

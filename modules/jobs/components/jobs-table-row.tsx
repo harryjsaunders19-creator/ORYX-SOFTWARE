@@ -99,6 +99,7 @@ export const JobMobileCard = memo(function JobMobileCard({
   isOnHold,
   showTags,
   onOpen,
+  onNavigate,
   onStatusChange,
 }: {
   job: Job
@@ -107,6 +108,7 @@ export const JobMobileCard = memo(function JobMobileCard({
   showTags: boolean
   // Perf: stable callbacks from parent so memo skips re-render when filters change.
   onOpen: (jobId: string) => void
+  onNavigate: (path: string) => void
   onStatusChange: (job: Job, status: string) => void
 }) {
   const dl = getJobDeadlineInfo(job)
@@ -165,13 +167,28 @@ export const JobMobileCard = memo(function JobMobileCard({
         )}
       </div>
 
-      {(total != null || job.designer) && (
+      {(total != null || job.currentQuote || job.designer) && (
         <div className="flex items-center justify-between gap-2 text-xs text-t3 pt-0.5 border-t border-bd/60">
-          {total != null && (
-            <span className="tabular-nums font-medium text-t2">{formatGBP(total)}</span>
-          )}
+          <div className="min-w-0 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
+            {job.currentQuote ? (
+              <>
+                <span className="tabular-nums font-medium text-t2">
+                  {formatGBP(job.currentQuote.quoteValue)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onNavigate(`/quotes?search=${encodeURIComponent(job.currentQuote!.quoteNumber)}`)}
+                  className="font-mono type-helper text-ac hover:underline text-left truncate"
+                >
+                  {job.currentQuote.quoteNumber}
+                </button>
+              </>
+            ) : total != null ? (
+              <span className="tabular-nums font-medium text-t2">{formatGBP(total)}</span>
+            ) : null}
+          </div>
           {job.designer && (
-            <span className="truncate">{job.designer}</span>
+            <span className="truncate shrink-0">{job.designer}</span>
           )}
         </div>
       )}

@@ -34,6 +34,8 @@ interface JobDetailHeaderProps {
   onDelete: () => void
   onEditDrawingNumber: () => void
   revisionFamily: RevisionFamilyResponse | null
+  /** When set, header “Viewing” context reflects this revision row. */
+  selectedRevisionId?: string | null
 }
 
 function SummaryStatCard({
@@ -77,12 +79,26 @@ export function JobDetailHeader({
   onDelete: _onDelete,
   onEditDrawingNumber,
   revisionFamily,
+  selectedRevisionId = null,
 }: JobDetailHeaderProps) {
-  const dl = getJobDeadlineInfo(job)
   const current = job.currentRevision ?? null
-  const currentStatus = current?.status ?? job.status
-  const completedAt = current?.dateCompleted ?? job.dateCompleted
-  const designer = current?.designer?.trim() || job.designer?.trim() || "Unassigned"
+
+  const selectedJob: Job | null = (() => {
+    if (!selectedRevisionId || !revisionFamily) return null
+    if (revisionFamily.original.id === selectedRevisionId) return revisionFamily.original
+    return revisionFamily.revisions.find(r => r.id === selectedRevisionId) ?? null
+  })()
+
+  const selectedEntry = revisionFamily?.chain.find(e => e.id === selectedRevisionId) ?? null
+  const focusJob = selectedJob ?? current ?? job
+
+  const currentStatus = focusJob.status
+  const completedAt = focusJob.dateCompleted
+  const designer = focusJob.designer?.trim() || "Unassigned"
+
+  const viewingLetter = selectedEntry
+    ? (selectedEntry.isOriginal ? null : selectedEntry.revisionLetter)
+    : revLetter
 
   const revisionFees = revisionFamily
     ? revisionFamily.revisions.reduce((sum, r) => sum + (r.quoteValue ?? 0), 0)
@@ -91,7 +107,8 @@ export function JobDetailHeader({
   const totalBillable = revisionFees == null ? null : originalBillable + revisionFees
   const totalRevisions = revisionFamily?.revisions.length ?? job.revisionCount ?? 0
   const originalQuote = job.quoteValue
-  const deadlineIso = job.requiredByDate ?? null
+  const deadlineIso = focusJob.requiredByDate ?? job.requiredByDate ?? null
+  const focusDl = getJobDeadlineInfo({ ...job, ...focusJob, requiredByDate: deadlineIso })
 
   const location = [job.siteAddress ?? null, job.siteName ?? null].filter(Boolean).join(" · ") || job.address
   const statusLabel = getJobStatus(currentStatus).label
@@ -135,7 +152,7 @@ export function JobDetailHeader({
         </div>
       )}
 
-      {/* Master job card — Stitch layout */}
+      {/* Master job card */}
       <section className="oryx-surface-card overflow-hidden rounded-xl border border-bd bg-sr p-6 sm:p-8 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
           <div className="min-w-0 space-y-3">
@@ -145,7 +162,9 @@ export function JobDetailHeader({
               <span className="type-badge px-3 py-1 rounded-full bg-pg text-t2 border border-bd">
                 ORIGINAL JOB
               </span>
-              {revLetter ? <Pill tone="ac">Viewing Rev {revLetter}</Pill> : <Pill tone="neutral">Viewing Original</Pill>}
+              {viewingLetter
+                ? <Pill tone="ac">Viewing Rev {viewingLetter}</Pill>
+                : <Pill tone="neutral">Viewing Original</Pill>}
             </div>
 
             <p className="text-sm text-t3">
@@ -199,9 +218,9 @@ export function JobDetailHeader({
 
           <div className="flex flex-wrap items-start gap-3 lg:self-center">
             <div className="flex flex-wrap gap-2 items-center">
-              {dl.severity !== "none" && (
-                <Pill tone={dl.severity === "overdue" ? "dn" : "neutral"}>
-                  {dl.label}
+              {focusDl.severity !== "none" && (
+                <Pill tone={focusDl.severity === "overdue" ? "dn" : "neutral"}>
+                  {focusDl.label}
                 </Pill>
               )}
               {isAdmin && !isCancelled && (
@@ -231,7 +250,6 @@ export function JobDetailHeader({
           </div>
         )}
 
-        {/* Summary cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-2 border-t border-bd">
           <SummaryStatCard icon={CheckCircle2} label="Status" value={statusLabel} />
           <SummaryStatCard
@@ -243,7 +261,7 @@ export function JobDetailHeader({
             icon={Clock}
             label="Deadline"
             value={deadlineIso ? format(parseLocalDate(deadlineIso), "d MMM yyyy") : "—"}
-            badge={dl.severity === "overdue" ? "Due" : dl.severity === "today" ? "Today" : null}
+            badge={focusDl.severity === "overdue" ? "Due" : focusDl.severity === "today" ? "Today" : null}
           />
           <SummaryStatCard icon={UserCircle2} label="Designer" value={designer} />
           <SummaryStatCard icon={FileText} label="Original Quote" value={originalQuote != null ? formatGBP(originalQuote) ?? "—" : "—"} />

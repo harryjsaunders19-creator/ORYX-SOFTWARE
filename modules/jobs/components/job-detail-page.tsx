@@ -72,6 +72,13 @@ export default function JobDetailPage({
     }
   }, [job?.parentJobId, router])
 
+  // Default selection to the current revision (or original) once family loads.
+  useEffect(() => {
+    if (!revisionFamily || selectedRevisionId) return
+    const current = revisionFamily.chain.find(e => e.isCurrent)
+    setSelectedRevisionId(current?.id ?? revisionFamily.original.id)
+  }, [revisionFamily, selectedRevisionId])
+
   const notFound = !!jobError && /404|Not found/i.test(jobError.message)
   const loading = (isLoading && !job) || !!job?.parentJobId
 
@@ -298,6 +305,7 @@ export default function JobDetailPage({
             onDelete={() => setDelOpen(true)}
             onEditDrawingNumber={() => { setDnEditValue(job.drawingNumber); setDnEditOpen(true) }}
             revisionFamily={revisionFamily ?? null}
+            selectedRevisionId={selectedRevisionId}
           />
 
           <JobRevisionOverview
