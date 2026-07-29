@@ -69,7 +69,10 @@ function buildJobRow(data: CreateJobData, now: string): JobRow {
   }
 }
 
-function buildHandoffFromJob(job: JobRow): BillingHandoffRow {
+function buildHandoffFromJob(
+  job: JobRow,
+  resolved?: { quoteValue: number | null; quoteReference: string | null },
+): BillingHandoffRow {
   const now = nowIso()
   const billingEventType = job.parentJobId ? "REVISION_COMPLETED" : "JOB_COMPLETED"
   const completionDate = job.dateCompleted ?? now.slice(0, 10)
@@ -84,8 +87,8 @@ function buildHandoffFromJob(job: JobRow): BillingHandoffRow {
     clientCompany: job.clientCompany,
     address: job.address,
     designer: job.designer || null,
-    quoteValue: totalJobCommercialValue(job) ?? job.quoteValue,
-    quoteReference: job.quoteReference,
+    quoteValue: resolved?.quoteValue ?? totalJobCommercialValue(job) ?? job.quoteValue,
+    quoteReference: resolved?.quoteReference ?? job.quoteReference,
     completionDate,
     addedToBillingQueueAt: now,
     clearedByAccountsAt: null,
@@ -103,7 +106,13 @@ async function recordBillingHandoffIfIssued(job: JobRow): Promise<void> {
   if (job.parentJobId && !job.billable) return
   const existing = await supabaseBillingRepo.findBySourceJobId(job.id)
   if (existing) return
-  await supabaseBillingRepo.upsertHandoff(buildHandoffFromJob(job))
+
+  const { loadLinkedQuotesByJobIds, resolveHandoffQuoteValue } = await import(
+    "@/modules/billing/resolve-handoff-quote-value"
+  )
+  const linked = await loadLinkedQuotesByJobIds([job.id])
+  const resolved = resolveHandoffQuoteValue(job, linked.get(job.id) ?? [])
+  await supabaseBillingRepo.upsertHandoff(buildHandoffFromJob(job, resolved))
 }
 
 async function retractBillingHandoffOnRevert(jobId: string): Promise<string | null> {

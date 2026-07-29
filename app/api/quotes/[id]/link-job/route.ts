@@ -11,6 +11,37 @@ const bodySchema = z.object({
   confirmReassign: z.boolean().optional(),
 })
 
+/**
+ * When a Quote is attached to a Job that has no fee yet, copy the quote amount
+ * onto the job (and any awaiting Ready-for-Invoicing handoff) so accounts do
+ * not have to re-enter the price.
+ */
+async function syncJobFeeFromLinkedQuote(
+  jobId: string,
+  quote: { quoteValue: number; quoteNumber: string },
+): Promise<void> {
+  const { jobService } = await import("@/modules/jobs")
+  const job = await jobService.findUnique(jobId)
+  if (!job) return
+
+  if (job.quoteValue == null && quote.quoteValue != null) {
+    await jobService.update(jobId, {
+      quoteValue: quote.quoteValue,
+      quoteReference: job.quoteReference ?? quote.quoteNumber,
+    })
+  }
+
+  try {
+    const { billingHandoffService } = await import("@/modules/billing")
+    const handoff = await billingHandoffService.findBySourceJobId(jobId)
+    if (handoff && handoff.quoteValue == null && !handoff.clearedByAccountsAt) {
+      await billingHandoffService.updateQuoteValue(handoff.id, quote.quoteValue)
+    }
+  } catch {
+    // Billing module may be unavailable in some local paths — non-fatal.
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
     const auth = await requireModuleAccess("quotes")
@@ -43,6 +74,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const updated = await quoteService.setJobId(id, jobId)
     if (!updated) return NextResponse.json({ error: "Failed to update" }, { status: 500 })
+
+    if (jobId && updated.quoteValue != null) {
+      await syncJobFeeFromLinkedQuote(jobId, updated)
+    }
+
     return NextResponse.json(updated)
   } catch (err) {
     return apiInternalError("quotes.link-job", err)

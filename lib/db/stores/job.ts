@@ -1,9 +1,11 @@
 /** Job table access. */
 import { db } from "../connection"
 import { nowIso, buildWhere, safeOrder, type WhereClause, type FindManyOptions } from "../helpers"
-import { totalJobCommercialValue, todayIsoDate } from "@/shared/utils"
+import { todayIsoDate } from "@/shared/utils"
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { billingHandoffDb } from "./billing-handoff"
+import { quoteDb } from "./quote"
+import { resolveHandoffQuoteValue } from "@/modules/billing/resolve-handoff-quote-value"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { parseJobTags, serializeJobTags } from "@/lib/constants"
 import {
@@ -44,6 +46,17 @@ export const jobDb = {
     if (job.parentJobId && !(job.billable ?? false)) return
     const billingEventType = job.parentJobId ? "REVISION_COMPLETED" : "JOB_COMPLETED"
     const completionDate   = job.dateCompleted ?? nowIso().slice(0, 10)
+
+    // Prefer Job commercial total; fall back to an attached Quote so accounts
+    // do not re-type a price that already exists on the linked quote.
+    const linked = quoteDb.findByJobIds([job.id]).map(q => ({
+      quoteNumber: q.quoteNumber,
+      quoteValue: q.quoteValue,
+      status: q.status,
+      updatedAt: q.updatedAt,
+    }))
+    const resolved = resolveHandoffQuoteValue(job, linked)
+
     db.prepare(`
       INSERT OR IGNORE INTO BillingHandoff
         (id, sourceJobId, billingEventType, drawingNumber, itemType, typeOfWorks, customTypeDescription,
@@ -53,7 +66,7 @@ export const jobDb = {
     `).run(
       nanoid(), job.id, billingEventType, job.drawingNumber, job.itemType, job.typeOfWorks, job.customTypeDescription,
       job.clientCompany, job.address, job.designer || null,
-      totalJobCommercialValue(job) ?? job.quoteValue, job.quoteReference,
+      resolved.quoteValue, resolved.quoteReference,
       completionDate, nowIso(), nowIso(), nowIso(),
     )
   },

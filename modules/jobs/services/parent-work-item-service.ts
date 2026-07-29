@@ -132,6 +132,26 @@ async function recordBillingForWorkItem(
   }
 
   const now = nowIso()
+  let quoteValue = workItemCommercial(item) || item.quoteValue
+  let quoteReference = item.quoteReference
+
+  // Original / work items without a fee still fall back to a Quote attached to the parent job.
+  if (quoteValue == null || quoteValue === 0) {
+    const jobIdForQuotes = item.legacyJobId ?? parent.id
+    const { loadLinkedQuotesByJobIds, resolveHandoffQuoteValue } = await import(
+      "@/modules/billing/resolve-handoff-quote-value"
+    )
+    const linked = await loadLinkedQuotesByJobIds([jobIdForQuotes])
+    const resolved = resolveHandoffQuoteValue(
+      { quoteValue: quoteValue || null, quoteReference },
+      linked.get(jobIdForQuotes) ?? [],
+    )
+    if (resolved.quoteValue != null) {
+      quoteValue = resolved.quoteValue
+      quoteReference = resolved.quoteReference
+    }
+  }
+
   const handoff: BillingHandoffRow & { sourceWorkItemId?: string | null } = {
     id: nanoid(),
     sourceJobId: item.legacyJobId ?? item.id,
@@ -143,8 +163,8 @@ async function recordBillingForWorkItem(
     clientCompany: parent.clientCompany,
     address: parent.address,
     designer: item.designer || null,
-    quoteValue: workItemCommercial(item) || item.quoteValue,
-    quoteReference: item.quoteReference,
+    quoteValue,
+    quoteReference,
     completionDate: item.completedAt ?? now.slice(0, 10),
     addedToBillingQueueAt: now,
     clearedByAccountsAt: null,

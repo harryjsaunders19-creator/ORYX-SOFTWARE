@@ -158,6 +158,26 @@ export async function POST(req: NextRequest) {
     if (jobIdStr) {
       await quoteService.setJobId(quote.id, jobIdStr)
       quote = { ...quote, jobId: jobIdStr }
+
+      // Copy fee onto the job when it has none — Ready for Invoicing must not
+      // ask accounts to re-enter an amount that already lives on the quote.
+      try {
+        const { jobService } = await import("@/modules/jobs")
+        const job = await jobService.findUnique(jobIdStr)
+        if (job && job.quoteValue == null && quote.quoteValue != null) {
+          await jobService.update(jobIdStr, {
+            quoteValue: quote.quoteValue,
+            quoteReference: job.quoteReference ?? quote.quoteNumber,
+          })
+        }
+        const { billingHandoffService } = await import("@/modules/billing")
+        const handoff = await billingHandoffService.findBySourceJobId(jobIdStr)
+        if (handoff && handoff.quoteValue == null && !handoff.clearedByAccountsAt) {
+          await billingHandoffService.updateQuoteValue(handoff.id, quote.quoteValue)
+        }
+      } catch {
+        // Non-fatal — quote is still linked.
+      }
     }
 
     return NextResponse.json(quote, { status: 201 })

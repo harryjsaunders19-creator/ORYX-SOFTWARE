@@ -3,6 +3,7 @@ import { billingHandoffService } from "../services/billing-handoff-service"
 import { requireRole } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
+import { enrichHandoffsWithLinkedQuoteValues } from "../enrich-handoff-quote-values"
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole(["ADMIN"])
@@ -16,6 +17,13 @@ export async function GET(req: NextRequest) {
     const sourceJobId = sp.get("sourceJobId")
     if (sourceJobId) {
       const handoff = await billingHandoffService.findBySourceJobId(sourceJobId)
+      if (handoff && handoff.quoteValue == null && !handoff.clearedByAccountsAt) {
+        const [enriched] = await enrichHandoffsWithLinkedQuoteValues(
+          [handoff],
+          (id, quoteValue) => billingHandoffService.updateQuoteValue(id, quoteValue),
+        )
+        return NextResponse.json({ handoff: enriched ?? handoff })
+      }
       return NextResponse.json({ handoff })
     }
 
@@ -25,10 +33,20 @@ export async function GET(req: NextRequest) {
     const limit = parseLimitParam(sp.get("limit"), 200, 200)
     const skip = (page - 1) * limit
 
-    const [handoffs, stats] = await Promise.all([
+    const [rawHandoffs, stats] = await Promise.all([
       billingHandoffService.findMany({ cleared, skip, take: limit }),
       billingHandoffService.stats(),
     ])
+
+    // Awaiting items with a linked Quote but no handoff price — fill from the quote
+    // so accounts never re-type an amount that already exists.
+    const handoffs = view === "cleared"
+      ? rawHandoffs
+      : await enrichHandoffsWithLinkedQuoteValues(
+        rawHandoffs,
+        (id, quoteValue) => billingHandoffService.updateQuoteValue(id, quoteValue),
+      )
+
     const viewTotal =
       view === "awaiting" ? stats.awaitingCount
         : view === "cleared" ? stats.clearedCount
