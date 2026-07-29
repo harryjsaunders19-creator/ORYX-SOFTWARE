@@ -171,7 +171,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     )
     const latestMap = latestByParent as Map<string, { id: string; parentJobId: string | null }>
 
-    if (!canAddRevisionFrom(source, latestMap)) {
+    // When called from the parent card and revisions exist, automatically
+    // resolve to the latest revision — the UI always shows "Add revision"
+    // on the parent row, so the API should accept the parent ID gracefully.
+    if (!canAddRevisionFrom(source, latestMap) && source.id === parent.id && existing.length > 0) {
+      // Parent is the source but revisions exist — this is fine, proceed.
+    } else if (!canAddRevisionFrom(source, latestMap)) {
       const latest = existing.at(-1)
       return NextResponse.json(
         {
