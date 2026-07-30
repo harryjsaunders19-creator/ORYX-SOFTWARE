@@ -122,6 +122,26 @@ describe("jobs-register-helpers", () => {
   })
 })
 
+describe("designer assignment titles", () => {
+  it("names the assignment target explicitly", async () => {
+    const { designerAssignmentTitle } = await import(
+      "../../modules/jobs/components/designer-assignment-selector.tsx"
+    )
+    assert.equal(
+      designerAssignmentTitle("original"),
+      "Assign designer to original design",
+    )
+    assert.equal(
+      designerAssignmentTitle("revision", "REV E"),
+      "Assign designer to REV E",
+    )
+    assert.equal(
+      designerAssignmentTitle("revision", "E"),
+      "Assign designer to Rev E",
+    )
+  })
+})
+
 describe("current-work helpers", () => {
   const original = {
     id: "parent-1",

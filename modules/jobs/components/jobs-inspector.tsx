@@ -2,62 +2,51 @@
 
 import { useMemo, useState, lazy, Suspense } from "react"
 import {
-  Plus, Upload, Send, MoreHorizontal, ArrowRight,
+  Plus, ShieldCheck, Link2, ArrowRight, ChevronDown,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
-import { cn } from "@/shared/utils/utils"
-import type { Job } from "@/lib/types"
+import { useToast } from "@/shared/ui/toast"
+import { cn, formatGBP } from "@/shared/utils/utils"
+import type { Job, LinkedQuoteSummary, Quote } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import {
   deriveNextAction,
-  deriveWorkflowProgress,
   revisionBadgeLabel,
   siteDisplay,
   shortStatusLabel,
+  missingLabel,
 } from "./jobs-register-helpers"
-import {
-  JobsInspectorCurrentFocus,
-  JobsInspectorMetrics,
-} from "./jobs-inspector-focus-metrics"
-import {
-  JobsInspectorRevisionTimeline,
-  type InspectorRevision,
-} from "./jobs-inspector-revision-timeline"
-import {
-  JobsInspectorWorkflow,
-  JobsInspectorRecentFiles,
-  JobsInspectorActivityFeed,
-  type InspectorFileItem,
-  type InspectorActivityItem,
-} from "./jobs-inspector-sections"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
+import { DesignerAssignmentSelector } from "./designer-assignment-selector"
+import { downloadCat2CheckSheet } from "./cat2-check-sheet-export"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu"
 import {
   getCurrentWorkItem,
   type CurrentWorkRevisionLike,
 } from "@/modules/jobs/lib/current-work"
+import { QuoteStatusBadge } from "@/modules/quotes/components/quote-status-badge"
 
 const AddRevisionModal = lazy(() =>
   import("./add-revision-modal").then(m => ({ default: m.AddRevisionModal })),
+)
+const AttachExistingQuoteModal = lazy(() =>
+  import("./attach-existing-quote-modal").then(m => ({ default: m.AttachExistingQuoteModal })),
 )
 
 interface JobsInspectorProps {
   project: JobsRegisterProject
   workItemsModel: boolean
+  designers: string[]
   onOpenWorkspace: () => void
-  onAddRevisionRequest?: () => void
   onStatusChanged?: () => void
-}
-
-interface HistoryResponse {
-  history: {
-    id: string
-    changedAt: string
-    changedBy: string
-    note: string | null
-    toStatus: string
-    fromStatus: string | null
-  }[]
 }
 
 interface DocumentsResponse {
@@ -65,9 +54,6 @@ interface DocumentsResponse {
     id: string
     filename: string
     originalFilename?: string | null
-    category: string | null
-    mimeType?: string | null
-    fileExt?: string | null
     createdAt: string
   }[]
 }
@@ -90,6 +76,10 @@ interface RevisionsResponse {
   canAddRevision?: boolean
 }
 
+interface QuotesListResponse {
+  quotes: Quote[]
+}
+
 function asSafeArray<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? value : []
 }
@@ -100,182 +90,105 @@ function timeValue(value: string | null | undefined): number {
   return Number.isFinite(ts) ? ts : 0
 }
 
+function safeDateLabel(value: string | null | undefined): string {
+  if (!value) return "Unknown date"
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return "Unknown date"
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
+}
+
+function dueLabel(value: string | null | undefined): string {
+  if (!value) return "Not set"
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return "Not set"
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(d)
+  target.setHours(0, 0, 0, 0)
+  const diff = Math.round((target.getTime() - today.getTime()) / 86_400_000)
+  if (diff < 0) return "Overdue"
+  if (diff === 0) return "Today"
+  if (diff <= 7) return "This week"
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+}
+
+type CompactRevision = {
+  id: string
+  letter: string | null
+  title: string
+  status: string
+  createdAt: string
+  designer: string
+  reason: string | null
+  billable: boolean
+  isCurrent: boolean
+}
+
 export function JobsInspector({
   project,
   workItemsModel,
+  designers,
   onOpenWorkspace,
   onStatusChanged,
 }: JobsInspectorProps) {
+  const router = useRouter()
+  const { toast } = useToast()
   const [addRevOpen, setAddRevOpen] = useState(false)
-  const [tab, setTab] = useState<"overview" | "revisions" | "commercial" | "documents" | "activity">("revisions")
+  const [attachQuoteOpen, setAttachQuoteOpen] = useState(false)
+  const [cat2Busy, setCat2Busy] = useState(false)
+  const [unlinkBusy, setUnlinkBusy] = useState(false)
 
-  const parentKey = workItemsModel
-    ? `/api/parent-jobs/${project.id}`
-    : null
-  const jobKey = !workItemsModel
-    ? `/api/jobs/${project.id}?include=parent,current`
-    : null
-  const revisionsKey = !workItemsModel
-    ? `/api/jobs/${project.id}/revisions`
-    : null
+  const parentKey = workItemsModel ? `/api/parent-jobs/${project.id}` : null
+  const jobKey = !workItemsModel ? `/api/jobs/${project.id}?include=parent,current` : null
+  const revisionsKey = !workItemsModel ? `/api/jobs/${project.id}/revisions` : null
+  const docsKey = `/api/jobs/${project.id}/documents?limit=20`
+  const quotesKey = `/api/quotes?search=${encodeURIComponent(project.drawingNumber)}&page=1&limit=20`
 
-  const docJobId = workItemsModel ? project.id : project.detailId
-  const historyKey = `/api/jobs/${docJobId}/history`
-  const docsKey = `/api/jobs/${docJobId}/documents?limit=12`
-
-  const { data: parentDash, isLoading: parentLoading, mutate: mutateParent } = useApi<ParentJobDashboard>(parentKey)
-  const { data: jobDetail, isLoading: jobLoading, mutate: mutateJob } = useApi<Job>(jobKey)
-  const { data: revisionsData, mutate: mutateRevisions } = useApi<RevisionsResponse>(revisionsKey)
-  const { data: historyData, mutate: mutateHistory } = useApi<HistoryResponse>(historyKey)
-  const { data: docsData } = useApi<DocumentsResponse>(docsKey)
+  const { data: parentDash, isLoading: parentLoading, mutate: mutateParent } =
+    useApi<ParentJobDashboard>(parentKey)
+  const { data: jobDetail, isLoading: jobLoading, mutate: mutateJob } =
+    useApi<Job>(jobKey)
+  const { data: revisionsData, mutate: mutateRevisions } =
+    useApi<RevisionsResponse>(revisionsKey)
+  const { data: docsData, mutate: mutateDocs } = useApi<DocumentsResponse>(docsKey)
+  const { data: quotesData, mutate: mutateQuotes } = useApi<QuotesListResponse>(quotesKey)
 
   const loading = workItemsModel ? parentLoading : jobLoading
 
-  const revisions: InspectorRevision[] = useMemo(() => {
+  const revisions: CompactRevision[] = useMemo(() => {
     if (workItemsModel && parentDash) {
       const workItems = asSafeArray(parentDash.workItems).filter(Boolean)
       const currentId = parentDash.currentActive?.id
       return [...workItems]
-        .sort((a, b) => {
-          const aDate = a.dateCreated || a.createdAt
-          const bDate = b.dateCreated || b.createdAt
-          return timeValue(bDate) - timeValue(aDate)
-        })
+        .sort((a, b) => timeValue(b.dateCreated || b.createdAt) - timeValue(a.dateCreated || a.createdAt))
         .map(wi => ({
           id: wi.id,
           letter: wi.revisionLetter,
-          title: wi.title,
+          title: wi.title || (wi.revisionLetter ? `Rev ${wi.revisionLetter}` : "Original"),
           status: wi.status,
           createdAt: wi.dateCreated || wi.createdAt,
           designer: wi.designer ?? "",
           reason: wi.description,
-          notes: wi.notes,
           billable: wi.billable ?? true,
-          value: wi.quoteValue,
-          drawingStatus: shortStatusLabel(wi.status),
-          invoiceStatus: wi.invoiceStatus ?? "Not invoiced",
-          completionStatus: wi.completedAt ? "Complete" : shortStatusLabel(wi.status),
           isCurrent: wi.id === currentId,
         }))
     }
-
-    const chain = asSafeArray(revisionsData?.chain).filter(Boolean)
-    return chain.map((r, idx) => ({
+    return asSafeArray(revisionsData?.chain).filter(Boolean).map((r, idx) => ({
       id: r.id,
       letter: r.revisionLetter,
-      title: r.title || (r.revisionLetter ? `Revision ${r.revisionLetter}` : "Original Design"),
+      title: r.title || (r.revisionLetter ? `Rev ${r.revisionLetter}` : "Original"),
       status: r.status,
       createdAt: r.dateCreated,
       designer: r.designer ?? "",
       reason: r.notes,
-      notes: r.notes,
       billable: r.billable ?? true,
-      value: r.quoteValue ?? null,
-      drawingStatus: shortStatusLabel(r.status),
-      invoiceStatus: "Not invoiced",
-      completionStatus: (r.dateCompleted || r.issuedAt) ? "Complete" : shortStatusLabel(r.status),
       isCurrent: r.isCurrent ?? idx === 0,
     }))
   }, [workItemsModel, parentDash, revisionsData])
-
-  const currentRev = revisions.find(r => r.isCurrent) ?? revisions[0]
-
-  const metrics = useMemo(() => {
-    if (workItemsModel && parentDash) {
-      const items = asSafeArray(parentDash.workItems)
-      const invoiceSummary = parentDash.invoiceSummary ?? { quotedTotal: 0, billedTotal: 0 }
-      const original = items.find(i => i.workType === "ORIGINAL")
-      const revItems = items.filter(i => i.workType === "REVISION")
-      const revisionRevenue = revItems.reduce((s, i) => s + (i.quoteValue ?? 0), 0)
-      const originalFee = original?.quoteValue ?? null
-      const total = invoiceSummary.quotedTotal
-      const outstanding =
-        invoiceSummary.quotedTotal - invoiceSummary.billedTotal
-      return {
-        originalFee,
-        revisionRevenue,
-        totalValue: total || null,
-        outstanding: outstanding > 0 ? outstanding : 0,
-        revisionCount: parentDash.revisionCount,
-        lastActivity: items.map(i => i.updatedAt).sort().at(-1) ?? null,
-      }
-    }
-
-    const job = jobDetail
-    const chain = asSafeArray(revisionsData?.chain)
-    const original = chain.find(r => !r.revisionLetter) ?? chain.at(-1)
-    const revSum = chain
-      .filter(r => r.revisionLetter)
-      .reduce((s, r) => s + (r.quoteValue ?? 0), 0)
-    return {
-      originalFee: original?.quoteValue ?? job?.quoteValue ?? null,
-      revisionRevenue: revSum,
-      totalValue:
-        chain.reduce((s, r) => s + (r.quoteValue ?? 0), 0) || job?.quoteValue || null,
-      outstanding: null,
-      revisionCount: job?.revisionCount ?? Math.max(0, chain.length - 1),
-      lastActivity: job?.updatedAt ?? null,
-    }
-  }, [workItemsModel, parentDash, jobDetail, revisionsData])
-
-  const files: InspectorFileItem[] = useMemo(() => {
-    const docs = asSafeArray(docsData?.documents)
-    const url = (id: string, action: "preview" | "download") =>
-      `/api/jobs/${docJobId}/documents/${id}/${action}`
-    const pick = (
-      pred: (d: (typeof docs)[0]) => boolean,
-      label: string,
-      kind: InspectorFileItem["kind"],
-    ) => {
-      const hit = docs.find(pred)
-      if (!hit) return null
-      return {
-        id: hit.id,
-        label: label || hit.originalFilename || hit.filename,
-        kind,
-        uploadedAt: hit.createdAt,
-        openUrl: url(hit.id, "preview"),
-        downloadUrl: url(hit.id, "download"),
-      } satisfies InspectorFileItem
-    }
-
-    return [
-      pick(
-        d => /draw|dwg/i.test(String(d.filename ?? "")) || /drawing/i.test(d.category ?? ""),
-        "Latest Drawing",
-        "drawing",
-      ),
-      pick(
-        d => /calc/i.test(String(d.filename ?? "")) || /calc/i.test(d.category ?? ""),
-        "Latest Calculation",
-        "calculation",
-      ),
-      pick(
-        d => /\.pdf$/i.test(String(d.filename ?? "")) || /pdf|revision/i.test(d.category ?? ""),
-        "Latest Revision PDF",
-        "pdf",
-      ),
-    ].filter(Boolean) as InspectorFileItem[]
-  }, [docsData, docJobId])
-
-  const activity: InspectorActivityItem[] = useMemo(() => {
-    return asSafeArray(historyData?.history).slice(0, 12).map(h => ({
-      id: h.id,
-      timestamp: h.changedAt,
-      user: h.changedBy || "System",
-      action:
-        h.note?.trim() ||
-        (h.toStatus
-          ? `Status → ${shortStatusLabel(h.toStatus)}`
-          : "Activity"),
-    }))
-  }, [historyData])
-
-  const workflow = deriveWorkflowProgress({
-    status: currentRev?.status ?? project.currentStatus,
-    hasDrawing: files.some(f => f.kind === "drawing"),
-    invoiceStatus: currentRev?.invoiceStatus,
-  })
 
   const parent = parentDash?.parent
   const client = parent?.clientCompany ?? jobDetail?.clientCompany ?? project.clientCompany
@@ -292,9 +205,6 @@ export function JobsInspector({
   const originalStatus = workItemsModel
     ? (originalWorkItem?.status ?? project.projectStatus)
     : (jobDetail?.status ?? project.projectStatus)
-  const originalId = workItemsModel
-    ? (originalWorkItem?.id ?? null)
-    : project.id
 
   const currentWork = useMemo(() => {
     const revLike: CurrentWorkRevisionLike[] = revisions
@@ -317,38 +227,126 @@ export function JobsInspector({
     )
   }, [revisions, project.id, project.designer, project.requiredByDate, originalStatus])
 
-  const revStatus = currentWork.status
+  const currentRev = revisions.find(r => r.isCurrent) ?? revisions[0]
   const revLabel = revisionBadgeLabel(
     currentWork.type === "revision"
       ? (currentRev?.letter ?? project.currentRevisionLetter)
       : null,
   )
 
-  const refreshAfterStatus = async () => {
-    if (workItemsModel) {
-      await mutateParent()
-    } else {
-      await Promise.all([mutateJob(), mutateRevisions()])
+  const linkedQuote: LinkedQuoteSummary | null = useMemo(() => {
+    if (jobDetail?.currentQuote) return jobDetail.currentQuote
+    if (project.currentQuote) {
+      return {
+        ...project.currentQuote,
+        updatedAt: "",
+      }
     }
-    await mutateHistory()
+    const match = asSafeArray(quotesData?.quotes).find(q => q.jobId === project.id)
+    if (!match) return null
+    return {
+      id: match.id,
+      quoteNumber: match.quoteNumber,
+      quoteValue: match.quoteValue ?? 0,
+      status: match.status,
+      updatedAt: match.updatedAt ?? "",
+    }
+  }, [jobDetail?.currentQuote, project.currentQuote, project.id, quotesData?.quotes])
+
+  const cat2Doc = useMemo(() => {
+    return asSafeArray(docsData?.documents).find(d => {
+      const name = `${d.originalFilename ?? ""} ${d.filename ?? ""}`
+      return /cat\s*ii|cat2|catii/i.test(name)
+    }) ?? null
+  }, [docsData?.documents])
+
+  const canExportCat2 = useMemo(() => {
+    if (workItemsModel && parentDash) {
+      return asSafeArray(parentDash.workItems).some(w => w.status === "ISSUED")
+    }
+    return (
+      originalStatus === "ISSUED" ||
+      project.projectStatus === "ISSUED" ||
+      revisions.some(r => r.status === "ISSUED")
+    )
+  }, [workItemsModel, parentDash, originalStatus, project.projectStatus, revisions])
+
+  const cat2TargetLabel = useMemo(() => {
+    const issuedRev = [...revisions]
+      .filter(r => r.status === "ISSUED" && r.letter)
+      .sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt))[0]
+    if (issuedRev?.letter) return `Rev ${issuedRev.letter}`
+    if (currentWork.type === "revision" && currentWork.revisionLabel) {
+      return currentWork.revisionLabel
+    }
+    return "original design"
+  }, [revisions, currentWork])
+
+  const refreshAll = async () => {
+    if (workItemsModel) await mutateParent()
+    else await Promise.all([mutateJob(), mutateRevisions()])
+    await Promise.all([mutateDocs(), mutateQuotes()])
     onStatusChanged?.()
   }
 
   const currentWorkPatchUrl = workItemsModel && currentWork.id
     ? `/api/work-items/${currentWork.id}`
     : undefined
-  const originalPatchUrl = workItemsModel && originalId
-    ? `/api/work-items/${originalId}`
-    : undefined
+
+  const handleCat2 = async () => {
+    setCat2Busy(true)
+    try {
+      const result = await downloadCat2CheckSheet(project.id)
+      if (!result.ok) {
+        toast(result.error, "error")
+        return
+      }
+      toast(`CAT II Check created for ${cat2TargetLabel}`, "success")
+      await mutateDocs()
+      onStatusChanged?.()
+    } catch {
+      toast("CAT II export failed", "error")
+    } finally {
+      setCat2Busy(false)
+    }
+  }
+
+  const handleUnlinkQuote = async () => {
+    if (!linkedQuote) return
+    setUnlinkBusy(true)
+    try {
+      const res = await fetch(`/api/quotes/${linkedQuote.id}/link-job`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: null }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "Failed to remove quote link", "error")
+        return
+      }
+      toast("Quote unlinked", "success")
+      await refreshAll()
+    } catch {
+      toast("Network error", "error")
+    } finally {
+      setUnlinkBusy(false)
+    }
+  }
+
+  const attachJobStub = {
+    id: project.id,
+    drawingNumber,
+  } as Job
+
+  const actionBtn =
+    "inline-flex h-8 items-center gap-1.5 rounded border border-bd bg-sr px-2.5 text-xs font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-50"
 
   return (
     <aside
-      className={cn(
-        "jobs-inspector flex h-full min-h-0 w-full flex-col bg-sr",
-      )}
+      className="jobs-inspector flex h-full min-h-0 w-full flex-col bg-sr"
       aria-label={`Inspector for ${drawingNumber}`}
     >
-      {/* Header — identity + summary */}
       <div className="shrink-0 border-b border-bd px-4 pt-3 pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -374,35 +372,16 @@ export function JobsInspector({
               ) : currentWork.type === "original" ? (
                 <> · Active original</>
               ) : (
-                <> · No active work</>
+                <> · Complete</>
               )}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              className="inline-flex h-8 items-center gap-1 rounded border border-bd px-2 text-xs font-medium text-t2 transition-colors hover:bg-surface-low hover:text-t1"
-              onClick={onOpenWorkspace}
-            >
-              Open Full Project
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              className="rounded border border-bd p-1.5 text-t3 transition-colors hover:bg-surface-low hover:text-t1"
-              aria-label="More actions"
-              onClick={onOpenWorkspace}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-          </div>
         </div>
 
-        {/* Quick actions */}
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            className="inline-flex h-8 items-center gap-1.5 rounded bg-ac px-3 text-xs font-semibold text-on-ac transition-colors hover:bg-ach disabled:opacity-50"
+            className={cn(actionBtn, "border-transparent bg-ac text-on-ac hover:bg-ach")}
             onClick={() => {
               if (workItemsModel) {
                 onOpenWorkspace()
@@ -415,139 +394,114 @@ export function JobsInspector({
             <Plus className="h-3.5 w-3.5" />
             Add Revision
           </button>
-          <IconBtn title="Upload" onClick={onOpenWorkspace}><Upload className="h-3.5 w-3.5" /></IconBtn>
-          <IconBtn title="Issue" onClick={onOpenWorkspace}><Send className="h-3.5 w-3.5" /></IconBtn>
-          <IconBtn title="More" onClick={onOpenWorkspace}><MoreHorizontal className="h-3.5 w-3.5" /></IconBtn>
-        </div>
-
-        {/* Compact dual status cards */}
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded border border-bd bg-surface-low/80 p-2.5">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-t3">
-              Original Design
-            </p>
-            {originalId ? (
-              <WorkItemStatusSelector
-                workItemType="original"
-                workItemId={originalId}
-                currentStatus={originalStatus}
-                revisionLabel={null}
-                patchUrl={originalPatchUrl}
-                size="md"
-                onStatusChanged={() => { void refreshAfterStatus() }}
-              />
-            ) : (
-              <span className="text-sm text-t3">Not available</span>
-            )}
-          </div>
-          <div className="rounded border border-bd bg-sr p-2.5">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-t3">
-              Current Work
-            </p>
-            {currentWork.type !== "none" && (
-              <p className="mb-1 text-xs font-medium text-t2">
-                {currentWork.revisionLabel ?? "ORIGINAL"}
-              </p>
-            )}
-            {currentWork.type !== "none" && currentWork.id ? (
-              <WorkItemStatusSelector
-                workItemType={currentWork.type === "revision" ? "revision" : "original"}
-                workItemId={currentWork.id}
-                currentStatus={currentWork.status}
-                revisionLabel={currentWork.type === "revision" ? currentWork.revisionLabel : null}
-                patchUrl={currentWorkPatchUrl}
-                size="md"
-                onStatusChanged={() => { void refreshAfterStatus() }}
-              />
-            ) : (
-              <p className="text-sm text-t3">No Active Work</p>
-            )}
-            {currentWork.multipleActiveWarning && (
-              <p className="mt-1.5 text-[11px] text-wn-tx">
-                Multiple active revisions — showing latest by sequence.
-              </p>
-            )}
-          </div>
+          <button
+            type="button"
+            className={actionBtn}
+            onClick={() => void handleCat2()}
+            disabled={cat2Busy || !canExportCat2}
+            title={
+              canExportCat2
+                ? `Create CATII Check for ${cat2TargetLabel}`
+                : "CATII Check is available when original or a revision is complete"
+            }
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            {cat2Busy ? "Creating…" : "CATII Check"}
+          </button>
+          <button
+            type="button"
+            className={actionBtn}
+            onClick={() => setAttachQuoteOpen(true)}
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            Attach Quote
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className={actionBtn}>
+                More
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onOpenWorkspace}>
+                Open Full Project
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  window.location.href = `/quotes?new=1&jobId=${encodeURIComponent(project.id)}`
+                }}
+              >
+                Create New Quote
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => router.push(`/jobs/${project.id}`)}
+              >
+                Generate Invoice
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Tabs */}
-      <nav className="flex shrink-0 overflow-x-auto border-b border-bd" aria-label="Inspector sections">
-        {(
-          [
-            ["overview", "Overview"],
-            ["revisions", "Revisions"],
-            ["commercial", "Commercial"],
-            ["documents", "Documents"],
-            ["activity", "Activity"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={cn(
-              "whitespace-nowrap px-3.5 py-2.5 text-xs font-medium transition-colors",
-              tab === id
-                ? "border-b-2 border-ac font-bold text-t1"
-                : "text-t3 hover:text-t1",
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-
-      <div key={project.id} className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4">
+      <div key={project.id} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {loading ? (
           <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-24 skeleton rounded-lg" />
             ))}
           </div>
         ) : (
           <>
-            {(tab === "overview" || tab === "revisions") && (
-              <JobsInspectorCurrentFocus
-                revisionLabel={
-                  currentWork.type === "none"
-                    ? "Complete"
-                    : (currentWork.revisionLabel ?? revLabel)
-                }
-                currentTask={
-                  currentWork.type === "none"
-                    ? "No active work"
-                    : deriveNextAction(revStatus, project.requiredByDate)
-                }
-                designer={currentRev?.designer || project.designer}
-                checker={null}
-                dueDate={project.requiredByDate}
-                status={revStatus}
-                nextAction={
-                  currentWork.type === "none"
-                    ? null
-                    : (project.nextAction &&
-                        project.nextAction !== deriveNextAction(revStatus, project.requiredByDate)
-                        ? project.nextAction
-                        : null)
-                }
-              />
-            )}
-            {(tab === "overview" || tab === "commercial") && (
-              <JobsInspectorMetrics {...metrics} />
-            )}
-            {(tab === "overview" || tab === "revisions") && (
-              <JobsInspectorRevisionTimeline revisions={revisions} />
-            )}
-            {tab === "overview" && <JobsInspectorWorkflow stages={workflow} />}
-            {(tab === "overview" || tab === "documents") && (
-              <JobsInspectorRecentFiles files={files} onReplace={() => onOpenWorkspace()} />
-            )}
-            {(tab === "overview" || tab === "activity") && (
-              <JobsInspectorActivityFeed items={activity} />
-            )}
+            <CurrentWorkSummary
+              currentWork={currentWork}
+              revLabel={revLabel}
+              designer={currentRev?.designer || project.designer}
+              designers={designers}
+              dueDate={project.requiredByDate}
+              patchUrl={currentWorkPatchUrl}
+              onChanged={() => { void refreshAll() }}
+            />
+
+            <LinkedQuotationSummary
+              quote={linkedQuote}
+              unlinkBusy={unlinkBusy}
+              onAttach={() => setAttachQuoteOpen(true)}
+              onOpen={() => {
+                if (!linkedQuote) return
+                router.push(`/quotes?search=${encodeURIComponent(linkedQuote.quoteNumber)}`)
+              }}
+              onChange={() => setAttachQuoteOpen(true)}
+              onUnlink={() => { void handleUnlinkQuote() }}
+            />
+
+            <CATIICheckSummary
+              doc={cat2Doc}
+              busy={cat2Busy}
+              canCreate={canExportCat2}
+              targetLabel={cat2TargetLabel}
+              onCreate={() => { void handleCat2() }}
+              onOpen={() => {
+                if (!cat2Doc) return
+                window.open(`/api/jobs/${project.id}/documents/${cat2Doc.id}/preview`, "_blank")
+              }}
+            />
+
+            <RevisionHistory revisions={revisions} />
           </>
         )}
+      </div>
+
+      <div className="shrink-0 border-t border-bd px-4 py-2">
+        <button
+          type="button"
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded px-2 py-1.5 text-xs font-medium text-t3 transition-colors hover:bg-surface-low hover:text-t1"
+          onClick={onOpenWorkspace}
+        >
+          Open Full Project
+          <ArrowRight className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       <Suspense fallback={null}>
@@ -567,6 +521,17 @@ export function JobsInspector({
                 throw new Error(body.error ?? "Failed to create revision")
               }
               setAddRevOpen(false)
+              await refreshAll()
+            }}
+          />
+        )}
+        {attachQuoteOpen && (
+          <AttachExistingQuoteModal
+            job={attachJobStub}
+            open={attachQuoteOpen}
+            onClose={() => setAttachQuoteOpen(false)}
+            onLinked={async () => {
+              await refreshAll()
             }}
           />
         )}
@@ -575,25 +540,259 @@ export function JobsInspector({
   )
 }
 
-function IconBtn({
-  title,
-  onClick,
-  children,
+function CurrentWorkSummary({
+  currentWork,
+  revLabel,
+  designer,
+  designers,
+  dueDate,
+  patchUrl,
+  onChanged,
 }: {
-  title: string
-  onClick: () => void
-  children: React.ReactNode
+  currentWork: ReturnType<typeof getCurrentWorkItem>
+  revLabel: string
+  designer: string
+  designers: string[]
+  dueDate: string | null
+  patchUrl?: string
+  onChanged: () => void
+}) {
+  const active = currentWork.type !== "none" && Boolean(currentWork.id)
+  const label =
+    currentWork.type === "revision"
+      ? (currentWork.revisionLabel ?? revLabel)
+      : currentWork.type === "original"
+        ? "Original"
+        : "Complete"
+
+  return (
+    <section className="rounded-lg border border-[#2e3238] bg-[#1c1f24] p-3.5 text-[#f4f4f5]">
+      <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[#a1a1aa]">
+        Current Work
+      </h4>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold text-[#fafafa]">{label}</span>
+        {active ? (
+          <WorkItemStatusSelector
+            workItemType={currentWork.type === "revision" ? "revision" : "original"}
+            workItemId={currentWork.id!}
+            currentStatus={currentWork.status}
+            revisionLabel={currentWork.type === "revision" ? currentWork.revisionLabel : null}
+            patchUrl={patchUrl}
+            size="md"
+            onStatusChanged={onChanged}
+          />
+        ) : (
+          <span className="text-sm text-[#d4d4d8]">Complete</span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p className="mb-1 text-xs text-[#a1a1aa]">Designer</p>
+          {active ? (
+            <DesignerAssignmentSelector
+              workItemType={currentWork.type === "revision" ? "revision" : "original"}
+              workItemId={currentWork.id!}
+              currentDesigner={designer}
+              revisionLabel={currentWork.type === "revision" ? currentWork.revisionLabel : null}
+              designers={designers}
+              patchUrl={patchUrl}
+              compact
+              className="text-[#f4f4f5] [&_span]:bg-white/10 [&_span]:text-[#f4f4f5]"
+              onDesignerChanged={onChanged}
+            />
+          ) : (
+            <p className="text-[#d4d4d8]">{missingLabel(designer, "Unassigned")}</p>
+          )}
+        </div>
+        <div>
+          <p className="mb-1 text-xs text-[#a1a1aa]">Checker</p>
+          <p className="text-[#d4d4d8]">Not assigned</p>
+        </div>
+        <div>
+          <p className="mb-1 text-xs text-[#a1a1aa]">Due</p>
+          <p className="text-[#f4f4f5]">{dueLabel(dueDate)}</p>
+        </div>
+        <div>
+          <p className="mb-1 text-xs text-[#a1a1aa]">Next action</p>
+          <p className="text-[#f4f4f5]">
+            {active
+              ? deriveNextAction(currentWork.status, dueDate)
+              : "No active work"}
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function LinkedQuotationSummary({
+  quote,
+  unlinkBusy,
+  onAttach,
+  onOpen,
+  onChange,
+  onUnlink,
+}: {
+  quote: LinkedQuoteSummary | null
+  unlinkBusy: boolean
+  onAttach: () => void
+  onOpen: () => void
+  onChange: () => void
+  onUnlink: () => void
 }) {
   return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      onClick={onClick}
-      className="inline-flex h-8 items-center gap-1.5 rounded border border-bd px-2.5 text-xs font-medium text-t2 transition-colors hover:bg-surface-low hover:text-t1"
-    >
-      {children}
-      <span>{title}</span>
-    </button>
+    <section className="rounded-lg border border-bd bg-surface-low/50 p-3.5">
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-t3">
+        Quotation
+      </h4>
+      {quote ? (
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-t1">{quote.quoteNumber}</p>
+              <p className="mt-0.5 text-sm text-t2">
+                {formatGBP(quote.quoteValue)}
+                <span className="text-t4"> · </span>
+                <QuoteStatusBadge status={quote.status} />
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <button type="button" className="text-xs font-medium text-ac2 hover:underline" onClick={onOpen}>
+              Open Quote
+            </button>
+            <button type="button" className="text-xs font-medium text-t2 hover:underline" onClick={onChange}>
+              Change
+            </button>
+            <button
+              type="button"
+              className="text-xs font-medium text-t3 hover:underline disabled:opacity-50"
+              onClick={onUnlink}
+              disabled={unlinkBusy}
+            >
+              {unlinkBusy ? "Removing…" : "Remove Link"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-t3">No quotation attached</p>
+          <button
+            type="button"
+            className="inline-flex h-7 items-center rounded border border-bd px-2 text-xs font-medium text-t1 hover:bg-sr"
+            onClick={onAttach}
+          >
+            Attach Quote
+          </button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function CATIICheckSummary({
+  doc,
+  busy,
+  canCreate,
+  targetLabel,
+  onCreate,
+  onOpen,
+}: {
+  doc: { id: string; filename: string; originalFilename?: string | null; createdAt: string } | null
+  busy: boolean
+  canCreate: boolean
+  targetLabel: string
+  onCreate: () => void
+  onOpen: () => void
+}) {
+  const label = doc?.originalFilename || doc?.filename || "CAT II Check Sheet"
+  return (
+    <section className="rounded-lg border border-bd bg-surface-low/50 p-3.5">
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-t3">
+        CATII Check
+      </h4>
+      {doc ? (
+        <div className="space-y-2">
+          <p className="truncate text-sm font-semibold text-t1">{label}</p>
+          <p className="text-xs text-t3">
+            Created {safeDateLabel(doc.createdAt)} · {targetLabel}
+          </p>
+          <button type="button" className="text-xs font-medium text-ac2 hover:underline" onClick={onOpen}>
+            Open Check
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-t3">No check created</p>
+          <button
+            type="button"
+            className="inline-flex h-7 items-center rounded border border-bd px-2 text-xs font-medium text-t1 hover:bg-sr disabled:opacity-50"
+            onClick={onCreate}
+            disabled={busy || !canCreate}
+            title={
+              canCreate
+                ? `Create CATII Check for ${targetLabel}`
+                : "Available when work is complete"
+            }
+          >
+            {busy ? "Creating…" : "Create CATII Check"}
+          </button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function RevisionHistory({ revisions }: { revisions: CompactRevision[] }) {
+  return (
+    <section>
+      <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-t3">
+        Revision History
+      </h4>
+      {revisions.length === 0 ? (
+        <p className="text-sm text-t3">Original design only</p>
+      ) : (
+        <ul className="space-y-2">
+          {revisions.map(rev => {
+            const title = rev.letter ? `Rev ${rev.letter}` : "Original"
+            return (
+              <li
+                key={rev.id}
+                className={cn(
+                  "rounded-lg border border-bd px-3 py-2.5",
+                  rev.isCurrent ? "border-l-[3px] border-l-ac2 bg-surface-low" : "bg-sr",
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-t1">
+                      {title}
+                      {rev.isCurrent && (
+                        <span className="ml-2 text-[10px] font-medium uppercase text-ac2">
+                          Active
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs text-t3">
+                      {shortStatusLabel(rev.status)}
+                      {" · "}
+                      {missingLabel(rev.designer, "Unassigned")}
+                    </p>
+                    <p className="mt-0.5 text-xs text-t3">{safeDateLabel(rev.createdAt)}</p>
+                    {rev.reason?.trim() && (
+                      <p className="mt-1 truncate text-xs text-t2">{rev.reason.trim()}</p>
+                    )}
+                  </div>
+                  <span className="shrink-0 rounded border border-bd px-1.5 py-0.5 text-[10px] font-medium text-t3">
+                    {rev.billable ? "Chargeable" : "Free"}
+                  </span>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
   )
 }

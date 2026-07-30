@@ -128,7 +128,15 @@ export function jobToRegisterProject(job: Job): JobsRegisterProject {
     currentWorkType: current.type,
     currentWorkLabel: current.revisionLabel ?? "COMPLETE",
     currentWorkDetail:
-      current.type === "none" ? "No Active Work" : current.displayLabel,
+      current.type === "none" ? "Complete" : current.displayLabel,
+    currentQuote: job.currentQuote
+      ? {
+          id: job.currentQuote.id,
+          quoteNumber: job.currentQuote.quoteNumber,
+          quoteValue: job.currentQuote.quoteValue,
+          status: job.currentQuote.status,
+        }
+      : null,
   }
 }
 
@@ -176,7 +184,8 @@ export function workItemToRegisterProject(row: MixedWorkloadRow): JobsRegisterPr
     projectStatus: isRevision ? "ISSUED" : status,
     currentWorkType,
     currentWorkLabel: label,
-    currentWorkDetail: complete ? "No Active Work" : shortStatusLabel(status),
+    currentWorkDetail: complete ? "Complete" : shortStatusLabel(status),
+    currentQuote: null,
   }
 }
 

@@ -223,6 +223,18 @@ export function AttachExistingQuoteModal({
               <p className="text-xs text-t3 px-1">No quotes found.</p>
             )}
 
+            {job && (
+              <p className="text-xs text-t3 px-1">
+                No suitable quote?{" "}
+                <a
+                  href={`/quotes?new=1&jobId=${encodeURIComponent(job.id)}`}
+                  className="font-medium text-ac2 hover:underline"
+                >
+                  Create New Quote
+                </a>
+              </p>
+            )}
+
             {error && <p className="text-xs text-wn-tx px-1">{error}</p>}
           </div>
         </DialogBody>

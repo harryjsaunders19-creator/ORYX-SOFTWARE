@@ -55,6 +55,13 @@ export interface JobsRegisterProject {
   currentWorkLabel: string
   /** Human subtitle under the label when fully closed. */
   currentWorkDetail: string
+  /** Linked quotation summary when available from list enrichment. */
+  currentQuote: {
+    id: string
+    quoteNumber: string
+    quoteValue: number
+    status: string
+  } | null
 }
 
 export type JobsRegisterScope = "all" | "active" | "completed" | "with_active_revision"

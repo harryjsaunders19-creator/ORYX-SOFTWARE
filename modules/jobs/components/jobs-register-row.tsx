@@ -1,35 +1,58 @@
 "use client"
 
 import { memo } from "react"
+import { MoreHorizontal } from "lucide-react"
 import { cn, formatGBP } from "@/shared/utils/utils"
-import { drawingNumberContext, siteDisplay } from "./jobs-register-helpers"
+import { drawingNumberContext, shortStatusLabel, siteDisplay } from "./jobs-register-helpers"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { REGISTER_ROW_H } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
+import { DesignerAssignmentSelector } from "./designer-assignment-selector"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu"
+
+export const REGISTER_GRID =
+  "grid grid-cols-[minmax(9rem,1.1fr)_minmax(9rem,1.3fr)_minmax(8rem,1fr)_minmax(8rem,1.1fr)_5.5rem_2.25rem]"
 
 interface JobsRegisterRowProps {
   project: JobsRegisterProject
   selected: boolean
   workItemsModel: boolean
+  designers: string[]
   style?: React.CSSProperties
   onSelect: (id: string) => void
+  onOpenWorkspace: (id: string) => void
   onStatusChanged?: (projectId: string, nextStatus: string) => void
+  onDesignerChanged?: (projectId: string, nextDesigner: string) => void
 }
 
 export const JobsRegisterRow = memo(function JobsRegisterRow({
   project,
   selected,
   workItemsModel,
+  designers,
   style,
   onSelect,
+  onOpenWorkspace,
   onStatusChanged,
+  onDesignerChanged,
 }: JobsRegisterRowProps) {
   const site = siteDisplay(project.siteName, project.address)
-  const canChangeStatus = project.currentWorkType !== "none" && Boolean(project.detailId)
+  const canEdit = project.currentWorkType !== "none" && Boolean(project.detailId)
   const patchUrl = workItemsModel && project.kind === "work_item"
     ? `/api/work-items/${project.detailId}`
     : undefined
   const contextLine = drawingNumberContext(project)
+  const workLabel =
+    project.currentWorkType === "revision"
+      ? project.currentWorkLabel
+      : project.currentWorkType === "original"
+        ? "Original"
+        : null
 
   return (
     <div
@@ -46,80 +69,110 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
         }
       }}
       className={cn(
-        "group grid grid-cols-[1.2fr_1.4fr_0.9fr_0.7fr] items-center gap-0 border-b border-bd/40 px-0 cursor-pointer transition-colors duration-150",
+        REGISTER_GRID,
+        "group items-center gap-0 border-b border-bd/40 px-0 cursor-pointer transition-colors duration-150",
         "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ac2",
         selected
           ? "bg-ac2-bg/70 border-l-[3px] border-l-ac2 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-ac2)_22%,transparent)]"
           : "border-l-[3px] border-l-transparent hover:bg-surface-low",
       )}
     >
-      <div role="cell" className="min-w-0 px-4 py-3">
-        <p
-          className={cn(
-            "text-sm truncate",
-            selected ? "font-bold text-t1" : "font-bold text-t1",
-          )}
-        >
-          {project.drawingNumber}
-        </p>
-        <p
-          className={cn(
-            "text-xs mt-0.5 truncate",
-            selected ? "text-t2" : "text-t3",
-          )}
-        >
+      <div role="cell" className="min-w-0 px-3 py-2.5">
+        <p className="truncate text-sm font-bold text-t1">{project.drawingNumber}</p>
+        <p className={cn("mt-0.5 truncate text-xs", selected ? "text-t2" : "text-t3")}>
           {contextLine}
         </p>
       </div>
 
-      <div role="cell" className="min-w-0 px-4 py-3">
-        <p className={cn("text-sm truncate", selected ? "font-medium text-t1" : "font-medium text-t1")}>
+      <div role="cell" className="min-w-0 px-3 py-2.5">
+        <p className="truncate text-sm font-medium text-t1">
           {project.clientCompany || "—"}
         </p>
-        <p className={cn("text-xs mt-0.5 truncate", selected ? "text-t2" : "text-t3")}>
+        <p className={cn("mt-0.5 truncate text-xs", selected ? "text-t2" : "text-t3")}>
           {site}
         </p>
       </div>
 
       <div
         role="cell"
-        className="px-4 py-3 min-w-0"
+        className="min-w-0 px-3 py-2.5"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
-        <p className="text-xs font-medium tracking-wide text-t2 truncate">
-          {project.currentWorkLabel}
-        </p>
-        <div className="mt-1">
-          {canChangeStatus ? (
+        {canEdit ? (
+          <div className="flex min-w-0 flex-col gap-1">
+            {workLabel && (
+              <span className="truncate text-xs font-medium text-t2">{workLabel}</span>
+            )}
             <WorkItemStatusSelector
               workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
               workItemId={project.detailId}
               currentStatus={project.currentStatus}
               revisionLabel={
-                project.currentWorkType === "revision"
-                  ? project.currentWorkLabel
-                  : null
+                project.currentWorkType === "revision" ? project.currentWorkLabel : null
               }
               patchUrl={patchUrl}
-              size="lg"
-              className="[&_span]:shadow-sm"
+              size="md"
               onStatusChanged={next => onStatusChanged?.(project.id, next)}
             />
-          ) : (
-            <p className="text-sm text-t3">{project.currentWorkDetail}</p>
-          )}
-        </div>
+          </div>
+        ) : (
+          <p className="text-sm font-medium text-t2">Complete</p>
+        )}
       </div>
 
       <div
         role="cell"
-        className={cn(
-          "px-4 py-3 text-right text-sm font-medium tabular-nums",
-          selected ? "text-t1" : "text-t1",
-        )}
+        className="min-w-0 px-3 py-2.5"
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
       >
+        {canEdit ? (
+          <DesignerAssignmentSelector
+            workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
+            workItemId={project.detailId}
+            currentDesigner={project.designer}
+            revisionLabel={
+              project.currentWorkType === "revision" ? project.currentWorkLabel : null
+            }
+            designers={designers}
+            patchUrl={patchUrl}
+            compact
+            onDesignerChanged={next => onDesignerChanged?.(project.id, next)}
+          />
+        ) : (
+          <p className="truncate text-xs text-t3">
+            {project.designer || shortStatusLabel(project.projectStatus)}
+          </p>
+        )}
+      </div>
+
+      <div role="cell" className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-t1">
         {formatGBP(project.value)}
+      </div>
+
+      <div
+        role="cell"
+        className="flex items-center justify-center px-1"
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="rounded p-1.5 text-t3 transition-colors hover:bg-surface-low hover:text-t1"
+              aria-label={`Actions for ${project.drawingNumber}`}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => onOpenWorkspace(project.id)}>
+              Open Full Project
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   )

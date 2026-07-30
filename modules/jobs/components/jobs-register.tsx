@@ -171,6 +171,10 @@ export function JobsRegister({
     router.push(`/jobs/${selected.id}`)
   }, [router, selected])
 
+  const openWorkspaceById = useCallback((id: string) => {
+    router.push(`/jobs/${id}`)
+  }, [router])
+
   const navigateProjects = useCallback((dir: -1 | 1) => {
     if (projects.length === 0) return
     const idx = selectedId ? projects.findIndex(p => p.id === selectedId) : -1
@@ -391,8 +395,11 @@ export function JobsRegister({
             projects={projects}
             selectedId={selectedId}
             onSelect={setSelectedId}
+            onOpenWorkspace={openWorkspaceById}
             workItemsModel={workItemsModel}
+            designers={designers}
             onStatusChanged={() => { void handleStatusChanged() }}
+            onDesignerChanged={() => { void handleStatusChanged() }}
             loading={loading}
           />
 
@@ -441,6 +448,7 @@ export function JobsRegister({
               <JobsInspector
                 project={selected}
                 workItemsModel={workItemsModel}
+                designers={designers}
                 onOpenWorkspace={openWorkspace}
                 onStatusChanged={() => { void handleStatusChanged() }}
               />
@@ -469,6 +477,7 @@ export function JobsRegister({
               <JobsInspector
                 project={selected}
                 workItemsModel={workItemsModel}
+                designers={designers}
                 onOpenWorkspace={openWorkspace}
                 onStatusChanged={() => { void handleStatusChanged() }}
               />

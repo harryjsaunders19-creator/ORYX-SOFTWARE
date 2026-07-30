@@ -3,7 +3,7 @@
 import { useRef, useCallback, memo } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { cn } from "@/shared/utils/utils"
-import { JobsRegisterRow } from "./jobs-register-row"
+import { JobsRegisterRow, REGISTER_GRID } from "./jobs-register-row"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { REGISTER_ROW_H } from "./jobs-register-types"
 
@@ -11,23 +11,33 @@ interface JobsRegisterTableProps {
   projects: JobsRegisterProject[]
   selectedId: string | null
   onSelect: (id: string) => void
+  onOpenWorkspace: (id: string) => void
   workItemsModel: boolean
+  designers: string[]
   onStatusChanged?: (projectId: string, nextStatus: string) => void
+  onDesignerChanged?: (projectId: string, nextDesigner: string) => void
   loading?: boolean
   className?: string
 }
 
-
-const HEADER =
-  "grid grid-cols-[1.2fr_1.4fr_0.9fr_0.7fr] items-center border-b border-bd bg-sr sticky top-0 z-10"
-
+const HEADERS = [
+  "Drawing Number",
+  "Client / Site",
+  "Current Work",
+  "Designer",
+  "Value",
+  "",
+] as const
 
 export const JobsRegisterTable = memo(function JobsRegisterTable({
   projects,
   selectedId,
   onSelect,
+  onOpenWorkspace,
   workItemsModel,
+  designers,
   onStatusChanged,
+  onDesignerChanged,
   loading,
   className,
 }: JobsRegisterTableProps) {
@@ -41,16 +51,17 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   })
 
   const onSelectStable = useCallback((id: string) => onSelect(id), [onSelect])
+  const onOpenStable = useCallback((id: string) => onOpenWorkspace(id), [onOpenWorkspace])
 
   return (
-    <div className={cn("mx-6 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-bd bg-sr", className)}>
-      <div role="row" className={HEADER}>
-        {(["Drawing Number", "Client & Site", "Current Work", "Value"] as const).map(label => (
+    <div className={cn("mx-5 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-bd bg-sr", className)}>
+      <div role="row" className={cn(REGISTER_GRID, "sticky top-0 z-10 items-center border-b border-bd bg-sr")}>
+        {HEADERS.map((label, i) => (
           <div
-            key={label}
+            key={label || `overflow-${i}`}
             role="columnheader"
             className={cn(
-              "px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-t3",
+              "px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-t3",
               label === "Value" && "text-right",
             )}
           >
@@ -66,7 +77,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
         aria-busy={loading || undefined}
       >
         {loading && projects.length === 0 ? (
-          <div className="p-4 space-y-2">
+          <div className="space-y-2 p-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="h-14 skeleton rounded-md" />
             ))}
@@ -79,28 +90,30 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
           <div
             role="table"
             aria-label="Jobs register"
-            className="relative w-full"
-            style={{ height: virtualizer.getTotalSize() }}
+            style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}
           >
             {virtualizer.getVirtualItems().map(item => {
               const project = projects[item.index]
+              if (!project) return null
               return (
-                <div
+                <JobsRegisterRow
                   key={project.id}
-                  className="absolute left-0 top-0 w-full"
+                  project={project}
+                  selected={project.id === selectedId}
+                  workItemsModel={workItemsModel}
+                  designers={designers}
+                  onSelect={onSelectStable}
+                  onOpenWorkspace={onOpenStable}
+                  onStatusChanged={onStatusChanged}
+                  onDesignerChanged={onDesignerChanged}
                   style={{
-                    height: item.size,
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
                     transform: `translateY(${item.start}px)`,
                   }}
-                >
-                  <JobsRegisterRow
-                    project={project}
-                    selected={selectedId === project.id}
-                    workItemsModel={workItemsModel}
-                    onSelect={onSelectStable}
-                    onStatusChanged={onStatusChanged}
-                  />
-                </div>
+                />
               )
             })}
           </div>
