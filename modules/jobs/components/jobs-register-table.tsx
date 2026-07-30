@@ -14,6 +14,7 @@ interface JobsRegisterTableProps {
   onOpenWorkspace: (id: string) => void
   workItemsModel: boolean
   designers: string[]
+  highlightQuery?: string
   onStatusChanged?: (projectId: string, nextStatus: string) => void
   onDesignerChanged?: (projectId: string, nextDesigner: string) => void
   loading?: boolean
@@ -36,6 +37,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   onOpenWorkspace,
   workItemsModel,
   designers,
+  highlightQuery,
   onStatusChanged,
   onDesignerChanged,
   loading,
@@ -102,6 +104,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
                   selected={project.id === selectedId}
                   workItemsModel={workItemsModel}
                   designers={designers}
+                  highlightQuery={highlightQuery}
                   onSelect={onSelectStable}
                   onOpenWorkspace={onOpenStable}
                   onStatusChanged={onStatusChanged}

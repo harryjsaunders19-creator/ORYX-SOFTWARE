@@ -421,6 +421,7 @@ export function JobsRegister({
             onOpenWorkspace={openWorkspaceById}
             workItemsModel={workItemsModel}
             designers={designers}
+            highlightQuery={debouncedSearch}
             onStatusChanged={() => { void handleStatusChanged() }}
             onDesignerChanged={() => { void handleStatusChanged() }}
             loading={loading}
@@ -515,6 +516,7 @@ export function JobsRegister({
           workItemsModel={workItemsModel}
           designers={designers}
           loading={loading}
+          highlightQuery={debouncedSearch}
           onSelect={selectProject}
           onStatusChanged={() => { void handleStatusChanged() }}
           onDesignerChanged={() => { void handleStatusChanged() }}

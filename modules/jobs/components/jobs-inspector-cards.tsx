@@ -15,6 +15,7 @@ import {
 import { QuoteStatusBadge } from "@/modules/quotes/components/quote-status-badge"
 import type { getCurrentWorkItem } from "@/modules/jobs/lib/current-work"
 import type { LinkedQuoteSummary } from "@/lib/types"
+import { ClientSiteCell } from "./client-site-cell"
 
 export const sectionHeading =
   "mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3"
@@ -191,12 +192,12 @@ export function InspectorHeader({
                 </span>
               )}
             </div>
-            <p className="mt-1 text-sm font-semibold text-t1 [overflow-wrap:anywhere]">
-              {client || "—"}
-            </p>
-            <p className="mt-0.5 text-sm text-t3 [overflow-wrap:anywhere]">
-              {site || "—"}
-            </p>
+            <ClientSiteCell
+              className="mt-1.5"
+              clientName={client}
+              siteName={site}
+              variant="header"
+            />
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">

@@ -10,6 +10,7 @@ type Props = {
   workItemsModel: boolean
   designers: string[]
   loading?: boolean
+  highlightQuery?: string
   onSelect: (id: string) => void
   onStatusChanged?: () => void
   onDesignerChanged?: () => void
@@ -22,6 +23,7 @@ export function MobileJobsList({
   workItemsModel,
   designers,
   loading,
+  highlightQuery,
   onSelect,
   onStatusChanged,
   onDesignerChanged,
@@ -56,6 +58,7 @@ export function MobileJobsList({
                 selected={project.id === selectedId}
                 workItemsModel={workItemsModel}
                 designers={designers}
+                highlightQuery={highlightQuery}
                 onSelect={onSelect}
                 onStatusChanged={onStatusChanged}
                 onDesignerChanged={onDesignerChanged}

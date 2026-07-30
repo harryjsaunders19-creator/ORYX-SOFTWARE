@@ -4,6 +4,7 @@ import { memo } from "react"
 import { MoreHorizontal } from "lucide-react"
 import { cn, formatGBP } from "@/shared/utils/utils"
 import { drawingNumberContext, siteDisplay } from "./jobs-register-helpers"
+import { ClientSiteCell } from "./client-site-cell"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { REGISTER_ROW_H } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
@@ -17,13 +18,14 @@ import {
 } from "@/shared/ui/dropdown-menu"
 
 export const REGISTER_GRID =
-  "grid grid-cols-[minmax(9rem,1.1fr)_minmax(9rem,1.3fr)_minmax(8rem,1fr)_minmax(8rem,1.1fr)_5.5rem_2.25rem]"
+  "grid grid-cols-[minmax(8rem,1.1fr)_minmax(12rem,1.55fr)_minmax(7rem,0.95fr)_minmax(6.5rem,0.85fr)_5.5rem_2.25rem]"
 
 interface JobsRegisterRowProps {
   project: JobsRegisterProject
   selected: boolean
   workItemsModel: boolean
   designers: string[]
+  highlightQuery?: string
   style?: React.CSSProperties
   onSelect: (id: string) => void
   onOpenWorkspace: (id: string) => void
@@ -36,6 +38,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
   selected,
   workItemsModel,
   designers,
+  highlightQuery,
   style,
   onSelect,
   onOpenWorkspace,
@@ -86,12 +89,13 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       </div>
 
       <div role="cell" className="min-w-0 px-3 py-2.5">
-        <p className="truncate text-sm font-medium text-t1">
-          {project.clientCompany || "—"}
-        </p>
-        <p className={cn("mt-0.5 truncate text-xs", selected ? "text-t2" : "text-t3")}>
-          {site}
-        </p>
+        <ClientSiteCell
+          clientName={project.clientCompany}
+          siteName={site}
+          highlightQuery={highlightQuery}
+          variant="register"
+          selected={selected}
+        />
       </div>
 
       <div

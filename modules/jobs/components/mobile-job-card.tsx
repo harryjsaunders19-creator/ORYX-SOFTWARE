@@ -3,6 +3,7 @@
 import { memo } from "react"
 import { formatGBP, cn } from "@/shared/utils/utils"
 import { siteDisplay } from "./jobs-register-helpers"
+import { ClientSiteCell } from "./client-site-cell"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
@@ -13,6 +14,7 @@ type Props = {
   selected: boolean
   workItemsModel: boolean
   designers: string[]
+  highlightQuery?: string
   onSelect: (id: string) => void
   onStatusChanged?: () => void
   onDesignerChanged?: () => void
@@ -23,6 +25,7 @@ export const MobileJobCard = memo(function MobileJobCard({
   selected,
   workItemsModel,
   designers,
+  highlightQuery,
   onSelect,
   onStatusChanged,
   onDesignerChanged,
@@ -78,12 +81,14 @@ export const MobileJobCard = memo(function MobileJobCard({
         ) : null}
       </div>
 
-      <p className="mt-1.5 text-[15px] font-medium leading-snug text-t1 [overflow-wrap:anywhere]">
-        {project.clientCompany || "—"}
-      </p>
-      <p className="mt-0.5 text-sm leading-snug text-t3 [overflow-wrap:anywhere]">
-        {site || "—"}
-      </p>
+      <ClientSiteCell
+        className="mt-1.5"
+        clientName={project.clientCompany}
+        siteName={site}
+        highlightQuery={highlightQuery}
+        variant="card"
+        selected={selected}
+      />
 
       <div
         className="mt-3 min-h-11"

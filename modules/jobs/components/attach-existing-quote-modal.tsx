@@ -17,6 +17,7 @@ import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import type { Job, Quote } from "@/lib/types"
 import { QuoteStatusBadge } from "@/modules/quotes/components/quote-status-badge"
 import { cn } from "@/shared/utils/utils"
+import { ClientSiteCell } from "./client-site-cell"
 
 type QuoteSearchResult = Pick<Quote, "id" | "quoteNumber" | "clientCompany" | "address" | "status" | "quoteValue" | "jobId">
 
@@ -202,8 +203,13 @@ export function AttachExistingQuoteModal({
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-xs type-drawing-number text-t1">{q.quoteNumber}</p>
-                        <p className="text-xs text-t3 truncate">{q.clientCompany}</p>
-                        <p className="text-xs text-t4 truncate">{q.address}</p>
+                        <ClientSiteCell
+                          className="mt-0.5"
+                          clientName={q.clientCompany}
+                          siteName={q.address}
+                          highlightQuery={debouncedSearch}
+                          variant="compact"
+                        />
                       </div>
                       <div className="text-right shrink-0">
                         <QuoteStatusBadge status={q.status} />
