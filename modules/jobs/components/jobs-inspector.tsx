@@ -2,12 +2,12 @@
 
 import { useMemo, useState, lazy, Suspense } from "react"
 import {
-  Plus, ShieldCheck, Link2, ChevronDown,
+  MoreHorizontal, Plus, ShieldCheck, Link2,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
-import { cn, formatGBP } from "@/shared/utils/utils"
+import { cn } from "@/shared/utils/utils"
 import type { Job, LinkedQuoteSummary, Quote } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { JobsRegisterProject } from "./jobs-register-types"
@@ -15,7 +15,6 @@ import {
   deriveNextAction,
   revisionBadgeLabel,
   siteDisplay,
-  shortStatusLabel,
 } from "./jobs-register-helpers"
 import { downloadCat2CheckSheet } from "./cat2-check-sheet-export"
 import {
@@ -38,12 +37,15 @@ import {
   type CurrentWorkRevisionLike,
 } from "@/modules/jobs/lib/current-work"
 import {
-  ProjectDetailsCard,
-  DrawingStatusCard,
-  RevisionDetailsCard,
-  QuotationCard,
-  CATIICheckCard,
-  RevisionHistoryCard,
+  InspectorHeader,
+  StatusChip,
+  CurrentFocusSection,
+  ProjectDetailsSection,
+  RevisionDetailsSection,
+  CommercialSummary,
+  QuotationSummary,
+  CATIISummary,
+  RevisionTimeline,
   type HistoryRevision,
   type QuoteCardItem,
   type Cat2Summary,
@@ -500,14 +502,8 @@ export function JobsInspector({
 
   const attachJobStub = { id: project.id, drawingNumber } as Job
 
-  const headerSummary = currentWork.type === "revision"
-    ? `${currentWork.revisionLabel ?? revLabel} · ${shortStatusLabel(currentWork.status)}`
-    : currentWork.type === "original"
-      ? `Original · ${shortStatusLabel(currentWork.status)}`
-      : `Original · Complete`
-
   const actionBtn =
-    "inline-flex h-8 items-center gap-1.5 rounded border border-bd bg-sr px-2.5 text-xs font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-50"
+    "inline-flex h-8 items-center gap-1.5 rounded-md border border-bd bg-sr px-2.5 text-xs font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-50"
 
   const drawingDesigner =
     activeRevision?.designer
@@ -518,61 +514,136 @@ export function JobsInspector({
     (currentWork.type === "revision" ? null : originalWorkItem?.requiredByDate)
     ?? project.requiredByDate
 
-  const drawingRequestedBy =
-    currentWork.type === "revision"
-      ? (activeRevision?.requestedBy ?? projectDetails.requestedBy)
-      : projectDetails.requestedBy
+  const lastCompleted = useMemo(() => {
+    const issued = revisions
+      .filter(r => r.status === "ISSUED")
+      .map(r => r.createdAt)
+      .filter(Boolean)
+    if (issued.length === 0) {
+      return originalWorkItem?.completedAt
+        ?? jobDetail?.dateCompleted
+        ?? null
+    }
+    return issued.sort((a, b) => timeValue(b) - timeValue(a))[0] ?? null
+  }, [revisions, originalWorkItem, jobDetail])
 
-  const drawingRequestedDate =
-    currentWork.type === "revision"
-      ? (activeRevision?.requestedDate ?? activeRevision?.createdAt ?? null)
-      : projectDetails.dateRequested
+  const commercial = useMemo(() => {
+    const originalFee = projectDetails.originalFee ?? null
+    const revisionFees = revisions
+      .filter(r => r.letter)
+      .reduce((sum, r) => {
+        if (!r.billable) return sum
+        return sum + (typeof r.fee === "number" && Number.isFinite(r.fee) ? r.fee : 0)
+      }, 0)
+    const hasRevisionFee = revisions.some(r => r.letter && r.billable && r.fee != null)
+    const revisionRevenue = hasRevisionFee ? revisionFees : (revisionFees > 0 ? revisionFees : null)
+    const totalValue =
+      originalFee != null || revisionRevenue != null
+        ? (originalFee ?? 0) + (revisionRevenue ?? 0)
+        : null
+    const inv = parentDash?.invoiceSummary
+    const outstanding = inv
+      ? Math.max(0, (inv.quotedTotal || 0) - (inv.billedTotal || 0))
+      : null
+    const revisionCount =
+      parentDash?.revisionCount
+      ?? revisions.filter(r => r.letter).length
+    const lastActivity =
+      revisions.map(r => r.createdAt).sort((a, b) => timeValue(b) - timeValue(a))[0]
+      ?? parent?.updatedAt
+      ?? jobDetail?.updatedAt
+      ?? null
+    return {
+      totalValue,
+      outstanding,
+      originalFee,
+      revisionRevenue,
+      revisionCount,
+      lastActivity,
+    }
+  }, [projectDetails.originalFee, revisions, parentDash, parent?.updatedAt, jobDetail?.updatedAt])
 
-  const drawingValue =
-    currentWork.type === "revision"
-      ? (activeRevision?.fee ?? null)
-      : (projectDetails.originalFee ?? null)
+  const statusChips = currentWork.type === "revision" ? (
+    <>
+      <StatusChip prefix="Project" status={originalStatus} />
+      <StatusChip prefix="Curr. Rev" status={currentWork.status} />
+    </>
+  ) : currentWork.type === "original" ? (
+    <StatusChip prefix="Original" status={currentWork.status} />
+  ) : (
+    <>
+      <StatusChip prefix="Original" status={originalStatus} />
+      <StatusChip prefix="Current" status={null} emptyLabel="No active work" />
+    </>
+  )
+
+  const openAddRevision = () => {
+    if (workItemsModel) {
+      if (parentDash?.canAddRevision === false) {
+        toast("Cannot add a revision until the current work is complete", "error")
+        return
+      }
+      setWiRevOpen(true)
+      return
+    }
+    setAddRevOpen(true)
+  }
+
+  const moreMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="rounded-md border border-bd p-1.5 text-t3 transition-colors hover:bg-surface-low hover:text-t1"
+          aria-label="More actions"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={openAddRevision}>Add Revision</DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={cat2Busy || !canExportCat2}
+          onSelect={() => { void handleCat2() }}
+        >
+          CATII Check
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => setAttachQuoteOpen(true)}>
+          Attach Quote
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            window.location.href = `/quotes?new=1&jobId=${encodeURIComponent(project.id)}`
+          }}
+        >
+          Create New Quote
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 
   return (
     <aside
       className="jobs-inspector flex h-full min-h-0 w-full flex-col bg-sr"
       aria-label={`Inspector for ${drawingNumber}`}
     >
-      <div className="sticky top-0 z-20 shrink-0 border-b border-bd bg-sr px-4 pt-3 pb-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-xl font-bold tracking-tight text-t1">
-              {drawingNumber}
-            </h3>
-            {currentWork.type === "revision" && (
-              <span className="rounded border border-bd bg-surface-low px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-t2">
-                {currentWork.revisionLabel ?? revLabel}
-              </span>
-            )}
-          </div>
-          <p className="mt-0.5 truncate text-sm">
-            <span className="font-medium text-t1">{client}</span>
-            <span className="text-t4"> · </span>
-            <span className="text-t3">{site}</span>
-          </p>
-          <p className="mt-1 truncate text-xs text-t3">{headerSummary}</p>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <InspectorHeader
+        drawingNumber={drawingNumber}
+        revisionBadge={
+          currentWork.type === "revision"
+            ? (currentWork.revisionLabel ?? revLabel)
+            : null
+        }
+        client={client}
+        site={site}
+        statusChips={statusChips}
+        moreSlot={moreMenu}
+      >
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             className={cn(actionBtn, "border-transparent bg-ac text-on-ac hover:bg-ach")}
-            onClick={() => {
-              if (workItemsModel) {
-                if (parentDash?.canAddRevision === false) {
-                  toast("Cannot add a revision until the current work is complete", "error")
-                  return
-                }
-                setWiRevOpen(true)
-                return
-              }
-              setAddRevOpen(true)
-            }}
+            onClick={openAddRevision}
             disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -600,57 +671,39 @@ export function JobsInspector({
             <Link2 className="h-3.5 w-3.5" />
             Attach Quote
           </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className={actionBtn}>
-                More
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onSelect={() => {
-                  window.location.href = `/quotes?new=1&jobId=${encodeURIComponent(project.id)}`
-                }}
-              >
-                Create New Quote
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {moreMenu}
         </div>
-      </div>
+      </InspectorHeader>
 
-      <div key={project.id} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div key={project.id} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-24 skeleton rounded-lg" />
+              <div key={i} className="h-20 skeleton rounded-lg" />
             ))}
           </div>
         ) : (
           <>
-            <ProjectDetailsCard data={projectDetails} />
-
-            <DrawingStatusCard
+            <CurrentFocusSection
               currentWork={currentWork}
               revLabel={revLabel}
               designer={drawingDesigner}
               designers={designers}
               dueDate={drawingDue}
-              requestedBy={drawingRequestedBy}
-              requestedDate={drawingRequestedDate}
-              workValue={drawingValue}
               nextAction={
                 currentWork.type === "none"
-                  ? "No active work"
+                  ? "No active drawing work"
                   : deriveNextAction(currentWork.status, drawingDue)
               }
+              lastCompleted={lastCompleted}
               patchUrl={currentWorkPatchUrl}
               onChanged={() => { void refreshAll() }}
             />
 
+            <ProjectDetailsSection data={projectDetails} />
+
             {activeRevision && (
-              <RevisionDetailsCard
+              <RevisionDetailsSection
                 data={{
                   label: activeRevision.letter
                     ? `Rev ${activeRevision.letter}`
@@ -658,23 +711,26 @@ export function JobsInspector({
                   reason: activeRevision.reason,
                   requestedBy: activeRevision.requestedBy ?? projectDetails.requestedBy,
                   requestedDate: activeRevision.requestedDate ?? activeRevision.createdAt,
-                  designer: activeRevision.designer,
                   billable: activeRevision.billable,
                   fee: activeRevision.fee,
+                  quoteNumber: activeRevision.quoteNumber,
                 }}
               />
             )}
 
-            <QuotationCard
+            <CommercialSummary data={commercial} />
+
+            <QuotationSummary
               originalQuote={originalQuote}
               revisionQuote={revisionQuote}
               unlinkBusy={unlinkBusy}
               onOpen={q => router.push(`/quotes?search=${encodeURIComponent(q.quoteNumber)}`)}
+              onAttach={() => setAttachQuoteOpen(true)}
               onChange={() => setAttachQuoteOpen(true)}
               onUnlink={q => { void handleUnlinkQuote(q) }}
             />
 
-            <CATIICheckCard
+            <CATIISummary
               activeLabel={activeCat2Label}
               activeCheck={activeCheck}
               previousCheck={previousCheck}
@@ -686,19 +742,16 @@ export function JobsInspector({
               }}
             />
 
-            <RevisionHistoryCard revisions={revisions} />
-
-            {projectDetails.originalFee != null && activeRevision?.fee != null && activeRevision.billable && (
-              <p className="px-1 text-xs text-t3">
-                Combined recorded fees:{" "}
-                <span className="font-medium text-t2">
-                  {formatGBP(projectDetails.originalFee + activeRevision.fee)}
-                </span>
-                {" "}(original + active revision)
-              </p>
-            )}
+            <RevisionTimeline revisions={revisions} />
           </>
         )}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2 border-t border-bd/60 px-5 py-2.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-ok-ic" aria-hidden />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-t3">
+          System operational
+        </span>
       </div>
 
       <Suspense fallback={null}>
