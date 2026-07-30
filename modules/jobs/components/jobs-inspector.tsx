@@ -2,7 +2,7 @@
 
 import { useMemo, useState, lazy, Suspense } from "react"
 import {
-  MoreHorizontal, Plus, ShieldCheck, Link2,
+  MoreHorizontal, Plus, ShieldCheck, Link2, ChevronLeft,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
@@ -66,6 +66,8 @@ interface JobsInspectorProps {
   onStatusChanged?: () => void
   onCollapse?: () => void
   collapseVariant?: "chevron" | "close"
+  /** Mobile drawer uses stacked actions and a back control. */
+  presentation?: "panel" | "drawer"
 }
 
 interface DocumentsResponse {
@@ -132,6 +134,7 @@ export function JobsInspector({
   onStatusChanged,
   onCollapse,
   collapseVariant = "chevron",
+  presentation = "panel",
 }: JobsInspectorProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -507,8 +510,9 @@ export function JobsInspector({
 
   const attachJobStub = { id: project.id, drawingNumber } as Job
 
+  const isDrawer = presentation === "drawer"
   const actionBtn =
-    "inline-flex h-8 items-center gap-1.5 rounded-md border border-bd bg-sr px-2.5 text-xs font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-50"
+    "inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-bd bg-sr px-2.5 text-sm font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-50"
 
   const drawingDesigner =
     activeRevision?.designer
@@ -599,10 +603,14 @@ export function JobsInspector({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="rounded-md border border-bd p-1.5 text-t3 transition-colors hover:bg-surface-low hover:text-t1"
+          className={cn(
+            "inline-flex items-center justify-center gap-1.5 rounded-md border border-bd text-t3 transition-colors hover:bg-surface-low hover:text-t1",
+            isDrawer ? "h-11 px-2.5 text-sm font-medium text-t1" : "p-1.5",
+          )}
           aria-label="More actions"
         >
           <MoreHorizontal className="h-4 w-4" />
+          {isDrawer ? <span>More</span> : null}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -642,8 +650,22 @@ export function JobsInspector({
         client={client}
         site={site}
         statusChips={statusChips}
+        dense={isDrawer}
+        leadingSlot={
+          isDrawer && onCollapse ? (
+            <button
+              type="button"
+              onClick={onCollapse}
+              aria-label="Back to Jobs"
+              title="Back to Jobs"
+              className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-bd text-t2 transition-colors hover:bg-surface-low hover:text-t1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2"
+            >
+              <ChevronLeft className="h-5 w-5" aria-hidden />
+            </button>
+          ) : null
+        }
         collapseSlot={
-          onCollapse ? (
+          !isDrawer && onCollapse ? (
             <JobsInspectorCollapseButton
               onCollapse={onCollapse}
               variant={collapseVariant}
@@ -652,43 +674,87 @@ export function JobsInspector({
         }
         moreSlot={moreMenu}
       >
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            className={cn(actionBtn, "border-transparent bg-ac text-on-ac hover:bg-ach")}
-            onClick={openAddRevision}
-            disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add Revision
-          </button>
-          <button
-            type="button"
-            className={actionBtn}
-            onClick={() => void handleCat2()}
-            disabled={cat2Busy || !canExportCat2}
-            title={
-              canExportCat2
-                ? `Create CATII Check for ${activeCat2Label}`
-                : "CATII Check is available when original or a revision is complete"
-            }
-          >
-            <ShieldCheck className="h-3.5 w-3.5" />
-            {cat2Busy ? "Creating…" : "CATII Check"}
-          </button>
-          <button
-            type="button"
-            className={actionBtn}
-            onClick={() => setAttachQuoteOpen(true)}
-          >
-            <Link2 className="h-3.5 w-3.5" />
-            Attach Quote
-          </button>
-          {moreMenu}
-        </div>
+        {isDrawer ? (
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              className={cn(actionBtn, "h-11 w-full border-transparent bg-ac text-on-ac hover:bg-ach")}
+              onClick={openAddRevision}
+              disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
+            >
+              <Plus className="h-4 w-4" />
+              Add Revision
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className={cn(actionBtn, "h-11")}
+                onClick={() => void handleCat2()}
+                disabled={cat2Busy || !canExportCat2}
+                title={
+                  canExportCat2
+                    ? `Create CATII Check for ${activeCat2Label}`
+                    : "CATII Check is available when original or a revision is complete"
+                }
+              >
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                <span className="truncate">{cat2Busy ? "Creating…" : "CATII Check"}</span>
+              </button>
+              <button
+                type="button"
+                className={cn(actionBtn, "h-11")}
+                onClick={() => setAttachQuoteOpen(true)}
+              >
+                <Link2 className="h-4 w-4 shrink-0" />
+                <span className="truncate">Attach Quote</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              className={cn(actionBtn, "border-transparent bg-ac text-on-ac hover:bg-ach")}
+              onClick={openAddRevision}
+              disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Revision
+            </button>
+            <button
+              type="button"
+              className={actionBtn}
+              onClick={() => void handleCat2()}
+              disabled={cat2Busy || !canExportCat2}
+              title={
+                canExportCat2
+                  ? `Create CATII Check for ${activeCat2Label}`
+                  : "CATII Check is available when original or a revision is complete"
+              }
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {cat2Busy ? "Creating…" : "CATII Check"}
+            </button>
+            <button
+              type="button"
+              className={actionBtn}
+              onClick={() => setAttachQuoteOpen(true)}
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              Attach Quote
+            </button>
+            {moreMenu}
+          </div>
+        )}
       </InspectorHeader>
 
-      <div key={project.id} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
+      <div
+        key={project.id}
+        className={cn(
+          "min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5",
+          isDrawer && "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+        )}
+      >
         {loading ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (

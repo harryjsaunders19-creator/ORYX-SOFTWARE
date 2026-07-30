@@ -152,6 +152,8 @@ export function InspectorHeader({
   statusChips,
   moreSlot,
   collapseSlot,
+  leadingSlot,
+  dense,
   children,
 }: {
   drawingNumber: string
@@ -161,24 +163,41 @@ export function InspectorHeader({
   statusChips: ReactNode
   moreSlot?: ReactNode
   collapseSlot?: ReactNode
+  leadingSlot?: ReactNode
+  /** Tighter mobile drawer header — allow wrapping, slightly smaller title. */
+  dense?: boolean
   children: ReactNode
 }) {
   return (
     <div className="sticky top-0 z-20 shrink-0 border-b border-bd/70 bg-sr/95 px-5 pt-4 pb-4 backdrop-blur-sm">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-[22px] font-bold tracking-tight text-t1">
-              {drawingNumber}
-            </h3>
-            {revisionBadge && (
-              <span className="rounded-md border border-bd bg-surface-low px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-t2">
-                {revisionBadge}
-              </span>
-            )}
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          {leadingSlot}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3
+                className={cn(
+                  "font-bold tracking-tight text-t1",
+                  dense
+                    ? "text-lg leading-snug [overflow-wrap:anywhere]"
+                    : "truncate text-[22px]",
+                )}
+              >
+                {drawingNumber}
+              </h3>
+              {revisionBadge && (
+                <span className="rounded-md border border-bd bg-surface-low px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-t2">
+                  {revisionBadge}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-sm font-semibold text-t1 [overflow-wrap:anywhere]">
+              {client || "—"}
+            </p>
+            <p className="mt-0.5 text-sm text-t3 [overflow-wrap:anywhere]">
+              {site || "—"}
+            </p>
           </div>
-          <p className="mt-1 truncate text-sm font-semibold text-t1">{client || "—"}</p>
-          <p className="mt-0.5 truncate text-sm text-t3">{site || "—"}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {collapseSlot}

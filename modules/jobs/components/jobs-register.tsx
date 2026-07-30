@@ -23,6 +23,8 @@ import {
   JobsInspectorReopenHandle,
   JobsInspectorShell,
 } from "./jobs-inspector-shell"
+import { MobileJobsHeader } from "./mobile-jobs-header"
+import { MobileJobsList } from "./mobile-jobs-list"
 import {
   jobToRegisterProject,
   workItemToRegisterProject,
@@ -62,6 +64,7 @@ export function JobsRegister({
   const { isAdmin } = useUser()
 
   const searchRef = useRef<HTMLInputElement>(null)
+  const mobileSearchRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState(searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
   const [scope, setScope] = useState<JobsRegisterScope>("all")
@@ -198,7 +201,13 @@ export function JobsRegister({
   }, [projects, selectedId])
 
   useJobsRegisterKeyboard({
-    onFocusSearch: () => searchRef.current?.focus(),
+    onFocusSearch: () => {
+      if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+        searchRef.current?.focus()
+      } else {
+        mobileSearchRef.current?.focus()
+      }
+    },
     onNavigate: navigateProjects,
     onAddRevision: () => {},
     onCloseInspector: collapseInspector,
@@ -267,29 +276,45 @@ export function JobsRegister({
   const toolbarBtn =
     "inline-flex h-9 items-center gap-2 rounded border border-bd px-3 text-sm font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-40"
 
+  const handleExport = () => {
+    void exportJobsToCsv(
+      {
+        search: debouncedSearch.trim(),
+        statusFilter: classicStatus,
+        itemTypeFilter: "ALL",
+        typeOfWorksFilter: "ALL",
+        deadlineFilter: "all",
+        onlyOriginals: true,
+        onlyRevisions: false,
+      },
+      toast,
+    )
+  }
+
+  const summaryLabel = `${total.toLocaleString()} project${total === 1 ? "" : "s"} · ${activeRevisions} active revision${activeRevisions === 1 ? "" : "s"}`
+
+  const title = isChecking ? "Checking queue" : "Jobs"
+  const subtitle = isChecking
+    ? "Work awaiting technical review before issue"
+    : "Manage scaffold design projects, revisions and progress"
+
   return (
-    <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100vh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Register expands full width when inspector is collapsed / hidden */}
+    <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100dvh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
+      {/* ── Desktop layout ───────────────────────────────────────── */}
+      <div className="hidden md:flex min-h-0 flex-1 overflow-hidden">
         <section
           className={cn(
             "flex min-h-0 flex-col overflow-hidden bg-sr",
             "motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out",
-            inspectorVisible ? "w-full md:w-[62%] lg:w-[61%]" : "w-full",
+            inspectorVisible ? "w-[62%] lg:w-[61%]" : "w-full",
           )}
         >
           <div className="border-b border-bd px-5 pt-4 pb-3">
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 shrink-0">
-                  <h1 className="text-2xl font-bold text-t1 tracking-tight">
-                    {isChecking ? "Checking queue" : "Jobs"}
-                  </h1>
-                  <p className="mt-0.5 text-sm text-t3">
-                    {isChecking
-                      ? "Work awaiting technical review before issue"
-                      : "Manage scaffold design projects, revisions and progress"}
-                  </p>
+                  <h1 className="text-2xl font-bold tracking-tight text-t1">{title}</h1>
+                  <p className="mt-0.5 text-sm text-t3">{subtitle}</p>
                 </div>
 
                 <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
@@ -341,24 +366,7 @@ export function JobsRegister({
                         <SlidersHorizontal className="h-3.5 w-3.5" />
                         Filters
                       </button>
-                      <button
-                        type="button"
-                        className={toolbarBtn}
-                        onClick={() => {
-                          void exportJobsToCsv(
-                            {
-                              search: debouncedSearch.trim(),
-                              statusFilter: classicStatus,
-                              itemTypeFilter: "ALL",
-                              typeOfWorksFilter: "ALL",
-                              deadlineFilter: "all",
-                              onlyOriginals: true,
-                              onlyRevisions: false,
-                            },
-                            toast,
-                          )
-                        }}
-                      >
+                      <button type="button" className={toolbarBtn} onClick={handleExport}>
                         <Download className="h-3.5 w-3.5" />
                         Export
                       </button>
@@ -435,7 +443,7 @@ export function JobsRegister({
                   >
                     Prev
                   </button>
-                  <span className="text-xs text-t3 tabular-nums px-1">
+                  <span className="px-1 text-xs tabular-nums text-t3">
                     {page}/{pages}
                   </span>
                   <button
@@ -448,7 +456,7 @@ export function JobsRegister({
                   </button>
                 </div>
               )}
-              <p className="hidden sm:flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-t3">
+              <p className="hidden items-center gap-1.5 text-[10px] uppercase tracking-wide text-t3 sm:flex">
                 <span className="h-1.5 w-1.5 rounded-full bg-ok-ic" aria-hidden />
                 System Operational
               </p>
@@ -456,11 +464,9 @@ export function JobsRegister({
           </div>
         </section>
 
-        {/* Desktop inspector card — only while open */}
         {inspectorVisible && selected && (
           <JobsInspectorShell
             className={cn(
-              "hidden md:flex",
               "my-3 mr-3 w-[calc(38%-0.75rem)] lg:w-[calc(39%-0.75rem)] shrink-0",
             )}
           >
@@ -472,37 +478,99 @@ export function JobsRegister({
                 onStatusChanged={() => { void handleStatusChanged() }}
                 onCollapse={collapseInspector}
                 collapseVariant="chevron"
+                presentation="panel"
               />
             </JobsInspectorErrorBoundary>
           </JobsInspectorShell>
         )}
 
-        {/* Narrow reopen handle when a job stays selected but inspector is collapsed */}
         {selected && !isInspectorOpen && (
           <JobsInspectorReopenHandle onOpen={reopenInspector} />
         )}
       </div>
 
-      {/* Tablet / mobile: full-width inspector drawer */}
+      {/* ── Mobile layout ────────────────────────────────────────── */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-pg md:hidden">
+        <MobileJobsHeader
+          title={title}
+          subtitle={subtitle}
+          search={search}
+          onSearchChange={setSearch}
+          searchRef={mobileSearchRef}
+          scope={scope}
+          onScopeChange={setScope}
+          showProjectActions={!isChecking}
+          canCreate={isAdmin}
+          canImport={isAdmin}
+          onNewProject={() => setCreateOpen(true)}
+          onFilters={() => router.push("/jobs/checking")}
+          onExport={handleExport}
+          onImport={() => router.push("/jobs/import")}
+          summaryLabel={summaryLabel}
+        />
+
+        <MobileJobsList
+          projects={projects}
+          selectedId={selectedId}
+          workItemsModel={workItemsModel}
+          designers={designers}
+          loading={loading}
+          onSelect={selectProject}
+          onStatusChanged={() => { void handleStatusChanged() }}
+          onDesignerChanged={() => { void handleStatusChanged() }}
+        />
+
+        {pages > 1 && (
+          <div
+            className="flex shrink-0 items-center justify-center gap-2 border-t border-bd bg-sr px-4 py-2.5"
+            style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
+          >
+            <button
+              type="button"
+              className="h-10 rounded-md border border-bd px-3 text-sm disabled:opacity-40"
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              Prev
+            </button>
+            <span className="px-2 text-sm tabular-nums text-t3">
+              {page}/{pages}
+            </span>
+            <button
+              type="button"
+              className="h-10 rounded-md border border-bd px-3 text-sm disabled:opacity-40"
+              disabled={page >= pages}
+              onClick={() => setPage(p => Math.min(pages, p + 1))}
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile full-screen job details drawer */}
       {inspectorVisible && selected && (
         <div
-          className="md:hidden fixed inset-0 z-40 flex flex-col bg-pg/80 p-3 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex flex-col bg-sr md:hidden"
           role="dialog"
           aria-modal="true"
-          aria-label="Job details"
+          aria-label={`Job details for ${selected.drawingNumber}`}
+          style={{
+            paddingTop: "env(safe-area-inset-top)",
+            paddingBottom: "env(safe-area-inset-bottom)",
+          }}
         >
-          <JobsInspectorShell className="flex min-h-0 flex-1 flex-col">
-            <JobsInspectorErrorBoundary projectLabel={selected.id}>
-              <JobsInspector
-                project={selected}
-                workItemsModel={workItemsModel}
-                designers={designers}
-                onStatusChanged={() => { void handleStatusChanged() }}
-                onCollapse={collapseInspector}
-                collapseVariant="close"
-              />
-            </JobsInspectorErrorBoundary>
-          </JobsInspectorShell>
+          <JobsInspectorErrorBoundary projectLabel={selected.id}>
+            <JobsInspector
+              project={selected}
+              workItemsModel={workItemsModel}
+              designers={designers}
+              onStatusChanged={() => { void handleStatusChanged() }}
+              onCollapse={collapseInspector}
+              collapseVariant="close"
+              presentation="drawer"
+            />
+          </JobsInspectorErrorBoundary>
         </div>
       )}
 
