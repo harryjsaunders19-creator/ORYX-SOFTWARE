@@ -18,10 +18,12 @@ import type { Job, JobFormData, JobsResponse } from "@/lib/types"
 import type { MixedWorkloadRow } from "@/modules/jobs/services/mixed-workload-service"
 import { JobsRegisterTable } from "./jobs-register-table"
 import { JobsInspector } from "./jobs-inspector"
+import { JobsInspectorErrorBoundary } from "./jobs-inspector-error-boundary"
 import {
   jobToRegisterProject,
   workItemToRegisterProject,
 } from "./jobs-register-helpers"
+import { exportJobsToCsv } from "./job-csv-export"
 import type { JobsRegisterProject, JobsRegisterScope } from "./jobs-register-types"
 import { useJobsRegisterKeyboard } from "./use-jobs-register-keyboard"
 
@@ -115,11 +117,11 @@ export function JobsRegister({
   const projects: JobsRegisterProject[] = useMemo(() => {
     if (workItemsModel) {
       const rows = workData?.workItems ?? []
-      const mapped = rows.map(workItemToRegisterProject)
+      const mapped = rows.filter(Boolean).map(workItemToRegisterProject)
       const seen = new Set<string>()
       const deduped: JobsRegisterProject[] = []
       for (const row of mapped) {
-        if (seen.has(row.id)) continue
+        if (!row.id || seen.has(row.id)) continue
         seen.add(row.id)
         deduped.push(row)
       }
@@ -127,7 +129,7 @@ export function JobsRegister({
       return deduped
     }
 
-    let mapped = (classicData?.jobs ?? []).map(jobToRegisterProject)
+    let mapped = (classicData?.jobs ?? []).filter(Boolean).map(jobToRegisterProject)
     if (scope === "active") mapped = mapped.filter(p => p.currentStatus !== "ISSUED")
     return mapped
   }, [workItemsModel, workData, classicData, scope])
@@ -287,16 +289,28 @@ export function JobsRegister({
                   <button
                     type="button"
                     className="inline-flex items-center gap-2 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 transition-colors hover:bg-surface-low"
-                    onClick={openWorkspace}
-                    disabled={!selected}
+                    onClick={() => {
+                      void exportJobsToCsv(
+                        {
+                          search: debouncedSearch.trim(),
+                          statusFilter: classicStatus,
+                          itemTypeFilter: "ALL",
+                          typeOfWorksFilter: "ALL",
+                          deadlineFilter: "all",
+                          onlyOriginals: true,
+                          onlyRevisions: false,
+                        },
+                        toast,
+                      )
+                    }}
                   >
                     <Download className="h-4 w-4" />
                     Export
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 transition-colors hover:bg-surface-low"
-                    onClick={() => setCreateOpen(true)}
+                    className="inline-flex items-center gap-2 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-40"
+                    onClick={() => router.push("/jobs/import")}
                     disabled={!isAdmin}
                   >
                     <Upload className="h-4 w-4" />
@@ -397,11 +411,13 @@ export function JobsRegister({
         {/* Inspector 35% — persistent workspace */}
         {inspectorOpen && selected && (
           <section className="hidden md:flex min-h-0 w-[35%] shrink-0 flex-col overflow-hidden">
-            <JobsInspector
-              project={selected}
-              workItemsModel={workItemsModel}
-              onOpenWorkspace={openWorkspace}
-            />
+            <JobsInspectorErrorBoundary projectLabel={selected.id}>
+              <JobsInspector
+                project={selected}
+                workItemsModel={workItemsModel}
+                onOpenWorkspace={openWorkspace}
+              />
+            </JobsInspectorErrorBoundary>
           </section>
         )}
       </div>

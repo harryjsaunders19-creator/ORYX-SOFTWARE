@@ -29,7 +29,8 @@ export function JobsInspectorCurrentFocus({
   status,
 }: JobsInspectorCurrentFocusProps) {
   const health = deriveProjectHealth(status, dueDate)
-  const initials = designer
+  const safeDesigner = typeof designer === "string" ? designer : ""
+  const initials = safeDesigner
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -66,7 +67,7 @@ export function JobsInspectorCurrentFocus({
               <span className="block text-[10px] uppercase text-on-ac/50 leading-none mb-0.5">
                 Responsible
               </span>
-              <span className="text-sm leading-none truncate block">{designer || "—"}</span>
+              <span className="text-sm leading-none truncate block">{safeDesigner || "—"}</span>
               {checker && (
                 <span className="block text-[10px] text-on-ac/50 mt-1 truncate">
                   Checker: {checker}

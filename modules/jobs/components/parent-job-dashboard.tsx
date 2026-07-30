@@ -77,7 +77,14 @@ export default function ParentJobDashboardPage({
   )
 
   const sortedItems = useMemo(
-    () => [...workItems].sort((a, b) => b.dateCreated.localeCompare(a.dateCreated)),
+    () =>
+      [...workItems].sort((a, b) => {
+        const aTs = Date.parse(a.dateCreated || a.createdAt || "")
+        const bTs = Date.parse(b.dateCreated || b.createdAt || "")
+        const aSafe = Number.isFinite(aTs) ? aTs : 0
+        const bSafe = Number.isFinite(bTs) ? bTs : 0
+        return bSafe - aSafe
+      }),
     [workItems],
   )
 

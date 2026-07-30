@@ -118,7 +118,7 @@ export function JobsInspector({
   const docsKey = `/api/jobs/${docJobId}/documents?limit=12`
 
   const { data: parentDash, isLoading: parentLoading } = useApi<ParentJobDashboard>(parentKey)
-  const { data: jobDetail, isLoading: jobLoading } = useApi<{ job: Job }>(jobKey)
+  const { data: jobDetail, isLoading: jobLoading } = useApi<Job>(jobKey)
   const { data: revisionsData } = useApi<RevisionsResponse>(revisionsKey)
   const { data: historyData } = useApi<HistoryResponse>(historyKey)
   const { data: docsData } = useApi<DocumentsResponse>(docsKey)
@@ -141,13 +141,13 @@ export function JobsInspector({
           title: wi.title,
           status: wi.status,
           createdAt: wi.dateCreated || wi.createdAt,
-          designer: wi.designer,
+          designer: wi.designer ?? "",
           reason: wi.description,
           notes: wi.notes,
-          billable: wi.billable,
+          billable: wi.billable ?? true,
           value: wi.quoteValue,
           drawingStatus: shortStatusLabel(wi.status),
-          invoiceStatus: wi.invoiceStatus,
+          invoiceStatus: wi.invoiceStatus ?? "—",
           completionStatus: wi.completedAt ? "Complete" : shortStatusLabel(wi.status),
           isCurrent: wi.id === currentId,
         }))
@@ -160,7 +160,7 @@ export function JobsInspector({
       title: r.title || (r.revisionLetter ? `Revision ${r.revisionLetter}` : "Original Design"),
       status: r.status,
       createdAt: r.dateCreated,
-      designer: r.designer,
+      designer: r.designer ?? "",
       reason: r.notes,
       notes: r.notes,
       billable: r.billable ?? true,
@@ -195,7 +195,7 @@ export function JobsInspector({
       }
     }
 
-    const job = jobDetail?.job
+    const job = jobDetail
     const chain = asSafeArray(revisionsData?.chain)
     const original = chain.find(r => !r.revisionLetter) ?? chain.at(-1)
     const revSum = chain
@@ -272,13 +272,13 @@ export function JobsInspector({
   })
 
   const parent = parentDash?.parent
-  const client = parent?.clientCompany ?? jobDetail?.job.clientCompany ?? project.clientCompany
+  const client = parent?.clientCompany ?? jobDetail?.clientCompany ?? project.clientCompany
   const site = siteDisplay(
-    parent?.siteName ?? jobDetail?.job.siteName ?? project.siteName,
-    parent?.address ?? jobDetail?.job.address ?? project.address,
+    parent?.siteName ?? jobDetail?.siteName ?? project.siteName,
+    parent?.address ?? jobDetail?.address ?? project.address,
   )
   const drawingNumber =
-    parent?.drawingNumber ?? jobDetail?.job.drawingNumber ?? project.drawingNumber
+    parent?.drawingNumber ?? jobDetail?.drawingNumber ?? project.drawingNumber
   const projectStatus = project.projectStatus
   const revStatus = currentRev?.status ?? project.currentStatus
   const revLabel = revisionBadgeLabel(
@@ -307,7 +307,7 @@ export function JobsInspector({
               }
               setAddRevOpen(true)
             }}
-            disabled={!workItemsModel && !project.canAddRevision && !jobDetail?.job}
+            disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
           >
             <Plus className="h-[18px] w-[18px]" />
             Add Revision
@@ -429,9 +429,9 @@ export function JobsInspector({
       </div>
 
       <Suspense fallback={null}>
-        {!workItemsModel && addRevOpen && jobDetail?.job && (
+        {!workItemsModel && addRevOpen && jobDetail && (
           <AddRevisionModal
-            job={jobDetail.job}
+            job={jobDetail}
             onClose={() => setAddRevOpen(false)}
             onSubmit={async (job, data) => {
               const parentId = job.parentJobId ?? job.id
