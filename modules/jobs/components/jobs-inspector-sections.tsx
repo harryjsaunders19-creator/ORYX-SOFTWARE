@@ -5,6 +5,12 @@ import { cn } from "@/shared/utils/utils"
 import { Typography } from "@/shared/design/typography"
 import { WORKFLOW_STAGES, type WorkflowStageId } from "./jobs-register-types"
 
+function safeDate(value: string | null | undefined): Date | null {
+  if (!value) return null
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
 export function JobsInspectorWorkflow({
   stages,
 }: {
@@ -75,11 +81,11 @@ export function JobsInspectorRecentFiles({
                   <p className="text-sm font-medium text-t1 truncate">{file.label}</p>
                   <p className="text-xs text-t3 mt-0.5">
                     {file.uploadedAt
-                      ? `Uploaded ${new Date(file.uploadedAt).toLocaleDateString("en-GB", {
+                      ? `Uploaded ${(safeDate(file.uploadedAt)?.toLocaleDateString("en-GB", {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
-                        })}`
+                        }) ?? "Unknown date")}`
                       : "Upload date unknown"}
                   </p>
                 </div>
@@ -147,12 +153,12 @@ export function JobsInspectorActivityFeed({
               <p className="text-xs text-t3 mt-0.5">
                 {item.user}
                 {" · "}
-                {new Date(item.timestamp).toLocaleString("en-GB", {
+                {(safeDate(item.timestamp)?.toLocaleString("en-GB", {
                   day: "numeric",
                   month: "short",
                   hour: "2-digit",
                   minute: "2-digit",
-                })}
+                }) ?? "Unknown time")}
               </p>
             </li>
           ))}

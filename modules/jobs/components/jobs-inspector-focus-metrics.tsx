@@ -3,6 +3,13 @@
 import { formatGBP, cn } from "@/shared/utils/utils"
 import { deriveProjectHealth } from "./jobs-register-helpers"
 
+function safeShortDate(value: string | null): string {
+  if (!value) return "—"
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return "—"
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+}
+
 interface JobsInspectorCurrentFocusProps {
   revisionLabel: string
   currentTask: string
@@ -127,12 +134,7 @@ export function JobsInspectorMetrics({
           { label: "Rev Count", value: `${revisionCount} Total` },
           {
             label: "Last Activity",
-            value: lastActivity
-              ? new Date(lastActivity).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                })
-              : "—",
+            value: safeShortDate(lastActivity),
           },
         ].map(m => (
           <div key={m.label} className="border-l border-bd/50 pl-2.5 py-1.5">

@@ -85,6 +85,10 @@ interface RevisionsResponse {
   canAddRevision?: boolean
 }
 
+function asSafeArray<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? value : []
+}
+
 export function JobsInspector({
   project,
   workItemsModel,
@@ -117,8 +121,9 @@ export function JobsInspector({
 
   const revisions: InspectorRevision[] = useMemo(() => {
     if (workItemsModel && parentDash) {
+      const workItems = asSafeArray(parentDash.workItems)
       const currentId = parentDash.currentActive?.id
-      return [...parentDash.workItems]
+      return [...workItems]
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .map(wi => ({
           id: wi.id,
@@ -138,7 +143,7 @@ export function JobsInspector({
         }))
     }
 
-    const chain = revisionsData?.chain ?? []
+    const chain = asSafeArray(revisionsData?.chain)
     return chain.map((r, idx) => ({
       id: r.id,
       letter: r.revisionLetter,
@@ -161,14 +166,15 @@ export function JobsInspector({
 
   const metrics = useMemo(() => {
     if (workItemsModel && parentDash) {
-      const items = parentDash.workItems
+      const items = asSafeArray(parentDash.workItems)
+      const invoiceSummary = parentDash.invoiceSummary ?? { quotedTotal: 0, billedTotal: 0 }
       const original = items.find(i => i.workType === "ORIGINAL")
       const revItems = items.filter(i => i.workType === "REVISION")
       const revisionRevenue = revItems.reduce((s, i) => s + (i.quoteValue ?? 0), 0)
       const originalFee = original?.quoteValue ?? null
-      const total = parentDash.invoiceSummary.quotedTotal
+      const total = invoiceSummary.quotedTotal
       const outstanding =
-        parentDash.invoiceSummary.quotedTotal - parentDash.invoiceSummary.billedTotal
+        invoiceSummary.quotedTotal - invoiceSummary.billedTotal
       return {
         originalFee,
         revisionRevenue,
@@ -180,7 +186,7 @@ export function JobsInspector({
     }
 
     const job = jobDetail?.job
-    const chain = revisionsData?.chain ?? []
+    const chain = asSafeArray(revisionsData?.chain)
     const original = chain.find(r => !r.revisionLetter) ?? chain.at(-1)
     const revSum = chain
       .filter(r => r.revisionLetter)
@@ -197,7 +203,7 @@ export function JobsInspector({
   }, [workItemsModel, parentDash, jobDetail, revisionsData])
 
   const files: InspectorFileItem[] = useMemo(() => {
-    const docs = docsData?.documents ?? []
+    const docs = asSafeArray(docsData?.documents)
     const url = (id: string, action: "preview" | "download") =>
       `/api/jobs/${docJobId}/documents/${id}/${action}`
     const pick = (
@@ -219,17 +225,17 @@ export function JobsInspector({
 
     return [
       pick(
-        d => /draw|dwg/i.test(d.filename) || /drawing/i.test(d.category ?? ""),
+        d => /draw|dwg/i.test(String(d.filename ?? "")) || /drawing/i.test(d.category ?? ""),
         "Latest Drawing",
         "drawing",
       ),
       pick(
-        d => /calc/i.test(d.filename) || /calc/i.test(d.category ?? ""),
+        d => /calc/i.test(String(d.filename ?? "")) || /calc/i.test(d.category ?? ""),
         "Latest Calculation",
         "calculation",
       ),
       pick(
-        d => /\.pdf$/i.test(d.filename) || /pdf|revision/i.test(d.category ?? ""),
+        d => /\.pdf$/i.test(String(d.filename ?? "")) || /pdf|revision/i.test(d.category ?? ""),
         "Latest Revision PDF",
         "pdf",
       ),
@@ -237,7 +243,7 @@ export function JobsInspector({
   }, [docsData, docJobId])
 
   const activity: InspectorActivityItem[] = useMemo(() => {
-    return (historyData?.history ?? []).slice(0, 12).map(h => ({
+    return asSafeArray(historyData?.history).slice(0, 12).map(h => ({
       id: h.id,
       timestamp: h.changedAt,
       user: h.changedBy || "System",

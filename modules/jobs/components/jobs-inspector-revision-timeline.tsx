@@ -5,6 +5,17 @@ import { ChevronDown, ChevronRight } from "lucide-react"
 import { formatGBP } from "@/shared/utils/utils"
 import { shortStatusLabel } from "./jobs-register-helpers"
 
+function safeDateLabel(value: string | null | undefined): string {
+  if (!value) return "Unknown date"
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return "Unknown date"
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
+}
+
 export interface InspectorRevision {
   id: string
   letter: string | null
@@ -67,11 +78,7 @@ function RevisionEntry({ revision }: { revision: InspectorRevision }) {
               </div>
               <p className="text-xs text-blue-700/80 mt-0.5">
                 Updated on{" "}
-                {new Date(revision.createdAt).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
+                {safeDateLabel(revision.createdAt)}
                 {revision.designer ? ` by ${revision.designer}` : ""}
               </p>
             </div>
@@ -121,11 +128,7 @@ function RevisionEntry({ revision }: { revision: InspectorRevision }) {
           <p className="text-sm font-semibold text-t1">{label}</p>
           <p className="text-xs text-t3 mt-0.5">
             {shortStatusLabel(revision.status)}{" "}
-            {new Date(revision.createdAt).toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
+            {safeDateLabel(revision.createdAt)}
             {revision.designer ? ` · Designer: ${revision.designer}` : ""}
           </p>
         </div>

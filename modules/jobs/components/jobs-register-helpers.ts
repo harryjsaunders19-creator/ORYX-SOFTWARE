@@ -44,7 +44,8 @@ export function deriveProjectHealth(
   return { label: "On schedule", tone: "ok" }
 }
 
-export function shortStatusLabel(status: string): string {
+export function shortStatusLabel(status: string | null | undefined): string {
+  if (!status) return "Unknown"
   switch (status) {
     case "NEW_REQUEST":
       return "New"
@@ -62,8 +63,9 @@ export function shortStatusLabel(status: string): string {
 }
 
 export function revisionBadgeLabel(letter: string | null | undefined): string {
-  if (!letter) return "Rev 0"
-  return letter.toUpperCase().startsWith("REV") ? letter.toUpperCase() : `Rev ${letter}`
+  if (typeof letter !== "string" || !letter.trim()) return "Rev 0"
+  const normalized = letter.trim().toUpperCase()
+  return normalized.startsWith("REV") ? normalized : `Rev ${normalized}`
 }
 
 /** Map classic job list row (original) → register project. */
