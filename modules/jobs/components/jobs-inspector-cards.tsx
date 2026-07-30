@@ -368,33 +368,30 @@ export function ProjectDetailsSection({ data }: { data: ProjectDetailsData }) {
       <SectionTitle icon={Building2}>Project Details</SectionTitle>
       <div className="space-y-3.5">
         <Meta label="Client" value={data.client} important />
-        {isManagedSite ? (
-          <>
-            <Meta label="Managed Site" value={data.siteName} important />
-            <Meta label="Address" value={data.siteAddress} important />
-            <div>
-              <p className={fieldLabel}>Other Jobs at this Managed Site</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold text-t1">
-                  {data.otherJobsAtSiteCount} other job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
-                </p>
-                {data.onViewSiteJobs && data.otherJobsAtSiteCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={data.onViewSiteJobs}
-                    className="text-xs font-medium text-ac hover:text-ach"
-                  >
-                    View Site Jobs
-                  </button>
-                )}
-              </div>
+        <Meta
+          label="Location"
+          value={data.siteName}
+          important
+        />
+        <Meta label="Address" value={data.siteAddress} important />
+        {isManagedSite && data.otherJobsAtSiteCount > 0 && (
+          <div>
+            <p className={fieldLabel}>Other Jobs At This Location</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-t1">
+                {data.otherJobsAtSiteCount} Job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
+              </p>
+              {data.onViewSiteJobs && (
+                <button
+                  type="button"
+                  onClick={data.onViewSiteJobs}
+                  className="text-xs font-medium text-ac hover:text-ach"
+                >
+                  View Jobs
+                </button>
+              )}
             </div>
-          </>
-        ) : (
-          <>
-            <Meta label="Property" value={data.siteName} important />
-            <Meta label="Address" value={data.siteAddress} important />
-          </>
+          </div>
         )}
         <Meta label="Type of Works" value={data.typeOfWorks} />
         <Meta label="Requested By" value={data.requestedBy} />

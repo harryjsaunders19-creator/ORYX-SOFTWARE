@@ -6,6 +6,7 @@ import { toParentJobRow, toSupabaseParentJob, type SupabaseParentJobRow } from "
 
 const COLS = [
   "id", "drawing_number", "client_id", "client_company", "site_id", "site_name", "site_address",
+  "location_mode", "location_name", "postcode",
   "address", "type_of_works", "custom_type_description", "legacy_type_of_works",
   "description", "tags", "requested_by", "item_type", "archived_at", "archived_by",
   "latitude", "longitude", "geocoded_at", "geocoded_address", "location_status",

@@ -275,19 +275,24 @@ export const parentJobService = {
   async createWithOriginal(input: CreateParentJobInput): Promise<ParentJobDashboard> {
     const now = nowIso()
     const changedBy = input.changedBy ?? "System"
-    const siteName = input.siteName?.trim() ?? null
+    const locationName = (input.locationName ?? input.siteName)?.trim() || null
     const siteAddress = input.siteAddress?.trim() ?? null
     const address = input.address?.trim()
       ? input.address.trim()
-      : composeJobAddress(siteName, siteAddress)
+      : composeJobAddress(locationName, siteAddress)
+    const siteId = input.siteId?.trim() || null
+    const locationMode = siteId ? "MANAGED_SITE" as const : "ONE_OFF" as const
 
     const parent: ParentJobRow = {
       id: input.id,
       drawingNumber: input.drawingNumber,
       clientId: input.clientId ?? null,
       clientCompany: input.clientCompany,
-      siteId: input.siteId ?? null,
-      siteName,
+      locationMode,
+      siteId,
+      locationName,
+      postcode: input.postcode?.trim() || null,
+      siteName: locationName,
       siteAddress,
       address,
       typeOfWorks: input.typeOfWorks,

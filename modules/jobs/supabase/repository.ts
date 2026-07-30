@@ -112,6 +112,7 @@ function missingColumnFromError(error: { code?: string; message?: string } | nul
   if (quoted?.[1]) return quoted[1]
   for (const col of [
     "site_name", "site_address", "site_id", "location_status", "location_source",
+    "location_mode", "location_name", "postcode",
     "latitude", "longitude", "geocoded_at", "geocoded_address",
     "variation_fees", "additional_charges",
     "design_standards",

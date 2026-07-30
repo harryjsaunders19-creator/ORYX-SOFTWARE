@@ -145,6 +145,17 @@ export function migrateLegacySitesSqlite(): MigrationReport {
 
   db.transaction(() => {
     for (const g of groups.values()) {
+      // Only create Managed Sites where multiple jobs clearly share a location.
+      // Single-job groups remain one-off — users can promote later.
+      if (g.jobIds.length < 2) {
+        report.ambiguousJobs.push({
+          jobId: g.jobIds[0],
+          drawingNumber: "",
+          reason: "Single job at this address — left as one-off (promote later if needed)",
+        })
+        continue
+      }
+
       const siteId = createId()
       const postcode = g.postcode
       insertSite.run(

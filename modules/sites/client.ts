@@ -6,6 +6,7 @@
  * exports `siteService`, which uses Node `createRequire`.
  */
 export { SiteSelector } from "./components/site-selector"
+export { LocationSearch } from "./components/location-search"
 export { CreateSiteDialog } from "./components/create-site-dialog"
 export { SiteSummaryCard } from "./components/site-summary"
 export { SiteDetailsPanel } from "./components/site-details-panel"

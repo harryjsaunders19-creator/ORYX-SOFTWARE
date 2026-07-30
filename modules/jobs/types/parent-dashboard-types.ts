@@ -44,7 +44,10 @@ export interface CreateParentJobInput {
   id: string
   drawingNumber: string
   address: string
+  locationMode?: "ONE_OFF" | "MANAGED_SITE"
   siteId?: string | null
+  locationName?: string | null
+  postcode?: string | null
   siteName?: string | null
   siteAddress?: string | null
   typeOfWorks: string

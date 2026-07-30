@@ -16,8 +16,11 @@ type Ctx = { params: Promise<{ id: string }> }
 
 const patchJobBodySchema = z.object({
   address: z.string().optional(),
-  locationType: z.enum(["SINGLE_PROPERTY", "MANAGED_SITE"]).optional(),
+  locationMode: z.enum(["ONE_OFF", "MANAGED_SITE"]).optional(),
+  locationType: z.enum(["SINGLE_PROPERTY", "MANAGED_SITE", "ONE_OFF"]).optional(),
   siteId: z.union([z.string(), z.null()]).optional(),
+  locationName: z.union([z.string(), z.null()]).optional(),
+  postcode: z.union([z.string(), z.null()]).optional(),
   siteName: z.union([z.string(), z.null()]).optional(),
   siteAddress: z.union([z.string(), z.null()]).optional(),
   typeOfWorks: z.string().optional(),
@@ -125,7 +128,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     const allowed = [
-      "address", "siteId", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "requestedBy", "status", "designer", "notes", "designStandards",
+      "address", "locationMode", "siteId", "locationName", "postcode", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "requestedBy", "status", "designer", "notes", "designStandards",
       "requestedDate","requiredByDate","quoteReference","quoteDate","commercialNotes", "billable", "tags",
     ]
 
@@ -134,17 +137,30 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       if (body[f] !== undefined) data[f] = body[f]
     }
 
-    // Location type: Managed Site requires siteId; Single Property clears it.
-    if (body.locationType === "SINGLE_PROPERTY") {
+    // Location mode: Managed Site requires siteId; One-off clears it.
+    const mode = body.locationMode
+      ?? (body.locationType === "MANAGED_SITE" ? "MANAGED_SITE"
+        : body.locationType === "SINGLE_PROPERTY" || body.locationType === "ONE_OFF" ? "ONE_OFF"
+          : undefined)
+    if (mode === "ONE_OFF") {
+      data.locationMode = "ONE_OFF"
       data.siteId = null
-    } else if (body.locationType === "MANAGED_SITE") {
+    } else if (mode === "MANAGED_SITE") {
       const siteId = typeof body.siteId === "string" && body.siteId.trim() ? body.siteId.trim() : null
       if (!siteId) {
         return NextResponse.json({ error: "Select or create a managed site", field: "siteId" }, { status: 422 })
       }
+      data.locationMode = "MANAGED_SITE"
       data.siteId = siteId
     } else if (body.siteId !== undefined) {
       data.siteId = typeof body.siteId === "string" && body.siteId.trim() ? body.siteId.trim() : null
+      data.locationMode = data.siteId ? "MANAGED_SITE" : "ONE_OFF"
+    }
+
+    if (typeof data.locationName === "string") {
+      data.siteName = data.locationName
+    } else if (typeof data.siteName === "string" && data.locationName === undefined) {
+      data.locationName = data.siteName
     }
 
     if (typeof data.siteId === "string" && data.siteId) {
@@ -157,9 +173,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       if (!site) {
         return NextResponse.json({ error: "Managed site not found for this client", field: "siteId" }, { status: 422 })
       }
-      if (body.siteName === undefined) data.siteName = site.name
+      if (body.locationName === undefined && body.siteName === undefined) {
+        data.locationName = site.name
+        data.siteName = site.name
+      }
       if (body.siteAddress === undefined) data.siteAddress = formatSiteAddress(site) || site.name
       if (body.address === undefined) data.address = formatSiteAddress(site) || site.name
+      if (body.postcode === undefined) data.postcode = site.postcode
     }
 
     // typeOfWorks must stay within the approved list, and "Other" always

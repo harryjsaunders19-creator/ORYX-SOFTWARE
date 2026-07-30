@@ -15,19 +15,23 @@ import type { QuoteRow } from "./types/quote-types"
 import { logError } from "@/shared/logger"
 
 function buildJobRow(data: CreateJobData, now: string): JobRow {
-  const siteName = data.siteName?.trim() ?? null
+  const locationName = (data.locationName ?? data.siteName)?.trim() ?? null
   const siteAddress = data.siteAddress?.trim() ?? null
   const address = data.address?.trim()
     ? data.address.trim()
-    : composeJobAddress(siteName, siteAddress)
+    : composeJobAddress(locationName, siteAddress)
+  const siteId = data.siteId ?? null
 
   return {
     id: data.id,
     drawingNumber: data.drawingNumber,
     itemType: data.itemType ?? "DESIGN",
     address,
-    siteId: data.siteId ?? null,
-    siteName,
+    locationMode: siteId ? "MANAGED_SITE" : "ONE_OFF",
+    siteId,
+    locationName,
+    postcode: data.postcode?.trim() || null,
+    siteName: locationName,
     siteAddress,
     typeOfWorks: data.typeOfWorks,
     customTypeDescription: data.customTypeDescription ?? null,

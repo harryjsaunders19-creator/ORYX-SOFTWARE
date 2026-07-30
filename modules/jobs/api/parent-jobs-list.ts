@@ -26,8 +26,11 @@ function modelDisabled() {
 }
 
 const createParentJobBodySchema = z.object({
-  locationType: z.enum(["SINGLE_PROPERTY", "MANAGED_SITE"]).optional(),
+  locationMode: z.enum(["ONE_OFF", "MANAGED_SITE"]).optional(),
+  locationType: z.enum(["SINGLE_PROPERTY", "MANAGED_SITE", "ONE_OFF"]).optional(),
   siteId: z.string().optional(),
+  locationName: z.string().optional(),
+  postcode: z.string().optional(),
   siteName: z.string().optional(),
   siteAddress: z.string().optional(),
   address: z.string().optional(),
@@ -97,12 +100,20 @@ export async function POST(req: NextRequest) {
     }
     const body = parsedBody.data
 
-    const locationType = body.locationType === "MANAGED_SITE" ? "MANAGED_SITE" : "SINGLE_PROPERTY"
+    const rawMode = body.locationMode
+      ?? (body.locationType === "MANAGED_SITE" ? "MANAGED_SITE"
+        : body.locationType === "SINGLE_PROPERTY" || body.locationType === "ONE_OFF" ? "ONE_OFF"
+          : undefined)
+    let locationMode: "ONE_OFF" | "MANAGED_SITE" =
+      rawMode === "MANAGED_SITE" ? "MANAGED_SITE" : "ONE_OFF"
     let siteId: string | null = typeof body.siteId === "string" && body.siteId.trim()
       ? body.siteId.trim()
       : null
-    let siteName = typeof body.siteName === "string" ? body.siteName.trim() : ""
+    let locationName = typeof body.locationName === "string"
+      ? body.locationName.trim()
+      : typeof body.siteName === "string" ? body.siteName.trim() : ""
     let siteAddress = typeof body.siteAddress === "string" ? body.siteAddress.trim() : ""
+    let postcode = typeof body.postcode === "string" ? body.postcode.trim() : ""
 
     const clientCompany = typeof body.clientCompany === "string" ? body.clientCompany.trim() : ""
     const requestedBy = typeof body.requestedBy === "string" ? body.requestedBy.trim() : ""
@@ -119,7 +130,7 @@ export async function POST(req: NextRequest) {
       clientId = matched?.id ?? null
     }
 
-    if (locationType === "MANAGED_SITE") {
+    if (locationMode === "MANAGED_SITE") {
       if (!siteId) {
         return NextResponse.json({ error: "Select or create a managed site", field: "siteId" }, { status: 422 })
       }
@@ -130,23 +141,25 @@ export async function POST(req: NextRequest) {
       if (!site) {
         return NextResponse.json({ error: "Managed site not found for this client", field: "siteId" }, { status: 422 })
       }
-      siteName = site.name
+      locationName = site.name
       siteAddress = formatSiteAddress(site) || site.name
+      postcode = site.postcode || postcode
     } else {
       siteId = null
+      locationMode = "ONE_OFF"
       if (!siteAddress && !(typeof body.address === "string" && body.address.trim())) {
-        return NextResponse.json({ error: "Property address is required", field: "siteAddress" }, { status: 422 })
+        return NextResponse.json({ error: "Location address is required", field: "address" }, { status: 422 })
       }
     }
 
     const address = typeof body.address === "string" && body.address.trim()
       ? body.address.trim()
-      : composeJobAddress(siteName || null, siteAddress || null)
+      : composeJobAddress(locationName || null, siteAddress || null)
 
     if (!address) {
       return NextResponse.json({
-        error: locationType === "MANAGED_SITE" ? "Managed site address is required" : "Property address is required",
-        field: locationType === "MANAGED_SITE" ? "siteId" : "siteAddress",
+        error: locationMode === "MANAGED_SITE" ? "Managed site address is required" : "Location address is required",
+        field: locationMode === "MANAGED_SITE" ? "siteId" : "address",
       }, { status: 400 })
     }
 
@@ -201,9 +214,12 @@ export async function POST(req: NextRequest) {
     const dashboard = await parentJobService.createWithOriginal({
       id,
       drawingNumber,
-      address: address || siteAddress || siteName,
+      address: address || siteAddress || locationName,
+      locationMode,
       siteId,
-      siteName: siteName || null,
+      locationName: locationName || null,
+      postcode: postcode || null,
+      siteName: locationName || null,
       siteAddress: siteAddress || null,
       typeOfWorks,
       customTypeDescription,

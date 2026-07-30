@@ -117,8 +117,10 @@ export const supabaseSiteRepo = {
       await createAdminClient().from("jobs")
         .update({
           site_name: site.name,
+          location_name: site.name,
           site_address: displayAddress || site.name,
           address: displayAddress || site.name,
+          postcode: site.postcode,
           updated_at: now,
         })
         .eq("site_id", id)
@@ -126,15 +128,19 @@ export const supabaseSiteRepo = {
       await createAdminClient().from("jobs")
         .update({
           site_name: site.name,
+          location_name: site.name,
           site_address: displayAddress || site.name,
+          postcode: site.postcode,
           updated_at: now,
         })
         .eq("site_id", id)
       await createAdminClient().from("parent_jobs")
         .update({
           site_name: site.name,
+          location_name: site.name,
           site_address: displayAddress || site.name,
           address: displayAddress || site.name,
+          postcode: site.postcode,
           updated_at: now,
         })
         .eq("site_id", id)

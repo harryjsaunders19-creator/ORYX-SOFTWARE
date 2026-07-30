@@ -162,19 +162,19 @@ export const siteDb = {
       const displayAddress = formatSiteAddress(next)
       const now = nowIso()
       db.prepare(`
-        UPDATE Job SET siteName = ?, siteAddress = ?, address = ?, updatedAt = ?
+        UPDATE Job SET siteName = ?, locationName = ?, siteAddress = ?, address = ?, postcode = ?, locationMode = 'MANAGED_SITE', updatedAt = ?
         WHERE siteId = ? AND (parentJobId IS NULL OR parentJobId = '')
-      `).run(next.name, displayAddress || next.name, displayAddress || next.name, now, id)
+      `).run(next.name, next.name, displayAddress || next.name, displayAddress || next.name, next.postcode, now, id)
       // Revisions inherit display from parent — still refresh site fields for consistency.
       db.prepare(`
-        UPDATE Job SET siteName = ?, siteAddress = ?, updatedAt = ?
+        UPDATE Job SET siteName = ?, locationName = ?, siteAddress = ?, postcode = ?, updatedAt = ?
         WHERE siteId = ?
-      `).run(next.name, displayAddress || next.name, now, id)
+      `).run(next.name, next.name, displayAddress || next.name, next.postcode, now, id)
       try {
         db.prepare(`
-          UPDATE ParentJob SET siteName = ?, siteAddress = ?, address = ?, updatedAt = ?
+          UPDATE ParentJob SET siteName = ?, locationName = ?, siteAddress = ?, address = ?, postcode = ?, locationMode = 'MANAGED_SITE', updatedAt = ?
           WHERE siteId = ?
-        `).run(next.name, displayAddress || next.name, displayAddress || next.name, now, id)
+        `).run(next.name, next.name, displayAddress || next.name, displayAddress || next.name, next.postcode, now, id)
       } catch {
         // ParentJob may not exist on older DBs mid-migration
       }

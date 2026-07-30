@@ -813,7 +813,15 @@ try {
   add("tags",             "TEXT NOT NULL DEFAULT '[]'")
   // FK to Site — nullable during migration; legacy siteName/siteAddress retained.
   add("siteId",           "TEXT REFERENCES Site(id) ON DELETE SET NULL")
+  // ONE_OFF (default) | MANAGED_SITE — explicit mode; siteId null for one-off.
+  add("locationMode",     "TEXT NOT NULL DEFAULT 'ONE_OFF'")
+  add("locationName",     "TEXT")
+  add("postcode",         "TEXT")
   db.exec(`UPDATE Job SET siteAddress = address WHERE (siteAddress IS NULL OR TRIM(siteAddress) = '') AND address IS NOT NULL AND TRIM(address) != ''`)
+  db.exec(`UPDATE Job SET locationName = siteName WHERE (locationName IS NULL OR TRIM(locationName) = '') AND siteName IS NOT NULL AND TRIM(siteName) != ''`)
+  db.exec(`UPDATE Job SET locationMode = 'MANAGED_SITE' WHERE siteId IS NOT NULL AND (locationMode IS NULL OR locationMode = 'ONE_OFF')`)
+  db.exec("CREATE INDEX IF NOT EXISTS idx_job_location_mode ON Job(locationMode)")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_job_postcode ON Job(postcode)")
   db.exec(`UPDATE Job SET locationStatus = 'mapped', locationSource = 'geocoded' WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND locationStatus IS NULL`)
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_location_status ON Job(locationStatus) WHERE status = 'ISSUED' AND archivedAt IS NULL")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_geocode ON Job(latitude, longitude)")
@@ -944,6 +952,9 @@ try {
   addCol("CalendarEvent", "workItemId", "TEXT REFERENCES WorkItem(id) ON DELETE SET NULL")
   addCol("ParentJob", "tags", "TEXT NOT NULL DEFAULT '[]'")
   addCol("ParentJob", "siteId", "TEXT REFERENCES Site(id) ON DELETE SET NULL")
+  addCol("ParentJob", "locationMode", "TEXT NOT NULL DEFAULT 'ONE_OFF'")
+  addCol("ParentJob", "locationName", "TEXT")
+  addCol("ParentJob", "postcode", "TEXT")
   addCol("Quote", "siteId", "TEXT REFERENCES Site(id) ON DELETE SET NULL")
 
   db.exec("CREATE INDEX IF NOT EXISTS idx_history_workitem ON StatusHistory(workItemId)")
@@ -952,6 +963,10 @@ try {
   db.exec("CREATE INDEX IF NOT EXISTS idx_quote_site ON Quote(siteId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_calendar_workitem ON CalendarEvent(workItemId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_parentjob_siteid ON ParentJob(siteId)")
+  db.exec(`UPDATE ParentJob SET locationName = siteName WHERE (locationName IS NULL OR TRIM(locationName) = '') AND siteName IS NOT NULL AND TRIM(siteName) != ''`)
+  db.exec(`UPDATE ParentJob SET locationMode = 'MANAGED_SITE' WHERE siteId IS NOT NULL AND (locationMode IS NULL OR locationMode = 'ONE_OFF')`)
+  db.exec("CREATE INDEX IF NOT EXISTS idx_parentjob_location_mode ON ParentJob(locationMode)")
+  db.exec("CREATE INDEX IF NOT EXISTS idx_parentjob_postcode ON ParentJob(postcode)")
 })()
 
 // 2e. Ensure Site tables exist on DBs created before Site was in CREATE TABLE block

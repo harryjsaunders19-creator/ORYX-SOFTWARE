@@ -127,6 +127,8 @@ export default function ClientDetailPage() {
   const { client, contacts = [], stats, jobs } = detail
   // One card per drawing — hide revision rows from client job tables.
   const parentJobs = jobs.filter(j => !j.parentJobId)
+  const managedSiteJobs = parentJobs.filter(j => j.siteId)
+  const oneOffJobs = parentJobs.filter(j => !j.siteId)
   const filteredBySite = siteFilterId
     ? parentJobs.filter(j => j.siteId === siteFilterId)
     : parentJobs
@@ -134,6 +136,8 @@ export default function ClientDetailPage() {
   const nonDesignJobs  = filteredBySite.filter(j => j.itemType && !["DESIGN","REVISION"].includes(j.itemType))
   const revisionCount  = jobs.filter(j => j.parentJobId || j.itemType === "REVISION").length
   const sites = sitesData?.sites ?? []
+  const oneOffDesign = oneOffJobs.filter(j => j.itemType === "DESIGN" || !j.itemType || j.itemType === "REVISION")
+  const oneOffOther = oneOffJobs.filter(j => j.itemType && !["DESIGN","REVISION"].includes(j.itemType))
 
   return (
     <PageShell>
@@ -405,25 +409,48 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {/* Design jobs (one card per drawing — revisions live under parent) */}
-      {designJobs.length > 0 && (
-        <section className="mb-5">
-          <h2 className="type-label text-t3 mb-2">
-            Designs ({designJobs.length})
-            {revisionCount > 0 && (
-              <span className="ml-2 font-normal normal-case text-t4">· {revisionCount} revision{revisionCount === 1 ? "" : "s"} in history</span>
+      {/* Jobs — split Managed Site vs One-Off when not filtering a single site */}
+      {siteFilterId ? (
+        <>
+          {designJobs.length > 0 && (
+            <section className="mb-5">
+              <h2 className="type-label text-t3 mb-2">
+                Designs ({designJobs.length})
+                {revisionCount > 0 && (
+                  <span className="ml-2 font-normal normal-case text-t4">· {revisionCount} revision{revisionCount === 1 ? "" : "s"} in history</span>
+                )}
+              </h2>
+              <JobsTable jobs={designJobs} />
+            </section>
+          )}
+          {nonDesignJobs.length > 0 && (
+            <section className="mb-5">
+              <h2 className="type-label text-t3 mb-2">Site visits & other ({nonDesignJobs.length})</h2>
+              <JobsTable jobs={nonDesignJobs} />
+            </section>
+          )}
+        </>
+      ) : (
+        <>
+          {managedSiteJobs.length > 0 && (
+            <section className="mb-5">
+              <h2 className="type-label text-t3 mb-2">
+                Jobs at Managed Sites ({managedSiteJobs.length})
+              </h2>
+              <JobsTable jobs={managedSiteJobs} />
+            </section>
+          )}
+          <section className="mb-5">
+            <h2 className="type-label text-t3 mb-2">
+              One-Off Jobs ({oneOffJobs.length})
+            </h2>
+            {oneOffJobs.length === 0 ? (
+              <p className="text-sm text-t3">No one-off jobs for this client.</p>
+            ) : (
+              <JobsTable jobs={[...oneOffDesign, ...oneOffOther]} />
             )}
-          </h2>
-          <JobsTable jobs={designJobs} />
-        </section>
-      )}
-
-      {/* Site visits / surveys / inspections */}
-      {nonDesignJobs.length > 0 && (
-        <section className="mb-5">
-          <h2 className="type-label text-t3 mb-2">Site visits & other ({nonDesignJobs.length})</h2>
-          <JobsTable jobs={nonDesignJobs} />
-        </section>
+          </section>
+        </>
       )}
 
       {/* Add hold modal */}

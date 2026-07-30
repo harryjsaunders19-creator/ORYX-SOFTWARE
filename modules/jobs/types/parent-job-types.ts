@@ -5,7 +5,10 @@ export interface ParentJobRow {
   drawingNumber: string
   clientId: string | null
   clientCompany: string
+  locationMode: "ONE_OFF" | "MANAGED_SITE"
   siteId: string | null
+  locationName: string | null
+  postcode: string | null
   siteName: string | null
   siteAddress: string | null
   address: string

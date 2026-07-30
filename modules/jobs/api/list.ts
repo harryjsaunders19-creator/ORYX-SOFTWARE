@@ -195,11 +195,16 @@ const REF_PREFIXES = REF_PREFIX_BY_ITEM_TYPE
 const createJobBodySchema = z.object({
   itemType: z.string().optional(),
   tags: z.unknown().optional(),
-  locationType: z.enum(["SINGLE_PROPERTY", "MANAGED_SITE"]).optional(),
+  locationMode: z.enum(["ONE_OFF", "MANAGED_SITE"]).optional(),
+  /** @deprecated Prefer locationMode — accepted for compatibility. */
+  locationType: z.enum(["SINGLE_PROPERTY", "MANAGED_SITE", "ONE_OFF"]).optional(),
   siteId: z.string().optional(),
+  locationName: z.string().optional(),
+  postcode: z.string().optional(),
   siteName: z.string().optional(),
   siteAddress: z.string().optional(),
   address: z.string().optional(),
+  continueDespiteDuplicate: z.boolean().optional(),
   clientCompany: z.string().optional(),
   clientId: z.string().optional(),
   requestedBy: z.string().optional(),
@@ -362,12 +367,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Required fields (all item types)
-    const locationType = body.locationType === "MANAGED_SITE" ? "MANAGED_SITE" : "SINGLE_PROPERTY"
+    const rawMode = body.locationMode
+      ?? (body.locationType === "MANAGED_SITE" ? "MANAGED_SITE"
+        : body.locationType === "SINGLE_PROPERTY" || body.locationType === "ONE_OFF" ? "ONE_OFF"
+          : undefined)
+    let locationMode: "ONE_OFF" | "MANAGED_SITE" =
+      rawMode === "MANAGED_SITE" ? "MANAGED_SITE" : "ONE_OFF"
     let siteId: string | null = typeof body.siteId === "string" && body.siteId.trim()
       ? body.siteId.trim()
       : null
-    let siteName = typeof body.siteName === "string" ? body.siteName.trim() : ""
+    let locationName = typeof body.locationName === "string"
+      ? body.locationName.trim()
+      : typeof body.siteName === "string" ? body.siteName.trim() : ""
     let siteAddress = typeof body.siteAddress === "string" ? body.siteAddress.trim() : ""
+    let postcode = typeof body.postcode === "string" ? body.postcode.trim() : ""
 
     for (const [field, message] of [
       ["clientCompany", "Client company is required"],
@@ -390,7 +403,7 @@ export async function POST(req: NextRequest) {
       resolvedClientId = matched?.id ?? null
     }
 
-    if (locationType === "MANAGED_SITE") {
+    if (locationMode === "MANAGED_SITE") {
       if (!siteId) {
         return NextResponse.json({ error: "Select or create a managed site", field: "siteId" }, { status: 422 })
       }
@@ -401,25 +414,32 @@ export async function POST(req: NextRequest) {
       if (!site) {
         return NextResponse.json({ error: "Managed site not found for this client", field: "siteId" }, { status: 422 })
       }
-      siteName = site.name
+      locationName = site.name
       siteAddress = formatSiteAddress(site) || site.name
+      postcode = site.postcode || postcode
     } else {
-      // Single Property — never store a site relationship.
+      // One-off — never store a site relationship.
       siteId = null
+      locationMode = "ONE_OFF"
       if (!siteAddress && !(typeof body.address === "string" && body.address.trim())) {
-        return NextResponse.json({ error: "Property address is required", field: "siteAddress" }, { status: 422 })
+        return NextResponse.json({ error: "Location address is required", field: "address" }, { status: 422 })
       }
     }
 
     const address = typeof body.address === "string" && body.address.trim()
       ? String(body.address).trim()
-      : composeJobAddress(siteName, siteAddress)
+      : composeJobAddress(locationName, siteAddress)
 
     if (!address) {
       return NextResponse.json({
-        error: locationType === "MANAGED_SITE" ? "Managed site address is required" : "Property address is required",
-        field: locationType === "MANAGED_SITE" ? "siteId" : "siteAddress",
+        error: locationMode === "MANAGED_SITE" ? "Managed site address is required" : "Location address is required",
+        field: locationMode === "MANAGED_SITE" ? "siteId" : "address",
       }, { status: 422 })
+    }
+
+    if (!postcode) {
+      const { extractPostcode } = await import("@/modules/sites/lib/location-fields")
+      postcode = extractPostcode(null, siteAddress, address) || ""
     }
 
     // typeOfWorks only required for Design — and once provided, must be one
@@ -495,8 +515,11 @@ export async function POST(req: NextRequest) {
       drawingNumber,
       itemType,
       address,
+      locationMode,
       siteId,
-      siteName: siteName || null,
+      locationName: locationName || null,
+      postcode: postcode || null,
+      siteName: locationName || null,
       siteAddress: siteAddress || null,
       typeOfWorks:     body.typeOfWorks ? String(body.typeOfWorks).trim() : "",
       customTypeDescription: (body.typeOfWorks === OTHER_WORKS_TYPE && body.customTypeDescription)
