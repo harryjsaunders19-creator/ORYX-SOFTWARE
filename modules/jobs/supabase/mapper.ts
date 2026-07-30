@@ -49,6 +49,7 @@ export interface SupabaseJobRow {
   geocoded_address: string | null
   site_name: string | null
   site_address: string | null
+  site_id: string | null
   location_status: string | null
   location_source: string | null
   list_sort_key: string | null
@@ -101,6 +102,7 @@ export function toJobRow(row: SupabaseJobRow): JobRow {
     longitude: row.longitude != null ? Number(row.longitude) : null,
     geocodedAt: row.geocoded_at ?? null,
     geocodedAddress: row.geocoded_address ?? null,
+    siteId: row.site_id ?? null,
     siteName: row.site_name ?? null,
     siteAddress: row.site_address ?? null,
     locationStatus: row.location_status ?? null,
@@ -149,6 +151,7 @@ export function toSupabaseRow(job: JobRow): SupabaseJobRow & { list_sort_key: st
     longitude: job.longitude,
     geocoded_at: job.geocodedAt,
     geocoded_address: job.geocodedAddress,
+    site_id: job.siteId ?? null,
     site_name: job.siteName,
     site_address: job.siteAddress,
     location_status: job.locationStatus,

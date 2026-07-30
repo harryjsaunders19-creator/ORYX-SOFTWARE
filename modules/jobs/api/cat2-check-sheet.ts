@@ -38,6 +38,7 @@ function jobFromParentAndWorkItem(
     drawingNumber: parent.drawingNumber,
     itemType: parent.itemType || "DESIGN",
     address: parent.address,
+    siteId: parent.siteId ?? null,
     siteName: parent.siteName,
     siteAddress: parent.siteAddress,
     typeOfWorks: parent.typeOfWorks,

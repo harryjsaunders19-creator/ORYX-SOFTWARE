@@ -6,6 +6,7 @@ export interface WhereClause {
   search?: string; status?: string
   unassigned?: boolean; hasQuote?: boolean
   itemType?: string; clientId?: string
+  siteId?: string
   typeOfWorks?: string
   invoiced?: boolean; notInvoiced?: boolean
   billingExported?: boolean
@@ -35,12 +36,24 @@ export function buildWhere(where: WhereClause = {}): { sql: string; params: unkn
   const params:  unknown[] = []
   if (where.search) {
     const s = `%${where.search}%`
-    clauses.push("(drawingNumber LIKE ? OR address LIKE ? OR clientCompany LIKE ? OR requestedBy LIKE ? OR typeOfWorks LIKE ? OR customTypeDescription LIKE ? OR designer LIKE ? OR quoteReference LIKE ? OR tags LIKE ?)")
-    params.push(s, s, s, s, s, s, s, s, s)
+    clauses.push(`(
+      drawingNumber LIKE ? OR address LIKE ? OR clientCompany LIKE ? OR requestedBy LIKE ?
+      OR typeOfWorks LIKE ? OR customTypeDescription LIKE ? OR designer LIKE ?
+      OR quoteReference LIKE ? OR tags LIKE ? OR siteName LIKE ? OR siteAddress LIKE ?
+      OR EXISTS (
+        SELECT 1 FROM Site s WHERE s.id = Job.siteId AND (
+          s.name LIKE ? OR s.addressLine1 LIKE ? OR s.city LIKE ? OR s.postcode LIKE ?
+          OR s.postcodeNormalized LIKE ?
+        )
+      )
+    )`)
+    const pc = where.search.replace(/\s+/g, "")
+    params.push(s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, `%${pc}%`)
   }
   if (where.typeOfWorks)      { clauses.push("typeOfWorks = ?");                    params.push(where.typeOfWorks) }
   if (where.itemType)         { clauses.push("itemType = ?");                       params.push(where.itemType) }
   if (where.clientId)         { clauses.push("clientId = ?");                        params.push(where.clientId) }
+  if (where.siteId)           { clauses.push("siteId = ?");                          params.push(where.siteId) }
   if (where.billingExported)  { clauses.push("billingStatus = 'EXPORTED_TO_ACCOUNTS'") }
   if (where.billingPending)   { clauses.push("status = 'ISSUED' AND invoiceId IS NULL AND (billingStatus IS NULL OR billingStatus != 'EXPORTED_TO_ACCOUNTS')") }
   if (where.overdue)            { clauses.push("requiredByDate IS NOT NULL AND requiredByDate < date('now') AND status != 'ISSUED'") }

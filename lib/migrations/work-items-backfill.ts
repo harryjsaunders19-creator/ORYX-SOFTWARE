@@ -19,6 +19,7 @@ export interface LegacyDesignJobRow {
   drawingNumber: string
   itemType: string
   address: string
+  siteId?: string | null
   siteName?: string | null
   siteAddress?: string | null
   typeOfWorks: string
@@ -158,6 +159,7 @@ export function buildParentJobFromOriginal(
     drawingNumber: baseDrawingNumber(job.drawingNumber),
     clientId: job.clientId ?? null,
     clientCompany: job.clientCompany,
+    siteId: job.siteId ?? null,
     siteName: job.siteName ?? null,
     siteAddress: job.siteAddress ?? null,
     address: job.address,

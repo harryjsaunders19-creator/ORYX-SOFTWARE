@@ -26,6 +26,7 @@ function buildJobRow(data: CreateJobData, now: string): JobRow {
     drawingNumber: data.drawingNumber,
     itemType: data.itemType ?? "DESIGN",
     address,
+    siteId: data.siteId ?? null,
     siteName,
     siteAddress,
     typeOfWorks: data.typeOfWorks,

@@ -252,6 +252,7 @@ export function JobsInspector({
   }, [workItemsModel, parentDash, revisionsData, quotesData, docsData, project.id, parent?.requestedBy, jobDetail?.requestedBy])
 
   const client = parent?.clientCompany ?? jobDetail?.clientCompany ?? project.clientCompany
+  const siteId = parent?.siteId ?? jobDetail?.siteId ?? project.siteId ?? null
   const siteName = parent?.siteName ?? jobDetail?.siteName ?? project.siteName
   const siteAddress =
     parent?.siteAddress
@@ -262,6 +263,13 @@ export function JobsInspector({
   const site = siteDisplay(siteName, siteAddress)
   const drawingNumber =
     parent?.drawingNumber ?? jobDetail?.drawingNumber ?? project.drawingNumber
+
+  const { data: siteJobsData, mutate: mutateSiteJobs } = useApi<{
+    jobs: Array<{ id: string; drawingNumber: string; status: string; typeOfWorks: string }>
+    jobCounts: { total: number; active: number; completed: number }
+  }>(siteId ? `/api/sites/${siteId}/jobs?limit=20` : null)
+
+  const [siteJobsOpen, setSiteJobsOpen] = useState(false)
 
   const originalStatus = workItemsModel
     ? (originalWorkItem?.status ?? project.projectStatus)
@@ -308,8 +316,13 @@ export function JobsInspector({
 
   const projectDetails = useMemo(() => {
     const typeOfWorks = parent?.typeOfWorks ?? jobDetail?.typeOfWorks ?? project.typeOfWorks
+    const otherJobs = Math.max(
+      0,
+      (siteJobsData?.jobCounts.total ?? 0) - 1,
+    )
     return {
       client,
+      siteId,
       siteName: siteName?.trim() || site || null,
       siteAddress: siteAddress?.trim() || null,
       typeOfWorks,
@@ -320,6 +333,13 @@ export function JobsInspector({
         ?? jobDetail?.dateCreated
         ?? parent?.createdAt
         ?? null,
+      otherJobsAtSiteCount: otherJobs,
+      onViewSiteJobs: siteId
+        ? () => {
+            setSiteJobsOpen(true)
+            void mutateSiteJobs()
+          }
+        : undefined,
       originalFee:
         originalWorkItem?.quoteValue
         ?? (jobDetail && !jobDetail.parentJobId ? jobDetail.quoteValue : null)
@@ -330,10 +350,13 @@ export function JobsInspector({
     jobDetail,
     project.typeOfWorks,
     client,
+    siteId,
     siteName,
     site,
     siteAddress,
     originalWorkItem,
+    siteJobsData,
+    mutateSiteJobs,
   ])
 
   const descriptionOfWorks = useMemo(() => {
@@ -861,6 +884,48 @@ export function JobsInspector({
           />
         )}
       </Suspense>
+
+      <Dialog open={siteJobsOpen} onOpenChange={setSiteJobsOpen}>
+        <DialogContent size="md">
+          <DialogHeader>
+            <DialogTitle>Jobs at {siteName || site || "this site"}</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-2">
+            {(siteJobsData?.jobs ?? []).length === 0 && (
+              <p className="text-sm text-t3">No other jobs found at this site.</p>
+            )}
+            {(siteJobsData?.jobs ?? []).map(j => (
+              <button
+                key={j.id}
+                type="button"
+                className="flex w-full flex-col items-start gap-0.5 rounded-lg border border-bd px-3 py-2 text-left hover:bg-pg"
+                onClick={() => {
+                  setSiteJobsOpen(false)
+                  router.push(`/jobs?selected=${encodeURIComponent(j.id)}`)
+                }}
+              >
+                <span className="type-drawing-number text-sm font-semibold text-t1">{j.drawingNumber}</span>
+                <span className="text-xs text-t3">{j.typeOfWorks} · {j.status.replace(/_/g, " ")}</span>
+              </button>
+            ))}
+          </DialogBody>
+          <DialogFooter>
+            {siteId && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSiteJobsOpen(false)
+                  router.push(`/jobs?siteId=${encodeURIComponent(siteId)}`)
+                }}
+              >
+                Filter Jobs Register
+              </Button>
+            )}
+            <Button type="button" onClick={() => setSiteJobsOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={wiRevOpen} onOpenChange={open => { if (!open && !wiRevSaving) setWiRevOpen(false) }}>
         <DialogContent size="md">

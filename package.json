@@ -27,6 +27,7 @@
     "supabase:verify-jobs": "node scripts/verify-jobs-migration.mjs",
     "supabase:sync-jobs": "node scripts/sync-jobs-to-supabase.mjs",
     "migrate:work-items": "npx tsx scripts/migrate-design-jobs-to-work-items.ts",
+    "migrate:sites": "npx tsx scripts/migrate-sites.ts",
     "migrate:work-items:supabase": "npx tsx scripts/migrate-design-jobs-to-work-items-supabase.ts",
     "verify:work-items": "node scripts/verify-work-items-migration.mjs",
     "supabase:sync-work-items": "npx tsx scripts/sync-work-items-to-supabase.ts",

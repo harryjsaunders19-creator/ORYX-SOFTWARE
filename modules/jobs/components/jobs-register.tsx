@@ -14,6 +14,8 @@ import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
 import { cn } from "@/shared/utils/utils"
+import { ClientCombobox } from "@/modules/clients"
+import { SiteFilter } from "@/modules/sites"
 import type { Job, JobFormData, JobsResponse } from "@/lib/types"
 import type { MixedWorkloadRow } from "@/modules/jobs/services/mixed-workload-service"
 import { JobsRegisterTable } from "./jobs-register-table"
@@ -69,10 +71,19 @@ export function JobsRegister({
   const debouncedSearch = useDebouncedValue(search, 280)
   const [scope, setScope] = useState<JobsRegisterScope>("all")
   const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [isInspectorOpen, setIsInspectorOpen] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("selected"))
+  const [isInspectorOpen, setIsInspectorOpen] = useState(!!searchParams.get("selected"))
   const [createOpen, setCreateOpen] = useState(false)
   const [createSaving, setCreateSaving] = useState(false)
+  const [filterClientId, setFilterClientId] = useState(searchParams.get("clientId") ?? "")
+  const [filterSiteId, setFilterSiteId] = useState(searchParams.get("siteId") ?? "")
+  const [filtersOpen, setFiltersOpen] = useState(
+    !!(searchParams.get("clientId") || searchParams.get("siteId")),
+  )
+  const { data: filterClientData } = useApi<{ client: { name: string } }>(
+    filterClientId ? `/api/clients/${filterClientId}` : null,
+  )
+  const filterClientName = filterClientData?.client.name ?? ""
 
   useEffect(() => {
     if (searchParams.get("new") === "1") {
@@ -100,8 +111,10 @@ export function JobsRegister({
     p.set("onlyOriginals", "true")
     if (debouncedSearch.trim()) p.set("search", debouncedSearch.trim())
     if (classicStatus && classicStatus !== "ALL") p.set("status", classicStatus)
+    if (filterClientId) p.set("clientId", filterClientId)
+    if (filterSiteId) p.set("siteId", filterSiteId)
     return p.toString()
-  }, [page, debouncedSearch, classicStatus])
+  }, [page, debouncedSearch, classicStatus, filterClientId, filterSiteId])
 
   const workQs = useMemo(() => {
     const p = new URLSearchParams()
@@ -110,8 +123,10 @@ export function JobsRegister({
     if (debouncedSearch.trim()) p.set("search", debouncedSearch.trim())
     if (isChecking) p.set("status", "CHECKING")
     else if (scope === "completed") p.set("status", "ISSUED")
+    if (filterClientId) p.set("clientId", filterClientId)
+    if (filterSiteId) p.set("siteId", filterSiteId)
     return p.toString()
-  }, [page, debouncedSearch, isChecking, scope])
+  }, [page, debouncedSearch, isChecking, scope, filterClientId, filterSiteId])
 
   const classicKey = !workItemsModel ? `/api/jobs?${classicQs}` : null
   const workKey = workItemsModel ? `/api/work-items?${workQs}` : null
@@ -360,8 +375,8 @@ export function JobsRegister({
                     <>
                       <button
                         type="button"
-                        className={toolbarBtn}
-                        onClick={() => router.push("/jobs/checking")}
+                        className={cn(toolbarBtn, (filtersOpen || filterClientId || filterSiteId) && "border-ac text-ac")}
+                        onClick={() => setFiltersOpen(v => !v)}
                       >
                         <SlidersHorizontal className="h-3.5 w-3.5" />
                         Filters
@@ -382,7 +397,7 @@ export function JobsRegister({
                       {isAdmin && (
                         <Button type="button" size="sm" className="h-9" onClick={() => setCreateOpen(true)}>
                           <Plus className="h-3.5 w-3.5" />
-                          New Project
+                          New Job
                         </Button>
                       )}
                     </>
@@ -409,6 +424,50 @@ export function JobsRegister({
                       {s.label}
                     </button>
                   ))}
+                </div>
+              )}
+
+              {filtersOpen && !isChecking && (
+                <div className="flex flex-wrap items-end gap-3 rounded-lg border border-bd bg-pg px-3 py-2.5">
+                  <div className="min-w-[180px] flex-1">
+                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-t4">Client</label>
+                    <ClientCombobox
+                      value={filterClientId}
+                      name={filterClientName}
+                      onChange={(clientId) => {
+                        setFilterClientId(clientId)
+                        setFilterSiteId("")
+                        setPage(1)
+                      }}
+                    />
+                  </div>
+                  <div className="min-w-[180px] flex-1">
+                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-t4">Site</label>
+                    <SiteFilter
+                      clientId={filterClientId || null}
+                      value={filterSiteId}
+                      onChange={id => {
+                        setFilterSiteId(id)
+                        setPage(1)
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                  {(filterClientId || filterSiteId) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9"
+                      onClick={() => {
+                        setFilterClientId("")
+                        setFilterSiteId("")
+                        setPage(1)
+                      }}
+                    >
+                      Reset filters
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

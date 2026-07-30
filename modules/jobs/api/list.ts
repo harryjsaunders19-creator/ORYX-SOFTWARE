@@ -15,6 +15,7 @@ import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { enrichRevisionFamily, compareRevisionLetters } from "@/lib/revision-chain"
 import { ensureSequencesSeeded } from "@/shared/supabase/seed-sequences"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
+import { siteService, formatSiteAddress } from "@/modules/sites"
 import { apiInternalError } from "@/shared/api-errors"
 import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
@@ -194,6 +195,7 @@ const REF_PREFIXES = REF_PREFIX_BY_ITEM_TYPE
 const createJobBodySchema = z.object({
   itemType: z.string().optional(),
   tags: z.unknown().optional(),
+  siteId: z.string().optional(),
   siteName: z.string().optional(),
   siteAddress: z.string().optional(),
   address: z.string().optional(),
@@ -244,6 +246,7 @@ export async function GET(req: NextRequest) {
     const sortDir        = (sp.get("sortDir")      === "desc" ? "desc" : "asc") as "asc" | "desc"
 
     const clientId = sp.get("clientId") ?? ""
+    const siteId = sp.get("siteId") ?? ""
 
     // Status / deadline / unassigned apply to the *current* revision when listing parents.
     const needsCurrentFilter = onlyOriginals && !!(status || unassigned || overdue || dueToday || dueThisWeek)
@@ -253,6 +256,7 @@ export async function GET(req: NextRequest) {
       ...(itemType      && { itemType }),
       ...(typeOfWorks   && { typeOfWorks }),
       ...(clientId      && { clientId }),
+      ...(siteId        && { siteId }),
       ...(onlyOriginals && { onlyOriginals: true }),
       ...(onlyRevisions && { onlyRevisions: true }),
     }
@@ -357,11 +361,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Required fields (all item types)
-    const siteName = typeof body.siteName === "string" ? body.siteName.trim() : ""
-    const siteAddress = typeof body.siteAddress === "string" ? body.siteAddress.trim() : ""
-    const address = typeof body.address === "string" && body.address.trim()
-      ? String(body.address).trim()
-      : composeJobAddress(siteName, siteAddress)
+    let siteId: string | null = typeof body.siteId === "string" && body.siteId.trim()
+      ? body.siteId.trim()
+      : null
+    let siteName = typeof body.siteName === "string" ? body.siteName.trim() : ""
+    let siteAddress = typeof body.siteAddress === "string" ? body.siteAddress.trim() : ""
 
     for (const [field, message] of [
       ["clientCompany", "Client company is required"],
@@ -371,8 +375,39 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: message, field }, { status: 422 })
       }
     }
+
+    let resolvedClientId: string | null =
+      typeof body.clientId === "string" && body.clientId.trim() ? body.clientId.trim() : null
+    let resolvedClientCompany = String(body.clientCompany).trim()
+    if (resolvedClientId) {
+      const client = await clientService.findUnique(resolvedClientId)
+      if (!client) return NextResponse.json({ error: "Client not found", field: "clientId" }, { status: 422 })
+      resolvedClientCompany = client.name
+    } else {
+      const matched = await clientService.findByName(resolvedClientCompany)
+      resolvedClientId = matched?.id ?? null
+    }
+
+    if (siteId) {
+      if (!resolvedClientId) {
+        return NextResponse.json({ error: "Client is required when selecting a site", field: "clientId" }, { status: 422 })
+      }
+      const site = await siteService.assertSiteBelongsToClient(siteId, resolvedClientId)
+      if (!site) {
+        return NextResponse.json({ error: "Site not found for this client", field: "siteId" }, { status: 422 })
+      }
+      siteName = site.name
+      siteAddress = formatSiteAddress(site) || site.name
+    } else if (!siteName && !siteAddress) {
+      return NextResponse.json({ error: "Select or create a site", field: "siteId" }, { status: 422 })
+    }
+
+    const address = typeof body.address === "string" && body.address.trim()
+      ? String(body.address).trim()
+      : composeJobAddress(siteName, siteAddress)
+
     if (!address) {
-      return NextResponse.json({ error: "Site name or address is required", field: "siteAddress" }, { status: 422 })
+      return NextResponse.json({ error: "Site name or address is required", field: "siteId" }, { status: 422 })
     }
 
     // typeOfWorks only required for Design — and once provided, must be one
@@ -432,21 +467,6 @@ export async function POST(req: NextRequest) {
       drawingNumber = await nextRefNumberAsync(prefix)
     }
 
-    // Resolve clientId and clientCompany together
-    let resolvedClientId: string | null = null
-    let resolvedClientCompany = String(body.clientCompany ?? "").trim()
-
-    if (body.clientId && String(body.clientId).trim()) {
-      const client = await clientService.findUnique(String(body.clientId).trim())
-      if (client) {
-        resolvedClientId      = client.id
-        resolvedClientCompany = client.name   // keep in sync
-      }
-    } else if (resolvedClientCompany) {
-      const client = await clientService.findByName(resolvedClientCompany)
-      if (client) resolvedClientId = client.id
-    }
-
     if (resolvedClientId && body.proceedDespiteHold !== true) {
       const hold = await holdService.activeHoldForClient(resolvedClientId)
       if (hold) {
@@ -463,6 +483,7 @@ export async function POST(req: NextRequest) {
       drawingNumber,
       itemType,
       address,
+      siteId,
       siteName: siteName || null,
       siteAddress: siteAddress || null,
       typeOfWorks:     body.typeOfWorks ? String(body.typeOfWorks).trim() : "",
@@ -489,6 +510,16 @@ export async function POST(req: NextRequest) {
       revisionLetter:  null,
       changedBy,
     })
+
+    if (siteId) {
+      await siteService.logJobLinked({
+        siteId,
+        jobId: job.id,
+        drawingNumber: job.drawingNumber,
+        performedBy: auth.user.id,
+        performedByName: changedBy,
+      })
+    }
 
     return NextResponse.json(job, { status: 201 })
   } catch (err) {

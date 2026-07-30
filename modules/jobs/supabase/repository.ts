@@ -111,7 +111,7 @@ function missingColumnFromError(error: { code?: string; message?: string } | nul
   const quoted = error.message.match(/'([^']+)'\s+column/i)
   if (quoted?.[1]) return quoted[1]
   for (const col of [
-    "site_name", "site_address", "location_status", "location_source",
+    "site_name", "site_address", "site_id", "location_status", "location_source",
     "latitude", "longitude", "geocoded_at", "geocoded_address",
     "variation_fees", "additional_charges",
     "design_standards",
@@ -199,6 +199,8 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
         "custom_type_description",
         "designer",
         "quote_reference",
+        "site_name",
+        "site_address",
       ],
       where.search,
     )
@@ -209,6 +211,7 @@ function applyWhere(q: JobQuery, where: WhereClause = {}): JobQuery {
   if (where.typeOfWorks) q = q.eq("type_of_works", where.typeOfWorks)
   if (where.itemType) q = q.eq("item_type", where.itemType)
   if (where.clientId) q = q.eq("client_id", where.clientId)
+  if (where.siteId) q = q.eq("site_id", where.siteId)
   if (where.status) q = q.eq("status", where.status)
   if (where.unassigned) q = q.or("designer.eq.,designer.is.null")
   if (where.invoiced) q = q.not("invoice_id", "is", null)

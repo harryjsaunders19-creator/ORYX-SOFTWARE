@@ -82,6 +82,7 @@ export function buildJobRowFromImport(data: {
     drawingNumber: data.drawingNumber,
     itemType: data.itemType,
     address: data.address,
+    siteId: null,
     siteName: null,
     siteAddress: data.address,
     typeOfWorks: data.typeOfWorks,

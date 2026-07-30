@@ -14,6 +14,8 @@ import {
 import { ClientCombobox } from "@/components/client-combobox"
 import { DesignerCombobox } from "@/components/designer-combobox"
 import { QuickCreateClientModal } from "@/components/quick-create-client-modal"
+import { SiteSelector, CreateSiteDialog, formatSiteAddress } from "@/modules/sites"
+import type { SiteSummary } from "@/modules/sites"
 import { HoldWarningDialog } from "@/shared/ui/hold-warning-dialog"
 import { cn } from "@/shared/utils"
 import type { Job, JobFormData } from "@/lib/types"
@@ -38,6 +40,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const [form, setForm] = useState<JobFormData>(() =>
     job ? {
       itemType: job.itemType ?? "DESIGN",
+      siteId: job.siteId ?? "",
       siteName: job.siteName ?? "",
       siteAddress: job.siteAddress ?? job.address ?? "",
       address: job.address,
@@ -64,11 +67,28 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [saving, setSaving] = useState(false)
   const [quickCreateName, setQuickCreateName] = useState("")
+  const [createSiteOpen, setCreateSiteOpen] = useState(false)
   const [holdWarning, setHoldWarning] = useState<{ reason: string; pendingSubmit: JobFormData } | null>(null)
   const [customTypes, setCustomTypes] = useState<string[]>([])
   const [addingType, setAddingType] = useState(false)
   const [newTypeLabel, setNewTypeLabel] = useState("")
   const [showMoreTypes, setShowMoreTypes] = useState(false)
+
+  const applySite = (site: SiteSummary | null) => {
+    if (!site) {
+      setForm(f => ({ ...f, siteId: "", siteName: "", siteAddress: "", address: "" }))
+      return
+    }
+    const addr = formatSiteAddress(site)
+    setForm(f => ({
+      ...f,
+      siteId: site.id,
+      siteName: site.name,
+      siteAddress: addr || site.name,
+      address: addr || site.name,
+    }))
+    setErrors(prev => ({ ...prev, siteId: undefined }))
+  }
 
   useEffect(() => {
     const saved = readCustomWorksTypes()
@@ -256,40 +276,59 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
         </>
       )}
 
-      {/* 2 · Project information */}
+      {/* 2 · Client → Site → Description of Works */}
       <Section
         step={job ? 1 : 2}
-        title="Project information"
-        question={
-          needsTypeOfWorks
-            ? "Where is the work and what type of scaffold is involved?"
-            : "Where is the work taking place?"
-        }
+        title="Client & Site"
+        question="Who is the client, and where is the work taking place?"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Site name" hint="Building or site description">
-              <Input
-                className={controlClass}
-                style={controlStyle}
-                value={form.siteName}
-                onChange={setF("siteName")}
-                placeholder="e.g. Selfridges Oxford Street"
-                autoComplete="off"
-                autoFocus={!job}
+            <Field label="Client" required error={errors.clientCompany}>
+              <ClientCombobox
+                value={form.clientId}
+                name={form.clientCompany}
+                onChange={(clientId, clientName, onHold, _holdReason, contactName) => {
+                  setForm(f => ({
+                    ...f,
+                    clientId,
+                    clientCompany: clientName,
+                    // Clear site when client changes — sites are client-scoped.
+                    siteId: "",
+                    siteName: "",
+                    siteAddress: "",
+                    address: "",
+                    requestedBy: !f.requestedBy.trim() && contactName ? contactName : f.requestedBy,
+                  }))
+                  setErrors(prev => ({ ...prev, clientCompany: undefined, siteId: undefined }))
+                  if (!onHold) setHoldWarning(null)
+                }}
+                onCreateNew={name => setQuickCreateName(name)}
               />
+              {errors.clientCompany && <p className="text-xs text-dn mt-0.5">{errors.clientCompany}</p>}
             </Field>
-            <Field label="Site address" required error={errors.siteAddress} hint="Postal address for the site">
+            <Field label="Requested by" required error={errors.requestedBy} hint="Defaults to the client contact when available">
               <Input
                 className={controlClass}
                 style={controlStyle}
-                value={form.siteAddress}
-                onChange={setF("siteAddress")}
-                placeholder="400 Oxford Street, London, W1A 1AB"
+                value={form.requestedBy}
+                onChange={setF("requestedBy")}
+                placeholder="e.g. James Carter"
                 autoComplete="off"
               />
             </Field>
           </div>
+
+          <Field label="Site" required error={errors.siteId} hint="Reusable location under this client">
+            <SiteSelector
+              clientId={form.clientId}
+              value={form.siteId}
+              name={form.siteName}
+              onChange={applySite}
+              onCreateNew={() => setCreateSiteOpen(true)}
+              error={errors.siteId}
+            />
+          </Field>
 
           {needsTypeOfWorks && (
             <JobFormWorksType
@@ -313,54 +352,29 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
               onCustomTypeDescriptionChange={setF("customTypeDescription")}
             />
           )}
+
+          <Field label="Description of Works" hint="Job-specific scope for this design commission">
+            <Textarea
+              value={form.notes}
+              onChange={setF("notes")}
+              placeholder={
+                isSiteVisit
+                  ? "Visit purpose, contacts on site, access notes…"
+                  : isCatIii
+                    ? "Check brief, drawing references, standards to apply…"
+                    : "e.g. Bridged access scaffold over the station entrance"
+              }
+              rows={3}
+            />
+          </Field>
         </div>
       </Section>
 
       <Divider />
 
-      {/* 3 · Client */}
+      {/* 3 · Assignment */}
       <Section
         step={job ? 2 : 3}
-        title="Client information"
-        question="Who is the client and who requested the work?"
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Client" required error={errors.clientCompany}>
-            <ClientCombobox
-              value={form.clientId}
-              name={form.clientCompany}
-              onChange={(clientId, clientName, onHold, _holdReason, contactName) => {
-                setForm(f => ({
-                  ...f,
-                  clientId,
-                  clientCompany: clientName,
-                  requestedBy: !f.requestedBy.trim() && contactName ? contactName : f.requestedBy,
-                }))
-                setErrors(prev => ({ ...prev, clientCompany: undefined }))
-                if (!onHold) setHoldWarning(null)
-              }}
-              onCreateNew={name => setQuickCreateName(name)}
-            />
-            {errors.clientCompany && <p className="text-xs text-dn mt-0.5">{errors.clientCompany}</p>}
-          </Field>
-          <Field label="Requested by" required error={errors.requestedBy} hint="Defaults to the client contact when available">
-            <Input
-              className={controlClass}
-              style={controlStyle}
-              value={form.requestedBy}
-              onChange={setF("requestedBy")}
-              placeholder="e.g. James Carter"
-              autoComplete="off"
-            />
-          </Field>
-        </div>
-      </Section>
-
-      <Divider />
-
-      {/* 4 · Assignment */}
-      <Section
-        step={job ? 3 : 4}
         title="Assignment & scheduling"
         question={isCatIii ? "Who is checking this, and when is it required?" : "Who is completing the work, and when is it required?"}
       >
@@ -402,34 +416,13 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
 
       <Divider />
 
-      {/* 5 · Additional */}
+      {/* 4 · Additional */}
       <Section
-        step={job ? 4 : 5}
+        step={job ? 3 : 4}
         title="Additional information"
-        question={
-          isSiteVisit
-            ? "Any notes or tags for the visit?"
-            : isCatIii
-              ? "Anything the checker should know?"
-              : "Anything else we need to know?"
-        }
+        question="Optional tags and commercial references."
       >
         <div className="space-y-4">
-          <Field label="Notes" hint={isCatIii ? "Scope of check, drawings to review…" : undefined}>
-            <Textarea
-              value={form.notes}
-              onChange={setF("notes")}
-              placeholder={
-                isSiteVisit
-                  ? "Visit purpose, contacts on site, access notes…"
-                  : isCatIii
-                    ? "Check brief, drawing references, standards to apply…"
-                    : "Additional requirements or context…"
-              }
-              rows={3}
-            />
-          </Field>
-
           <Field
             label="Tags"
             hint="Optional labels for search and filtering (scaffold type, site constraints)."
@@ -505,10 +498,34 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
         <QuickCreateClientModal
           initialName={quickCreateName}
           onCreated={client => {
-            setForm(f => ({ ...f, clientId: client.id, clientCompany: client.name }))
+            setForm(f => ({
+              ...f,
+              clientId: client.id,
+              clientCompany: client.name,
+              siteId: "",
+              siteName: "",
+              siteAddress: "",
+              address: "",
+            }))
             setQuickCreateName("")
           }}
           onClose={() => setQuickCreateName("")}
+        />
+      )}
+
+      {createSiteOpen && form.clientId && (
+        <CreateSiteDialog
+          clientId={form.clientId}
+          clientName={form.clientCompany}
+          onCreated={site => {
+            applySite(site)
+            setCreateSiteOpen(false)
+          }}
+          onUseExisting={site => {
+            applySite(site)
+            setCreateSiteOpen(false)
+          }}
+          onClose={() => setCreateSiteOpen(false)}
         />
       )}
     </form>

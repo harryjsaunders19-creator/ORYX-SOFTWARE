@@ -350,11 +350,14 @@ export function CurrentDrawingSection({
 
 export type ProjectDetailsData = {
   client: string
+  siteId: string | null
   siteName: string | null
   siteAddress: string | null
   typeOfWorks: string | null
   requestedBy: string | null
   dateRequested: string | null
+  otherJobsAtSiteCount: number
+  onViewSiteJobs?: () => void
 }
 
 export function ProjectDetailsSection({ data }: { data: ProjectDetailsData }) {
@@ -365,6 +368,25 @@ export function ProjectDetailsSection({ data }: { data: ProjectDetailsData }) {
         <Meta label="Client" value={data.client} important />
         <Meta label="Site" value={data.siteName} important />
         <Meta label="Site Address" value={data.siteAddress} important />
+        {data.siteId && data.otherJobsAtSiteCount > 0 && (
+          <div>
+            <p className={fieldLabel}>Other Jobs at This Site</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-t1">
+                {data.otherJobsAtSiteCount} other job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
+              </p>
+              {data.onViewSiteJobs && (
+                <button
+                  type="button"
+                  onClick={data.onViewSiteJobs}
+                  className="text-xs font-medium text-ac hover:text-ach"
+                >
+                  View Site Jobs
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <Meta label="Type of Works" value={data.typeOfWorks} />
         <Meta label="Requested By" value={data.requestedBy} />
         <Meta label="Date Requested" value={safeDateLabel(data.dateRequested) || null} />

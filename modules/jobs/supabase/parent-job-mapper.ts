@@ -6,6 +6,7 @@ export interface SupabaseParentJobRow {
   drawing_number: string
   client_id: string | null
   client_company: string
+  site_id: string | null
   site_name: string | null
   site_address: string | null
   address: string
@@ -36,6 +37,7 @@ export function toParentJobRow(row: SupabaseParentJobRow): ParentJobRow {
     drawingNumber: row.drawing_number,
     clientId: row.client_id,
     clientCompany: row.client_company,
+    siteId: row.site_id ?? null,
     siteName: row.site_name,
     siteAddress: row.site_address,
     address: row.address,
@@ -67,6 +69,7 @@ export function toSupabaseParentJob(row: ParentJobRow): SupabaseParentJobRow {
     drawing_number: row.drawingNumber,
     client_id: row.clientId,
     client_company: row.clientCompany,
+    site_id: row.siteId ?? null,
     site_name: row.siteName,
     site_address: row.siteAddress,
     address: row.address,

@@ -3,7 +3,7 @@ import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { format } from "date-fns"
-import { Mail, Phone, MapPin, FileText, AlertTriangle, ShieldOff, BarChart3 } from "lucide-react"
+import { Mail, Phone, MapPin, FileText, AlertTriangle, ShieldOff, BarChart3, Plus } from "lucide-react"
 import { Button }            from "@/shared/ui/button"
 import { Input }             from "@/shared/ui/input"
 import { Textarea }          from "@/shared/ui/textarea"
@@ -20,6 +20,8 @@ import { PageShell, BackLink, PageHeader, KpiTile, DataPanel, DetailPanel, surfa
 import { useApi } from "@/shared/hooks/use-api"
 import type { Client, ClientStats, ClientHold, Job } from "@/lib/types"
 import type { ClientContactRow } from "@/modules/clients/types/client-contact-types"
+import { CreateSiteDialog, SiteSummaryCard, SiteDetailsPanel } from "@/modules/sites"
+import type { SiteSummary } from "@/modules/sites"
 
 interface ClientDetail {
   client: Client
@@ -49,6 +51,9 @@ export default function ClientDetailPage() {
   const [holdNotes, setHoldNotes] = useState("")
   const [removeOpen, setRemoveOpen] = useState(false)
   const [removeReason, setRemoveReason] = useState("")
+  const [createSiteOpen, setCreateSiteOpen] = useState(false)
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null)
+  const [siteFilterId, setSiteFilterId] = useState<string>("")
   const { isAdmin } = useUser()
 
   const { data: detail, error: detailError, isLoading } = useApi<ClientDetail>(
@@ -60,6 +65,13 @@ export default function ClientDetailPage() {
   const { data: analytics } = useApi<ClientAnalytics>(
     id && isAdmin ? `/api/clients/${id}/analytics` : null,
   )
+  const { data: sitesData, mutate: mutateSites } = useApi<{ sites: SiteSummary[] }>(
+    id ? `/api/sites?clientId=${encodeURIComponent(id)}&activeOnly=false` : null,
+  )
+  const { data: siteDetail } = useApi<{
+    site: SiteSummary
+    jobs: Array<{ id: string; drawingNumber: string; status: string; typeOfWorks: string }>
+  }>(selectedSiteId ? `/api/sites/${selectedSiteId}` : null)
 
   const hold = holdData?.hold ?? null
   const notFound = !!detailError && /404|Not found/i.test(detailError.message)
@@ -115,9 +127,13 @@ export default function ClientDetailPage() {
   const { client, contacts = [], stats, jobs } = detail
   // One card per drawing — hide revision rows from client job tables.
   const parentJobs = jobs.filter(j => !j.parentJobId)
-  const designJobs     = parentJobs.filter(j => j.itemType === "DESIGN" || !j.itemType || j.itemType === "REVISION")
-  const nonDesignJobs  = parentJobs.filter(j => j.itemType && !["DESIGN","REVISION"].includes(j.itemType))
+  const filteredBySite = siteFilterId
+    ? parentJobs.filter(j => j.siteId === siteFilterId)
+    : parentJobs
+  const designJobs     = filteredBySite.filter(j => j.itemType === "DESIGN" || !j.itemType || j.itemType === "REVISION")
+  const nonDesignJobs  = filteredBySite.filter(j => j.itemType && !["DESIGN","REVISION"].includes(j.itemType))
   const revisionCount  = jobs.filter(j => j.parentJobId || j.itemType === "REVISION").length
+  const sites = sitesData?.sites ?? []
 
   return (
     <PageShell>
@@ -218,6 +234,44 @@ export default function ClientDetailPage() {
           </Button>
         </div>
       )}
+
+      {/* Sites under this client */}
+      <div className={cn(surfaceCard, "mb-5 overflow-hidden")}>
+        <div className="flex items-center justify-between border-b border-bd px-4 py-3">
+          <h2 className="text-sm font-semibold text-t1">Sites</h2>
+          <Button type="button" size="sm" variant="outline" onClick={() => setCreateSiteOpen(true)}>
+            <Plus className="h-3.5 w-3.5" /> Add site
+          </Button>
+        </div>
+        {sites.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-t3">No sites yet. Add a site when creating a job, or create one here.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3">
+            {sites.map(site => (
+              <SiteSummaryCard
+                key={site.id}
+                site={site}
+                onOpen={() => {
+                  setSelectedSiteId(site.id)
+                  setSiteFilterId(site.id)
+                }}
+              />
+            ))}
+          </div>
+        )}
+        {siteFilterId && (
+          <div className="flex items-center justify-between border-t border-bd px-4 py-2 text-xs text-t3">
+            <span>Showing jobs for selected site</span>
+            <button
+              type="button"
+              className="font-medium text-ac hover:text-ach"
+              onClick={() => { setSiteFilterId(""); setSelectedSiteId(null) }}
+            >
+              Clear site filter
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Stats — admin only (job counts and financial aggregates) */}
       {isAdmin && stats && (
@@ -415,6 +469,39 @@ export default function ClientDetailPage() {
             <Button variant="outline" onClick={() => { setRemoveOpen(false); setRemoveReason("") }} disabled={holdSaving}>Cancel</Button>
             <Button variant="primary" onClick={removeFromHold} loading={holdSaving}>Remove from hold</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {createSiteOpen && (
+        <CreateSiteDialog
+          clientId={client.id}
+          clientName={client.name}
+          onCreated={async () => {
+            setCreateSiteOpen(false)
+            await mutateSites()
+            toast("Site created", "success")
+          }}
+          onUseExisting={async () => {
+            setCreateSiteOpen(false)
+            await mutateSites()
+          }}
+          onClose={() => setCreateSiteOpen(false)}
+        />
+      )}
+
+      <Dialog open={!!selectedSiteId && !!siteDetail} onOpenChange={open => { if (!open) setSelectedSiteId(null) }}>
+        <DialogContent size="md" className="p-0 overflow-hidden">
+          {siteDetail && (
+            <SiteDetailsPanel
+              site={siteDetail.site}
+              jobs={siteDetail.jobs}
+              onClose={() => setSelectedSiteId(null)}
+              onFilterRegister={sid => {
+                setSelectedSiteId(null)
+                router.push(`/jobs?clientId=${encodeURIComponent(client.id)}&siteId=${encodeURIComponent(sid)}`)
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

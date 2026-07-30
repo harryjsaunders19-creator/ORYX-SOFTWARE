@@ -5,6 +5,7 @@ export interface JobRow {
   drawingNumber: string
   itemType: string
   address: string
+  siteId: string | null
   siteName: string | null
   siteAddress: string | null
   typeOfWorks: string
@@ -53,6 +54,7 @@ export interface CreateJobData {
   drawingNumber: string
   itemType?: string
   address: string
+  siteId?: string | null
   siteName?: string | null
   siteAddress?: string | null
   typeOfWorks: string
@@ -82,6 +84,7 @@ export interface CreateJobData {
 
 export interface UpdateJobData {
   address?: string
+  siteId?: string | null
   siteName?: string | null
   siteAddress?: string | null
   typeOfWorks?: string

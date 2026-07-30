@@ -26,6 +26,7 @@ function nonDesignToRow(job: JobRow): MixedWorkloadRow {
     workType: "ORIGINAL",
     revisionLetter: null,
     clientCompany: job.clientCompany,
+    siteId: job.siteId ?? null,
     siteName: job.siteName,
     address: job.address,
     designer: job.designer ?? "",

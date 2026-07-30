@@ -22,6 +22,7 @@ function normalizeJobRow(row: JobRow | null): JobRow | null {
   if (!row) return null
   return {
     ...row,
+    siteId: (row as JobRow).siteId ?? null,
     tags: parseJobTags((row as JobRow & { tags?: unknown }).tags),
     billable: row.billable == null ? true : Boolean(row.billable),
   }
@@ -122,13 +123,13 @@ export const jobDb = {
     const tagsJson = serializeJobTags(data.tags)
     db.transaction(() => {
       db.prepare(`
-        INSERT INTO Job (id,drawingNumber,itemType,address,siteName,siteAddress,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
+        INSERT INTO Job (id,drawingNumber,itemType,address,siteId,siteName,siteAddress,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
           status,designer,dateCompleted,notes,designStandards,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
           variationFees,additionalCharges,
           parentJobId,revisionLetter,billable,requestedDate,requiredByDate,dateCreated,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `).run(data.id, data.drawingNumber, data.itemType ?? "DESIGN", data.address,
-             data.siteName ?? null, data.siteAddress ?? null,
+             data.siteId ?? null, data.siteName ?? null, data.siteAddress ?? null,
              data.typeOfWorks,
              data.customTypeDescription ?? null,
              data.clientCompany, data.clientId ?? null, data.requestedBy, data.status, data.designer ?? "",
@@ -169,7 +170,7 @@ export const jobDb = {
       patch.dateCompleted = nowIso().slice(0, 10)
     }
     const allowedColumns = new Set([
-      "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
+      "address", "siteId", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
       "requestedBy", "status", "designer", "dateCompleted", "notes", "designStandards", "tags", "quoteValue",
       "quoteReference", "quoteDate", "commercialNotes", "variationFees", "additionalCharges",
       "requestedDate", "requiredByDate", "billable",

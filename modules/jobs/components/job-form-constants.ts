@@ -39,7 +39,7 @@ export const TYPE_META: Record<string, {
 export function emptyJobForm(): JobFormData {
   return {
     itemType: "DESIGN",
-    siteName: "", siteAddress: "", address: "",
+    siteId: "", siteName: "", siteAddress: "", address: "",
     typeOfWorks: "", customTypeDescription: "", clientCompany: "", clientId: "", requestedBy: "",
     status: "NEW_REQUEST", designer: "", dateCompleted: "", notes: "",
     designStandards: "",
@@ -54,10 +54,8 @@ export type FieldErrors = Partial<Record<keyof JobFormData, string>>
 
 export function validate(f: JobFormData): FieldErrors {
   const e: FieldErrors = {}
-  if (!f.siteName.trim() && !f.siteAddress.trim()) {
-    e.siteAddress = "Enter a site name or address"
-  }
   if (!f.clientCompany.trim()) e.clientCompany = "Select a client"
+  if (!f.siteId.trim()) e.siteId = "Select or create a site"
   if (!f.requestedBy.trim()) e.requestedBy = "Enter who requested the work"
   if (f.itemType === "DESIGN" && !f.typeOfWorks.trim()) {
     e.typeOfWorks = "Select a type of works"

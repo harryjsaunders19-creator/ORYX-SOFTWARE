@@ -31,6 +31,7 @@ export interface JobsRegisterProject {
   kind: "job" | "work_item"
   drawingNumber: string
   clientCompany: string
+  siteId: string | null
   siteName: string | null
   address: string
   currentRevisionLetter: string | null

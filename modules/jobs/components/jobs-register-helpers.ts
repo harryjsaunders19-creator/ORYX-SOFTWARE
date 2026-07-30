@@ -104,6 +104,7 @@ export function jobToRegisterProject(job: Job): JobsRegisterProject {
     kind: "job",
     drawingNumber: job.drawingNumber ?? "—",
     clientCompany: job.clientCompany ?? "",
+    siteId: job.siteId ?? null,
     siteName: job.siteName,
     address: job.address ?? "",
     currentRevisionLetter:
@@ -165,6 +166,7 @@ export function workItemToRegisterProject(row: MixedWorkloadRow): JobsRegisterPr
     kind: row.kind,
     drawingNumber: row.drawingNumber ?? "—",
     clientCompany: row.clientCompany ?? "",
+    siteId: row.siteId ?? null,
     siteName: row.siteName,
     address: row.address ?? "",
     currentRevisionLetter: row.revisionLetter,

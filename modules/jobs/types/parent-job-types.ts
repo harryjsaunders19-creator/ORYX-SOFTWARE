@@ -5,6 +5,7 @@ export interface ParentJobRow {
   drawingNumber: string
   clientId: string | null
   clientCompany: string
+  siteId: string | null
   siteName: string | null
   siteAddress: string | null
   address: string

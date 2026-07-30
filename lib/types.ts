@@ -3,6 +3,7 @@ export interface Job {
   drawingNumber:   string
   itemType:        string
   address:         string
+  siteId:          string | null
   siteName:        string | null
   siteAddress:     string | null
   typeOfWorks:     string
@@ -58,6 +59,8 @@ export interface Job {
   linkedQuotes?:   LinkedQuoteSummary[]
   /** Convenience: the "current" linked quote (accepted > latest updated). */
   currentQuote?:   LinkedQuoteSummary | null
+  /** Other jobs sharing the same site (inspector / register metadata). */
+  otherJobsAtSiteCount?: number
   createdAt:       string
   updatedAt:       string
 }
@@ -289,6 +292,7 @@ export interface StatusHistoryEntry {
 
 export interface JobFormData {
   itemType:        string
+  siteId:          string
   siteName:        string
   siteAddress:     string
   address:         string
