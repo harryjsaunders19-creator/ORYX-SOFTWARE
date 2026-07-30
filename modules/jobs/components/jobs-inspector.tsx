@@ -89,6 +89,12 @@ function asSafeArray<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? value : []
 }
 
+function timeValue(value: string | null | undefined): number {
+  if (!value) return 0
+  const ts = Date.parse(value)
+  return Number.isFinite(ts) ? ts : 0
+}
+
 export function JobsInspector({
   project,
   workItemsModel,
@@ -121,10 +127,14 @@ export function JobsInspector({
 
   const revisions: InspectorRevision[] = useMemo(() => {
     if (workItemsModel && parentDash) {
-      const workItems = asSafeArray(parentDash.workItems)
+      const workItems = asSafeArray(parentDash.workItems).filter(Boolean)
       const currentId = parentDash.currentActive?.id
       return [...workItems]
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .sort((a, b) => {
+          const aDate = a.dateCreated || a.createdAt
+          const bDate = b.dateCreated || b.createdAt
+          return timeValue(bDate) - timeValue(aDate)
+        })
         .map(wi => ({
           id: wi.id,
           letter: wi.revisionLetter,
@@ -143,7 +153,7 @@ export function JobsInspector({
         }))
     }
 
-    const chain = asSafeArray(revisionsData?.chain)
+    const chain = asSafeArray(revisionsData?.chain).filter(Boolean)
     return chain.map((r, idx) => ({
       id: r.id,
       letter: r.revisionLetter,
