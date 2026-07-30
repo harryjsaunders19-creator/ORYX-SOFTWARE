@@ -23,7 +23,8 @@ import { resolveDirectoryDesigner } from "../services/designer-directory"
 import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils/utils"
 
 /**
- * Revision family flags + overlay current-revision status/designer onto parent rows.
+ * Revision family flags + overlay current-revision status/designer/deadline
+ * onto parent (original) rows so the Jobs Register can show the active stage.
  */
 function flagRevisions<T extends {
   id: string
@@ -34,6 +35,7 @@ function flagRevisions<T extends {
   requiredByDate?: string | null
   updatedAt?: string
   dateCompleted?: string | null
+  quoteValue?: number | null
 }>(
   pageJobs: T[],
   revisionRows?: {
@@ -45,10 +47,27 @@ function flagRevisions<T extends {
     requiredByDate?: string | null
     updatedAt?: string
     dateCompleted?: string | null
+    quoteValue?: number | null
   }[],
 ): ReturnType<typeof enrichRevisionFamily<T>> {
   const source = revisionRows ?? pageJobs.filter(j => j.parentJobId !== null)
-  return enrichRevisionFamily(pageJobs, source)
+  const enriched = enrichRevisionFamily(pageJobs, source)
+  const byId = new Map(source.map(r => [r.id, r]))
+
+  return enriched.map(job => {
+    if (job.parentJobId !== null) return job
+    const currentId = job.currentRevisionId
+    if (!currentId || currentId === job.id) return job
+    const current = byId.get(currentId)
+    if (!current) return job
+    return {
+      ...job,
+      status: current.status ?? job.status,
+      designer: (current.designer ?? job.designer) as typeof job.designer,
+      requiredByDate: current.requiredByDate ?? job.requiredByDate,
+      quoteValue: current.quoteValue ?? job.quoteValue,
+    }
+  })
 }
 
 function todayIso(): string {
