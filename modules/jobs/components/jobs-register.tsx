@@ -84,6 +84,7 @@ export function JobsRegister({
     return "ALL"
   }, [isChecking, scope])
 
+
   const classicQs = useMemo(() => {
     const p = new URLSearchParams()
     p.set("page", String(page))
@@ -125,12 +126,22 @@ export function JobsRegister({
         seen.add(row.id)
         deduped.push(row)
       }
-      if (scope === "active") return deduped.filter(p => p.currentStatus !== "ISSUED")
+      if (scope === "active") return deduped.filter(p => p.currentWorkType !== "none")
+      if (scope === "with_active_revision") {
+        return deduped.filter(p => p.currentWorkType === "revision")
+      }
+      if (scope === "completed") {
+        return deduped.filter(p => p.currentWorkType === "none")
+      }
       return deduped
     }
 
     let mapped = (classicData?.jobs ?? []).filter(Boolean).map(jobToRegisterProject)
-    if (scope === "active") mapped = mapped.filter(p => p.currentStatus !== "ISSUED")
+    if (scope === "active") mapped = mapped.filter(p => p.currentWorkType !== "none")
+    if (scope === "with_active_revision") {
+      mapped = mapped.filter(p => p.currentWorkType === "revision")
+    }
+    if (scope === "completed") mapped = mapped.filter(p => p.currentWorkType === "none")
     return mapped
   }, [workItemsModel, workData, classicData, scope])
 
@@ -140,7 +151,7 @@ export function JobsRegister({
     : Math.max(1, Math.ceil(total / LIMIT))
   const loading = workItemsModel ? workLoading : classicLoading
   const selected = projects.find(p => p.id === selectedId) ?? null
-  const activeRevisions = projects.filter(p => p.currentStatus !== "ISSUED").length
+  const activeRevisions = projects.filter(p => p.currentWorkType === "revision").length
 
   useEffect(() => {
     if (selectedId && !projects.some(p => p.id === selectedId)) setSelectedId(null)
@@ -219,9 +230,15 @@ export function JobsRegister({
     }
   }
 
+  const handleStatusChanged = useCallback(async () => {
+    if (workItemsModel) await mutateWork()
+    else await mutateClassic()
+  }, [workItemsModel, mutateWork, mutateClassic])
+
   const scopes: { id: JobsRegisterScope; label: string }[] = [
     { id: "all", label: "All" },
     { id: "active", label: "Active" },
+    { id: "with_active_revision", label: "With Active Revision" },
     { id: "completed", label: "Completed" },
   ]
 
@@ -367,6 +384,8 @@ export function JobsRegister({
             projects={projects}
             selectedId={selectedId}
             onSelect={setSelectedId}
+            workItemsModel={workItemsModel}
+            onStatusChanged={() => { void handleStatusChanged() }}
             loading={loading}
           />
 
@@ -416,6 +435,7 @@ export function JobsRegister({
                 project={selected}
                 workItemsModel={workItemsModel}
                 onOpenWorkspace={openWorkspace}
+                onStatusChanged={() => { void handleStatusChanged() }}
               />
             </JobsInspectorErrorBoundary>
           </section>

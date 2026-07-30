@@ -12,7 +12,7 @@ import { requireModuleAccess, requireRole, actorName } from "@/shared/auth/auth"
 import { MAX_JOB_LIST_EXPORT_ROWS } from "@/modules/import-export/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
-import { enrichRevisionFamily } from "@/lib/revision-chain"
+import { enrichRevisionFamily, compareRevisionLetters } from "@/lib/revision-chain"
 import { ensureSequencesSeeded } from "@/shared/supabase/seed-sequences"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { apiInternalError } from "@/shared/api-errors"
@@ -24,8 +24,13 @@ import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils/utils"
 
 /**
  * Revision family flags. Also attaches *display* fields for the current
- * revision (status/designer/deadline/value) without overwriting the parent
+ * work item (status/designer/deadline/value) without overwriting the parent
  * job's own status — project vs revision workflows stay independent.
+ *
+ * Current work priority (mirrors modules/jobs/lib/current-work.ts):
+ * 1. Latest active (non-ISSUED) revision by revision letter sequence
+ * 2. Else the original, when still active
+ * 3. Else none — currentStatus stays ISSUED for filter/display helpers
  */
 function flagRevisions<T extends {
   id: string
@@ -55,10 +60,17 @@ function flagRevisions<T extends {
   currentDesigner?: string
   currentRequiredByDate?: string | null
   currentQuoteValue?: number | null
+  currentWorkType?: "original" | "revision" | "none"
 }> {
   const source = revisionRows ?? pageJobs.filter(j => j.parentJobId !== null)
   const enriched = enrichRevisionFamily(pageJobs, source)
-  const byId = new Map(source.map(r => [r.id, r]))
+  const byParent = new Map<string, typeof source>()
+  for (const r of source) {
+    if (!r.parentJobId) continue
+    const list = byParent.get(r.parentJobId) ?? []
+    list.push(r)
+    byParent.set(r.parentJobId, list)
+  }
 
   return enriched.map(job => {
     if (job.parentJobId !== null) {
@@ -68,25 +80,52 @@ function flagRevisions<T extends {
         currentDesigner: job.designer,
         currentRequiredByDate: job.requiredByDate ?? null,
         currentQuoteValue: job.quoteValue ?? null,
+        currentWorkType: job.status === "ISSUED" ? "none" : "revision",
       }
     }
-    const currentId = job.currentRevisionId
-    const current = currentId && currentId !== job.id ? byId.get(currentId) : null
-    if (!current) {
+
+    const revs = byParent.get(job.id) ?? []
+    const activeRevs = revs.filter(r => r.status && r.status !== "ISSUED")
+    let current: (typeof source)[number] | null = null
+    if (activeRevs.length > 0) {
+      current = [...activeRevs].sort((a, b) => {
+        const byLetter = compareRevisionLetters(a.revisionLetter, b.revisionLetter)
+        if (byLetter !== 0) return byLetter
+        return String(a.updatedAt ?? "").localeCompare(String(b.updatedAt ?? ""))
+      }).at(-1) ?? null
+    }
+
+    if (current) {
+      return {
+        ...job,
+        currentRevisionId: current.id,
+        currentRevisionLetter: current.revisionLetter ?? null,
+        currentStatus: current.status ?? job.status,
+        currentDesigner: current.designer ?? job.designer,
+        currentRequiredByDate: current.requiredByDate ?? job.requiredByDate ?? null,
+        currentQuoteValue: current.quoteValue ?? job.quoteValue ?? null,
+        currentWorkType: "revision" as const,
+      }
+    }
+
+    if (job.status && job.status !== "ISSUED") {
       return {
         ...job,
         currentStatus: job.status,
         currentDesigner: job.designer,
         currentRequiredByDate: job.requiredByDate ?? null,
         currentQuoteValue: job.quoteValue ?? null,
+        currentWorkType: "original" as const,
       }
     }
+
     return {
       ...job,
-      currentStatus: current.status ?? job.status,
-      currentDesigner: current.designer ?? job.designer,
-      currentRequiredByDate: current.requiredByDate ?? job.requiredByDate ?? null,
-      currentQuoteValue: current.quoteValue ?? job.quoteValue ?? null,
+      currentStatus: job.status,
+      currentDesigner: job.designer,
+      currentRequiredByDate: job.requiredByDate ?? null,
+      currentQuoteValue: job.quoteValue ?? null,
+      currentWorkType: "none" as const,
     }
   })
 }

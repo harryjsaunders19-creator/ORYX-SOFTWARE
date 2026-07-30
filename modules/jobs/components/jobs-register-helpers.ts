@@ -2,6 +2,11 @@ import { getJobStatus } from "@/lib/constants"
 import { getJobDeadlineInfo } from "@/shared/utils/utils"
 import type { Job } from "@/lib/types"
 import type { MixedWorkloadRow } from "@/modules/jobs/services/mixed-workload-service"
+import {
+  getCurrentWorkItem,
+  revisionsFromListOverlay,
+  isCompleteStatus,
+} from "@/modules/jobs/lib/current-work"
 import type {
   JobsRegisterProject,
   ProjectHealthTone,
@@ -70,34 +75,80 @@ export function revisionBadgeLabel(letter: string | null | undefined): string {
 
 /** Map classic job list row (original) → register project. */
 export function jobToRegisterProject(job: Job): JobsRegisterProject {
-  const status = job.currentStatus ?? job.status
-  const due = job.currentRequiredByDate ?? job.requiredByDate
+  const revisions = revisionsFromListOverlay({
+    id: job.id,
+    currentRevisionId: job.currentRevisionId,
+    currentRevisionLetter: job.currentRevisionLetter,
+    currentStatus: job.currentStatus,
+    currentDesigner: job.currentDesigner,
+    currentRequiredByDate: job.currentRequiredByDate,
+    status: job.status,
+    designer: job.designer,
+    requiredByDate: job.requiredByDate,
+  })
+  const current = getCurrentWorkItem(
+    {
+      id: job.id,
+      status: job.status,
+      designer: job.designer,
+      requiredByDate: job.requiredByDate,
+    },
+    revisions,
+  )
+  const due = current.dueDate
+  const status = current.status
   return {
     id: job.id,
-    detailId: job.currentRevisionId ?? job.id,
+    detailId: current.id ?? job.id,
     kind: "job",
     drawingNumber: job.drawingNumber ?? "—",
     clientCompany: job.clientCompany ?? "",
     siteName: job.siteName,
     address: job.address ?? "",
-    currentRevisionLetter: job.currentRevisionLetter ?? job.revisionLetter,
-    currentStatus: status ?? "NEW_REQUEST",
-    nextAction: deriveNextAction(status, due),
+    currentRevisionLetter:
+      current.type === "revision"
+        ? (job.currentRevisionLetter ?? job.revisionLetter)
+        : null,
+    currentStatus: status,
+    nextAction:
+      current.type === "none"
+        ? "No active work"
+        : deriveNextAction(status, due),
     value: job.currentQuoteValue ?? job.quoteValue,
-    designer: job.currentDesigner ?? job.designer ?? "",
+    designer: current.designerId ?? job.currentDesigner ?? job.designer ?? "",
     requiredByDate: due,
     revisionCount: job.revisionCount ?? 0,
     updatedAt: job.updatedAt ?? "",
     canAddRevision: job.canAddRevision ?? false,
     clientId: job.clientId,
     typeOfWorks: job.typeOfWorks,
-    projectStatus: job.status === "ISSUED" ? "ISSUED" : "IN_DESIGN",
+    projectStatus: job.status,
+    currentWorkType: current.type,
+    currentWorkLabel: current.revisionLabel ?? "COMPLETE",
+    currentWorkDetail:
+      current.type === "none" ? "No Active Work" : current.displayLabel,
   }
 }
 
 /** Map active work-item / mixed workload row → register project. */
 export function workItemToRegisterProject(row: MixedWorkloadRow): JobsRegisterProject {
-  const status = row.status
+  const isRevision = row.workType === "REVISION"
+  const status = row.status ?? "NEW_REQUEST"
+  const complete = isCompleteStatus(status)
+  const currentWorkType = complete
+    ? "none"
+    : isRevision
+      ? "revision"
+      : "original"
+  let label = "ORIGINAL"
+  if (complete) label = "COMPLETE"
+  else if (isRevision) {
+    const letter = row.revisionLetter?.trim()
+    label = letter
+      ? (letter.toUpperCase().startsWith("REV") ? letter.toUpperCase() : `REV ${letter.toUpperCase()}`)
+      : "REV"
+  }
+
   return {
     id: row.parentJobId,
     detailId: row.id,
@@ -107,17 +158,22 @@ export function workItemToRegisterProject(row: MixedWorkloadRow): JobsRegisterPr
     siteName: row.siteName,
     address: row.address ?? "",
     currentRevisionLetter: row.revisionLetter,
-    currentStatus: status ?? "NEW_REQUEST",
-    nextAction: deriveNextAction(status, row.requiredByDate),
+    currentStatus: status,
+    nextAction: complete ? "No active work" : deriveNextAction(status, row.requiredByDate),
     value: row.quoteValue,
     designer: row.designer ?? "",
     requiredByDate: row.requiredByDate,
-    revisionCount: row.workType === "REVISION" ? 1 : 0,
+    revisionCount: isRevision ? 1 : 0,
     updatedAt: row.updatedAt ?? "",
-    canAddRevision: status === "ISSUED",
+    canAddRevision: complete,
     clientId: null,
     typeOfWorks: null,
-    projectStatus: status === "ISSUED" ? "ISSUED" : "IN_DESIGN",
+    // Parent has no status field in work-items model — ORIGINAL work item is the design status.
+    // When listing an active revision row, treat original as complete (revisions require issued original).
+    projectStatus: isRevision ? "ISSUED" : status,
+    currentWorkType,
+    currentWorkLabel: label,
+    currentWorkDetail: complete ? "No Active Work" : shortStatusLabel(status),
   }
 }
 

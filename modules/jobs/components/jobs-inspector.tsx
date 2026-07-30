@@ -32,6 +32,11 @@ import {
   type InspectorFileItem,
   type InspectorActivityItem,
 } from "./jobs-inspector-sections"
+import { WorkItemStatusSelector } from "./work-item-status-selector"
+import {
+  getCurrentWorkItem,
+  type CurrentWorkRevisionLike,
+} from "@/modules/jobs/lib/current-work"
 
 const AddRevisionModal = lazy(() =>
   import("./add-revision-modal").then(m => ({ default: m.AddRevisionModal })),
@@ -42,6 +47,7 @@ interface JobsInspectorProps {
   workItemsModel: boolean
   onOpenWorkspace: () => void
   onAddRevisionRequest?: () => void
+  onStatusChanged?: () => void
 }
 
 interface HistoryResponse {
@@ -99,6 +105,7 @@ export function JobsInspector({
   project,
   workItemsModel,
   onOpenWorkspace,
+  onStatusChanged,
 }: JobsInspectorProps) {
   const [addRevOpen, setAddRevOpen] = useState(false)
   const [tab, setTab] = useState<"overview" | "revisions" | "commercial" | "documents" | "activity">("revisions")
@@ -117,10 +124,10 @@ export function JobsInspector({
   const historyKey = `/api/jobs/${docJobId}/history`
   const docsKey = `/api/jobs/${docJobId}/documents?limit=12`
 
-  const { data: parentDash, isLoading: parentLoading } = useApi<ParentJobDashboard>(parentKey)
-  const { data: jobDetail, isLoading: jobLoading } = useApi<Job>(jobKey)
-  const { data: revisionsData } = useApi<RevisionsResponse>(revisionsKey)
-  const { data: historyData } = useApi<HistoryResponse>(historyKey)
+  const { data: parentDash, isLoading: parentLoading, mutate: mutateParent } = useApi<ParentJobDashboard>(parentKey)
+  const { data: jobDetail, isLoading: jobLoading, mutate: mutateJob } = useApi<Job>(jobKey)
+  const { data: revisionsData, mutate: mutateRevisions } = useApi<RevisionsResponse>(revisionsKey)
+  const { data: historyData, mutate: mutateHistory } = useApi<HistoryResponse>(historyKey)
   const { data: docsData } = useApi<DocumentsResponse>(docsKey)
 
   const loading = workItemsModel ? parentLoading : jobLoading
@@ -279,11 +286,61 @@ export function JobsInspector({
   )
   const drawingNumber =
     parent?.drawingNumber ?? jobDetail?.drawingNumber ?? project.drawingNumber
-  const projectStatus = project.projectStatus
-  const revStatus = currentRev?.status ?? project.currentStatus
+
+  const originalWorkItem = workItemsModel
+    ? parentDash?.workItems.find(w => w.workType === "ORIGINAL") ?? null
+    : null
+  const originalStatus = workItemsModel
+    ? (originalWorkItem?.status ?? project.projectStatus)
+    : (jobDetail?.status ?? project.projectStatus)
+  const originalId = workItemsModel
+    ? (originalWorkItem?.id ?? null)
+    : project.id
+
+  const currentWork = useMemo(() => {
+    const revLike: CurrentWorkRevisionLike[] = revisions
+      .filter(r => Boolean(r.letter))
+      .map(r => ({
+        id: r.id,
+        revisionLetter: r.letter,
+        status: r.status,
+        designer: r.designer,
+        requiredByDate: null,
+      }))
+    return getCurrentWorkItem(
+      {
+        id: project.id,
+        status: originalStatus,
+        designer: project.designer,
+        requiredByDate: project.requiredByDate,
+      },
+      revLike,
+    )
+  }, [revisions, project.id, project.designer, project.requiredByDate, originalStatus])
+
+  const revStatus = currentWork.status
   const revLabel = revisionBadgeLabel(
-    currentRev?.letter ?? project.currentRevisionLetter,
+    currentWork.type === "revision"
+      ? (currentRev?.letter ?? project.currentRevisionLetter)
+      : null,
   )
+
+  const refreshAfterStatus = async () => {
+    if (workItemsModel) {
+      await mutateParent()
+    } else {
+      await Promise.all([mutateJob(), mutateRevisions()])
+    }
+    await mutateHistory()
+    onStatusChanged?.()
+  }
+
+  const currentWorkPatchUrl = workItemsModel && currentWork.id
+    ? `/api/work-items/${currentWork.id}`
+    : undefined
+  const originalPatchUrl = workItemsModel && originalId
+    ? `/api/work-items/${originalId}`
+    : undefined
 
   return (
     <aside
@@ -336,15 +393,50 @@ export function JobsInspector({
               <span className="text-t4"> / </span>
               <span className="text-t3">{site}</span>
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded border border-green-200 bg-green-50 px-3 py-1 text-[10px] font-bold text-green-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden />
-                PROJECT: {projectStatus === "ISSUED" ? "COMPLETED" : "ACTIVE"}
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-bold text-blue-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" aria-hidden />
-                CURR. REV: {shortStatusLabel(revStatus).toUpperCase()}
-              </span>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded border border-bd bg-surface-low/60 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-t3 mb-2">
+                  Original Design
+                </p>
+                <p className="text-[10px] font-bold uppercase text-t4 mb-1.5">ORIGINAL DESIGN</p>
+                {originalId ? (
+                  <WorkItemStatusSelector
+                    workItemType="original"
+                    workItemId={originalId}
+                    currentStatus={originalStatus}
+                    revisionLabel={null}
+                    patchUrl={originalPatchUrl}
+                    onStatusChanged={() => { void refreshAfterStatus() }}
+                  />
+                ) : (
+                  <span className="text-sm text-t3">—</span>
+                )}
+              </div>
+              <div className="rounded border border-bd bg-sr p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-t3 mb-2">
+                  Current Work
+                </p>
+                <p className="text-[10px] font-bold uppercase text-t4 mb-1.5">
+                  {currentWork.revisionLabel ?? "COMPLETE"}
+                </p>
+                {currentWork.type !== "none" && currentWork.id ? (
+                  <WorkItemStatusSelector
+                    workItemType={currentWork.type === "revision" ? "revision" : "original"}
+                    workItemId={currentWork.id}
+                    currentStatus={currentWork.status}
+                    revisionLabel={currentWork.type === "revision" ? currentWork.revisionLabel : null}
+                    patchUrl={currentWorkPatchUrl}
+                    onStatusChanged={() => { void refreshAfterStatus() }}
+                  />
+                ) : (
+                  <p className="text-sm text-t3">No Active Work</p>
+                )}
+                {currentWork.multipleActiveWarning && (
+                  <p className="mt-2 text-[10px] text-wn-tx">
+                    Multiple active revisions detected — showing latest by sequence.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           <button

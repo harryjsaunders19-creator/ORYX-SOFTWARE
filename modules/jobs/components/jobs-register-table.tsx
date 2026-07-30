@@ -11,17 +11,23 @@ interface JobsRegisterTableProps {
   projects: JobsRegisterProject[]
   selectedId: string | null
   onSelect: (id: string) => void
+  workItemsModel: boolean
+  onStatusChanged?: (projectId: string, nextStatus: string) => void
   loading?: boolean
   className?: string
 }
 
+
 const HEADER =
-  "grid grid-cols-[1.2fr_1.4fr_0.7fr_0.7fr] items-center border-b border-bd bg-sr sticky top-0 z-10"
+  "grid grid-cols-[1.2fr_1.4fr_0.9fr_0.7fr] items-center border-b border-bd bg-sr sticky top-0 z-10"
+
 
 export const JobsRegisterTable = memo(function JobsRegisterTable({
   projects,
   selectedId,
   onSelect,
+  workItemsModel,
+  onStatusChanged,
   loading,
   className,
 }: JobsRegisterTableProps) {
@@ -39,7 +45,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   return (
     <div className={cn("mx-6 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-bd bg-sr", className)}>
       <div role="row" className={HEADER}>
-        {(["Drawing Number", "Client & Site", "Status", "Value"] as const).map(label => (
+        {(["Drawing Number", "Client & Site", "Current Work", "Value"] as const).map(label => (
           <div
             key={label}
             role="columnheader"
@@ -90,7 +96,9 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
                   <JobsRegisterRow
                     project={project}
                     selected={selectedId === project.id}
+                    workItemsModel={workItemsModel}
                     onSelect={onSelectStable}
+                    onStatusChanged={onStatusChanged}
                   />
                 </div>
               )
