@@ -3,11 +3,12 @@
 import { memo } from "react"
 import { MoreHorizontal } from "lucide-react"
 import { cn, formatGBP } from "@/shared/utils/utils"
-import { drawingNumberContext, shortStatusLabel, siteDisplay } from "./jobs-register-helpers"
+import { drawingNumberContext, siteDisplay } from "./jobs-register-helpers"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { REGISTER_ROW_H } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
+import { DrawingStatusCompleteLabel } from "./drawing-status-badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -117,7 +118,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
             />
           </div>
         ) : (
-          <p className="text-sm font-medium text-t2">Complete</p>
+          <DrawingStatusCompleteLabel />
         )}
       </div>
 
@@ -142,7 +143,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
           />
         ) : (
           <p className="truncate text-xs text-t3">
-            {project.designer || shortStatusLabel(project.projectStatus)}
+            {project.designer || "—"}
           </p>
         )}
       </div>

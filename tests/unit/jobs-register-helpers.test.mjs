@@ -122,6 +122,24 @@ describe("jobs-register-helpers", () => {
   })
 })
 
+describe("drawing-status-colours", () => {
+  it("maps workflow statuses to theme-aware colour tokens", async () => {
+    const {
+      getDrawingStatusColour,
+      getDrawingStatusLabel,
+      getDrawingStatusBadgeClass,
+    } = await import("../../modules/jobs/lib/drawing-status-colours.ts")
+
+    assert.equal(getDrawingStatusLabel("ISSUED"), "Complete")
+    assert.equal(getDrawingStatusLabel("IN_DESIGN"), "In Progress")
+    assert.match(getDrawingStatusColour("ISSUED").text, /ok/)
+    assert.match(getDrawingStatusColour("CHECKING").text, /tag-revision/)
+    assert.match(getDrawingStatusColour("READY_TO_SEND").text, /wn/)
+    assert.match(getDrawingStatusBadgeClass("NEW_REQUEST"), /ac2/)
+    assert.equal(getDrawingStatusColour("UNKNOWN").text, getDrawingStatusColour("NEW_REQUEST").text)
+  })
+})
+
 describe("designer assignment titles", () => {
   it("names the assignment target explicitly", async () => {
     const { designerAssignmentTitle } = await import(

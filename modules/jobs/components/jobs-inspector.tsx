@@ -20,6 +20,7 @@ import {
 } from "./jobs-register-helpers"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
+import { DrawingStatusBadge } from "./drawing-status-badge"
 import { downloadCat2CheckSheet } from "./cat2-check-sheet-export"
 import {
   DropdownMenu,
@@ -598,7 +599,7 @@ function CurrentWorkSummary({
 
   return (
     <section className={inspectorCard}>
-      <h4 className={inspectorHeading}>Current Work</h4>
+      <h4 className={inspectorHeading}>Drawing Status</h4>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-bd pb-3">
         <span className="text-sm font-semibold text-t1">{label}</span>
         {active ? (
@@ -612,7 +613,8 @@ function CurrentWorkSummary({
             onStatusChanged={onChanged}
           />
         ) : (
-          <span className="inline-flex items-center rounded-md border border-ok-bd bg-ok-bg px-2 py-0.5 text-xs font-medium text-ok-tx">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-ok-bg px-2 py-0.5 text-xs font-medium text-ok-tx">
+            <span className="h-1.5 w-1.5 rounded-full bg-ok-ic" aria-hidden />
             Complete
           </span>
         )}
@@ -830,10 +832,10 @@ function RevisionHistory({ revisions }: { revisions: CompactRevision[] }) {
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-t3">
-                      {shortStatusLabel(rev.status)}
-                      {" · "}
-                      {missingLabel(rev.designer, "Unassigned")}
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-t3">
+                      <DrawingStatusBadge status={rev.status} />
+                      <span>·</span>
+                      <span>{missingLabel(rev.designer, "Unassigned")}</span>
                     </p>
                     <p className="mt-0.5 text-xs text-t3">{safeDateLabel(rev.createdAt)}</p>
                     {rev.reason?.trim() && (

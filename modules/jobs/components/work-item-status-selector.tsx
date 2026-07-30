@@ -4,7 +4,7 @@ import { useCallback, useState } from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { ChevronDown } from "lucide-react"
 import { SelectContent, SelectItem } from "@/components/ui/select"
-import { StatusBadge } from "@/modules/jobs/components/badges/status-badge"
+import { DrawingStatusBadge } from "@/modules/jobs/components/drawing-status-badge"
 import { JOB_STATUSES, getJobStatus } from "@/lib/constants"
 import { useToast } from "@/shared/ui/toast"
 import { cn } from "@/shared/utils"
@@ -132,7 +132,7 @@ export function WorkItemStatusSelector({
           aria-label={title}
           title={title}
         >
-          <StatusBadge status={displayStatus} size={size} />
+          <DrawingStatusBadge status={displayStatus} size={size} />
           <ChevronDown className="h-3.5 w-3.5 text-t4 opacity-70 group-hover:opacity-100 transition-opacity" />
         </SelectPrimitive.Trigger>
         <SelectContent align="start">
@@ -140,7 +140,11 @@ export function WorkItemStatusSelector({
             {title}
           </div>
           {JOB_STATUSES.map(s => (
-            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            <SelectItem key={s.value} value={s.value}>
+              <span className="inline-flex items-center gap-2">
+                <DrawingStatusBadge status={s.value} />
+              </span>
+            </SelectItem>
           ))}
         </SelectContent>
       </SelectPrimitive.Root>

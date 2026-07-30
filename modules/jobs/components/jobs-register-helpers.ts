@@ -128,7 +128,7 @@ export function jobToRegisterProject(job: Job): JobsRegisterProject {
     currentWorkType: current.type,
     currentWorkLabel: current.revisionLabel ?? "COMPLETE",
     currentWorkDetail:
-      current.type === "none" ? "Complete" : current.displayLabel,
+      current.type === "none" ? "No Active Work" : current.displayLabel,
     currentQuote: job.currentQuote
       ? {
           id: job.currentQuote.id,
@@ -184,7 +184,7 @@ export function workItemToRegisterProject(row: MixedWorkloadRow): JobsRegisterPr
     projectStatus: isRevision ? "ISSUED" : status,
     currentWorkType,
     currentWorkLabel: label,
-    currentWorkDetail: complete ? "Complete" : shortStatusLabel(status),
+    currentWorkDetail: complete ? "No Active Work" : shortStatusLabel(status),
     currentQuote: null,
   }
 }
@@ -226,7 +226,7 @@ export function siteDisplay(
 
 /**
  * Secondary line under the drawing number — useful project context
- * (never redundant "Closed" when Current Work already says COMPLETE).
+ * (never redundant "Closed" when Drawing Status already says Complete).
  */
 export function drawingNumberContext(project: {
   currentRevisionLetter: string | null

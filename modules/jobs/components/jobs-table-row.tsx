@@ -10,7 +10,6 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator,
 } from "@/shared/ui/dropdown-menu"
-import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/modules/jobs/components/badges/status-badge"
 import { WorkItemTypeBadge } from "@/modules/jobs/components/badges/work-item-type-badge"
 import { TypeOfWorksBadge } from "@/modules/jobs/components/badges/type-of-works-badge"
 import { InlineStatusSelect, InlineDesignerSelect } from "@/modules/jobs/components/inline-edit-selects"
@@ -123,8 +122,6 @@ export const JobMobileCard = memo(function JobMobileCard({
       onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onOpen(job.id) }}
       className={cn(
         "rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2.5 cursor-pointer active:scale-[0.99] transition-transform",
-        JOB_ROW_BG[job.status] ?? "",
-        JOB_ROW_BORDER[job.status] ?? "",
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -229,9 +226,7 @@ export const JobTableRow = memo(
         onClick={() => onNavigate(`/jobs/${job.id}`)}
         className={cn(
           "border-b border-bd last:border-0 cursor-pointer group",
-          JOB_ROW_BG[job.status] ?? "",
-          JOB_ROW_BORDER[job.status] ?? "",
-          "hover:brightness-[0.98]",
+          "hover:bg-surface-low",
         )}
       >
         <td className="px-4 py-3.5 whitespace-nowrap">
