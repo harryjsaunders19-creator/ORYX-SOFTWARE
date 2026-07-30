@@ -361,7 +361,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Required fields (all item types)
-    let siteId: string | null = typeof body.siteId === "string" && body.siteId.trim()
+    const siteId: string | null = typeof body.siteId === "string" && body.siteId.trim()
       ? body.siteId.trim()
       : null
     let siteName = typeof body.siteName === "string" ? body.siteName.trim() : ""
