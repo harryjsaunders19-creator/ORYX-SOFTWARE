@@ -60,7 +60,11 @@ export function buildRevisionHistoryChain(opts: {
   // Current first, then reverse chronological (newest → oldest).
   return [...entries].sort((a, b) => {
     if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1
-    return b.dateCreated.localeCompare(a.dateCreated)
+    const aTs = Date.parse(a.dateCreated || "")
+    const bTs = Date.parse(b.dateCreated || "")
+    const aSafe = Number.isFinite(aTs) ? aTs : 0
+    const bSafe = Number.isFinite(bTs) ? bTs : 0
+    return bSafe - aSafe
   })
 }
 

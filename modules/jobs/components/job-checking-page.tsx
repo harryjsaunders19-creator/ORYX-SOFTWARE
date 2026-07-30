@@ -1,6 +1,5 @@
 import { Suspense } from "react"
-import { JobsTable } from "./jobs-table"
-import { ActiveWorkItemsTable } from "./active-work-items-table"
+import { JobsRegister } from "./jobs-register"
 import { BackLink, PageHeader, PageShell, DataPanel } from "@/shared/layouts/page-layout"
 import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 
@@ -31,9 +30,7 @@ export default function CheckingQueuePage() {
         description="Work awaiting technical review before issue"
       />
       <Suspense fallback={<CheckingFallback />}>
-        {workItemsModel
-          ? <ActiveWorkItemsTable mode="checking" />
-          : <JobsTable mode="checking" />}
+        <JobsRegister workItemsModel={workItemsModel} mode="checking" />
       </Suspense>
     </PageShell>
   )

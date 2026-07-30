@@ -1,6 +1,7 @@
 import { createId as nanoid } from "@paralleldrive/cuid2"
 import { nowIso } from "@/lib/db/helpers"
 import { REVISION_LETTERS } from "@/lib/constants"
+import { compareRevisionLetters } from "@/lib/revision-chain"
 import { useSupabaseBilling } from "@/shared/supabase/feature-flags"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { supabaseBillingRepo } from "@/modules/billing/supabase/repository"
@@ -59,7 +60,16 @@ function isActiveStatus(status: string): boolean {
 function pickCurrentActive(items: DesignWorkItemRow[]): DesignWorkItemRow | null {
   const active = items.filter(w => isActiveStatus(w.status))
   if (!active.length) return null
-  return [...active].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null
+  // Prefer latest revision letter among active revisions; fall back to ORIGINAL.
+  const revisions = active.filter(w => w.workType === "REVISION")
+  if (revisions.length) {
+    return [...revisions].sort((a, b) => {
+      const byLetter = compareRevisionLetters(a.revisionLetter, b.revisionLetter)
+      if (byLetter !== 0) return byLetter
+      return a.updatedAt.localeCompare(b.updatedAt)
+    }).at(-1) ?? null
+  }
+  return active.find(w => w.workType === "ORIGINAL") ?? active[0] ?? null
 }
 
 function nextLetterFromUsed(used: string[]): string | null {

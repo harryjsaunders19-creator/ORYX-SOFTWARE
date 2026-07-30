@@ -12,7 +12,7 @@ import { requireModuleAccess, requireRole, actorName } from "@/shared/auth/auth"
 import { MAX_JOB_LIST_EXPORT_ROWS } from "@/modules/import-export/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
-import { enrichRevisionFamily } from "@/lib/revision-chain"
+import { enrichRevisionFamily, compareRevisionLetters } from "@/lib/revision-chain"
 import { ensureSequencesSeeded } from "@/shared/supabase/seed-sequences"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { apiInternalError } from "@/shared/api-errors"
@@ -23,7 +23,14 @@ import { resolveDirectoryDesigner } from "../services/designer-directory"
 import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils/utils"
 
 /**
- * Revision family flags + overlay current-revision status/designer onto parent rows.
+ * Revision family flags. Also attaches *display* fields for the current
+ * work item (status/designer/deadline/value) without overwriting the parent
+ * job's own status — project vs revision workflows stay independent.
+ *
+ * Current work priority (mirrors modules/jobs/lib/current-work.ts):
+ * 1. Latest active (non-ISSUED) revision by revision letter sequence
+ * 2. Else the original, when still active
+ * 3. Else none — currentStatus stays ISSUED for filter/display helpers
  */
 function flagRevisions<T extends {
   id: string
@@ -34,6 +41,7 @@ function flagRevisions<T extends {
   requiredByDate?: string | null
   updatedAt?: string
   dateCompleted?: string | null
+  quoteValue?: number | null
 }>(
   pageJobs: T[],
   revisionRows?: {
@@ -45,10 +53,81 @@ function flagRevisions<T extends {
     requiredByDate?: string | null
     updatedAt?: string
     dateCompleted?: string | null
+    quoteValue?: number | null
   }[],
-): ReturnType<typeof enrichRevisionFamily<T>> {
+): Array<ReturnType<typeof enrichRevisionFamily<T>>[number] & {
+  currentStatus?: string
+  currentDesigner?: string
+  currentRequiredByDate?: string | null
+  currentQuoteValue?: number | null
+  currentWorkType?: "original" | "revision" | "none"
+}> {
   const source = revisionRows ?? pageJobs.filter(j => j.parentJobId !== null)
-  return enrichRevisionFamily(pageJobs, source)
+  const enriched = enrichRevisionFamily(pageJobs, source)
+  const byParent = new Map<string, typeof source>()
+  for (const r of source) {
+    if (!r.parentJobId) continue
+    const list = byParent.get(r.parentJobId) ?? []
+    list.push(r)
+    byParent.set(r.parentJobId, list)
+  }
+
+  return enriched.map(job => {
+    if (job.parentJobId !== null) {
+      return {
+        ...job,
+        currentStatus: job.status,
+        currentDesigner: job.designer,
+        currentRequiredByDate: job.requiredByDate ?? null,
+        currentQuoteValue: job.quoteValue ?? null,
+        currentWorkType: job.status === "ISSUED" ? "none" : "revision",
+      }
+    }
+
+    const revs = byParent.get(job.id) ?? []
+    const activeRevs = revs.filter(r => r.status && r.status !== "ISSUED")
+    let current: (typeof source)[number] | null = null
+    if (activeRevs.length > 0) {
+      current = [...activeRevs].sort((a, b) => {
+        const byLetter = compareRevisionLetters(a.revisionLetter, b.revisionLetter)
+        if (byLetter !== 0) return byLetter
+        return String(a.updatedAt ?? "").localeCompare(String(b.updatedAt ?? ""))
+      }).at(-1) ?? null
+    }
+
+    if (current) {
+      return {
+        ...job,
+        currentRevisionId: current.id,
+        currentRevisionLetter: current.revisionLetter ?? null,
+        currentStatus: current.status ?? job.status,
+        currentDesigner: current.designer ?? job.designer,
+        currentRequiredByDate: current.requiredByDate ?? job.requiredByDate ?? null,
+        currentQuoteValue: current.quoteValue ?? job.quoteValue ?? null,
+        currentWorkType: "revision" as const,
+      }
+    }
+
+    if (job.status && job.status !== "ISSUED") {
+      return {
+        ...job,
+        currentStatus: job.status,
+        currentDesigner: job.designer,
+        currentRequiredByDate: job.requiredByDate ?? null,
+        currentQuoteValue: job.quoteValue ?? null,
+        currentWorkType: "original" as const,
+      }
+    }
+
+    return {
+      ...job,
+      currentStatus: job.status,
+      currentDesigner: job.designer,
+      currentRequiredByDate: job.requiredByDate ?? null,
+      currentQuoteValue: job.quoteValue ?? null,
+      currentWorkType: "none" as const,
+    }
+  })
 }
 
 function todayIso(): string {
@@ -77,6 +156,9 @@ function filterByCurrentDisplay<T extends {
   designer?: string
   requiredByDate?: string | null
   parentJobId: string | null
+  currentStatus?: string
+  currentDesigner?: string
+  currentRequiredByDate?: string | null
 }>(
   jobs: T[],
   opts: {
@@ -91,12 +173,14 @@ function filterByCurrentDisplay<T extends {
   const wkStart = weekStartIso()
   const wkEnd = weekEndIso()
   return jobs.filter(j => {
-    if (opts.status && j.status !== opts.status) return false
-    if (opts.unassigned && (j.designer ?? "").trim() !== "") return false
-    if (j.status === "ISSUED") {
+    const status = j.currentStatus ?? j.status
+    const designer = j.currentDesigner ?? j.designer
+    const due = j.currentRequiredByDate ?? j.requiredByDate
+    if (opts.status && status !== opts.status) return false
+    if (opts.unassigned && (designer ?? "").trim() !== "") return false
+    if (status === "ISSUED") {
       if (opts.overdue || opts.dueToday || opts.dueThisWeek) return false
     }
-    const due = j.requiredByDate
     if (opts.overdue && !(due != null && due < today)) return false
     if (opts.dueToday && due !== today) return false
     if (opts.dueThisWeek && !(due != null && due >= wkStart && due <= wkEnd)) return false

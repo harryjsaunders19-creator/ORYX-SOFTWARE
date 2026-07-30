@@ -83,8 +83,8 @@ export default function JobDetailPage({
 
   useEffect(() => {
     if (!revisionFamily || selectedRevisionId) return
-    const current = revisionFamily.chain.find(e => e.isCurrent)
-    setSelectedRevisionId(current?.id ?? revisionFamily.original.id)
+    const current = revisionFamily.chain?.find(e => e.isCurrent)
+    setSelectedRevisionId(current?.id ?? revisionFamily.original?.id ?? null)
   }, [revisionFamily, selectedRevisionId])
 
   const notFound = !!jobError && /404|Not found/i.test(jobError.message)
