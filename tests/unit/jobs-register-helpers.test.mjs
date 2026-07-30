@@ -147,15 +147,15 @@ describe("designer assignment titles", () => {
     )
     assert.equal(
       designerAssignmentTitle("original"),
-      "Assign designer to original design",
+      "Assign design engineer to original drawing",
     )
     assert.equal(
       designerAssignmentTitle("revision", "REV E"),
-      "Assign designer to REV E",
+      "Assign design engineer to REV E",
     )
     assert.equal(
       designerAssignmentTitle("revision", "E"),
-      "Assign designer to Rev E",
+      "Assign design engineer to Rev E",
     )
   })
 })

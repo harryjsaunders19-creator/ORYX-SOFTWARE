@@ -64,9 +64,9 @@ export function ClientSiteCell({
 
   const clientClass = cn(
     "font-semibold text-t1 transition-colors",
-    variant === "register" && "truncate text-[15px] leading-snug group-hover:text-t1",
-    variant === "card" && "text-[15px] leading-snug [overflow-wrap:anywhere]",
-    variant === "header" && "text-sm leading-snug [overflow-wrap:anywhere]",
+    variant === "register" && "truncate text-base leading-snug group-hover:text-t1",
+    variant === "card" && "text-base leading-snug [overflow-wrap:anywhere]",
+    variant === "header" && "text-[15px] leading-snug [overflow-wrap:anywhere]",
     variant === "compact" && "truncate text-sm leading-snug",
     selected && "text-t1",
   )

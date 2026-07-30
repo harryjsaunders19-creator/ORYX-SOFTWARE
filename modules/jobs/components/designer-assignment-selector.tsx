@@ -29,11 +29,11 @@ export function designerAssignmentTitle(
       const normalized = label.toUpperCase().startsWith("REV")
         ? label
         : `Rev ${label}`
-      return `Assign designer to ${normalized}`
+      return `Assign design engineer to ${normalized}`
     }
-    return "Assign designer to revision"
+    return "Assign design engineer to revision"
   }
-  return "Assign designer to original design"
+  return "Assign design engineer to original drawing"
 }
 
 export type DesignerAssignmentSelectorProps = {
@@ -94,11 +94,11 @@ export function DesignerAssignmentSelector({
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
-        toast(body.error ?? "Failed to assign designer", "error")
+        toast(body.error ?? "Failed to assign design engineer", "error")
         setOptimistic(previous)
         return
       }
-      toast(next ? `Designer → ${next}` : "Designer unassigned", "success")
+      toast(next ? `Design Engineer → ${next}` : "Design engineer unassigned", "success")
       onDesignerChanged?.(next)
     } catch {
       toast("Network error", "error")
@@ -159,7 +159,7 @@ export function DesignerAssignmentSelector({
           </>
         ) : (
           <span className={cn("text-t3", compact ? "text-xs" : "text-sm")}>
-            Assign designer
+            Assign design engineer
           </span>
         )}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-t4" />
@@ -180,9 +180,9 @@ export function DesignerAssignmentSelector({
             <Input
               value={filter}
               onChange={e => setFilter(e.target.value)}
-              placeholder="Search designers…"
+              placeholder="Search design engineers…"
               className="h-8 text-sm"
-              aria-label="Search designers"
+              aria-label="Search design engineers"
             />
           </div>
         )}
@@ -194,7 +194,7 @@ export function DesignerAssignmentSelector({
           </SelectItem>
         ))}
         {options.length === 0 && (
-          <p className="px-2 py-2 text-xs text-t3">No matching designers</p>
+          <p className="px-2 py-2 text-xs text-t3">No matching design engineers</p>
         )}
       </SelectContent>
     </SelectPrimitive.Root>

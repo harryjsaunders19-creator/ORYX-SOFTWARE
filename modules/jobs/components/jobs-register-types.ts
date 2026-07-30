@@ -3,7 +3,7 @@
  * "Jobs - Command Center (Inter Typography)" / Project Command Center Split View.
  * Screen ids: f313bb87a8a3426190f85fd4b8cb6ef7, 46351d0bec1f43faa32bc5136f955565
  */
-export const REGISTER_ROW_H = 68
+export const REGISTER_ROW_H = 76
 /** Desktop split: register ~63% / inspector ~37%. */
 export const REGISTER_PCT = 63
 export const INSPECTOR_PCT = 37

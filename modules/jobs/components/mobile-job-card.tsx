@@ -8,6 +8,7 @@ import type { JobsRegisterProject } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { DrawingStatusCompleteLabel } from "./drawing-status-badge"
+import { EngineeringWorkflowIndicator } from "./engineering-workflow-indicator"
 
 type Props = {
   project: JobsRegisterProject
@@ -96,20 +97,37 @@ export const MobileJobCard = memo(function MobileJobCard({
         onKeyDown={e => e.stopPropagation()}
       >
         {project.currentWorkType === "none" ? (
-          <DrawingStatusCompleteLabel detail={project.currentWorkDetail || "No active work"} />
+          <>
+            <DrawingStatusCompleteLabel detail={project.currentWorkDetail || "No active work"} />
+            <EngineeringWorkflowIndicator
+              drawingStatus="ISSUED"
+              closed
+              currentWorkType="none"
+              variant="inline"
+            />
+          </>
         ) : (
-          <WorkItemStatusSelector
-            workItemType={workType}
-            workItemId={project.detailId}
-            currentStatus={project.currentStatus}
-            revisionLabel={
-              project.currentWorkType === "revision" ? project.currentWorkLabel : null
-            }
-            patchUrl={patchUrl}
-            size="lg"
-            disabled={!canEdit}
-            onStatusChanged={() => onStatusChanged?.()}
-          />
+          <>
+            <WorkItemStatusSelector
+              workItemType={workType}
+              workItemId={project.detailId}
+              currentStatus={project.currentStatus}
+              revisionLabel={
+                project.currentWorkType === "revision" ? project.currentWorkLabel : null
+              }
+              patchUrl={patchUrl}
+              size="lg"
+              disabled={!canEdit}
+              onStatusChanged={() => onStatusChanged?.()}
+            />
+            <EngineeringWorkflowIndicator
+              drawingStatus={project.currentStatus}
+              currentWorkType={project.currentWorkType}
+              revisionLetter={project.currentRevisionLetter}
+              currentWorkLabel={project.currentWorkLabel}
+              variant="inline"
+            />
+          </>
         )}
       </div>
 
@@ -119,7 +137,7 @@ export const MobileJobCard = memo(function MobileJobCard({
           onClick={e => e.stopPropagation()}
           onKeyDown={e => e.stopPropagation()}
         >
-          <p className="mb-1 text-xs text-t3">Designer</p>
+          <p className="mb-1 text-xs text-t3">Design Engineer</p>
           {canEdit ? (
             <DesignerAssignmentSelector
               workItemType={workType}

@@ -10,6 +10,7 @@ import { REGISTER_ROW_H } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { DrawingStatusCompleteLabel } from "./drawing-status-badge"
+import { EngineeringWorkflowIndicator } from "./engineering-workflow-indicator"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -105,7 +106,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
         onKeyDown={e => e.stopPropagation()}
       >
         {canEdit ? (
-          <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-0.5">
             {workLabel && (
               <span className="truncate text-xs font-medium text-t2">{workLabel}</span>
             )}
@@ -120,9 +121,25 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
               size="md"
               onStatusChanged={next => onStatusChanged?.(project.id, next)}
             />
+            <EngineeringWorkflowIndicator
+              drawingStatus={project.currentStatus}
+              closed={false}
+              currentWorkType={project.currentWorkType}
+              revisionLetter={project.currentRevisionLetter}
+              currentWorkLabel={project.currentWorkLabel}
+              variant="inline"
+            />
           </div>
         ) : (
-          <DrawingStatusCompleteLabel />
+          <div className="min-w-0">
+            <DrawingStatusCompleteLabel />
+            <EngineeringWorkflowIndicator
+              drawingStatus="ISSUED"
+              closed
+              currentWorkType="none"
+              variant="inline"
+            />
+          </div>
         )}
       </div>
 

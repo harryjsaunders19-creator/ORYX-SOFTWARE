@@ -556,7 +556,7 @@ export function JobsRegister({
           className="fixed inset-0 z-50 flex flex-col bg-sr md:hidden"
           role="dialog"
           aria-modal="true"
-          aria-label={`Job details for ${selected.drawingNumber}`}
+          aria-label={`Project details for ${selected.drawingNumber}`}
           style={{
             paddingTop: "env(safe-area-inset-top)",
             paddingBottom: "env(safe-area-inset-bottom)",

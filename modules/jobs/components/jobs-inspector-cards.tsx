@@ -154,6 +154,7 @@ export function InspectorHeader({
   moreSlot,
   collapseSlot,
   leadingSlot,
+  workflowSlot,
   dense,
   children,
 }: {
@@ -165,6 +166,7 @@ export function InspectorHeader({
   moreSlot?: ReactNode
   collapseSlot?: ReactNode
   leadingSlot?: ReactNode
+  workflowSlot?: ReactNode
   /** Tighter mobile drawer header — allow wrapping, slightly smaller title. */
   dense?: boolean
   children: ReactNode
@@ -208,6 +210,8 @@ export function InspectorHeader({
 
       <div className="mt-3 flex flex-wrap gap-2">{statusChips}</div>
 
+      {workflowSlot ? <div className="mt-3">{workflowSlot}</div> : null}
+
       <div className="mt-3.5">{children}</div>
     </div>
   )
@@ -239,7 +243,7 @@ export function CurrentFocusSection({
     currentWork.type === "revision"
       ? (currentWork.revisionLabel ?? revLabel)
       : currentWork.type === "original"
-        ? "Original design"
+        ? "Original"
         : "No active drawing work"
   const due = dueLabel(dueDate)
   const overdue = due.startsWith("Overdue")
@@ -265,7 +269,7 @@ export function CurrentFocusSection({
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <p className={fieldLabel}>Active stage</p>
+              <p className={fieldLabel}>Active drawing</p>
               <p className="text-sm font-semibold text-t1">{stage}</p>
             </div>
             <div>
@@ -280,7 +284,7 @@ export function CurrentFocusSection({
                 {designerInitials(designer || "?")}
               </div>
               <div className="min-w-0">
-                <p className={fieldLabel}>Responsible</p>
+                <p className={fieldLabel}>Design Engineer</p>
                 <DesignerAssignmentSelector
                   workItemType={currentWork.type === "revision" ? "revision" : "original"}
                   workItemId={currentWork.id!}
@@ -294,7 +298,7 @@ export function CurrentFocusSection({
               </div>
             </div>
             <div className="text-right">
-              <p className={fieldLabel}>Due</p>
+              <p className={fieldLabel}>Design Due</p>
               <span
                 className={cn(
                   "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold",
@@ -310,7 +314,7 @@ export function CurrentFocusSection({
 
           <div className="grid grid-cols-1 gap-3 border-t border-bd/50 pt-3 sm:grid-cols-2">
             <div>
-              <p className={fieldLabel}>Drawing status</p>
+              <p className={fieldLabel}>Drawing Status</p>
               <div className="mt-0.5">
                 <WorkItemStatusSelector
                   workItemType={currentWork.type === "revision" ? "revision" : "original"}
@@ -324,7 +328,7 @@ export function CurrentFocusSection({
               </div>
             </div>
             <div>
-              <p className={fieldLabel}>Checker</p>
+              <p className={fieldLabel}>Checking Engineer</p>
               <p className={fieldMuted}>Not assigned</p>
             </div>
           </div>
@@ -353,11 +357,11 @@ export function ProjectDetailsSection({ data }: { data: ProjectDetailsData }) {
         <Meta label="Site" value={data.siteName} important />
         <Meta label="Site address" value={data.siteAddress} fullWidth important />
         <Meta label="Type of works" value={data.typeOfWorks} />
-        <Meta label="Requested by" value={data.requestedBy} />
-        <Meta label="Date requested" value={safeDateLabel(data.dateRequested) || null} />
+        <Meta label="Requested By" value={data.requestedBy} />
+        <Meta label="Date Requested" value={safeDateLabel(data.dateRequested) || null} />
       </div>
       <div className="mt-4 border-t border-bd/50 pt-3.5">
-        <p className={fieldLabel}>Description of works</p>
+        <p className={fieldLabel}>Description of Works</p>
         <ExpandableText text={data.description} empty="No description recorded" />
       </div>
     </section>
@@ -385,15 +389,15 @@ export function RevisionDetailsSection({ data }: { data: RevisionDetailsData }) 
       <span className="absolute bottom-0 left-0 top-5 w-[2px] rounded-full bg-ac2/70" aria-hidden />
       <h4 className={sectionHeading}>Revision Details</h4>
       <div className="mb-4">
-        <p className={fieldLabel}>Reason for revision</p>
+        <p className={fieldLabel}>Reason for Revision</p>
         <ExpandableText text={data.reason} empty="No reason recorded" />
       </div>
       <div className="grid grid-cols-1 gap-x-6 gap-y-3.5 sm:grid-cols-2">
         <Meta label="Revision" value={data.label} important />
         <Meta label="Chargeable" value={data.billable ? "Yes" : "No"} important />
-        <Meta label="Requested by" value={data.requestedBy} />
-        <Meta label="Date requested" value={safeDateLabel(data.requestedDate) || null} />
-        <Meta label="Revision fee" value={feeLabel} important />
+        <Meta label="Requested By" value={data.requestedBy} />
+        <Meta label="Date Requested" value={safeDateLabel(data.requestedDate) || null} />
+        <Meta label="Revision Fee" value={feeLabel} important />
         <Meta label="Quotation" value={data.quoteNumber} />
       </div>
     </section>
@@ -435,11 +439,11 @@ export function CommercialSummary({ data }: { data: CommercialData }) {
       </div>
       <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-bd/50 pt-3.5 sm:grid-cols-4">
         <div>
-          <p className={fieldLabel}>Orig. fee</p>
+          <p className={fieldLabel}>Original Fee</p>
           <p className="text-sm font-semibold tabular-nums text-t1">{money(data.originalFee)}</p>
         </div>
         <div>
-          <p className={fieldLabel}>Rev revenue</p>
+          <p className={fieldLabel}>Revision Fee</p>
           <p className="text-sm font-semibold tabular-nums text-t1">{money(data.revisionRevenue)}</p>
         </div>
         <div>

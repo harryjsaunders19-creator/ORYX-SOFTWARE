@@ -51,6 +51,7 @@ import {
   type Cat2Summary,
 } from "./jobs-inspector-cards"
 import { JobsInspectorCollapseButton } from "./jobs-inspector-shell"
+import { EngineeringWorkflowIndicator } from "./engineering-workflow-indicator"
 
 const AddRevisionModal = lazy(() =>
   import("./add-revision-modal").then(m => ({ default: m.AddRevisionModal })),
@@ -673,6 +674,22 @@ export function JobsInspector({
           ) : null
         }
         moreSlot={moreMenu}
+        workflowSlot={
+          <EngineeringWorkflowIndicator
+            drawingStatus={
+              currentWork.type === "none" ? originalStatus : currentWork.status
+            }
+            closed={currentWork.type === "none"}
+            currentWorkType={currentWork.type}
+            revisionLetter={activeRevision?.letter ?? project.currentRevisionLetter}
+            currentWorkLabel={
+              currentWork.type === "revision"
+                ? (currentWork.revisionLabel ?? revLabel)
+                : null
+            }
+            variant="panel"
+          />
+        }
       >
         {isDrawer ? (
           <div className="flex flex-col gap-2">
@@ -868,7 +885,7 @@ export function JobsInspector({
             <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-t3" htmlFor="wi-rev-reason">
-                  Reason for revision
+                  Reason for Revision
                 </label>
                 <textarea
                   id="wi-rev-reason"
