@@ -1,7 +1,7 @@
 "use client"
 
 import { formatGBP, cn } from "@/shared/utils/utils"
-import { deriveProjectHealth, missingLabel } from "./jobs-register-helpers"
+import { deriveProjectHealth } from "./jobs-register-helpers"
 
 function safeShortDate(value: string | null): string {
   if (!value) return "Not set"
