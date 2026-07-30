@@ -166,11 +166,6 @@ export function JobsRegister({
     }
   }, [projects, selectedId, isChecking])
 
-  const openWorkspace = useCallback(() => {
-    if (!selected) return
-    router.push(`/jobs/${selected.id}`)
-  }, [router, selected])
-
   const openWorkspaceById = useCallback((id: string) => {
     router.push(`/jobs/${id}`)
   }, [router])
@@ -185,11 +180,8 @@ export function JobsRegister({
   useJobsRegisterKeyboard({
     onFocusSearch: () => searchRef.current?.focus(),
     onNavigate: navigateProjects,
-    onOpenWorkspace: openWorkspace,
-    onAddRevision: () => { if (selected) openWorkspace() },
-    onGenerateInvoice: () => { if (selected) openWorkspace() },
+    onAddRevision: () => {},
     onCloseInspector: () => {
-      // Stitch keeps inspector as workspace — Esc clears selection only when intentional
       setSelectedId(null)
     },
   })
@@ -449,7 +441,6 @@ export function JobsRegister({
                 project={selected}
                 workItemsModel={workItemsModel}
                 designers={designers}
-                onOpenWorkspace={openWorkspace}
                 onStatusChanged={() => { void handleStatusChanged() }}
               />
             </JobsInspectorErrorBoundary>
@@ -468,9 +459,6 @@ export function JobsRegister({
             >
               ← Back to Jobs
             </button>
-            <Button type="button" variant="secondary" size="sm" onClick={openWorkspace}>
-              Open Full Project
-            </Button>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden">
             <JobsInspectorErrorBoundary projectLabel={selected.id}>
@@ -478,7 +466,6 @@ export function JobsRegister({
                 project={selected}
                 workItemsModel={workItemsModel}
                 designers={designers}
-                onOpenWorkspace={openWorkspace}
                 onStatusChanged={() => { void handleStatusChanged() }}
               />
             </JobsInspectorErrorBoundary>
