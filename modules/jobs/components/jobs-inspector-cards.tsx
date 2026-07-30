@@ -151,6 +151,7 @@ export function InspectorHeader({
   site,
   statusChips,
   moreSlot,
+  collapseSlot,
   children,
 }: {
   drawingNumber: string
@@ -159,6 +160,7 @@ export function InspectorHeader({
   site: string
   statusChips: ReactNode
   moreSlot?: ReactNode
+  collapseSlot?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -178,7 +180,10 @@ export function InspectorHeader({
           <p className="mt-1 truncate text-sm font-semibold text-t1">{client || "—"}</p>
           <p className="mt-0.5 truncate text-sm text-t3">{site || "—"}</p>
         </div>
-        {moreSlot}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {collapseSlot}
+          {moreSlot}
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">{statusChips}</div>

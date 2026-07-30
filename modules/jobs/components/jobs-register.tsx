@@ -20,6 +20,10 @@ import { JobsRegisterTable } from "./jobs-register-table"
 import { JobsInspector } from "./jobs-inspector"
 import { JobsInspectorErrorBoundary } from "./jobs-inspector-error-boundary"
 import {
+  JobsInspectorReopenHandle,
+  JobsInspectorShell,
+} from "./jobs-inspector-shell"
+import {
   jobToRegisterProject,
   workItemToRegisterProject,
 } from "./jobs-register-helpers"
@@ -41,8 +45,8 @@ interface WorkItemsResponse {
 }
 
 /**
- * Jobs Register + persistent Inspector — Stitch Command Center layout.
- * ~63% register / ~37% inspector when a project is selected.
+ * Jobs Register + collapsible job-card Inspector.
+ * Register expands full-width until a row is selected; inspector is ~36–38%.
  */
 export function JobsRegister({
   workItemsModel,
@@ -63,6 +67,7 @@ export function JobsRegister({
   const [scope, setScope] = useState<JobsRegisterScope>("all")
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [createSaving, setCreateSaving] = useState(false)
 
@@ -154,36 +159,49 @@ export function JobsRegister({
   const activeRevisions = projects.filter(p => p.currentWorkType === "revision").length
 
   useEffect(() => {
-    if (selectedId && !projects.some(p => p.id === selectedId)) setSelectedId(null)
-  }, [projects, selectedId])
-
-  // Auto-select first row on desktop so inspector stays the workspace
-  useEffect(() => {
-    if (!selectedId && projects.length > 0 && !isChecking) {
-      if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-        setSelectedId(projects[0].id)
-      }
+    if (selectedId && !projects.some(p => p.id === selectedId)) {
+      setSelectedId(null)
+      setIsInspectorOpen(false)
     }
-  }, [projects, selectedId, isChecking])
+  }, [projects, selectedId])
 
   const openWorkspaceById = useCallback((id: string) => {
     router.push(`/jobs/${id}`)
   }, [router])
 
+  const selectProject = useCallback((id: string) => {
+    // Same row while collapsed → reopen; otherwise select and open.
+    if (selectedId === id && !isInspectorOpen) {
+      setIsInspectorOpen(true)
+      return
+    }
+    setSelectedId(id)
+    setIsInspectorOpen(true)
+  }, [selectedId, isInspectorOpen])
+
+  const collapseInspector = useCallback(() => {
+    setIsInspectorOpen(false)
+  }, [])
+
+  const reopenInspector = useCallback(() => {
+    if (selectedId) setIsInspectorOpen(true)
+  }, [selectedId])
+
   const navigateProjects = useCallback((dir: -1 | 1) => {
     if (projects.length === 0) return
     const idx = selectedId ? projects.findIndex(p => p.id === selectedId) : -1
     const next = Math.min(projects.length - 1, Math.max(0, (idx < 0 ? 0 : idx) + dir))
-    setSelectedId(projects[next]?.id ?? null)
+    const nextId = projects[next]?.id ?? null
+    if (!nextId) return
+    setSelectedId(nextId)
+    setIsInspectorOpen(true)
   }, [projects, selectedId])
 
   useJobsRegisterKeyboard({
     onFocusSearch: () => searchRef.current?.focus(),
     onNavigate: navigateProjects,
     onAddRevision: () => {},
-    onCloseInspector: () => {
-      setSelectedId(null)
-    },
+    onCloseInspector: collapseInspector,
   })
 
   const handleCreate = async (form: JobFormData) => {
@@ -204,7 +222,10 @@ export function JobsRegister({
         toast("Project created", "success")
         setCreateOpen(false)
         await mutateWork()
-        if (body.parent?.id) setSelectedId(body.parent.id)
+        if (body.parent?.id) {
+          setSelectedId(body.parent.id)
+          setIsInspectorOpen(true)
+        }
         return
       }
 
@@ -223,6 +244,7 @@ export function JobsRegister({
       setCreateOpen(false)
       await mutateClassic()
       setSelectedId(job.id)
+      setIsInspectorOpen(true)
     } finally {
       setCreateSaving(false)
     }
@@ -240,7 +262,7 @@ export function JobsRegister({
     { id: "completed", label: "Completed" },
   ]
 
-  const inspectorOpen = Boolean(selected)
+  const inspectorVisible = Boolean(selected) && isInspectorOpen
 
   const toolbarBtn =
     "inline-flex h-9 items-center gap-2 rounded border border-bd px-3 text-sm font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-40"
@@ -248,11 +270,12 @@ export function JobsRegister({
   return (
     <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100vh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Register ~63% (full width when inspector closed on mobile) */}
+        {/* Register expands full width when inspector is collapsed / hidden */}
         <section
           className={cn(
-            "flex min-h-0 flex-col overflow-hidden border-r border-bd bg-sr",
-            inspectorOpen ? "w-full md:w-[63%] lg:w-[62%]" : "w-full",
+            "flex min-h-0 flex-col overflow-hidden bg-sr",
+            "motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out",
+            inspectorVisible ? "w-full md:w-[62%] lg:w-[61%]" : "w-full",
           )}
         >
           <div className="border-b border-bd px-5 pt-4 pb-3">
@@ -386,7 +409,7 @@ export function JobsRegister({
           <JobsRegisterTable
             projects={projects}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={selectProject}
             onOpenWorkspace={openWorkspaceById}
             workItemsModel={workItemsModel}
             designers={designers}
@@ -433,43 +456,53 @@ export function JobsRegister({
           </div>
         </section>
 
-        {/* Inspector ~37% — persistent workspace */}
-        {inspectorOpen && selected && (
-          <section className="hidden md:flex min-h-0 w-[37%] lg:w-[38%] shrink-0 flex-col overflow-hidden border-l border-bd">
+        {/* Desktop inspector card — only while open */}
+        {inspectorVisible && selected && (
+          <JobsInspectorShell
+            className={cn(
+              "hidden md:flex",
+              "my-3 mr-3 w-[calc(38%-0.75rem)] lg:w-[calc(39%-0.75rem)] shrink-0",
+            )}
+          >
             <JobsInspectorErrorBoundary projectLabel={selected.id}>
               <JobsInspector
                 project={selected}
                 workItemsModel={workItemsModel}
                 designers={designers}
                 onStatusChanged={() => { void handleStatusChanged() }}
+                onCollapse={collapseInspector}
+                collapseVariant="chevron"
               />
             </JobsInspectorErrorBoundary>
-          </section>
+          </JobsInspectorShell>
+        )}
+
+        {/* Narrow reopen handle when a job stays selected but inspector is collapsed */}
+        {selected && !isInspectorOpen && (
+          <JobsInspectorReopenHandle onOpen={reopenInspector} />
         )}
       </div>
 
       {/* Tablet / mobile: full-width inspector drawer */}
-      {selected && (
-        <div className="md:hidden fixed inset-0 z-40 flex flex-col bg-sr">
-          <div className="flex items-center justify-between gap-3 border-b border-bd px-4 py-3">
-            <button
-              type="button"
-              className="text-sm font-medium text-t2 hover:text-t1"
-              onClick={() => setSelectedId(null)}
-            >
-              ← Back to Jobs
-            </button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-hidden">
+      {inspectorVisible && selected && (
+        <div
+          className="md:hidden fixed inset-0 z-40 flex flex-col bg-pg/80 p-3 backdrop-blur-[2px]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Job details"
+        >
+          <JobsInspectorShell className="flex min-h-0 flex-1 flex-col">
             <JobsInspectorErrorBoundary projectLabel={selected.id}>
               <JobsInspector
                 project={selected}
                 workItemsModel={workItemsModel}
                 designers={designers}
                 onStatusChanged={() => { void handleStatusChanged() }}
+                onCollapse={collapseInspector}
+                collapseVariant="close"
               />
             </JobsInspectorErrorBoundary>
-          </div>
+          </JobsInspectorShell>
         </div>
       )}
 

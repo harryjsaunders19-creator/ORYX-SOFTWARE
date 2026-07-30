@@ -50,6 +50,7 @@ import {
   type QuoteCardItem,
   type Cat2Summary,
 } from "./jobs-inspector-cards"
+import { JobsInspectorCollapseButton } from "./jobs-inspector-shell"
 
 const AddRevisionModal = lazy(() =>
   import("./add-revision-modal").then(m => ({ default: m.AddRevisionModal })),
@@ -63,6 +64,8 @@ interface JobsInspectorProps {
   workItemsModel: boolean
   designers: string[]
   onStatusChanged?: () => void
+  onCollapse?: () => void
+  collapseVariant?: "chevron" | "close"
 }
 
 interface DocumentsResponse {
@@ -127,6 +130,8 @@ export function JobsInspector({
   workItemsModel,
   designers,
   onStatusChanged,
+  onCollapse,
+  collapseVariant = "chevron",
 }: JobsInspectorProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -637,6 +642,14 @@ export function JobsInspector({
         client={client}
         site={site}
         statusChips={statusChips}
+        collapseSlot={
+          onCollapse ? (
+            <JobsInspectorCollapseButton
+              onCollapse={onCollapse}
+              variant={collapseVariant}
+            />
+          ) : null
+        }
         moreSlot={moreMenu}
       >
         <div className="flex flex-wrap items-center gap-1.5">
@@ -745,13 +758,6 @@ export function JobsInspector({
             <RevisionTimeline revisions={revisions} />
           </>
         )}
-      </div>
-
-      <div className="flex shrink-0 items-center gap-2 border-t border-bd/60 px-5 py-2.5">
-        <span className="h-1.5 w-1.5 rounded-full bg-ok-ic" aria-hidden />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-t3">
-          System operational
-        </span>
       </div>
 
       <Suspense fallback={null}>
