@@ -5,6 +5,7 @@ import {
   deriveProjectHealth,
   deriveWorkflowProgress,
   revisionBadgeLabel,
+  siteDisplay,
   shortStatusLabel,
 } from "../../modules/jobs/components/jobs-register-helpers.ts"
 
@@ -50,5 +51,11 @@ describe("jobs-register-helpers", () => {
         ["invoiced", false],
       ],
     )
+  })
+
+  it("handles missing site and address safely", () => {
+    assert.equal(siteDisplay(null, null), "—")
+    assert.equal(siteDisplay(undefined, ""), "—")
+    assert.equal(siteDisplay("", "Terminal 2, London"), "Terminal 2")
   })
 })

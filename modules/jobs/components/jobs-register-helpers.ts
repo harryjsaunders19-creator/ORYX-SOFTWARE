@@ -143,8 +143,13 @@ export function deriveWorkflowProgress(input: {
   ]
 }
 
-export function siteDisplay(siteName: string | null, address: string): string {
+export function siteDisplay(
+  siteName: string | null | undefined,
+  address: string | null | undefined,
+): string {
   if (siteName?.trim()) return siteName.trim()
-  const first = address.split(",")[0]?.trim()
-  return first || address || "—"
+  const safeAddress = typeof address === "string" ? address.trim() : ""
+  if (!safeAddress) return "—"
+  const first = safeAddress.split(",")[0]?.trim()
+  return first || safeAddress
 }
