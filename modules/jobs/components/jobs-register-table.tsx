@@ -37,7 +37,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   const onSelectStable = useCallback((id: string) => onSelect(id), [onSelect])
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden bg-sr", className)}>
+    <div className={cn("mx-6 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-bd bg-sr", className)}>
       <div role="row" className={HEADER}>
         {(["Drawing Number", "Client & Site", "Status", "Value"] as const).map(label => (
           <div

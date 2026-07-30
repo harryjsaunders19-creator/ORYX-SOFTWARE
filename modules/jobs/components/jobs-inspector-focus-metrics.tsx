@@ -135,9 +135,9 @@ export function JobsInspectorMetrics({
               : "—",
           },
         ].map(m => (
-          <div key={m.label} className="rounded border border-bd/30 bg-sr px-3 py-2.5">
-            <span className="text-[10px] uppercase text-t3 block mb-0.5">{m.label}</span>
-            <span className="text-sm font-semibold text-t1 tabular-nums">{m.value}</span>
+          <div key={m.label} className="border-l border-bd/50 pl-2.5 py-1.5">
+            <span className="mb-0.5 block text-[10px] uppercase text-t3">{m.label}</span>
+            <span className="text-sm font-semibold tabular-nums text-t1">{m.value}</span>
           </div>
         ))}
       </div>

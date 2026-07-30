@@ -2,7 +2,7 @@
 
 import { useMemo, useState, lazy, Suspense } from "react"
 import {
-  X, Plus, Upload, Send, FileText, MoreHorizontal, ArrowRight,
+  Plus, Upload, Send, FileText, MoreHorizontal, ArrowRight,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useApi } from "@/shared/hooks/use-api"
@@ -40,7 +40,6 @@ const AddRevisionModal = lazy(() =>
 interface JobsInspectorProps {
   project: JobsRegisterProject
   workItemsModel: boolean
-  onClose: () => void
   onOpenWorkspace: () => void
   onAddRevisionRequest?: () => void
 }
@@ -89,7 +88,6 @@ interface RevisionsResponse {
 export function JobsInspector({
   project,
   workItemsModel,
-  onClose,
   onOpenWorkspace,
 }: JobsInspectorProps) {
   const [addRevOpen, setAddRevOpen] = useState(false)
@@ -335,11 +333,11 @@ export function JobsInspector({
           </div>
           <button
             type="button"
-            className="rounded p-1.5 text-t3 hover:bg-surface-low hover:text-t1"
-            aria-label="Close inspector"
-            onClick={onClose}
+            className="rounded border border-bd p-1.5 text-t3 transition-colors hover:bg-surface-low hover:text-t1"
+            aria-label="More actions"
+            onClick={onOpenWorkspace}
           >
-            <X className="h-4 w-4" />
+            <MoreHorizontal className="h-4 w-4" />
           </button>
         </div>
       </div>

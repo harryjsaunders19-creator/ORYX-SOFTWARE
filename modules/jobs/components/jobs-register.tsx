@@ -5,7 +5,7 @@ import {
 } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
-  Search, Plus, SlidersHorizontal, X,
+  Search, Plus, SlidersHorizontal, X, Upload, Download,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
@@ -251,12 +251,6 @@ export function JobsRegister({
               </button>
             )}
           </div>
-          {isAdmin && (
-            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="h-3.5 w-3.5" />
-              New Project
-            </Button>
-          )}
         </div>
       )}
 
@@ -269,7 +263,7 @@ export function JobsRegister({
           )}
         >
           <div className="px-6 pt-6 pb-3">
-            <div className="flex items-end justify-between gap-4 mb-4">
+            <div className="mb-4 flex items-end justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-t1 tracking-tight">
                   {isChecking ? "Checking queue" : "Jobs"}
@@ -281,14 +275,40 @@ export function JobsRegister({
                 </p>
               </div>
               {!isChecking && (
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 hover:bg-surface-low transition-colors"
-                  onClick={() => router.push("/jobs/checking")}
-                >
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filters
-                </button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 transition-colors hover:bg-surface-low"
+                    onClick={() => router.push("/jobs/checking")}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filters
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 transition-colors hover:bg-surface-low"
+                    onClick={openWorkspace}
+                    disabled={!selected}
+                  >
+                    <Download className="h-4 w-4" />
+                    Export
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 transition-colors hover:bg-surface-low"
+                    onClick={() => setCreateOpen(true)}
+                    disabled={!isAdmin}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Import
+                  </button>
+                  {isAdmin && (
+                    <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+                      <Plus className="h-3.5 w-3.5" />
+                      New Project
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
 
@@ -380,7 +400,6 @@ export function JobsRegister({
             <JobsInspector
               project={selected}
               workItemsModel={workItemsModel}
-              onClose={() => setSelectedId(null)}
               onOpenWorkspace={openWorkspace}
             />
           </section>
