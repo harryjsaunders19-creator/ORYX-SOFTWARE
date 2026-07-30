@@ -68,7 +68,8 @@ export function revisionBadgeLabel(letter: string | null | undefined): string {
 
 /** Map classic job list row (original) → register project. */
 export function jobToRegisterProject(job: Job): JobsRegisterProject {
-  const status = job.status
+  const status = job.currentStatus ?? job.status
+  const due = job.currentRequiredByDate ?? job.requiredByDate
   return {
     id: job.id,
     detailId: job.currentRevisionId ?? job.id,
@@ -79,16 +80,16 @@ export function jobToRegisterProject(job: Job): JobsRegisterProject {
     address: job.address,
     currentRevisionLetter: job.currentRevisionLetter ?? job.revisionLetter,
     currentStatus: status,
-    nextAction: deriveNextAction(status, job.requiredByDate),
-    value: job.quoteValue,
-    designer: job.designer ?? "",
-    requiredByDate: job.requiredByDate,
+    nextAction: deriveNextAction(status, due),
+    value: job.currentQuoteValue ?? job.quoteValue,
+    designer: job.currentDesigner ?? job.designer ?? "",
+    requiredByDate: due,
     revisionCount: job.revisionCount ?? 0,
     updatedAt: job.updatedAt,
     canAddRevision: job.canAddRevision ?? false,
     clientId: job.clientId,
     typeOfWorks: job.typeOfWorks,
-    projectStatus: status === "ISSUED" ? "ISSUED" : "IN_DESIGN",
+    projectStatus: job.status === "ISSUED" ? "ISSUED" : "IN_DESIGN",
   }
 }
 

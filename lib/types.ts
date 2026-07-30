@@ -47,6 +47,11 @@ export interface Job {
   /** List/detail presentation — id of the active (latest) revision, or self if none. */
   currentRevisionId?: string | null
   currentRevisionLetter?: string | null
+  /** List API only — current revision display fields (parent status stays on `status`). */
+  currentStatus?: string
+  currentDesigner?: string
+  currentRequiredByDate?: string | null
+  currentQuoteValue?: number | null
   /** Set when archived — latest cancellation record from ArchiveLog. */
   cancelRecord?:    CancelRecord | null
   /** Linked quotes via quotes.job_id — populated by list/detail API. */
