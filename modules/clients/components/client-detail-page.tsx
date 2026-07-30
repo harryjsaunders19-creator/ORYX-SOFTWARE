@@ -20,8 +20,8 @@ import { PageShell, BackLink, PageHeader, KpiTile, DataPanel, DetailPanel, surfa
 import { useApi } from "@/shared/hooks/use-api"
 import type { Client, ClientStats, ClientHold, Job } from "@/lib/types"
 import type { ClientContactRow } from "@/modules/clients/types/client-contact-types"
-import { CreateSiteDialog, SiteSummaryCard, SiteDetailsPanel } from "@/modules/sites"
-import type { SiteSummary } from "@/modules/sites"
+import { CreateSiteDialog, SiteSummaryCard, SiteDetailsPanel } from "@/modules/sites/client"
+import type { SiteSummary } from "@/modules/sites/client"
 
 interface ClientDetail {
   client: Client

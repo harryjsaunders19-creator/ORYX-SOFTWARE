@@ -1,6 +1,7 @@
 /**
- * Sites module — public API.
- * Import from `@/modules/sites` only.
+ * Sites module — server / shared public API.
+ * Client UI must import from `@/modules/sites/client` so `siteService`
+ * (Node `createRequire`) never enters the browser bundle.
  */
 export { siteService } from "./services/site-service"
 
@@ -24,10 +25,3 @@ export {
   siteDedupKey,
   siteSimilarity,
 } from "./lib/normalize"
-
-export { SiteSelector } from "./components/site-selector"
-export { CreateSiteDialog } from "./components/create-site-dialog"
-export { SiteSummaryCard } from "./components/site-summary"
-export { SiteDetailsPanel } from "./components/site-details-panel"
-export { SiteJobsList } from "./components/site-jobs-list"
-export { SiteFilter } from "./components/site-filter"

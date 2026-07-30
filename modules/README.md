@@ -30,7 +30,7 @@ modules/{name}/
 
 | Module | Status | Routes |
 |--------|--------|--------|
-| sites | **New (Client → Site → Job)** | `/api/sites/*` |
+| sites | **New (Client → Site → Job)** | `/api/sites/*` — UI via `@/modules/sites/client` |
 | dashboard | **Migrated (Phase 11)** | `/`, `/api/stats` |
 | clients | **Migrated (Phase 5)** | `/clients/*`, `/api/clients/*`, `/api/hold-list` |
 | jobs | **Migrated (Phase 6)** | `/jobs/*`, `/api/jobs/*` |
