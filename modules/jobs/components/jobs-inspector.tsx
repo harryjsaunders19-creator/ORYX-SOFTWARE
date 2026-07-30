@@ -2,17 +2,14 @@
 
 import { useMemo, useState, lazy, Suspense } from "react"
 import {
-  X, Plus, Upload, Send, FileText, Receipt, MoreHorizontal, ArrowRight,
+  X, Plus, Upload, Send, FileText, MoreHorizontal, ArrowRight,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
-import { StatusBadge } from "@/modules/jobs/components/badges/status-badge"
 import { useApi } from "@/shared/hooks/use-api"
 import { cn } from "@/shared/utils/utils"
-import { Typography } from "@/shared/design/typography"
 import type { Job } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { JobsRegisterProject } from "./jobs-register-types"
-import { INSPECTOR_W } from "./jobs-register-types"
 import {
   deriveNextAction,
   deriveWorkflowProgress,
@@ -96,7 +93,7 @@ export function JobsInspector({
   onOpenWorkspace,
 }: JobsInspectorProps) {
   const [addRevOpen, setAddRevOpen] = useState(false)
-  const [moreOpen, setMoreOpen] = useState(false)
+  const [tab, setTab] = useState<"overview" | "revisions" | "commercial" | "documents" | "activity">("revisions")
 
   const parentKey = workItemsModel
     ? `/api/parent-jobs/${project.id}`
@@ -277,156 +274,135 @@ export function JobsInspector({
   return (
     <aside
       className={cn(
-        "jobs-inspector flex h-full min-h-0 flex-col border-l border-bd bg-sr",
-        "transition-transform duration-200 ease-out",
+        "jobs-inspector flex h-full min-h-0 w-full flex-col bg-sr",
+        "border-l border-bd",
       )}
-      style={{ width: INSPECTOR_W, maxWidth: "100%" }}
+      style={{ boxShadow: "-4px 0 24px rgba(0,0,0,0.02)" }}
       aria-label={`Inspector for ${drawingNumber}`}
     >
-      <div className="flex items-start justify-between gap-2 border-b border-bd px-4 py-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className={cn(Typography.DrawingNumber, "text-xl text-t1 truncate")}>
-              {drawingNumber}
-            </h2>
-            <span className="rounded-md border border-bd bg-surface-low px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-t2">
-              {revLabel}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-t2 truncate">
-            {client}
-            <span className="text-t4"> · </span>
-            {site}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-bd px-2 py-0.5 text-xs">
-              <span className="text-t3">Project</span>
-              <StatusBadge status={projectStatus === "ISSUED" ? "ISSUED" : "IN_DESIGN"} />
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-bd px-2 py-0.5 text-xs">
-              <span className="text-t3">Current Revision</span>
-              <StatusBadge status={revStatus} />
-            </span>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Close inspector"
-          onClick={onClose}
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap gap-2 border-b border-bd px-4 py-3">
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => {
-            if (workItemsModel) {
-              onOpenWorkspace()
-              return
-            }
-            setAddRevOpen(true)
-          }}
-          disabled={!workItemsModel && !project.canAddRevision && !jobDetail?.job}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add Revision
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onClick={onOpenWorkspace}
-        >
-          <Upload className="h-3.5 w-3.5" />
-          Upload Drawing
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onClick={onOpenWorkspace}
-        >
-          <Send className="h-3.5 w-3.5" />
-          Issue Drawing
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            window.location.href = `/quotes?new=1&jobId=${encodeURIComponent(project.detailId)}`
-          }}
-        >
-          <FileText className="h-3.5 w-3.5" />
-          Generate Quote
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onClick={onOpenWorkspace}
-        >
-          <Receipt className="h-3.5 w-3.5" />
-          Generate Invoice
-        </Button>
-        <div className="relative">
-          <Button
+      {/* Quick actions — Stitch sticky toolbar */}
+      <div className="sticky top-0 z-30 border-b border-bd bg-sr p-4">
+        <div className="flex items-center gap-2">
+          <button
             type="button"
-            size="sm"
-            variant="ghost"
-            aria-expanded={moreOpen}
-            onClick={() => setMoreOpen(v => !v)}
+            className="flex flex-1 min-w-[120px] items-center justify-center gap-2 rounded bg-blue-600 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+            onClick={() => {
+              if (workItemsModel) {
+                onOpenWorkspace()
+                return
+              }
+              setAddRevOpen(true)
+            }}
+            disabled={!workItemsModel && !project.canAddRevision && !jobDetail?.job}
           >
-            <MoreHorizontal className="h-3.5 w-3.5" />
-            More Actions
-          </Button>
-          {moreOpen && (
-            <div className="absolute right-0 z-20 mt-1 w-44 rounded-lg border border-bd bg-sr py-1 shadow-modal">
-              <button
-                type="button"
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-low"
-                onClick={() => {
-                  setMoreOpen(false)
-                  onOpenWorkspace()
-                }}
-              >
-                Open full workspace
-              </button>
-            </div>
-          )}
+            <Plus className="h-[18px] w-[18px]" />
+            Add Revision
+          </button>
+          <div className="flex gap-1">
+            <IconBtn title="Upload Drawing" onClick={onOpenWorkspace}><Upload className="h-5 w-5" /></IconBtn>
+            <IconBtn title="Issue Drawing" onClick={onOpenWorkspace}><Send className="h-5 w-5" /></IconBtn>
+            <IconBtn title="Generate Quote" onClick={() => { window.location.href = `/quotes?new=1&jobId=${encodeURIComponent(project.detailId)}` }}><FileText className="h-5 w-5" /></IconBtn>
+            <IconBtn title="More" onClick={onOpenWorkspace}><MoreHorizontal className="h-5 w-5" /></IconBtn>
+          </div>
         </div>
       </div>
 
-      <div
-        key={project.id}
-        className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4"
-      >
+      {/* Header */}
+      <div className="border-b border-bd px-5 pt-4 pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-2xl font-bold tracking-tight text-t1 truncate">{drawingNumber}</h3>
+              <span className="rounded border border-bd bg-surface-low px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-t3">
+                {revLabel}
+              </span>
+            </div>
+            <p className="mt-1 text-sm">
+              <span className="font-semibold text-t1">{client}</span>
+              <span className="text-t4"> / </span>
+              <span className="text-t3">{site}</span>
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded border border-green-200 bg-green-50 px-3 py-1 text-[10px] font-bold text-green-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden />
+                PROJECT: {projectStatus === "ISSUED" ? "COMPLETED" : "ACTIVE"}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-bold text-blue-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" aria-hidden />
+                CURR. REV: {shortStatusLabel(revStatus).toUpperCase()}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="rounded p-1.5 text-t3 hover:bg-surface-low hover:text-t1"
+            aria-label="Close inspector"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <nav className="flex border-b border-bd overflow-x-auto" aria-label="Inspector sections">
+        {(
+          [
+            ["overview", "Overview"],
+            ["revisions", "Revisions"],
+            ["commercial", "Commercial"],
+            ["documents", "Documents"],
+            ["activity", "Activity"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={cn(
+              "px-4 py-3 text-xs font-medium whitespace-nowrap transition-colors",
+              tab === id
+                ? "border-b-2 border-ac text-t1 font-bold"
+                : "text-t3 hover:text-t1",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <div key={project.id} className="min-h-0 flex-1 space-y-8 overflow-y-auto px-5 py-5">
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-24 skeleton rounded-xl" />
+              <div key={i} className="h-24 skeleton rounded-lg" />
             ))}
           </div>
         ) : (
           <>
-            <JobsInspectorCurrentFocus
-              revisionLabel={revLabel}
-              currentTask={deriveNextAction(revStatus, project.requiredByDate)}
-              designer={currentRev?.designer || project.designer}
-              checker={null}
-              dueDate={project.requiredByDate}
-              status={revStatus}
-            />
-            <JobsInspectorMetrics {...metrics} />
-            <JobsInspectorRevisionTimeline revisions={revisions} />
-            <JobsInspectorWorkflow stages={workflow} />
-            <JobsInspectorRecentFiles files={files} onReplace={() => onOpenWorkspace()} />
-            <JobsInspectorActivityFeed items={activity} />
+            {(tab === "overview" || tab === "revisions") && (
+              <JobsInspectorCurrentFocus
+                revisionLabel={revLabel}
+                currentTask={deriveNextAction(revStatus, project.requiredByDate)}
+                designer={currentRev?.designer || project.designer}
+                checker={null}
+                dueDate={project.requiredByDate}
+                status={revStatus}
+              />
+            )}
+            {(tab === "overview" || tab === "commercial") && (
+              <JobsInspectorMetrics {...metrics} />
+            )}
+            {(tab === "overview" || tab === "revisions") && (
+              <JobsInspectorRevisionTimeline revisions={revisions} />
+            )}
+            {tab === "overview" && <JobsInspectorWorkflow stages={workflow} />}
+            {(tab === "overview" || tab === "documents") && (
+              <JobsInspectorRecentFiles files={files} onReplace={() => onOpenWorkspace()} />
+            )}
+            {(tab === "overview" || tab === "activity") && (
+              <JobsInspectorActivityFeed items={activity} />
+            )}
           </>
         )}
       </div>
@@ -460,5 +436,27 @@ export function JobsInspector({
         )}
       </Suspense>
     </aside>
+  )
+}
+
+function IconBtn({
+  title,
+  onClick,
+  children,
+}: {
+  title: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      onClick={onClick}
+      className="rounded border border-bd p-2 text-t2 hover:bg-surface-low transition-colors"
+    >
+      {children}
+    </button>
   )
 }

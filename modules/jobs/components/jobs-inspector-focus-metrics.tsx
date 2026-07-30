@@ -1,7 +1,6 @@
 "use client"
 
-import { formatGBP } from "@/shared/utils/utils"
-import { Typography } from "@/shared/design/typography"
+import { formatGBP, cn } from "@/shared/utils/utils"
 import { deriveProjectHealth } from "./jobs-register-helpers"
 
 interface JobsInspectorCurrentFocusProps {
@@ -13,6 +12,7 @@ interface JobsInspectorCurrentFocusProps {
   status: string
 }
 
+/** Stitch Current Focus — black primary card (bg-primary / text-on-primary). */
 export function JobsInspectorCurrentFocus({
   revisionLabel,
   currentTask,
@@ -22,62 +22,65 @@ export function JobsInspectorCurrentFocus({
   status,
 }: JobsInspectorCurrentFocusProps) {
   const health = deriveProjectHealth(status, dueDate)
-  const healthDot =
-    health.tone === "danger"
-      ? "bg-dn"
-      : health.tone === "warn"
-        ? "bg-wn-ic"
-        : health.tone === "ok"
-          ? "bg-ok-ic"
-          : "bg-t4"
-
-  const rows: { label: string; value: string }[] = [
-    { label: "Current Revision", value: revisionLabel },
-    { label: "Current Task", value: currentTask },
-    { label: "Responsible Designer", value: designer || "—" },
-    { label: "Current Checker", value: checker || "—" },
-    {
-      label: "Due Date",
-      value: dueDate
-        ? new Date(dueDate).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })
-        : "—",
-    },
-  ]
+  const initials = designer
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(p => p[0]?.toUpperCase() ?? "")
+    .join("") || "?"
 
   return (
-    <section className="rounded-xl border border-bd bg-sr p-4">
-      <h3 className={cnTitle()}>Current Focus</h3>
-      <dl className="mt-3 space-y-2.5">
-        {rows.map(row => (
-          <div key={row.label} className="flex items-baseline justify-between gap-3">
-            <dt className="text-xs uppercase tracking-wide text-t3 shrink-0">{row.label}</dt>
-            <dd className="text-sm text-t1 text-right font-medium truncate">{row.value}</dd>
+    <section className="rounded-lg bg-ac text-on-ac p-5 shadow-lg">
+      <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-ac/60 mb-4">
+        Current Focus
+      </h4>
+      <div className="space-y-4">
+        <div className="flex justify-between items-end gap-4 border-b border-on-ac/10 pb-4">
+          <div>
+            <span className="block text-[10px] uppercase font-medium text-on-ac/50 mb-1">
+              Active Stage
+            </span>
+            <span className="text-base font-semibold leading-tight">{revisionLabel}</span>
           </div>
-        ))}
-        <div className="flex items-baseline justify-between gap-3 pt-1 border-t border-bd/60">
-          <dt className="text-xs uppercase tracking-wide text-t3">Project Health</dt>
-          <dd className="text-sm text-t1 font-medium inline-flex items-center gap-1.5">
-            <span className={`h-2 w-2 rounded-full ${healthDot}`} aria-hidden />
-            {health.label}
-          </dd>
+          <div className="text-right">
+            <span className="block text-[10px] uppercase font-medium text-on-ac/50 mb-1">
+              Current Task
+            </span>
+            <span className="text-sm font-medium leading-tight">{currentTask}</span>
+          </div>
         </div>
-      </dl>
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-8 w-8 rounded bg-on-ac/10 flex items-center justify-center text-[12px] font-bold shrink-0">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <span className="block text-[10px] uppercase text-on-ac/50 leading-none mb-0.5">
+                Responsible
+              </span>
+              <span className="text-sm leading-none truncate block">{designer || "—"}</span>
+              {checker && (
+                <span className="block text-[10px] text-on-ac/50 mt-1 truncate">
+                  Checker: {checker}
+                </span>
+              )}
+            </div>
+          </div>
+          <div
+            className={cn(
+              "px-3 py-1 rounded text-[10px] font-bold shrink-0 border",
+              health.tone === "danger" || health.tone === "warn"
+                ? "bg-red-500/20 text-red-100 border-red-500/30"
+                : "bg-on-ac/10 text-on-ac/80 border-on-ac/20",
+            )}
+          >
+            {health.label.toUpperCase()}
+          </div>
+        </div>
+      </div>
     </section>
   )
-}
-
-function cnTitle() {
-  return `${Typography.CardTitle} text-t1`
-}
-
-interface Metric {
-  label: string
-  value: string
-  emphasize?: boolean
 }
 
 export function JobsInspectorMetrics({
@@ -95,44 +98,46 @@ export function JobsInspectorMetrics({
   revisionCount: number
   lastActivity: string | null
 }) {
-  const metrics: Metric[] = [
-    { label: "Original Design Fee", value: formatGBP(originalFee) },
-    { label: "Revision Revenue", value: formatGBP(revisionRevenue) },
-    { label: "Total Project Value", value: formatGBP(totalValue) },
-    {
-      label: "Outstanding Value",
-      value: formatGBP(outstanding),
-      emphasize: (outstanding ?? 0) > 0,
-    },
-    { label: "Revision Count", value: String(revisionCount) },
-    {
-      label: "Last Activity",
-      value: lastActivity
-        ? new Date(lastActivity).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "short",
-          })
-        : "—",
-    },
-  ]
-
   return (
     <section>
-      <h3 className={cnTitle()}>Commercial Metrics</h3>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {metrics.map(m => (
-          <div
-            key={m.label}
-            className="rounded-lg border border-bd bg-surface-low/70 px-3 py-2.5"
+      <h4 className="text-[11px] font-bold uppercase tracking-widest text-t3 mb-4">
+        Commercial Metrics
+      </h4>
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="rounded border border-bd/40 bg-surface-low p-3">
+          <span className="text-[10px] uppercase text-t3 block mb-1">Total Project Value</span>
+          <span className="text-base font-bold text-t1 tabular-nums">{formatGBP(totalValue)}</span>
+        </div>
+        <div className="rounded border border-bd/40 bg-surface-low p-3">
+          <span className="text-[10px] uppercase text-t3 block mb-1">Outstanding Value</span>
+          <span
+            className={cn(
+              "text-base font-bold tabular-nums",
+              (outstanding ?? 0) > 0 ? "text-dn" : "text-t1",
+            )}
           >
-            <p className="text-[10px] uppercase tracking-wider text-t3">{m.label}</p>
-            <p
-              className={`mt-1 text-sm font-semibold tabular-nums ${
-                m.emphasize ? "text-dn" : "text-t1"
-              }`}
-            >
-              {m.value}
-            </p>
+            {formatGBP(outstanding)}
+          </span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: "Orig. Fee", value: formatGBP(originalFee) },
+          { label: "Rev Revenue", value: formatGBP(revisionRevenue) },
+          { label: "Rev Count", value: `${revisionCount} Total` },
+          {
+            label: "Last Activity",
+            value: lastActivity
+              ? new Date(lastActivity).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                })
+              : "—",
+          },
+        ].map(m => (
+          <div key={m.label} className="rounded border border-bd/30 bg-sr px-3 py-2.5">
+            <span className="text-[10px] uppercase text-t3 block mb-0.5">{m.label}</span>
+            <span className="text-sm font-semibold text-t1 tabular-nums">{m.value}</span>
           </div>
         ))}
       </div>

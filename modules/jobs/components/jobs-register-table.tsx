@@ -3,7 +3,6 @@
 import { useRef, useCallback, memo } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { cn } from "@/shared/utils/utils"
-import { Typography } from "@/shared/design/typography"
 import { JobsRegisterRow } from "./jobs-register-row"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { REGISTER_ROW_H } from "./jobs-register-types"
@@ -17,7 +16,7 @@ interface JobsRegisterTableProps {
 }
 
 const HEADER =
-  "grid grid-cols-[minmax(140px,1.1fr)_minmax(160px,1.4fr)_minmax(110px,0.9fr)_minmax(140px,1.1fr)_minmax(88px,0.7fr)] gap-3 px-4 h-9 items-center border-b border-bd bg-surface-low/60 sticky top-0 z-10"
+  "grid grid-cols-[1.2fr_1.4fr_0.7fr_0.7fr] items-center border-b border-bd bg-sr sticky top-0 z-10"
 
 export const JobsRegisterTable = memo(function JobsRegisterTable({
   projects,
@@ -38,15 +37,14 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   const onSelectStable = useCallback((id: string) => onSelect(id), [onSelect])
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-bd bg-sr", className)}>
+    <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden bg-sr", className)}>
       <div role="row" className={HEADER}>
-        {["Drawing Number", "Client & Site", "Current Revision", "Next Action", "Value"].map(label => (
+        {(["Drawing Number", "Client & Site", "Status", "Value"] as const).map(label => (
           <div
             key={label}
             role="columnheader"
             className={cn(
-              Typography.Label,
-              "uppercase tracking-wider text-t3",
+              "px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-t3",
               label === "Value" && "text-right",
             )}
           >
@@ -64,7 +62,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
         {loading && projects.length === 0 ? (
           <div className="p-4 space-y-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-12 skeleton rounded-md" />
+              <div key={i} className="h-14 skeleton rounded-md" />
             ))}
           </div>
         ) : projects.length === 0 ? (
