@@ -105,16 +105,30 @@ function dueLabel(value: string | null | undefined): string {
   if (!value) return "Not set"
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return "Not set"
+  const absolute = d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const target = new Date(d)
   target.setHours(0, 0, 0, 0)
   const diff = Math.round((target.getTime() - today.getTime()) / 86_400_000)
-  if (diff < 0) return "Overdue"
-  if (diff === 0) return "Today"
-  if (diff <= 7) return "This week"
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+  if (diff < 0) return `Overdue · ${absolute}`
+  if (diff === 0) return `Today · ${absolute}`
+  if (diff <= 7) return `This week · ${absolute}`
+  return absolute
 }
+
+/** Shared light card language for all inspector sections. */
+const inspectorCard = "rounded-lg border border-bd bg-sr p-3.5"
+const inspectorHeading = "mb-2.5 text-xs font-semibold uppercase tracking-wider text-t3"
+const inspectorLabel = "mb-1 text-xs text-t3"
+const inspectorValue = "text-sm text-t1"
+const inspectorMuted = "text-sm text-t3"
+const inspectorAction =
+  "inline-flex h-7 items-center rounded border border-bd px-2 text-xs font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-50"
 
 type CompactRevision = {
   id: string
@@ -445,7 +459,7 @@ export function JobsInspector({
         </div>
       </div>
 
-      <div key={project.id} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div key={project.id} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -462,6 +476,21 @@ export function JobsInspector({
               dueDate={project.requiredByDate}
               patchUrl={currentWorkPatchUrl}
               onChanged={() => { void refreshAll() }}
+            />
+
+            <WorksDescriptionCard
+              isRevision={currentWork.type === "revision"}
+              description={
+                currentWork.type === "revision"
+                  ? (currentRev?.reason ?? null)
+                  : (
+                      parent?.typeOfWorks
+                      ?? jobDetail?.typeOfWorks
+                      ?? project.typeOfWorks
+                      ?? jobDetail?.notes
+                      ?? null
+                    )
+              }
             />
 
             <LinkedQuotationSummary
@@ -564,14 +593,14 @@ function CurrentWorkSummary({
       : currentWork.type === "original"
         ? "Original"
         : "Complete"
+  const due = dueLabel(dueDate)
+  const overdue = due.startsWith("Overdue")
 
   return (
-    <section className="rounded-lg border border-[#2e3238] bg-[#1c1f24] p-3.5 text-[#f4f4f5]">
-      <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[#a1a1aa]">
-        Current Work
-      </h4>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-sm font-semibold text-[#fafafa]">{label}</span>
+    <section className={inspectorCard}>
+      <h4 className={inspectorHeading}>Current Work</h4>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-bd pb-3">
+        <span className="text-sm font-semibold text-t1">{label}</span>
         {active ? (
           <WorkItemStatusSelector
             workItemType={currentWork.type === "revision" ? "revision" : "original"}
@@ -583,12 +612,14 @@ function CurrentWorkSummary({
             onStatusChanged={onChanged}
           />
         ) : (
-          <span className="text-sm text-[#d4d4d8]">Complete</span>
+          <span className="inline-flex items-center rounded-md border border-ok-bd bg-ok-bg px-2 py-0.5 text-xs font-medium text-ok-tx">
+            Complete
+          </span>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-3 text-sm">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
         <div>
-          <p className="mb-1 text-xs text-[#a1a1aa]">Designer</p>
+          <p className={inspectorLabel}>Designer</p>
           {active ? (
             <DesignerAssignmentSelector
               workItemType={currentWork.type === "revision" ? "revision" : "original"}
@@ -598,30 +629,56 @@ function CurrentWorkSummary({
               designers={designers}
               patchUrl={patchUrl}
               compact
-              className="text-[#f4f4f5] [&_span]:bg-white/10 [&_span]:text-[#f4f4f5]"
               onDesignerChanged={onChanged}
             />
           ) : (
-            <p className="text-[#d4d4d8]">{missingLabel(designer, "Unassigned")}</p>
+            <p className={inspectorMuted}>{missingLabel(designer, "Unassigned")}</p>
           )}
         </div>
         <div>
-          <p className="mb-1 text-xs text-[#a1a1aa]">Checker</p>
-          <p className="text-[#d4d4d8]">Not assigned</p>
+          <p className={inspectorLabel}>Checker</p>
+          <p className={inspectorMuted}>Not assigned</p>
         </div>
         <div>
-          <p className="mb-1 text-xs text-[#a1a1aa]">Due</p>
-          <p className="text-[#f4f4f5]">{dueLabel(dueDate)}</p>
+          <p className={inspectorLabel}>Due</p>
+          <p className={cn(inspectorValue, overdue && "text-dn")}>
+            {due}
+            {overdue && (
+              <span className="ml-1.5 inline-flex rounded border border-dn-bd bg-dn-bg px-1.5 py-0.5 text-[10px] font-medium text-dn-tx">
+                Overdue
+              </span>
+            )}
+          </p>
         </div>
         <div>
-          <p className="mb-1 text-xs text-[#a1a1aa]">Next action</p>
-          <p className="text-[#f4f4f5]">
+          <p className={inspectorLabel}>Next action</p>
+          <p className={inspectorValue}>
             {active
               ? deriveNextAction(currentWork.status, dueDate)
               : "No active work"}
           </p>
         </div>
       </div>
+    </section>
+  )
+}
+
+function WorksDescriptionCard({
+  isRevision,
+  description,
+}: {
+  isRevision: boolean
+  description: string | null
+}) {
+  const text = description?.trim()
+  return (
+    <section className={inspectorCard}>
+      <h4 className={inspectorHeading}>
+        {isRevision ? "Reason for Revision" : "Description of Works"}
+      </h4>
+      <p className={cn("whitespace-pre-wrap", text ? inspectorValue : inspectorMuted)}>
+        {text || (isRevision ? "No reason recorded" : "No description recorded")}
+      </p>
     </section>
   )
 }
@@ -642,23 +699,19 @@ function LinkedQuotationSummary({
   onUnlink: () => void
 }) {
   return (
-    <section className="rounded-lg border border-bd bg-surface-low/50 p-3.5">
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-t3">
-        Quotation
-      </h4>
+    <section className={inspectorCard}>
+      <h4 className={inspectorHeading}>Quotation</h4>
       {quote ? (
         <div className="space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-t1">{quote.quoteNumber}</p>
-              <p className="mt-0.5 text-sm text-t2">
-                {formatGBP(quote.quoteValue)}
-                <span className="text-t4"> · </span>
-                <QuoteStatusBadge status={quote.status} />
-              </p>
-            </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-t1">{quote.quoteNumber}</p>
+            <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-t2">
+              <span>{formatGBP(quote.quoteValue)}</span>
+              <span className="text-t4">·</span>
+              <QuoteStatusBadge status={quote.status} />
+            </p>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-3 border-t border-bd pt-2">
             <button type="button" className="text-xs font-medium text-ac2 hover:underline" onClick={onOpen}>
               Open Quote
             </button>
@@ -677,12 +730,8 @@ function LinkedQuotationSummary({
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm text-t3">No quotation attached</p>
-          <button
-            type="button"
-            className="inline-flex h-7 items-center rounded border border-bd px-2 text-xs font-medium text-t1 hover:bg-sr"
-            onClick={onAttach}
-          >
+          <p className={inspectorMuted}>No quotation attached</p>
+          <button type="button" className={inspectorAction} onClick={onAttach}>
             Attach Quote
           </button>
         </div>
@@ -708,26 +757,26 @@ function CATIICheckSummary({
 }) {
   const label = doc?.originalFilename || doc?.filename || "CAT II Check Sheet"
   return (
-    <section className="rounded-lg border border-bd bg-surface-low/50 p-3.5">
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-t3">
-        CATII Check
-      </h4>
+    <section className={inspectorCard}>
+      <h4 className={inspectorHeading}>CATII Check</h4>
       {doc ? (
         <div className="space-y-2">
           <p className="truncate text-sm font-semibold text-t1">{label}</p>
           <p className="text-xs text-t3">
             Created {safeDateLabel(doc.createdAt)} · {targetLabel}
           </p>
-          <button type="button" className="text-xs font-medium text-ac2 hover:underline" onClick={onOpen}>
-            Open Check
-          </button>
+          <div className="border-t border-bd pt-2">
+            <button type="button" className="text-xs font-medium text-ac2 hover:underline" onClick={onOpen}>
+              Open Check
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm text-t3">No check created</p>
+          <p className={inspectorMuted}>No check created</p>
           <button
             type="button"
-            className="inline-flex h-7 items-center rounded border border-bd px-2 text-xs font-medium text-t1 hover:bg-sr disabled:opacity-50"
+            className={inspectorAction}
             onClick={onCreate}
             disabled={busy || !canCreate}
             title={
@@ -747,33 +796,40 @@ function CATIICheckSummary({
 function RevisionHistory({ revisions }: { revisions: CompactRevision[] }) {
   return (
     <section>
-      <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-t3">
-        Revision History
-      </h4>
+      <h4 className={inspectorHeading}>Revision History</h4>
       {revisions.length === 0 ? (
-        <p className="text-sm text-t3">Original design only</p>
+        <div className={inspectorCard}>
+          <p className={inspectorMuted}>Original design only</p>
+        </div>
       ) : (
         <ul className="space-y-2">
           {revisions.map(rev => {
             const title = rev.letter ? `Rev ${rev.letter}` : "Original"
+            const complete = rev.status === "ISSUED"
             return (
               <li
                 key={rev.id}
                 className={cn(
-                  "rounded-lg border border-bd px-3 py-2.5",
-                  rev.isCurrent ? "border-l-[3px] border-l-ac2 bg-surface-low" : "bg-sr",
+                  inspectorCard,
+                  "p-3",
+                  rev.isCurrent && "border-l-[3px] border-l-ac2",
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-t1">
-                      {title}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="text-sm font-semibold text-t1">{title}</p>
                       {rev.isCurrent && (
-                        <span className="ml-2 text-[10px] font-medium uppercase text-ac2">
+                        <span className="inline-flex rounded border border-ac2/30 bg-ac2-bg px-1.5 py-0.5 text-[10px] font-medium text-ac2">
                           Active
                         </span>
                       )}
-                    </p>
+                      {complete && !rev.isCurrent && (
+                        <span className="inline-flex rounded border border-ok-bd bg-ok-bg px-1.5 py-0.5 text-[10px] font-medium text-ok-tx">
+                          Complete
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-0.5 text-xs text-t3">
                       {shortStatusLabel(rev.status)}
                       {" · "}
@@ -784,7 +840,7 @@ function RevisionHistory({ revisions }: { revisions: CompactRevision[] }) {
                       <p className="mt-1 truncate text-xs text-t2">{rev.reason.trim()}</p>
                     )}
                   </div>
-                  <span className="shrink-0 rounded border border-bd px-1.5 py-0.5 text-[10px] font-medium text-t3">
+                  <span className="shrink-0 rounded border border-bd bg-surface-low px-1.5 py-0.5 text-[10px] font-medium text-t3">
                     {rev.billable ? "Chargeable" : "Free"}
                   </span>
                 </div>
