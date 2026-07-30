@@ -12,7 +12,6 @@ import type { Job, LinkedQuoteSummary, Quote } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import {
-  deriveNextAction,
   revisionBadgeLabel,
   siteDisplay,
 } from "./jobs-register-helpers"
@@ -41,14 +40,11 @@ import {
   StatusChip,
   CurrentDrawingSection,
   ProjectDetailsSection,
-  CommercialSummary,
-  QuotationSummary,
   CATIISummary,
   RevisionTimeline,
   type HistoryRevision,
   type QuoteCardItem,
   type Cat2Summary,
-  type CommercialData,
 } from "./jobs-inspector-cards"
 import { JobsInspectorCollapseButton } from "./jobs-inspector-shell"
 
@@ -145,7 +141,6 @@ export function JobsInspector({
   const [wiRevSaving, setWiRevSaving] = useState(false)
   const [attachQuoteOpen, setAttachQuoteOpen] = useState(false)
   const [cat2Busy, setCat2Busy] = useState(false)
-  const [unlinkBusy, setUnlinkBusy] = useState(false)
 
   const parentKey = workItemsModel ? `/api/parent-jobs/${project.id}` : null
   const jobKey = !workItemsModel ? `/api/jobs/${project.id}?include=parent,current` : null
@@ -314,18 +309,32 @@ export function JobsInspector({
       : null,
   )
 
-  const projectDetails = useMemo(() => {
+  const descriptionOfWorks = useMemo(() => {
     const typeOfWorks = parent?.typeOfWorks ?? jobDetail?.typeOfWorks ?? project.typeOfWorks
+    const description =
+      parent?.description?.trim()
+      || jobDetail?.notes?.trim()
+      || (parent?.customTypeDescription ?? jobDetail?.customTypeDescription ?? null)
+      || null
+    return description || (typeOfWorks ? String(typeOfWorks) : null)
+  }, [parent, jobDetail, project.typeOfWorks])
+
+  const projectDetails = useMemo(() => {
     const otherJobs = Math.max(
       0,
       (siteJobsData?.jobCounts.total ?? 0) - 1,
     )
+    const projectDesigner =
+      originalWorkItem?.designer
+      || jobDetail?.designer
+      || project.designer
+      || null
     return {
       client,
       siteId,
       siteName: siteName?.trim() || site || null,
       siteAddress: siteAddress?.trim() || null,
-      typeOfWorks,
+      descriptionOfWorks,
       requestedBy: parent?.requestedBy ?? jobDetail?.requestedBy ?? null,
       dateRequested:
         originalWorkItem?.requestedDate
@@ -333,6 +342,12 @@ export function JobsInspector({
         ?? jobDetail?.dateCreated
         ?? parent?.createdAt
         ?? null,
+      designDue:
+        originalWorkItem?.requiredByDate
+        ?? project.requiredByDate
+        ?? null,
+      designer: projectDesigner?.trim() || null,
+      checker: null as string | null,
       otherJobsAtSiteCount: otherJobs,
       onViewSiteJobs: siteId
         ? () => {
@@ -340,33 +355,22 @@ export function JobsInspector({
             void mutateSiteJobs()
           }
         : undefined,
-      originalFee:
-        originalWorkItem?.quoteValue
-        ?? (jobDetail && !jobDetail.parentJobId ? jobDetail.quoteValue : null)
-        ?? null,
     }
   }, [
     parent,
     jobDetail,
-    project.typeOfWorks,
+    project.designer,
+    project.requiredByDate,
     client,
     siteId,
     siteName,
     site,
     siteAddress,
+    descriptionOfWorks,
     originalWorkItem,
     siteJobsData,
     mutateSiteJobs,
   ])
-
-  const descriptionOfWorks = useMemo(() => {
-    const description =
-      parent?.description?.trim()
-      || jobDetail?.notes?.trim()
-      || (parent?.customTypeDescription ?? jobDetail?.customTypeDescription ?? null)
-      || null
-    return description || (projectDetails.typeOfWorks ? String(projectDetails.typeOfWorks) : null)
-  }, [parent, jobDetail, projectDetails.typeOfWorks])
 
   const originalQuote: QuoteCardItem | null = useMemo(() => {
     if (jobDetail?.currentQuote) return toQuoteCard(jobDetail.currentQuote)
@@ -469,28 +473,6 @@ export function JobsInspector({
     }
   }
 
-  const handleUnlinkQuote = async (quote: QuoteCardItem) => {
-    setUnlinkBusy(true)
-    try {
-      const res = await fetch(`/api/quotes/${quote.id}/link-job`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: null }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string }
-        toast(body.error ?? "Failed to remove quote link", "error")
-        return
-      }
-      toast("Quote unlinked", "success")
-      await refreshAll()
-    } catch {
-      toast("Network error", "error")
-    } finally {
-      setUnlinkBusy(false)
-    }
-  }
-
   const handleCreateWorkItemRevision = async () => {
     const reason = wiRevReason.trim()
     if (reason.length < 3) {
@@ -536,10 +518,6 @@ export function JobsInspector({
     || (currentWork.type === "original" ? (originalWorkItem?.designer || project.designer) : project.designer)
     || ""
 
-  const drawingDue =
-    (currentWork.type === "revision" ? null : originalWorkItem?.requiredByDate)
-    ?? project.requiredByDate
-
   const lastCompleted = useMemo(() => {
     const issued = revisions
       .filter(r => r.status === "ISSUED")
@@ -553,64 +531,15 @@ export function JobsInspector({
     return issued.sort((a, b) => timeValue(b) - timeValue(a))[0] ?? null
   }, [revisions, originalWorkItem, jobDetail])
 
-  const commercial: CommercialData = useMemo(() => {
-    const originalFee = projectDetails.originalFee ?? null
-    const revisionRows = revisions.filter(r => r.letter)
-    let known = 0
-    let hasKnown = false
-    if (originalFee != null) {
-      known += originalFee
-      hasKnown = true
-    }
-    let pendingBillable = false
-    for (const r of revisionRows) {
-      if (!r.billable) continue
-      if (r.fee == null) {
-        pendingBillable = true
-        continue
-      }
-      known += r.fee
-      hasKnown = true
-    }
+  const primaryQuote = revisionQuote ?? originalQuote
 
-    const hasActiveRevision = Boolean(activeRevision)
-    const activeRevisionBillable = activeRevision ? activeRevision.billable : null
-    const activeRevisionFee = activeRevision?.fee ?? null
-
-    let feeStatus: CommercialData["feeStatus"] = "Agreed"
-    if (hasActiveRevision && activeRevisionBillable === false) {
-      feeStatus = "Free revision"
-    } else if (
-      (hasActiveRevision && activeRevisionBillable !== false && activeRevisionFee == null)
-      || pendingBillable
-      || originalFee == null
-    ) {
-      feeStatus = originalFee != null && !pendingBillable && !(hasActiveRevision && activeRevisionFee == null)
-        ? "Partial"
-        : "Pending"
-    } else if (hasKnown && pendingBillable) {
-      feeStatus = "Partial"
+  const openQuoteAction = () => {
+    if (primaryQuote) {
+      router.push(`/quotes?search=${encodeURIComponent(primaryQuote.quoteNumber)}`)
+      return
     }
-
-    const primaryQuote = revisionQuote ?? originalQuote
-
-    return {
-      originalFee,
-      activeRevisionFee: hasActiveRevision ? activeRevisionFee : null,
-      activeRevisionBillable,
-      hasActiveRevision,
-      knownProjectValue: hasKnown ? known : null,
-      quoteNumber: primaryQuote?.quoteNumber ?? null,
-      quoteStatus: primaryQuote?.status ?? null,
-      feeStatus,
-    }
-  }, [
-    projectDetails.originalFee,
-    revisions,
-    activeRevision,
-    originalQuote,
-    revisionQuote,
-  ])
+    setAttachQuoteOpen(true)
+  }
 
   const statusChips = currentWork.type === "revision" ? (
     <>
@@ -661,15 +590,8 @@ export function JobsInspector({
         >
           CATII Check
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setAttachQuoteOpen(true)}>
-          Attach Quote
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => {
-            window.location.href = `/quotes?new=1&jobId=${encodeURIComponent(project.id)}`
-          }}
-        >
-          Create New Quote
+        <DropdownMenuItem onSelect={openQuoteAction}>
+          {primaryQuote ? "Open Quote" : "Attach Quote"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -743,10 +665,10 @@ export function JobsInspector({
               <button
                 type="button"
                 className={cn(actionBtn, "h-11")}
-                onClick={() => setAttachQuoteOpen(true)}
+                onClick={openQuoteAction}
               >
                 <Link2 className="h-4 w-4 shrink-0" />
-                <span className="truncate">Attach Quote</span>
+                <span className="truncate">{primaryQuote ? "Open Quote" : "Attach Quote"}</span>
               </button>
             </div>
           </div>
@@ -778,10 +700,10 @@ export function JobsInspector({
             <button
               type="button"
               className={actionBtn}
-              onClick={() => setAttachQuoteOpen(true)}
+              onClick={openQuoteAction}
             >
               <Link2 className="h-3.5 w-3.5" />
-              Attach Quote
+              {primaryQuote ? "Open Quote" : "Attach Quote"}
             </button>
             {moreMenu}
           </div>
@@ -791,13 +713,13 @@ export function JobsInspector({
       <div
         key={project.id}
         className={cn(
-          "min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5",
+          "min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4",
           isDrawer && "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >
         {loading ? (
-          <div className="space-y-4">
-            {Array.from({ length: 4 }).map((_, i) => (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-20 skeleton rounded-lg" />
             ))}
           </div>
@@ -808,32 +730,21 @@ export function JobsInspector({
               revLabel={revLabel}
               designer={drawingDesigner}
               designers={designers}
-              dueDate={drawingDue}
-              nextAction={
-                currentWork.type === "none"
-                  ? "No active drawing work"
-                  : deriveNextAction(currentWork.status, drawingDue)
-              }
               lastCompleted={lastCompleted}
               descriptionOfWorks={descriptionOfWorks}
               revisionReason={activeRevision?.reason ?? null}
+              revisionDate={
+                activeRevision?.createdAt
+                ?? originalWorkItem?.dateCreated
+                ?? jobDetail?.dateCreated
+                ?? parent?.createdAt
+                ?? null
+              }
               patchUrl={currentWorkPatchUrl}
               onChanged={() => { void refreshAll() }}
             />
 
             <ProjectDetailsSection data={projectDetails} />
-
-            <CommercialSummary data={commercial} />
-
-            <QuotationSummary
-              originalQuote={originalQuote}
-              revisionQuote={revisionQuote}
-              unlinkBusy={unlinkBusy}
-              onOpen={q => router.push(`/quotes?search=${encodeURIComponent(q.quoteNumber)}`)}
-              onAttach={() => setAttachQuoteOpen(true)}
-              onChange={() => setAttachQuoteOpen(true)}
-              onUnlink={q => { void handleUnlinkQuote(q) }}
-            />
 
             <CATIISummary
               activeLabel={activeCat2Label}

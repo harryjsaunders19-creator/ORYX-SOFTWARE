@@ -3,13 +3,11 @@
 import { useState, type ReactNode } from "react"
 import {
   Building2,
-  Calculator,
-  FileText,
   History,
   PencilRuler,
   ShieldCheck,
 } from "lucide-react"
-import { cn, formatGBP } from "@/shared/utils/utils"
+import { cn } from "@/shared/utils/utils"
 import { missingLabel } from "./jobs-register-helpers"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
@@ -19,7 +17,6 @@ import {
   getDrawingStatusLabel,
   OVERDUE_STATUS_COLOUR,
 } from "@/modules/jobs/lib/drawing-status-colours"
-import { QuoteStatusBadge } from "@/modules/quotes/components/quote-status-badge"
 import type { getCurrentWorkItem } from "@/modules/jobs/lib/current-work"
 import type { LinkedQuoteSummary } from "@/lib/types"
 import { ClientSiteCell } from "./client-site-cell"
@@ -228,17 +225,16 @@ export function InspectorHeader({
   )
 }
 
-/** Consolidated operational section for the active original or revision. */
+/** Focal engineering section for the active original or revision. */
 export function CurrentDrawingSection({
   currentWork,
   revLabel,
   designer,
   designers,
-  dueDate,
-  nextAction,
   lastCompleted,
   descriptionOfWorks,
   revisionReason,
+  revisionDate,
   patchUrl,
   onChanged,
 }: {
@@ -246,58 +242,58 @@ export function CurrentDrawingSection({
   revLabel: string
   designer: string
   designers: string[]
-  dueDate: string | null
-  nextAction: string
   lastCompleted: string | null
   descriptionOfWorks: string | null
   revisionReason: string | null
+  revisionDate: string | null
   patchUrl?: string
   onChanged: () => void
 }) {
   const active = currentWork.type !== "none" && Boolean(currentWork.id)
+  const isRevision = currentWork.type === "revision"
   const drawingLabel =
     currentWork.type === "revision"
       ? (currentWork.revisionLabel ?? revLabel)
       : currentWork.type === "original"
         ? "Original"
         : "No active drawing"
-  const due = dueLabel(dueDate)
-  const overdue = due.startsWith("Overdue")
-  const isUrgent = overdue || due.startsWith("Today") || due.startsWith("Tomorrow")
-  const isRevision = currentWork.type === "revision"
-  const briefLabel = isRevision ? "Reason for Revision" : "Description of Works"
+  const briefLabel = isRevision ? "Reason" : "Description of Works"
   const briefText = isRevision ? revisionReason : descriptionOfWorks
   const briefEmpty = isRevision ? "No reason recorded" : "No description recorded"
+  const issuedLabel =
+    currentWork.status === "ISSUED"
+      ? (safeDateLabel(lastCompleted) || "Issued")
+      : "Pending"
 
   return (
-    <section className="border-t border-bd/60 pt-5">
+    <section className="pt-1">
       <SectionTitle icon={PencilRuler}>Current Drawing</SectionTitle>
 
       {!active ? (
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm font-semibold text-t1">No active drawing work</p>
-            <p className="mt-1 text-sm text-t3">
-              Last completed {safeDateLabel(lastCompleted) || "Not recorded"}
-            </p>
-          </div>
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-t1">No active drawing work</p>
+          <p className="text-sm text-t3">
+            Last completed {safeDateLabel(lastCompleted) || "Not recorded"}
+          </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
+        <div className="space-y-3.5">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <div>
+              <p className={fieldLabel}>Revision</p>
               <p className="text-base font-semibold text-t1">{drawingLabel}</p>
-              <div className="mt-1.5">
-                <WorkItemStatusSelector
-                  workItemType={isRevision ? "revision" : "original"}
-                  workItemId={currentWork.id!}
-                  currentStatus={currentWork.status}
-                  revisionLabel={isRevision ? currentWork.revisionLabel : null}
-                  patchUrl={patchUrl}
-                  size="md"
-                  onStatusChanged={onChanged}
-                />
-              </div>
+            </div>
+            <div>
+              <p className={fieldLabel}>Status</p>
+              <WorkItemStatusSelector
+                workItemType={isRevision ? "revision" : "original"}
+                workItemId={currentWork.id!}
+                currentStatus={currentWork.status}
+                revisionLabel={isRevision ? currentWork.revisionLabel : null}
+                patchUrl={patchUrl}
+                size="md"
+                onStatusChanged={onChanged}
+              />
             </div>
           </div>
 
@@ -306,9 +302,9 @@ export function CurrentDrawingSection({
             <ExpandableText text={briefText} empty={briefEmpty} />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <div>
-              <p className={fieldLabel}>Design Engineer</p>
+              <p className={fieldLabel}>Designer</p>
               <DesignerAssignmentSelector
                 workItemType={isRevision ? "revision" : "original"}
                 workItemId={currentWork.id!}
@@ -321,25 +317,18 @@ export function CurrentDrawingSection({
               />
             </div>
             <div>
-              <p className={fieldLabel}>Checking Engineer</p>
+              <p className={fieldLabel}>Checker</p>
               <p className={fieldMuted}>Not assigned</p>
             </div>
+            {revisionDate ? (
+              <div>
+                <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
+                <p className="text-sm font-semibold text-t1">{safeDateLabel(revisionDate)}</p>
+              </div>
+            ) : null}
             <div>
-              <p className={fieldLabel}>Design Due</p>
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold",
-                  isUrgent || overdue
-                    ? cn(OVERDUE_STATUS_COLOUR.tint, OVERDUE_STATUS_COLOUR.text)
-                    : "text-t1",
-                )}
-              >
-                {due}
-              </span>
-            </div>
-            <div>
-              <p className={fieldLabel}>Next Action</p>
-              <p className="text-sm font-semibold text-t1">{nextAction}</p>
+              <p className={fieldLabel}>Issued</p>
+              <p className="text-sm font-semibold text-t1">{issuedLabel}</p>
             </div>
           </div>
         </div>
@@ -354,26 +343,50 @@ export type ProjectDetailsData = {
   siteId: string | null
   siteName: string | null
   siteAddress: string | null
-  typeOfWorks: string | null
+  descriptionOfWorks: string | null
   requestedBy: string | null
   dateRequested: string | null
+  designDue: string | null
+  designer: string | null
+  checker: string | null
   otherJobsAtSiteCount: number
   onViewSiteJobs?: () => void
 }
 
 export function ProjectDetailsSection({ data }: { data: ProjectDetailsData }) {
   const isManagedSite = Boolean(data.siteId)
+  const due = dueLabel(data.designDue)
+  const overdue = due.startsWith("Overdue")
+  const isUrgent = overdue || due.startsWith("Today") || due.startsWith("Tomorrow")
+  const showDue = Boolean(data.designDue?.trim())
+
   return (
-    <section className="border-t border-bd/60 pt-5">
+    <section className="border-t border-bd/60 pt-4">
       <SectionTitle icon={Building2}>Project Details</SectionTitle>
-      <div className="space-y-3.5">
-        <Meta label="Client" value={data.client} important />
-        <Meta
-          label="Location"
-          value={data.siteName}
-          important
-        />
-        <Meta label="Address" value={data.siteAddress} important />
+      <div className="space-y-3">
+        <Meta label="Client" value={data.client} />
+        <Meta label="Location" value={data.siteName} />
+        <Meta label="Address" value={data.siteAddress} />
+        <Meta label="Description of Works" value={data.descriptionOfWorks} />
+        <Meta label="Requested By" value={data.requestedBy} />
+        <Meta label="Date Requested" value={safeDateLabel(data.dateRequested) || null} />
+        {showDue ? (
+          <div>
+            <p className={fieldLabel}>Design Due</p>
+            <span
+              className={cn(
+                "inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold",
+                isUrgent || overdue
+                  ? cn(OVERDUE_STATUS_COLOUR.tint, OVERDUE_STATUS_COLOUR.text)
+                  : "text-t1",
+              )}
+            >
+              {due}
+            </span>
+          </div>
+        ) : null}
+        <Meta label="Designer" value={data.designer} />
+        <Meta label="Checker" value={data.checker} />
         {isManagedSite && data.otherJobsAtSiteCount > 0 && (
           <div>
             <p className={fieldLabel}>Other Jobs At This Location</p>
@@ -393,92 +406,6 @@ export function ProjectDetailsSection({ data }: { data: ProjectDetailsData }) {
             </div>
           </div>
         )}
-        <Meta label="Type of Works" value={data.typeOfWorks} />
-        <Meta label="Requested By" value={data.requestedBy} />
-        <Meta label="Date Requested" value={safeDateLabel(data.dateRequested) || null} />
-      </div>
-    </section>
-  )
-}
-
-export type CommercialData = {
-  originalFee: number | null
-  /** Active revision fee only (null = unknown billable). */
-  activeRevisionFee: number | null
-  activeRevisionBillable: boolean | null
-  hasActiveRevision: boolean
-  knownProjectValue: number | null
-  quoteNumber: string | null
-  quoteStatus: string | null
-  feeStatus: "Agreed" | "Pending" | "Free revision" | "Partial"
-}
-
-export function CommercialSummary({ data }: { data: CommercialData }) {
-  const originalDisplay =
-    data.originalFee == null
-      ? <span className={fieldMuted}>Fee not set</span>
-      : <span className="tabular-nums">{formatGBP(data.originalFee)}</span>
-
-  let revisionDisplay: ReactNode = <span className={fieldMuted}>—</span>
-  if (data.hasActiveRevision) {
-    if (data.activeRevisionBillable === false) {
-      revisionDisplay = <span className="text-t2">Free revision</span>
-    } else if (data.activeRevisionFee == null) {
-      revisionDisplay = (
-        <span className="inline-flex items-center gap-1.5 font-semibold text-wn-tx">
-          <span className="h-1.5 w-1.5 rounded-full bg-wn-ic" aria-hidden />
-          Fee not set
-        </span>
-      )
-    } else {
-      revisionDisplay = <span className="tabular-nums">{formatGBP(data.activeRevisionFee)}</span>
-    }
-  }
-
-  const quoteLine = data.quoteNumber
-    ? `Attached · ${data.quoteNumber}`
-    : "None attached"
-
-  return (
-    <section className="border-t border-bd/60 pt-5">
-      <SectionTitle icon={Calculator}>Commercial</SectionTitle>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <p className={fieldLabel}>Original Fee</p>
-          <p className="text-base font-semibold text-t1">{originalDisplay}</p>
-        </div>
-        <div>
-          <p className={fieldLabel}>Revision Fee</p>
-          <p className="text-base font-semibold text-t1">{revisionDisplay}</p>
-        </div>
-        <div>
-          <p className={fieldLabel}>Known Project Value</p>
-          <p className="text-base font-semibold tabular-nums text-t1">
-            {data.knownProjectValue == null
-              ? <span className={fieldMuted}>Not available</span>
-              : formatGBP(data.knownProjectValue)}
-          </p>
-        </div>
-        <div>
-          <p className={fieldLabel}>Quote</p>
-          <p className="text-sm font-semibold text-t1">
-            {quoteLine}
-            {data.quoteStatus ? (
-              <span className="mt-1 block text-xs font-normal text-t3">{data.quoteStatus}</span>
-            ) : null}
-          </p>
-        </div>
-      </div>
-      <div className="mt-4">
-        <p className={fieldLabel}>Fee Status</p>
-        <p
-          className={cn(
-            "text-sm font-semibold",
-            data.feeStatus === "Pending" ? "text-wn-tx" : "text-t1",
-          )}
-        >
-          {data.feeStatus}
-        </p>
       </div>
     </section>
   )
@@ -486,108 +413,6 @@ export function CommercialSummary({ data }: { data: CommercialData }) {
 
 export type QuoteCardItem = LinkedQuoteSummary & {
   scopeLabel?: string
-}
-
-export function QuotationSummary({
-  originalQuote,
-  revisionQuote,
-  unlinkBusy,
-  onOpen,
-  onAttach,
-  onChange,
-  onUnlink,
-}: {
-  originalQuote: QuoteCardItem | null
-  revisionQuote: QuoteCardItem | null
-  unlinkBusy: boolean
-  onOpen: (quote: QuoteCardItem) => void
-  onAttach: () => void
-  onChange: () => void
-  onUnlink: (quote: QuoteCardItem) => void
-}) {
-  const hasAny = Boolean(originalQuote || revisionQuote)
-  return (
-    <section className="border-t border-bd/60 pt-5">
-      <SectionTitle icon={FileText}>Quotation</SectionTitle>
-      {!hasAny ? (
-        <div className="flex items-center justify-between gap-3">
-          <p className={fieldMuted}>No quotation attached</p>
-          <button type="button" className="text-xs font-medium text-ac2 hover:underline" onClick={onAttach}>
-            Attach Quote
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {originalQuote && (
-            <QuoteRow
-              title={revisionQuote ? "Original quote" : undefined}
-              quote={originalQuote}
-              unlinkBusy={unlinkBusy}
-              onOpen={() => onOpen(originalQuote)}
-              onChange={onChange}
-              onUnlink={() => onUnlink(originalQuote)}
-            />
-          )}
-          {revisionQuote && (
-            <QuoteRow
-              title="Revision quote"
-              quote={revisionQuote}
-              unlinkBusy={unlinkBusy}
-              onOpen={() => onOpen(revisionQuote)}
-              onChange={onChange}
-              onUnlink={() => onUnlink(revisionQuote)}
-            />
-          )}
-        </div>
-      )}
-    </section>
-  )
-}
-
-function QuoteRow({
-  title,
-  quote,
-  unlinkBusy,
-  onOpen,
-  onChange,
-  onUnlink,
-}: {
-  title?: string
-  quote: QuoteCardItem
-  unlinkBusy: boolean
-  onOpen: () => void
-  onChange: () => void
-  onUnlink: () => void
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        {title && <p className="mb-0.5 text-[11px] font-medium text-t3">{title}</p>}
-        <p className="truncate text-sm font-semibold text-t1">{quote.quoteNumber}</p>
-        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-t2">
-          <QuoteStatusBadge status={quote.status} />
-          <span className="text-t4">·</span>
-          <span className="font-medium tabular-nums">{formatGBP(quote.quoteValue)}</span>
-        </p>
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <button type="button" className="text-xs font-medium text-ac2 hover:underline" onClick={onOpen}>
-          Open Quote
-        </button>
-        <button type="button" className="text-xs font-medium text-t3 hover:underline" onClick={onChange}>
-          Change
-        </button>
-        <button
-          type="button"
-          className="text-xs font-medium text-t4 hover:underline disabled:opacity-50"
-          onClick={onUnlink}
-          disabled={unlinkBusy}
-        >
-          Unlink
-        </button>
-      </div>
-    </div>
-  )
 }
 
 export type Cat2Summary = {
@@ -619,7 +444,7 @@ export function CATIISummary({
     : null
 
   return (
-    <section className="border-t border-bd/60 pt-5">
+    <section className="border-t border-bd/60 pt-4">
       <SectionTitle icon={ShieldCheck}>CATII Check</SectionTitle>
       {activeCheck ? (
         <div className="flex items-start justify-between gap-3">
@@ -693,7 +518,7 @@ export function RevisionTimeline({ revisions }: { revisions: HistoryRevision[] }
   const count = revOnly.length || revisions.length
 
   return (
-    <section className="border-t border-bd/60 pt-5 pb-2">
+    <section className="border-t border-bd/60 pt-4 pb-2">
       <SectionTitle
         icon={History}
         trailing={
@@ -712,20 +537,10 @@ export function RevisionTimeline({ revisions }: { revisions: HistoryRevision[] }
           {revisions.map(rev => {
             const title = rev.letter ? `Rev ${rev.letter}` : "Original"
             const marker = rev.letter?.trim().slice(0, 1).toUpperCase() || "O"
-            const fee = !rev.billable
-              ? "Free"
-              : rev.fee == null
-                ? null
-                : formatGBP(rev.fee)
             const colour = getDrawingStatusColour(rev.status)
-            const chargeLine = !rev.billable
-              ? "Free revision"
-              : rev.fee == null
-                ? "Chargeable · Fee not set"
-                : `Chargeable · ${formatGBP(rev.fee)}`
 
             return (
-              <li key={rev.id} className="relative pb-5 pl-9 last:pb-0">
+              <li key={rev.id} className="relative pb-4 pl-9 last:pb-0">
                 <span
                   className={cn(
                     "absolute left-0 top-0 flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-sr text-[10px] font-bold",
@@ -737,40 +552,32 @@ export function RevisionTimeline({ revisions }: { revisions: HistoryRevision[] }
                 >
                   {marker}
                 </span>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className={cn("text-sm font-semibold", rev.isCurrent ? "text-t1" : "text-t2")}>
-                        {title}
-                      </p>
-                      {rev.isCurrent && (
-                        <span className="rounded bg-rs-ic px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
-                          Active
-                        </span>
-                      )}
-                      {!rev.isCurrent && rev.status === "ISSUED" && (
-                        <span className={cn("rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide", getDrawingStatusBadgeClass("ISSUED"))}>
-                          Complete
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-xs text-t3">
-                      <span className={colour.text}>{getDrawingStatusLabel(rev.status)}</span>
-                      {" · "}
-                      {missingLabel(rev.designer, "Unassigned")}
-                      {" · "}
-                      {safeDateLabel(rev.createdAt)}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className={cn("text-sm font-semibold", rev.isCurrent ? "text-t1" : "text-t2")}>
+                      {title}
                     </p>
-                    {rev.reason?.trim() && (
-                      <p className={cn("mt-1.5 text-sm leading-snug", rev.isCurrent ? "text-t2" : "text-t3")}>
-                        {rev.reason.trim()}
-                      </p>
+                    {rev.isCurrent && (
+                      <span className="rounded bg-rs-ic px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                        Active
+                      </span>
                     )}
-                    <p className="mt-1.5 text-xs text-t4">{chargeLine}</p>
+                    {!rev.isCurrent && rev.status === "ISSUED" && (
+                      <span className={cn("rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide", getDrawingStatusBadgeClass("ISSUED"))}>
+                        Complete
+                      </span>
+                    )}
                   </div>
-                  {fee != null && (
-                    <p className={cn("shrink-0 text-sm font-semibold tabular-nums", rev.isCurrent ? "text-t1" : "text-t3")}>
-                      {fee}
+                  <p className="mt-0.5 text-xs text-t3">
+                    <span className={colour.text}>{getDrawingStatusLabel(rev.status)}</span>
+                    {" · "}
+                    {missingLabel(rev.designer, "Unassigned")}
+                    {" · "}
+                    {safeDateLabel(rev.createdAt)}
+                  </p>
+                  {rev.reason?.trim() && (
+                    <p className={cn("mt-1.5 text-sm leading-snug", rev.isCurrent ? "text-t2" : "text-t3")}>
+                      {rev.reason.trim()}
                     </p>
                   )}
                 </div>
