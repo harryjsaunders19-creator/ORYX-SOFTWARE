@@ -39,9 +39,8 @@ import {
 import {
   InspectorHeader,
   StatusChip,
-  CurrentFocusSection,
+  CurrentDrawingSection,
   ProjectDetailsSection,
-  RevisionDetailsSection,
   CommercialSummary,
   QuotationSummary,
   CATIISummary,
@@ -49,9 +48,9 @@ import {
   type HistoryRevision,
   type QuoteCardItem,
   type Cat2Summary,
+  type CommercialData,
 } from "./jobs-inspector-cards"
 import { JobsInspectorCollapseButton } from "./jobs-inspector-shell"
-import { EngineeringWorkflowIndicator } from "./engineering-workflow-indicator"
 
 const AddRevisionModal = lazy(() =>
   import("./add-revision-modal").then(m => ({ default: m.AddRevisionModal })),
@@ -308,19 +307,12 @@ export function JobsInspector({
   )
 
   const projectDetails = useMemo(() => {
-    const description =
-      parent?.description?.trim()
-      || jobDetail?.notes?.trim()
-      || (parent?.customTypeDescription ?? jobDetail?.customTypeDescription ?? null)
-      || null
     const typeOfWorks = parent?.typeOfWorks ?? jobDetail?.typeOfWorks ?? project.typeOfWorks
     return {
       client,
       siteName: siteName?.trim() || site || null,
       siteAddress: siteAddress?.trim() || null,
       typeOfWorks,
-      description: description
-        || (typeOfWorks ? String(typeOfWorks) : null),
       requestedBy: parent?.requestedBy ?? jobDetail?.requestedBy ?? null,
       dateRequested:
         originalWorkItem?.requestedDate
@@ -328,17 +320,9 @@ export function JobsInspector({
         ?? jobDetail?.dateCreated
         ?? parent?.createdAt
         ?? null,
-      originalDesigner:
-        originalWorkItem?.designer
-        ?? (jobDetail && !jobDetail.revisionLetter ? jobDetail.designer : null)
-        ?? null,
       originalFee:
         originalWorkItem?.quoteValue
         ?? (jobDetail && !jobDetail.parentJobId ? jobDetail.quoteValue : null)
-        ?? null,
-      quoteReference:
-        originalWorkItem?.quoteReference
-        ?? jobDetail?.quoteReference
         ?? null,
     }
   }, [
@@ -351,6 +335,15 @@ export function JobsInspector({
     siteAddress,
     originalWorkItem,
   ])
+
+  const descriptionOfWorks = useMemo(() => {
+    const description =
+      parent?.description?.trim()
+      || jobDetail?.notes?.trim()
+      || (parent?.customTypeDescription ?? jobDetail?.customTypeDescription ?? null)
+      || null
+    return description || (projectDetails.typeOfWorks ? String(projectDetails.typeOfWorks) : null)
+  }, [parent, jobDetail, projectDetails.typeOfWorks])
 
   const originalQuote: QuoteCardItem | null = useMemo(() => {
     if (jobDetail?.currentQuote) return toQuoteCard(jobDetail.currentQuote)
@@ -537,54 +530,77 @@ export function JobsInspector({
     return issued.sort((a, b) => timeValue(b) - timeValue(a))[0] ?? null
   }, [revisions, originalWorkItem, jobDetail])
 
-  const commercial = useMemo(() => {
+  const commercial: CommercialData = useMemo(() => {
     const originalFee = projectDetails.originalFee ?? null
-    const revisionFees = revisions
-      .filter(r => r.letter)
-      .reduce((sum, r) => {
-        if (!r.billable) return sum
-        return sum + (typeof r.fee === "number" && Number.isFinite(r.fee) ? r.fee : 0)
-      }, 0)
-    const hasRevisionFee = revisions.some(r => r.letter && r.billable && r.fee != null)
-    const revisionRevenue = hasRevisionFee ? revisionFees : (revisionFees > 0 ? revisionFees : null)
-    const totalValue =
-      originalFee != null || revisionRevenue != null
-        ? (originalFee ?? 0) + (revisionRevenue ?? 0)
-        : null
-    const inv = parentDash?.invoiceSummary
-    const outstanding = inv
-      ? Math.max(0, (inv.quotedTotal || 0) - (inv.billedTotal || 0))
-      : null
-    const revisionCount =
-      parentDash?.revisionCount
-      ?? revisions.filter(r => r.letter).length
-    const lastActivity =
-      revisions.map(r => r.createdAt).sort((a, b) => timeValue(b) - timeValue(a))[0]
-      ?? parent?.updatedAt
-      ?? jobDetail?.updatedAt
-      ?? null
-    return {
-      totalValue,
-      outstanding,
-      originalFee,
-      revisionRevenue,
-      revisionCount,
-      lastActivity,
+    const revisionRows = revisions.filter(r => r.letter)
+    let known = 0
+    let hasKnown = false
+    if (originalFee != null) {
+      known += originalFee
+      hasKnown = true
     }
-  }, [projectDetails.originalFee, revisions, parentDash, parent?.updatedAt, jobDetail?.updatedAt])
+    let pendingBillable = false
+    for (const r of revisionRows) {
+      if (!r.billable) continue
+      if (r.fee == null) {
+        pendingBillable = true
+        continue
+      }
+      known += r.fee
+      hasKnown = true
+    }
+
+    const hasActiveRevision = Boolean(activeRevision)
+    const activeRevisionBillable = activeRevision ? activeRevision.billable : null
+    const activeRevisionFee = activeRevision?.fee ?? null
+
+    let feeStatus: CommercialData["feeStatus"] = "Agreed"
+    if (hasActiveRevision && activeRevisionBillable === false) {
+      feeStatus = "Free revision"
+    } else if (
+      (hasActiveRevision && activeRevisionBillable !== false && activeRevisionFee == null)
+      || pendingBillable
+      || originalFee == null
+    ) {
+      feeStatus = originalFee != null && !pendingBillable && !(hasActiveRevision && activeRevisionFee == null)
+        ? "Partial"
+        : "Pending"
+    } else if (hasKnown && pendingBillable) {
+      feeStatus = "Partial"
+    }
+
+    const primaryQuote = revisionQuote ?? originalQuote
+
+    return {
+      originalFee,
+      activeRevisionFee: hasActiveRevision ? activeRevisionFee : null,
+      activeRevisionBillable,
+      hasActiveRevision,
+      knownProjectValue: hasKnown ? known : null,
+      quoteNumber: primaryQuote?.quoteNumber ?? null,
+      quoteStatus: primaryQuote?.status ?? null,
+      feeStatus,
+    }
+  }, [
+    projectDetails.originalFee,
+    revisions,
+    activeRevision,
+    originalQuote,
+    revisionQuote,
+  ])
 
   const statusChips = currentWork.type === "revision" ? (
     <>
       <StatusChip prefix="Project" status={originalStatus} />
-      <StatusChip prefix="Curr. Rev" status={currentWork.status} />
+      <StatusChip
+        prefix={activeRevision?.letter ? `Rev ${activeRevision.letter}` : "Rev"}
+        status={currentWork.status}
+      />
     </>
   ) : currentWork.type === "original" ? (
     <StatusChip prefix="Original" status={currentWork.status} />
   ) : (
-    <>
-      <StatusChip prefix="Original" status={originalStatus} />
-      <StatusChip prefix="Current" status={null} emptyLabel="No active work" />
-    </>
+    <StatusChip prefix="Project" status={originalStatus} />
   )
 
   const openAddRevision = () => {
@@ -674,22 +690,6 @@ export function JobsInspector({
           ) : null
         }
         moreSlot={moreMenu}
-        workflowSlot={
-          <EngineeringWorkflowIndicator
-            drawingStatus={
-              currentWork.type === "none" ? originalStatus : currentWork.status
-            }
-            closed={currentWork.type === "none"}
-            currentWorkType={currentWork.type}
-            revisionLetter={activeRevision?.letter ?? project.currentRevisionLetter}
-            currentWorkLabel={
-              currentWork.type === "revision"
-                ? (currentWork.revisionLabel ?? revLabel)
-                : null
-            }
-            variant="panel"
-          />
-        }
       >
         {isDrawer ? (
           <div className="flex flex-col gap-2">
@@ -780,7 +780,7 @@ export function JobsInspector({
           </div>
         ) : (
           <>
-            <CurrentFocusSection
+            <CurrentDrawingSection
               currentWork={currentWork}
               revLabel={revLabel}
               designer={drawingDesigner}
@@ -792,27 +792,13 @@ export function JobsInspector({
                   : deriveNextAction(currentWork.status, drawingDue)
               }
               lastCompleted={lastCompleted}
+              descriptionOfWorks={descriptionOfWorks}
+              revisionReason={activeRevision?.reason ?? null}
               patchUrl={currentWorkPatchUrl}
               onChanged={() => { void refreshAll() }}
             />
 
             <ProjectDetailsSection data={projectDetails} />
-
-            {activeRevision && (
-              <RevisionDetailsSection
-                data={{
-                  label: activeRevision.letter
-                    ? `Rev ${activeRevision.letter}`
-                    : (currentWork.revisionLabel ?? "Revision"),
-                  reason: activeRevision.reason,
-                  requestedBy: activeRevision.requestedBy ?? projectDetails.requestedBy,
-                  requestedDate: activeRevision.requestedDate ?? activeRevision.createdAt,
-                  billable: activeRevision.billable,
-                  fee: activeRevision.fee,
-                  quoteNumber: activeRevision.quoteNumber,
-                }}
-              />
-            )}
 
             <CommercialSummary data={commercial} />
 

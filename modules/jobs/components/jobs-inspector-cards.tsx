@@ -1,11 +1,18 @@
 "use client"
 
 import { useState, type ReactNode } from "react"
+import {
+  Building2,
+  Calculator,
+  FileText,
+  History,
+  PencilRuler,
+  ShieldCheck,
+} from "lucide-react"
 import { cn, formatGBP } from "@/shared/utils/utils"
 import { missingLabel } from "./jobs-register-helpers"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
-import { designerInitials } from "./designer-assignment-selector"
 import {
   getDrawingStatusBadgeClass,
   getDrawingStatusColour,
@@ -18,10 +25,32 @@ import type { LinkedQuoteSummary } from "@/lib/types"
 import { ClientSiteCell } from "./client-site-cell"
 
 export const sectionHeading =
-  "mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3"
+  "text-[11px] font-semibold uppercase tracking-[0.14em] text-t3"
 export const fieldLabel = "mb-1 text-[11px] font-medium text-t3"
 export const fieldValue = "text-sm text-t1"
 export const fieldMuted = "text-sm text-t3"
+
+const sectionIconClass = "h-3.5 w-3.5 shrink-0 text-t3"
+
+function SectionTitle({
+  icon: Icon,
+  children,
+  trailing,
+}: {
+  icon: typeof PencilRuler
+  children: ReactNode
+  trailing?: ReactNode
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-2">
+      <h4 className={cn(sectionHeading, "mb-0 flex items-center gap-2")}>
+        <Icon className={sectionIconClass} aria-hidden />
+        {children}
+      </h4>
+      {trailing}
+    </div>
+  )
+}
 
 export function safeDateLabel(value: string | null | undefined): string {
   if (!value) return ""
@@ -55,32 +84,19 @@ export function dueLabel(value: string | null | undefined): string {
   return absolute
 }
 
-export function relativeActivity(value: string | null | undefined): string {
-  if (!value) return "—"
-  const ts = Date.parse(value)
-  if (!Number.isFinite(ts)) return "—"
-  const days = Math.max(0, Math.floor((Date.now() - ts) / 86_400_000))
-  if (days === 0) return "Today"
-  if (days === 1) return "1 day ago"
-  if (days < 14) return `${days} days ago`
-  return safeDateLabel(value) || "—"
-}
-
 function Meta({
   label,
   value,
-  fullWidth,
   important,
 }: {
   label: string
   value: string | null | undefined
-  fullWidth?: boolean
   important?: boolean
 }) {
   const trimmed = typeof value === "string" ? value.trim() : value
   if (!trimmed && !important) return null
   return (
-    <div className={cn(fullWidth && "sm:col-span-2")}>
+    <div>
       <p className={fieldLabel}>{label}</p>
       <p className={cn(trimmed ? fieldValue : fieldMuted, "whitespace-pre-wrap")}>
         {trimmed || "Not recorded"}
@@ -96,13 +112,13 @@ function ExpandableText({ text, empty }: { text: string | null; empty: string })
   const long = value.length > 220 || value.split("\n").length > 4
   return (
     <div>
-      <p className={cn(fieldValue, "whitespace-pre-wrap", !open && long && "line-clamp-4")}>
+      <p className={cn(fieldValue, "whitespace-pre-wrap leading-relaxed", !open && long && "line-clamp-4")}>
         {value}
       </p>
       {long && (
         <button
           type="button"
-          className="mt-1 text-xs font-medium text-ac2 hover:underline"
+          className="mt-1.5 text-xs font-medium text-ac2 hover:underline"
           onClick={() => setOpen(v => !v)}
         >
           {open ? "Show less" : "Show more"}
@@ -154,7 +170,6 @@ export function InspectorHeader({
   moreSlot,
   collapseSlot,
   leadingSlot,
-  workflowSlot,
   dense,
   children,
 }: {
@@ -166,8 +181,6 @@ export function InspectorHeader({
   moreSlot?: ReactNode
   collapseSlot?: ReactNode
   leadingSlot?: ReactNode
-  workflowSlot?: ReactNode
-  /** Tighter mobile drawer header — allow wrapping, slightly smaller title. */
   dense?: boolean
   children: ReactNode
 }) {
@@ -199,6 +212,7 @@ export function InspectorHeader({
               clientName={client}
               siteName={site}
               variant="header"
+              showSiteIcon={false}
             />
           </div>
         </div>
@@ -209,15 +223,13 @@ export function InspectorHeader({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">{statusChips}</div>
-
-      {workflowSlot ? <div className="mt-3">{workflowSlot}</div> : null}
-
       <div className="mt-3.5">{children}</div>
     </div>
   )
 }
 
-export function CurrentFocusSection({
+/** Consolidated operational section for the active original or revision. */
+export function CurrentDrawingSection({
   currentWork,
   revLabel,
   designer,
@@ -225,6 +237,8 @@ export function CurrentFocusSection({
   dueDate,
   nextAction,
   lastCompleted,
+  descriptionOfWorks,
+  revisionReason,
   patchUrl,
   onChanged,
 }: {
@@ -235,101 +249,97 @@ export function CurrentFocusSection({
   dueDate: string | null
   nextAction: string
   lastCompleted: string | null
+  descriptionOfWorks: string | null
+  revisionReason: string | null
   patchUrl?: string
   onChanged: () => void
 }) {
   const active = currentWork.type !== "none" && Boolean(currentWork.id)
-  const stage =
+  const drawingLabel =
     currentWork.type === "revision"
       ? (currentWork.revisionLabel ?? revLabel)
       : currentWork.type === "original"
         ? "Original"
-        : "No active drawing work"
+        : "No active drawing"
   const due = dueLabel(dueDate)
   const overdue = due.startsWith("Overdue")
   const isUrgent = overdue || due.startsWith("Today") || due.startsWith("Tomorrow")
+  const isRevision = currentWork.type === "revision"
+  const briefLabel = isRevision ? "Reason for Revision" : "Description of Works"
+  const briefText = isRevision ? revisionReason : descriptionOfWorks
+  const briefEmpty = isRevision ? "No reason recorded" : "No description recorded"
 
   return (
-    <section className="relative overflow-hidden rounded-lg border border-rs-bd/40 bg-rs-bg/40 pl-4 pr-4 py-3.5 dark:bg-rs-bg/20">
-      <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-rs-ic" aria-hidden />
-      <h4 className={cn(sectionHeading, "mb-3 text-rs-tx")}>Current Focus</h4>
+    <section className="border-t border-bd/60 pt-5">
+      <SectionTitle icon={PencilRuler}>Current Drawing</SectionTitle>
 
       {!active ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="space-y-3">
           <div>
-            <p className={fieldLabel}>Status</p>
-            <p className={fieldValue}>No active drawing work</p>
-          </div>
-          <div>
-            <p className={fieldLabel}>Last completed</p>
-            <p className={fieldMuted}>{safeDateLabel(lastCompleted) || "Not recorded"}</p>
+            <p className="text-sm font-semibold text-t1">No active drawing work</p>
+            <p className="mt-1 text-sm text-t3">
+              Last completed {safeDateLabel(lastCompleted) || "Not recorded"}
+            </p>
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <p className={fieldLabel}>Active drawing</p>
-              <p className="text-sm font-semibold text-t1">{stage}</p>
-            </div>
-            <div>
-              <p className={fieldLabel}>Current task</p>
-              <p className="text-sm font-semibold text-t1">{nextAction}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bd/50 pt-3">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-rs-ic/15 text-[11px] font-bold text-rs-tx">
-                {designerInitials(designer || "?")}
-              </div>
-              <div className="min-w-0">
-                <p className={fieldLabel}>Design Engineer</p>
-                <DesignerAssignmentSelector
-                  workItemType={currentWork.type === "revision" ? "revision" : "original"}
-                  workItemId={currentWork.id!}
-                  currentDesigner={designer}
-                  revisionLabel={currentWork.type === "revision" ? currentWork.revisionLabel : null}
-                  designers={designers}
-                  patchUrl={patchUrl}
-                  compact
-                  onDesignerChanged={onChanged}
-                />
-              </div>
-            </div>
-            <div className="text-right">
-              <p className={fieldLabel}>Design Due</p>
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold",
-                  isUrgent || overdue
-                    ? cn(OVERDUE_STATUS_COLOUR.tint, OVERDUE_STATUS_COLOUR.text)
-                    : "bg-surface-low text-t2",
-                )}
-              >
-                {due}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 border-t border-bd/50 pt-3 sm:grid-cols-2">
-            <div>
-              <p className={fieldLabel}>Drawing Status</p>
-              <div className="mt-0.5">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-t1">{drawingLabel}</p>
+              <div className="mt-1.5">
                 <WorkItemStatusSelector
-                  workItemType={currentWork.type === "revision" ? "revision" : "original"}
+                  workItemType={isRevision ? "revision" : "original"}
                   workItemId={currentWork.id!}
                   currentStatus={currentWork.status}
-                  revisionLabel={currentWork.type === "revision" ? currentWork.revisionLabel : null}
+                  revisionLabel={isRevision ? currentWork.revisionLabel : null}
                   patchUrl={patchUrl}
                   size="md"
                   onStatusChanged={onChanged}
                 />
               </div>
             </div>
+          </div>
+
+          <div className="relative rounded-md border-l-[3px] border-l-ac2/80 bg-surface-low/60 py-3 pl-3.5 pr-3">
+            <p className={fieldLabel}>{briefLabel}</p>
+            <ExpandableText text={briefText} empty={briefEmpty} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <p className={fieldLabel}>Design Engineer</p>
+              <DesignerAssignmentSelector
+                workItemType={isRevision ? "revision" : "original"}
+                workItemId={currentWork.id!}
+                currentDesigner={designer}
+                revisionLabel={isRevision ? currentWork.revisionLabel : null}
+                designers={designers}
+                patchUrl={patchUrl}
+                compact
+                onDesignerChanged={onChanged}
+              />
+            </div>
             <div>
               <p className={fieldLabel}>Checking Engineer</p>
               <p className={fieldMuted}>Not assigned</p>
+            </div>
+            <div>
+              <p className={fieldLabel}>Design Due</p>
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold",
+                  isUrgent || overdue
+                    ? cn(OVERDUE_STATUS_COLOUR.tint, OVERDUE_STATUS_COLOUR.text)
+                    : "text-t1",
+                )}
+              >
+                {due}
+              </span>
+            </div>
+            <div>
+              <p className={fieldLabel}>Next Action</p>
+              <p className="text-sm font-semibold text-t1">{nextAction}</p>
             </div>
           </div>
         </div>
@@ -343,7 +353,6 @@ export type ProjectDetailsData = {
   siteName: string | null
   siteAddress: string | null
   typeOfWorks: string | null
-  description: string | null
   requestedBy: string | null
   dateRequested: string | null
 }
@@ -351,109 +360,97 @@ export type ProjectDetailsData = {
 export function ProjectDetailsSection({ data }: { data: ProjectDetailsData }) {
   return (
     <section className="border-t border-bd/60 pt-5">
-      <h4 className={sectionHeading}>Project Details</h4>
-      <div className="grid grid-cols-1 gap-x-6 gap-y-3.5 sm:grid-cols-2">
+      <SectionTitle icon={Building2}>Project Details</SectionTitle>
+      <div className="space-y-3.5">
         <Meta label="Client" value={data.client} important />
         <Meta label="Site" value={data.siteName} important />
-        <Meta label="Site address" value={data.siteAddress} fullWidth important />
-        <Meta label="Type of works" value={data.typeOfWorks} />
+        <Meta label="Site Address" value={data.siteAddress} important />
+        <Meta label="Type of Works" value={data.typeOfWorks} />
         <Meta label="Requested By" value={data.requestedBy} />
         <Meta label="Date Requested" value={safeDateLabel(data.dateRequested) || null} />
-      </div>
-      <div className="mt-4 border-t border-bd/50 pt-3.5">
-        <p className={fieldLabel}>Description of Works</p>
-        <ExpandableText text={data.description} empty="No description recorded" />
-      </div>
-    </section>
-  )
-}
-
-export type RevisionDetailsData = {
-  label: string
-  reason: string | null
-  requestedBy: string | null
-  requestedDate: string | null
-  billable: boolean
-  fee: number | null
-  quoteNumber: string | null
-}
-
-export function RevisionDetailsSection({ data }: { data: RevisionDetailsData }) {
-  const feeLabel =
-    !data.billable ? "Free revision"
-      : data.fee == null ? "Not set"
-        : formatGBP(data.fee)
-
-  return (
-    <section className="relative border-t border-bd/60 pt-5 pl-3">
-      <span className="absolute bottom-0 left-0 top-5 w-[2px] rounded-full bg-ac2/70" aria-hidden />
-      <h4 className={sectionHeading}>Revision Details</h4>
-      <div className="mb-4">
-        <p className={fieldLabel}>Reason for Revision</p>
-        <ExpandableText text={data.reason} empty="No reason recorded" />
-      </div>
-      <div className="grid grid-cols-1 gap-x-6 gap-y-3.5 sm:grid-cols-2">
-        <Meta label="Revision" value={data.label} important />
-        <Meta label="Chargeable" value={data.billable ? "Yes" : "No"} important />
-        <Meta label="Requested By" value={data.requestedBy} />
-        <Meta label="Date Requested" value={safeDateLabel(data.requestedDate) || null} />
-        <Meta label="Revision Fee" value={feeLabel} important />
-        <Meta label="Quotation" value={data.quoteNumber} />
       </div>
     </section>
   )
 }
 
 export type CommercialData = {
-  totalValue: number | null
-  outstanding: number | null
   originalFee: number | null
-  revisionRevenue: number | null
-  revisionCount: number
-  lastActivity: string | null
+  /** Active revision fee only (null = unknown billable). */
+  activeRevisionFee: number | null
+  activeRevisionBillable: boolean | null
+  hasActiveRevision: boolean
+  knownProjectValue: number | null
+  quoteNumber: string | null
+  quoteStatus: string | null
+  feeStatus: "Agreed" | "Pending" | "Free revision" | "Partial"
 }
 
 export function CommercialSummary({ data }: { data: CommercialData }) {
-  const money = (v: number | null) =>
-    v == null ? <span className={fieldMuted}>Not set</span> : formatGBP(v)
+  const originalDisplay =
+    data.originalFee == null
+      ? <span className={fieldMuted}>Fee not set</span>
+      : <span className="tabular-nums">{formatGBP(data.originalFee)}</span>
+
+  let revisionDisplay: ReactNode = <span className={fieldMuted}>—</span>
+  if (data.hasActiveRevision) {
+    if (data.activeRevisionBillable === false) {
+      revisionDisplay = <span className="text-t2">Free revision</span>
+    } else if (data.activeRevisionFee == null) {
+      revisionDisplay = (
+        <span className="inline-flex items-center gap-1.5 font-semibold text-wn-tx">
+          <span className="h-1.5 w-1.5 rounded-full bg-wn-ic" aria-hidden />
+          Fee not set
+        </span>
+      )
+    } else {
+      revisionDisplay = <span className="tabular-nums">{formatGBP(data.activeRevisionFee)}</span>
+    }
+  }
+
+  const quoteLine = data.quoteNumber
+    ? `Attached · ${data.quoteNumber}`
+    : "None attached"
 
   return (
     <section className="border-t border-bd/60 pt-5">
-      <h4 className={sectionHeading}>Commercial</h4>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <p className={fieldLabel}>Total project value</p>
-          <p className="text-lg font-semibold tabular-nums text-t1">{money(data.totalValue)}</p>
-        </div>
-        <div>
-          <p className={fieldLabel}>Outstanding</p>
-          <p
-            className={cn(
-              "text-lg font-semibold tabular-nums",
-              (data.outstanding ?? 0) > 0 ? "text-dn" : "text-t1",
-            )}
-          >
-            {money(data.outstanding)}
-          </p>
-        </div>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-bd/50 pt-3.5 sm:grid-cols-4">
+      <SectionTitle icon={Calculator}>Commercial</SectionTitle>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <p className={fieldLabel}>Original Fee</p>
-          <p className="text-sm font-semibold tabular-nums text-t1">{money(data.originalFee)}</p>
+          <p className="text-base font-semibold text-t1">{originalDisplay}</p>
         </div>
         <div>
           <p className={fieldLabel}>Revision Fee</p>
-          <p className="text-sm font-semibold tabular-nums text-t1">{money(data.revisionRevenue)}</p>
+          <p className="text-base font-semibold text-t1">{revisionDisplay}</p>
         </div>
         <div>
-          <p className={fieldLabel}>Rev count</p>
-          <p className="text-sm font-semibold text-t1">{data.revisionCount}</p>
+          <p className={fieldLabel}>Known Project Value</p>
+          <p className="text-base font-semibold tabular-nums text-t1">
+            {data.knownProjectValue == null
+              ? <span className={fieldMuted}>Not available</span>
+              : formatGBP(data.knownProjectValue)}
+          </p>
         </div>
         <div>
-          <p className={fieldLabel}>Last activity</p>
-          <p className="text-sm font-semibold text-t1">{relativeActivity(data.lastActivity)}</p>
+          <p className={fieldLabel}>Quote</p>
+          <p className="text-sm font-semibold text-t1">
+            {quoteLine}
+            {data.quoteStatus ? (
+              <span className="mt-1 block text-xs font-normal text-t3">{data.quoteStatus}</span>
+            ) : null}
+          </p>
         </div>
+      </div>
+      <div className="mt-4">
+        <p className={fieldLabel}>Fee Status</p>
+        <p
+          className={cn(
+            "text-sm font-semibold",
+            data.feeStatus === "Pending" ? "text-wn-tx" : "text-t1",
+          )}
+        >
+          {data.feeStatus}
+        </p>
       </div>
     </section>
   )
@@ -483,7 +480,7 @@ export function QuotationSummary({
   const hasAny = Boolean(originalQuote || revisionQuote)
   return (
     <section className="border-t border-bd/60 pt-5">
-      <h4 className={sectionHeading}>Quotation</h4>
+      <SectionTitle icon={FileText}>Quotation</SectionTitle>
       {!hasAny ? (
         <div className="flex items-center justify-between gap-3">
           <p className={fieldMuted}>No quotation attached</p>
@@ -538,16 +535,11 @@ function QuoteRow({
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         {title && <p className="mb-0.5 text-[11px] font-medium text-t3">{title}</p>}
-        <p className="truncate text-sm font-semibold text-t1">
-          {quote.quoteNumber}
-          {quote.scopeLabel ? (
-            <span className="ml-1.5 text-xs font-normal text-t3">· {quote.scopeLabel}</span>
-          ) : null}
-        </p>
+        <p className="truncate text-sm font-semibold text-t1">{quote.quoteNumber}</p>
         <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-t2">
           <QuoteStatusBadge status={quote.status} />
           <span className="text-t4">·</span>
-          <span className="tabular-nums font-medium">{formatGBP(quote.quoteValue)}</span>
+          <span className="font-medium tabular-nums">{formatGBP(quote.quoteValue)}</span>
         </p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
@@ -594,17 +586,20 @@ export function CATIISummary({
   onCreate: () => void
   onOpen: (id: string) => void
 }) {
+  const displayId = activeCheck
+    ? `CATII · ${safeDateLabel(activeCheck.createdAt) || "On file"}`
+    : null
+
   return (
     <section className="border-t border-bd/60 pt-5">
-      <h4 className={sectionHeading}>CATII Check</h4>
+      <SectionTitle icon={ShieldCheck}>CATII Check</SectionTitle>
       {activeCheck ? (
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-t1">{activeCheck.label}</p>
+            <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
             <p className="mt-0.5 text-sm text-t3">
               {activeCheck.revisionLabel ?? activeLabel}
-              {" · "}
-              Created {safeDateLabel(activeCheck.createdAt)}
+              {" · On file"}
             </p>
           </div>
           <button
@@ -671,19 +666,23 @@ export function RevisionTimeline({ revisions }: { revisions: HistoryRevision[] }
 
   return (
     <section className="border-t border-bd/60 pt-5 pb-2">
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h4 className={cn(sectionHeading, "mb-0")}>Revision Timeline</h4>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-t4">
-          {count} registered
-        </span>
-      </div>
+      <SectionTitle
+        icon={History}
+        trailing={
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-t4">
+            {count} registered
+          </span>
+        }
+      >
+        Revision History
+      </SectionTitle>
 
       {revisions.length === 0 ? (
-        <p className={fieldMuted}>Original design only</p>
+        <p className={fieldMuted}>Original drawing only</p>
       ) : (
         <ol className="relative space-y-0 before:absolute before:bottom-3 before:left-[11px] before:top-3 before:w-px before:bg-bd">
           {revisions.map(rev => {
-            const title = rev.letter ? `Revision ${rev.letter}` : "Original"
+            const title = rev.letter ? `Rev ${rev.letter}` : "Original"
             const marker = rev.letter?.trim().slice(0, 1).toUpperCase() || "O"
             const fee = !rev.billable
               ? "Free"
@@ -691,6 +690,11 @@ export function RevisionTimeline({ revisions }: { revisions: HistoryRevision[] }
                 ? null
                 : formatGBP(rev.fee)
             const colour = getDrawingStatusColour(rev.status)
+            const chargeLine = !rev.billable
+              ? "Free revision"
+              : rev.fee == null
+                ? "Chargeable · Fee not set"
+                : `Chargeable · ${formatGBP(rev.fee)}`
 
             return (
               <li key={rev.id} className="relative pb-5 pl-9 last:pb-0">
@@ -723,21 +727,18 @@ export function RevisionTimeline({ revisions }: { revisions: HistoryRevision[] }
                       )}
                     </div>
                     <p className="mt-0.5 text-xs text-t3">
-                      {safeDateLabel(rev.createdAt)}
+                      <span className={colour.text}>{getDrawingStatusLabel(rev.status)}</span>
                       {" · "}
                       {missingLabel(rev.designer, "Unassigned")}
+                      {" · "}
+                      {safeDateLabel(rev.createdAt)}
                     </p>
                     {rev.reason?.trim() && (
                       <p className={cn("mt-1.5 text-sm leading-snug", rev.isCurrent ? "text-t2" : "text-t3")}>
                         {rev.reason.trim()}
                       </p>
                     )}
-                    <p className="mt-1.5 text-xs text-t4">
-                      <span className={colour.text}>{getDrawingStatusLabel(rev.status)}</span>
-                      {rev.quoteNumber ? ` · Quote ${rev.quoteNumber}` : ""}
-                      {" · "}
-                      {rev.hasCat2 ? "CATII on file" : "No CATII"}
-                    </p>
+                    <p className="mt-1.5 text-xs text-t4">{chargeLine}</p>
                   </div>
                   {fee != null && (
                     <p className={cn("shrink-0 text-sm font-semibold tabular-nums", rev.isCurrent ? "text-t1" : "text-t3")}>
