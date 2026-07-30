@@ -136,7 +136,7 @@ export function SiteSelector({
             }
           }}
           disabled={disabled || !clientId}
-          placeholder={clientId ? "Search or select a site…" : "Select a client first"}
+          placeholder={clientId ? "Search or select a managed site…" : "Select a client first"}
           autoComplete="off"
           className={cn(
             "flex h-10 w-full rounded-lg border bg-sr pl-8 pr-8 text-sm text-t1",
@@ -208,7 +208,7 @@ export function SiteSelector({
           })}
           {!loading && results.length === 0 && (
             <p className="px-3 py-2 text-xs text-t3">
-              {query.trim() ? "No matching sites" : "No sites for this client yet"}
+              {query.trim() ? "No matching managed sites" : "No managed sites for this client yet"}
             </p>
           )}
           {onCreateNew && (
@@ -221,7 +221,7 @@ export function SiteSelector({
               className="flex w-full items-center gap-2 border-t border-bd px-3 py-2.5 text-sm font-medium text-ac hover:bg-pg"
             >
               <Plus className="h-3.5 w-3.5" />
-              Create New Site
+              Create Managed Site
             </button>
           )}
         </div>

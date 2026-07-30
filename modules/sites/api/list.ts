@@ -4,6 +4,7 @@ import { requireModuleAccess, actorName } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { siteService } from "@/modules/sites"
 import { clientService } from "@/modules/clients"
+import { isMissingSitesSchemaError, SITES_MIGRATION_HINT } from "@/modules/sites/lib/schema-errors"
 
 const createBodySchema = z.object({
   clientId: z.string().min(1),
@@ -20,7 +21,19 @@ const createBodySchema = z.object({
   createAnyway: z.boolean().optional(),
 })
 
-/** GET /api/sites?clientId= — list sites for a client */
+function sitesUnavailable(err: unknown) {
+  if (!isMissingSitesSchemaError(err)) return null
+  return NextResponse.json(
+    {
+      error: SITES_MIGRATION_HINT,
+      detail: SITES_MIGRATION_HINT,
+      code: "SITES_SCHEMA_MISSING",
+    },
+    { status: 503 },
+  )
+}
+
+/** GET /api/sites?clientId= — list managed sites for a client */
 export async function GET(req: NextRequest) {
   const auth = await requireModuleAccess("jobs")
   if (auth instanceof NextResponse) return auth
@@ -35,11 +48,13 @@ export async function GET(req: NextRequest) {
     const sites = await siteService.listForClient(clientId, { activeOnly, search })
     return NextResponse.json({ sites })
   } catch (err) {
+    const unavailable = sitesUnavailable(err)
+    if (unavailable) return unavailable
     return apiInternalError("sites.list", err)
   }
 }
 
-/** POST /api/sites — create a site under a client */
+/** POST /api/sites — create a managed site under a client */
 export async function POST(req: NextRequest) {
   const auth = await requireModuleAccess("jobs")
   if (auth instanceof NextResponse) return auth
@@ -54,17 +69,23 @@ export async function POST(req: NextRequest) {
     if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 })
 
     if (!body.createAnyway) {
-      const duplicates = await siteService.findLikelyDuplicates({
-        clientId: body.clientId,
-        name: body.name,
-        addressLine1: body.addressLine1,
-        postcode: body.postcode,
-      })
-      if (duplicates.length > 0) {
-        return NextResponse.json({
-          error: "Possible existing site",
-          duplicates,
-        }, { status: 409 })
+      try {
+        const duplicates = await siteService.findLikelyDuplicates({
+          clientId: body.clientId,
+          name: body.name,
+          addressLine1: body.addressLine1,
+          postcode: body.postcode,
+        })
+        if (duplicates.length > 0) {
+          return NextResponse.json({
+            error: "Possible existing managed site",
+            duplicates,
+          }, { status: 409 })
+        }
+      } catch (err) {
+        const unavailable = sitesUnavailable(err)
+        if (unavailable) return unavailable
+        throw err
       }
     }
 
@@ -85,9 +106,16 @@ export async function POST(req: NextRequest) {
       { id: auth.user.id, name: actorName(auth.user) },
     )
 
-    const summary = await siteService.getSummary(site.id)
+    let summary = null
+    try {
+      summary = await siteService.getSummary(site.id)
+    } catch {
+      summary = null
+    }
     return NextResponse.json(summary ?? site, { status: 201 })
   } catch (err) {
-    return apiInternalError("sites.create", err)
+    const unavailable = sitesUnavailable(err)
+    if (unavailable) return unavailable
+    return apiInternalError("sites.create", err, undefined, { exposeDetail: true })
   }
 }

@@ -16,10 +16,13 @@ import type {
 import { formatSiteAddress, siteSimilarity } from "../lib/normalize"
 
 async function withCounts(rows: SiteRow[]): Promise<SiteSummary[]> {
-  return Promise.all(rows.map(async r => ({
-    ...r,
-    jobCounts: await supabaseSiteRepo.jobCounts(r.id),
-  })))
+  return Promise.all(rows.map(async r => {
+    try {
+      return { ...r, jobCounts: await supabaseSiteRepo.jobCounts(r.id) }
+    } catch {
+      return { ...r, jobCounts: { total: 0, active: 0, completed: 0 } }
+    }
+  }))
 }
 
 export const siteService = {
@@ -74,13 +77,18 @@ export const siteService = {
   ): Promise<SiteRow> {
     const id = data.id ?? createId()
     const created = await supabaseSiteRepo.create({ ...data, id })
-    await supabaseSiteRepo.logAudit({
-      siteId: id,
-      action: "created",
-      summary: `Site created under client: ${created.name}`,
-      performedBy: actor.id ?? "System",
-      performedByName: actor.name ?? "System",
-    })
+    try {
+      await supabaseSiteRepo.logAudit({
+        siteId: id,
+        action: "created",
+        summary: `Managed Site created under client: ${created.name}`,
+        performedBy: actor.id ?? "System",
+        performedByName: actor.name ?? "System",
+      })
+    } catch (err) {
+      // Audit table may lag the sites migration — never block site creation.
+      console.warn("[sites] audit log failed after create:", err)
+    }
     return created
   },
 
@@ -99,15 +107,19 @@ export const siteService = {
       || data.name !== undefined
     const updated = await supabaseSiteRepo.update(id, data)
     if (updated) {
-      await supabaseSiteRepo.logAudit({
-        siteId: id,
-        action: addressChanged ? "address_updated" : "updated",
-        summary: addressChanged
-          ? `Site address updated: ${updated.name}`
-          : `Site updated: ${updated.name}`,
-        performedBy: actor.id ?? "System",
-        performedByName: actor.name ?? "System",
-      })
+      try {
+        await supabaseSiteRepo.logAudit({
+          siteId: id,
+          action: addressChanged ? "address_updated" : "updated",
+          summary: addressChanged
+            ? `Managed site address updated: ${updated.name}`
+            : `Managed site updated: ${updated.name}`,
+          performedBy: actor.id ?? "System",
+          performedByName: actor.name ?? "System",
+        })
+      } catch (err) {
+        console.warn("[sites] audit log failed after update:", err)
+      }
     }
     return updated
   },

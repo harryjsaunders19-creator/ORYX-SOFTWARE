@@ -68,13 +68,17 @@ export const siteService = {
   ): Promise<SiteRow> {
     const id = data.id ?? createId()
     const created = siteDb.create({ ...data, id })
-    siteDb.logAudit({
-      siteId: id,
-      action: "created",
-      summary: `Site created under client: ${created.name}`,
-      performedBy: actor.id ?? "System",
-      performedByName: actor.name ?? "System",
-    })
+    try {
+      siteDb.logAudit({
+        siteId: id,
+        action: "created",
+        summary: `Managed Site created under client: ${created.name}`,
+        performedBy: actor.id ?? "System",
+        performedByName: actor.name ?? "System",
+      })
+    } catch (err) {
+      console.warn("[sites] audit log failed after create:", err)
+    }
     return created
   },
 

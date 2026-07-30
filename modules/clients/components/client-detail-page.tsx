@@ -238,13 +238,13 @@ export default function ClientDetailPage() {
       {/* Sites under this client */}
       <div className={cn(surfaceCard, "mb-5 overflow-hidden")}>
         <div className="flex items-center justify-between border-b border-bd px-4 py-3">
-          <h2 className="text-sm font-semibold text-t1">Sites</h2>
+          <h2 className="text-sm font-semibold text-t1">Managed Sites</h2>
           <Button type="button" size="sm" variant="outline" onClick={() => setCreateSiteOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Add site
+            <Plus className="h-3.5 w-3.5" /> Add managed site
           </Button>
         </div>
         {sites.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-t3">No sites yet. Add a site when creating a job, or create one here.</p>
+          <p className="px-4 py-6 text-sm text-t3">No managed sites yet. Add one for long-term locations with multiple jobs.</p>
         ) : (
           <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3">
             {sites.map(site => (
@@ -479,7 +479,7 @@ export default function ClientDetailPage() {
           onCreated={async () => {
             setCreateSiteOpen(false)
             await mutateSites()
-            toast("Site created", "success")
+            toast("Managed site created", "success")
           }}
           onUseExisting={async () => {
             setCreateSiteOpen(false)

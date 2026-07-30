@@ -13,7 +13,7 @@ import { formatSiteAddress } from "@/modules/sites/lib/normalize"
 import type { SiteSummary } from "@/modules/sites/types"
 
 /**
- * Compact Create New Site modal — used from New Job without restarting the form.
+ * Compact Create Managed Site modal — used from New Job without restarting the form.
  */
 export function CreateSiteDialog({
   clientId,
@@ -70,21 +70,25 @@ export function CreateSiteDialog({
       })
       const body = await res.json() as SiteSummary & {
         error?: string
+        detail?: string
         duplicates?: SiteSummary[]
       }
       if (res.status === 409 && body.duplicates?.length) {
         setDuplicates(body.duplicates)
-        setSaving(false)
         return
       }
       if (!res.ok) {
-        setError(body.error ?? "Failed to create site")
-        setSaving(false)
+        setError(
+          (typeof body.detail === "string" && body.detail.trim())
+            || body.error
+            || "Failed to create managed site",
+        )
         return
       }
       onCreated(body)
     } catch {
       setError("Network error")
+    } finally {
       setSaving(false)
     }
   }
@@ -93,7 +97,7 @@ export function CreateSiteDialog({
     <Dialog open onOpenChange={open => { if (!open) onClose() }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create New Site</DialogTitle>
+          <DialogTitle>Create Managed Site</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <p className="text-xs text-t3">
@@ -102,7 +106,7 @@ export function CreateSiteDialog({
 
           {duplicates && duplicates.length > 0 && (
             <div className="rounded-lg border border-wn-bd bg-wn-bg px-3 py-3 space-y-2">
-              <p className="text-sm font-semibold text-wn-tx">Possible existing site</p>
+              <p className="text-sm font-semibold text-wn-tx">Possible existing managed site</p>
               {duplicates.slice(0, 3).map(d => {
                 const addr = formatSiteAddress(d)
                 return (
@@ -122,7 +126,7 @@ export function CreateSiteDialog({
                         className="mt-2"
                         onClick={() => onUseExisting(d)}
                       >
-                        Use Existing Site
+                        Use Existing Managed Site
                       </Button>
                     )}
                   </div>
@@ -190,7 +194,7 @@ export function CreateSiteDialog({
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button type="button" onClick={() => void submit(false)} disabled={saving || !name.trim()}>
-              {saving ? "Creating…" : "Create Site"}
+              {saving ? "Creating…" : "Create Managed Site"}
             </Button>
           </DialogFooter>
         )}

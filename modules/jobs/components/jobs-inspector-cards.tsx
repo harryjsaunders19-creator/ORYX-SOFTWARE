@@ -350,6 +350,7 @@ export function CurrentDrawingSection({
 
 export type ProjectDetailsData = {
   client: string
+  /** When set, job is linked to a Managed Site. */
   siteId: string | null
   siteName: string | null
   siteAddress: string | null
@@ -361,31 +362,39 @@ export type ProjectDetailsData = {
 }
 
 export function ProjectDetailsSection({ data }: { data: ProjectDetailsData }) {
+  const isManagedSite = Boolean(data.siteId)
   return (
     <section className="border-t border-bd/60 pt-5">
       <SectionTitle icon={Building2}>Project Details</SectionTitle>
       <div className="space-y-3.5">
         <Meta label="Client" value={data.client} important />
-        <Meta label="Site" value={data.siteName} important />
-        <Meta label="Site Address" value={data.siteAddress} important />
-        {data.siteId && data.otherJobsAtSiteCount > 0 && (
-          <div>
-            <p className={fieldLabel}>Other Jobs at This Site</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold text-t1">
-                {data.otherJobsAtSiteCount} other job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
-              </p>
-              {data.onViewSiteJobs && (
-                <button
-                  type="button"
-                  onClick={data.onViewSiteJobs}
-                  className="text-xs font-medium text-ac hover:text-ach"
-                >
-                  View Site Jobs
-                </button>
-              )}
+        {isManagedSite ? (
+          <>
+            <Meta label="Managed Site" value={data.siteName} important />
+            <Meta label="Address" value={data.siteAddress} important />
+            <div>
+              <p className={fieldLabel}>Other Jobs at this Managed Site</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-semibold text-t1">
+                  {data.otherJobsAtSiteCount} other job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
+                </p>
+                {data.onViewSiteJobs && data.otherJobsAtSiteCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={data.onViewSiteJobs}
+                    className="text-xs font-medium text-ac hover:text-ach"
+                  >
+                    View Site Jobs
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          </>
+        ) : (
+          <>
+            <Meta label="Property" value={data.siteName} important />
+            <Meta label="Address" value={data.siteAddress} important />
+          </>
         )}
         <Meta label="Type of Works" value={data.typeOfWorks} />
         <Meta label="Requested By" value={data.requestedBy} />

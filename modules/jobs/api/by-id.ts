@@ -10,11 +10,14 @@ import { cancelRecordForJob } from "@/modules/archive/cancel-record"
 import { apiInternalError } from "@/shared/api-errors"
 import { billingHandoffService } from "@/modules/billing"
 import { resolveDirectoryDesigner } from "../services/designer-directory"
+import { siteService, formatSiteAddress } from "@/modules/sites"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 const patchJobBodySchema = z.object({
   address: z.string().optional(),
+  locationType: z.enum(["SINGLE_PROPERTY", "MANAGED_SITE"]).optional(),
+  siteId: z.union([z.string(), z.null()]).optional(),
   siteName: z.union([z.string(), z.null()]).optional(),
   siteAddress: z.union([z.string(), z.null()]).optional(),
   typeOfWorks: z.string().optional(),
@@ -122,13 +125,41 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     const allowed = [
-      "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "requestedBy", "status", "designer", "notes", "designStandards",
+      "address", "siteId", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "requestedBy", "status", "designer", "notes", "designStandards",
       "requestedDate","requiredByDate","quoteReference","quoteDate","commercialNotes", "billable", "tags",
     ]
 
     const data: Record<string, unknown> = {}
     for (const f of allowed) {
       if (body[f] !== undefined) data[f] = body[f]
+    }
+
+    // Location type: Managed Site requires siteId; Single Property clears it.
+    if (body.locationType === "SINGLE_PROPERTY") {
+      data.siteId = null
+    } else if (body.locationType === "MANAGED_SITE") {
+      const siteId = typeof body.siteId === "string" && body.siteId.trim() ? body.siteId.trim() : null
+      if (!siteId) {
+        return NextResponse.json({ error: "Select or create a managed site", field: "siteId" }, { status: 422 })
+      }
+      data.siteId = siteId
+    } else if (body.siteId !== undefined) {
+      data.siteId = typeof body.siteId === "string" && body.siteId.trim() ? body.siteId.trim() : null
+    }
+
+    if (typeof data.siteId === "string" && data.siteId) {
+      const clientId = (typeof data.clientId === "string" && data.clientId)
+        || existing.clientId
+      if (!clientId) {
+        return NextResponse.json({ error: "Client is required for a managed site", field: "clientId" }, { status: 422 })
+      }
+      const site = await siteService.assertSiteBelongsToClient(data.siteId, clientId)
+      if (!site) {
+        return NextResponse.json({ error: "Managed site not found for this client", field: "siteId" }, { status: 422 })
+      }
+      if (body.siteName === undefined) data.siteName = site.name
+      if (body.siteAddress === undefined) data.siteAddress = formatSiteAddress(site) || site.name
+      if (body.address === undefined) data.address = formatSiteAddress(site) || site.name
     }
 
     // typeOfWorks must stay within the approved list, and "Other" always

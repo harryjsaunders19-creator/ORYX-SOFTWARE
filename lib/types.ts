@@ -292,6 +292,8 @@ export interface StatusHistoryEntry {
 
 export interface JobFormData {
   itemType:        string
+  /** SINGLE_PROPERTY (default) | MANAGED_SITE */
+  locationType:    "SINGLE_PROPERTY" | "MANAGED_SITE"
   siteId:          string
   siteName:        string
   siteAddress:     string

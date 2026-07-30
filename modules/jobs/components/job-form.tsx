@@ -40,6 +40,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const [form, setForm] = useState<JobFormData>(() =>
     job ? {
       itemType: job.itemType ?? "DESIGN",
+      locationType: job.siteId ? "MANAGED_SITE" : "SINGLE_PROPERTY",
       siteId: job.siteId ?? "",
       siteName: job.siteName ?? "",
       siteAddress: job.siteAddress ?? job.address ?? "",
@@ -82,12 +83,34 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
     const addr = formatSiteAddress(site)
     setForm(f => ({
       ...f,
+      locationType: "MANAGED_SITE",
       siteId: site.id,
       siteName: site.name,
       siteAddress: addr || site.name,
       address: addr || site.name,
     }))
     setErrors(prev => ({ ...prev, siteId: undefined }))
+  }
+
+  const setLocationType = (locationType: JobFormData["locationType"]) => {
+    setForm(f => {
+      if (locationType === "SINGLE_PROPERTY") {
+        return {
+          ...f,
+          locationType,
+          siteId: "",
+          // Keep any typed property name/address already entered when switching back.
+        }
+      }
+      return {
+        ...f,
+        locationType,
+        siteName: f.siteId ? f.siteName : "",
+        siteAddress: f.siteId ? f.siteAddress : "",
+        address: f.siteId ? f.address : "",
+      }
+    })
+    setErrors(prev => ({ ...prev, siteId: undefined, siteAddress: undefined }))
   }
 
   useEffect(() => {
@@ -201,8 +224,10 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
 
     setSaving(true)
     try {
+      const isManaged = form.locationType === "MANAGED_SITE"
       await onSubmit({
         ...form,
+        siteId: isManaged ? form.siteId : "",
         address: composeJobAddress(form.siteName, form.siteAddress, form.address),
         // Create workflow never sets completion date — status change owns that.
         dateCompleted: job ? form.dateCompleted : "",
@@ -214,12 +239,14 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
 
   const proceedDespiteHold = async () => {
     if (!holdWarning) return
+    const pending = holdWarning.pendingSubmit
     setHoldWarning(null)
     setSaving(true)
     try {
-      const pending = holdWarning.pendingSubmit
+      const isManaged = pending.locationType === "MANAGED_SITE"
       await onSubmit({
         ...pending,
+        siteId: isManaged ? pending.siteId : "",
         address: composeJobAddress(pending.siteName, pending.siteAddress, pending.address),
         dateCompleted: job ? pending.dateCompleted : "",
         proceedDespiteHold: true,
@@ -276,10 +303,10 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
         </>
       )}
 
-      {/* 2 · Client → Site → Description of Works */}
+      {/* 2 · Client → Location → Description of Works */}
       <Section
         step={job ? 1 : 2}
-        title="Client & Site"
+        title="Client & Location"
         question="Who is the client, and where is the work taking place?"
       >
         <div className="space-y-4">
@@ -293,11 +320,11 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                     ...f,
                     clientId,
                     clientCompany: clientName,
-                    // Clear site when client changes — sites are client-scoped.
+                    // Clear managed site when client changes — sites are client-scoped.
                     siteId: "",
-                    siteName: "",
-                    siteAddress: "",
-                    address: "",
+                    ...(f.locationType === "MANAGED_SITE"
+                      ? { siteName: "", siteAddress: "", address: "" }
+                      : {}),
                     requestedBy: !f.requestedBy.trim() && contactName ? contactName : f.requestedBy,
                   }))
                   setErrors(prev => ({ ...prev, clientCompany: undefined, siteId: undefined }))
@@ -319,16 +346,100 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
             </Field>
           </div>
 
-          <Field label="Site" required error={errors.siteId} hint="Reusable location under this client">
-            <SiteSelector
-              clientId={form.clientId}
-              value={form.siteId}
-              name={form.siteName}
-              onChange={applySite}
-              onCreateNew={() => setCreateSiteOpen(true)}
-              error={errors.siteId}
-            />
+          <Field
+            label="Location Type"
+            hint="Single Property for one-off jobs. Managed Site when several jobs may share a long-term location."
+          >
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {([
+                {
+                  value: "SINGLE_PROPERTY" as const,
+                  title: "Single Property",
+                  description: "One-off domestic or commercial job — address stored on this job only.",
+                },
+                {
+                  value: "MANAGED_SITE" as const,
+                  title: "Managed Site",
+                  description: "Reusable location under the client — multiple jobs over time.",
+                },
+              ]).map(opt => {
+                const selected = form.locationType === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setLocationType(opt.value)}
+                    aria-pressed={selected}
+                    className={cn(
+                      "rounded-lg border px-3 py-2.5 text-left transition-colors",
+                      selected
+                        ? "border-rs-bd bg-rs-bg text-rs-tx"
+                        : "border-bd bg-sr text-t2 hover:border-bds hover:text-t1",
+                    )}
+                  >
+                    <span className="block text-sm font-semibold">{opt.title}</span>
+                    <span className="mt-0.5 block text-xs opacity-80">{opt.description}</span>
+                  </button>
+                )
+              })}
+            </div>
           </Field>
+
+          {form.locationType === "MANAGED_SITE" ? (
+            <Field
+              label="Managed Site"
+              required
+              error={errors.siteId}
+              hint="Reusable location under this client"
+            >
+              <SiteSelector
+                clientId={form.clientId}
+                value={form.siteId}
+                name={form.siteName}
+                onChange={applySite}
+                onCreateNew={() => setCreateSiteOpen(true)}
+                error={errors.siteId}
+              />
+            </Field>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Property Name" hint="Optional building or property description">
+                <Input
+                  className={controlClass}
+                  style={controlStyle}
+                  value={form.siteName}
+                  onChange={e => {
+                    const siteName = e.target.value
+                    setForm(f => ({
+                      ...f,
+                      siteName,
+                      address: composeJobAddress(siteName, f.siteAddress, f.address),
+                    }))
+                  }}
+                  placeholder="e.g. 14 Church Lane"
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="Property Address" required error={errors.siteAddress}>
+                <Input
+                  className={controlClass}
+                  style={controlStyle}
+                  value={form.siteAddress}
+                  onChange={e => {
+                    const siteAddress = e.target.value
+                    setForm(f => ({
+                      ...f,
+                      siteAddress,
+                      address: composeJobAddress(f.siteName, siteAddress, siteAddress),
+                    }))
+                    if (errors.siteAddress) setErrors(prev => ({ ...prev, siteAddress: undefined }))
+                  }}
+                  placeholder="Street, town, postcode"
+                  autoComplete="off"
+                />
+              </Field>
+            </div>
+          )}
 
           {needsTypeOfWorks && (
             <JobFormWorksType

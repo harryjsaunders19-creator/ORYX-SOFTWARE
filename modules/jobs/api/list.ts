@@ -195,6 +195,7 @@ const REF_PREFIXES = REF_PREFIX_BY_ITEM_TYPE
 const createJobBodySchema = z.object({
   itemType: z.string().optional(),
   tags: z.unknown().optional(),
+  locationType: z.enum(["SINGLE_PROPERTY", "MANAGED_SITE"]).optional(),
   siteId: z.string().optional(),
   siteName: z.string().optional(),
   siteAddress: z.string().optional(),
@@ -361,7 +362,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Required fields (all item types)
-    const siteId: string | null = typeof body.siteId === "string" && body.siteId.trim()
+    const locationType = body.locationType === "MANAGED_SITE" ? "MANAGED_SITE" : "SINGLE_PROPERTY"
+    let siteId: string | null = typeof body.siteId === "string" && body.siteId.trim()
       ? body.siteId.trim()
       : null
     let siteName = typeof body.siteName === "string" ? body.siteName.trim() : ""
@@ -388,18 +390,25 @@ export async function POST(req: NextRequest) {
       resolvedClientId = matched?.id ?? null
     }
 
-    if (siteId) {
+    if (locationType === "MANAGED_SITE") {
+      if (!siteId) {
+        return NextResponse.json({ error: "Select or create a managed site", field: "siteId" }, { status: 422 })
+      }
       if (!resolvedClientId) {
-        return NextResponse.json({ error: "Client is required when selecting a site", field: "clientId" }, { status: 422 })
+        return NextResponse.json({ error: "Client is required when selecting a managed site", field: "clientId" }, { status: 422 })
       }
       const site = await siteService.assertSiteBelongsToClient(siteId, resolvedClientId)
       if (!site) {
-        return NextResponse.json({ error: "Site not found for this client", field: "siteId" }, { status: 422 })
+        return NextResponse.json({ error: "Managed site not found for this client", field: "siteId" }, { status: 422 })
       }
       siteName = site.name
       siteAddress = formatSiteAddress(site) || site.name
-    } else if (!siteName && !siteAddress) {
-      return NextResponse.json({ error: "Select or create a site", field: "siteId" }, { status: 422 })
+    } else {
+      // Single Property — never store a site relationship.
+      siteId = null
+      if (!siteAddress && !(typeof body.address === "string" && body.address.trim())) {
+        return NextResponse.json({ error: "Property address is required", field: "siteAddress" }, { status: 422 })
+      }
     }
 
     const address = typeof body.address === "string" && body.address.trim()
@@ -407,7 +416,10 @@ export async function POST(req: NextRequest) {
       : composeJobAddress(siteName, siteAddress)
 
     if (!address) {
-      return NextResponse.json({ error: "Site name or address is required", field: "siteId" }, { status: 422 })
+      return NextResponse.json({
+        error: locationType === "MANAGED_SITE" ? "Managed site address is required" : "Property address is required",
+        field: locationType === "MANAGED_SITE" ? "siteId" : "siteAddress",
+      }, { status: 422 })
     }
 
     // typeOfWorks only required for Design — and once provided, must be one
