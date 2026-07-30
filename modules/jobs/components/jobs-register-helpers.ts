@@ -11,6 +11,7 @@ import type {
   JobsRegisterProject,
   ProjectHealthTone,
   WorkflowStageId,
+  CurrentWorkType,
 } from "./jobs-register-types"
 
 /** Derive the engineer-facing next action from current revision status. */
@@ -122,6 +123,7 @@ export function jobToRegisterProject(job: Job): JobsRegisterProject {
     canAddRevision: job.canAddRevision ?? false,
     clientId: job.clientId,
     typeOfWorks: job.typeOfWorks,
+    dateCompleted: job.dateCompleted ?? null,
     projectStatus: job.status,
     currentWorkType: current.type,
     currentWorkLabel: current.revisionLabel ?? "COMPLETE",
@@ -168,6 +170,7 @@ export function workItemToRegisterProject(row: MixedWorkloadRow): JobsRegisterPr
     canAddRevision: complete,
     clientId: null,
     typeOfWorks: null,
+    dateCompleted: null,
     // Parent has no status field in work-items model — ORIGINAL work item is the design status.
     // When listing an active revision row, treat original as complete (revisions require issued original).
     projectStatus: isRevision ? "ISSUED" : status,
@@ -210,4 +213,52 @@ export function siteDisplay(
   if (!safeAddress) return "—"
   const first = safeAddress.split(",")[0]?.trim()
   return first || safeAddress
+}
+
+/**
+ * Secondary line under the drawing number — useful project context
+ * (never redundant "Closed" when Current Work already says COMPLETE).
+ */
+export function drawingNumberContext(project: {
+  currentRevisionLetter: string | null
+  currentWorkType: CurrentWorkType | string
+  revisionCount: number
+  dateCompleted?: string | null
+  typeOfWorks?: string | null
+}): string {
+  const letter = project.currentRevisionLetter?.trim()
+  if (letter) {
+    return revisionBadgeLabel(letter)
+  }
+  if (project.revisionCount > 0) {
+    return project.revisionCount === 1
+      ? "1 revision"
+      : `${project.revisionCount} revisions`
+  }
+  const completed = project.dateCompleted?.trim()
+  if (completed) {
+    const d = new Date(completed)
+    if (!Number.isNaN(d.getTime())) {
+      return `Completed ${d.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })}`
+    }
+  }
+  const works = project.typeOfWorks?.trim()
+  if (works) return works
+  if (project.currentWorkType === "original") return "Original only"
+  return "Original design"
+}
+
+/** Prefer a readable empty-state label over a bare em dash. */
+export function missingLabel(
+  value: string | null | undefined,
+  fallback: string,
+): string {
+  if (value == null) return fallback
+  const trimmed = String(value).trim()
+  if (!trimmed || trimmed === "—" || trimmed === "-") return fallback
+  return trimmed
 }

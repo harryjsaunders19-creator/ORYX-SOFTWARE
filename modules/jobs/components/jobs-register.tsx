@@ -42,7 +42,7 @@ interface WorkItemsResponse {
 
 /**
  * Jobs Register + persistent Inspector — Stitch Command Center layout.
- * 65% register / 35% inspector when a project is selected.
+ * ~63% register / ~37% inspector when a project is selected.
  */
 export function JobsRegister({
   workItemsModel,
@@ -157,10 +157,12 @@ export function JobsRegister({
     if (selectedId && !projects.some(p => p.id === selectedId)) setSelectedId(null)
   }, [projects, selectedId])
 
-  // Auto-select first row so inspector stays the workspace (Stitch always shows it with selection)
+  // Auto-select first row on desktop so inspector stays the workspace
   useEffect(() => {
     if (!selectedId && projects.length > 0 && !isChecking) {
-      setSelectedId(projects[0].id)
+      if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+        setSelectedId(projects[0].id)
+      }
     }
   }, [projects, selectedId, isChecking])
 
@@ -244,140 +246,145 @@ export function JobsRegister({
 
   const inspectorOpen = Boolean(selected)
 
+  const toolbarBtn =
+    "inline-flex h-9 items-center gap-2 rounded border border-bd px-3 text-sm font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-40"
+
   return (
     <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100vh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
-      {/* Top search strip — mirrors Stitch header search weight */}
-      {!isChecking && (
-        <div className="flex items-center gap-3 border-b border-bd bg-sr px-6 py-3">
-          <div className="relative flex-1 max-w-2xl">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-t4" />
-            <Input
-              ref={searchRef}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search project or drawing number..."
-              className="border-0 bg-surface-low pl-9 focus:ring-1 focus:ring-ac"
-              aria-label="Search projects"
-            />
-            {search && (
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-t4 hover:text-t2"
-                onClick={() => setSearch("")}
-                aria-label="Clear search"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Register 65% (full width when inspector closed on mobile) */}
+        {/* Register ~63% (full width when inspector closed on mobile) */}
         <section
           className={cn(
             "flex min-h-0 flex-col overflow-hidden border-r border-bd bg-sr",
-            inspectorOpen ? "w-full md:w-[65%]" : "w-full",
+            inspectorOpen ? "w-full md:w-[63%] lg:w-[62%]" : "w-full",
           )}
         >
-          <div className="px-6 pt-6 pb-3">
-            <div className="mb-4 flex items-end justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-t1 tracking-tight">
-                  {isChecking ? "Checking queue" : "Jobs"}
-                </h1>
-                <p className="mt-1 text-sm text-t3">
-                  {isChecking
-                    ? "Work awaiting technical review before issue"
-                    : "Manage scaffold design projects, revisions and progress"}
-                </p>
-              </div>
-              {!isChecking && (
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 transition-colors hover:bg-surface-low"
-                    onClick={() => router.push("/jobs/checking")}
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filters
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 transition-colors hover:bg-surface-low"
-                    onClick={() => {
-                      void exportJobsToCsv(
-                        {
-                          search: debouncedSearch.trim(),
-                          statusFilter: classicStatus,
-                          itemTypeFilter: "ALL",
-                          typeOfWorksFilter: "ALL",
-                          deadlineFilter: "all",
-                          onlyOriginals: true,
-                          onlyRevisions: false,
-                        },
-                        toast,
-                      )
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                    Export
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-40"
-                    onClick={() => router.push("/jobs/import")}
-                    disabled={!isAdmin}
-                  >
-                    <Upload className="h-4 w-4" />
-                    Import
-                  </button>
-                  {isAdmin && (
-                    <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-                      <Plus className="h-3.5 w-3.5" />
-                      New Project
-                    </Button>
+          <div className="border-b border-bd px-5 pt-4 pb-3">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 shrink-0">
+                  <h1 className="text-2xl font-bold text-t1 tracking-tight">
+                    {isChecking ? "Checking queue" : "Jobs"}
+                  </h1>
+                  <p className="mt-0.5 text-sm text-t3">
+                    {isChecking
+                      ? "Work awaiting technical review before issue"
+                      : "Manage scaffold design projects, revisions and progress"}
+                  </p>
+                </div>
+
+                <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+                  {!isChecking && (
+                    <div className="relative w-full min-w-[180px] max-w-sm grow sm:grow-0 sm:w-56 lg:w-64">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-t4" />
+                      <Input
+                        ref={searchRef}
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search project or drawing…"
+                        className="h-9 border-bd bg-surface-low pl-8 pr-8 text-sm"
+                        aria-label="Search projects"
+                      />
+                      {search && (
+                        <button
+                          type="button"
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-t4 hover:text-t2"
+                          onClick={() => setSearch("")}
+                          aria-label="Clear search"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   )}
+
+                  {isChecking && (
+                    <div className="relative w-full min-w-[180px] max-w-sm">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-t4" />
+                      <Input
+                        ref={searchRef}
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search project or drawing…"
+                        className="h-9 pl-8 text-sm"
+                        aria-label="Search projects"
+                      />
+                    </div>
+                  )}
+
+                  {!isChecking && (
+                    <>
+                      <button
+                        type="button"
+                        className={toolbarBtn}
+                        onClick={() => router.push("/jobs/checking")}
+                      >
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        Filters
+                      </button>
+                      <button
+                        type="button"
+                        className={toolbarBtn}
+                        onClick={() => {
+                          void exportJobsToCsv(
+                            {
+                              search: debouncedSearch.trim(),
+                              statusFilter: classicStatus,
+                              itemTypeFilter: "ALL",
+                              typeOfWorksFilter: "ALL",
+                              deadlineFilter: "all",
+                              onlyOriginals: true,
+                              onlyRevisions: false,
+                            },
+                            toast,
+                          )
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Export
+                      </button>
+                      <button
+                        type="button"
+                        className={toolbarBtn}
+                        onClick={() => router.push("/jobs/import")}
+                        disabled={!isAdmin}
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Import
+                      </button>
+                      {isAdmin && (
+                        <Button type="button" size="sm" className="h-9" onClick={() => setCreateOpen(true)}>
+                          <Plus className="h-3.5 w-3.5" />
+                          New Project
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {!isChecking && (
+                <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Project scope">
+                  {scopes.map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={scope === s.id}
+                      onClick={() => setScope(s.id)}
+                      className={cn(
+                        "inline-flex h-8 items-center rounded-md px-3 text-sm font-medium transition-all",
+                        scope === s.id
+                          ? "bg-ac text-on-ac"
+                          : "border border-bd bg-surface-low text-t3 hover:border-ac hover:text-t1",
+                      )}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
-
-            {!isChecking && (
-              <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Project scope">
-                {scopes.map(s => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={scope === s.id}
-                    onClick={() => setScope(s.id)}
-                    className={cn(
-                      "rounded-full px-3 py-1 text-sm font-medium transition-all",
-                      scope === s.id
-                        ? "bg-ac text-on-ac"
-                        : "border border-bd bg-surface-low text-t3 hover:border-ac hover:text-t1",
-                    )}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {isChecking && (
-              <div className="relative max-w-md mt-2">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-t4" />
-                <Input
-                  ref={searchRef}
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search project or drawing number..."
-                  className="pl-9"
-                  aria-label="Search projects"
-                />
-              </div>
-            )}
           </div>
 
           <JobsRegisterTable
@@ -427,9 +434,9 @@ export function JobsRegister({
           </div>
         </section>
 
-        {/* Inspector 35% — persistent workspace */}
+        {/* Inspector ~37% — persistent workspace */}
         {inspectorOpen && selected && (
-          <section className="hidden md:flex min-h-0 w-[35%] shrink-0 flex-col overflow-hidden">
+          <section className="hidden md:flex min-h-0 w-[37%] lg:w-[38%] shrink-0 flex-col overflow-hidden border-l border-bd">
             <JobsInspectorErrorBoundary projectLabel={selected.id}>
               <JobsInspector
                 project={selected}
@@ -442,22 +449,30 @@ export function JobsRegister({
         )}
       </div>
 
-      {/* Mobile inspector strip */}
+      {/* Tablet / mobile: full-width inspector drawer */}
       {selected && (
-        <div className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-bd bg-sr p-3 shadow-modal">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-bold truncate text-t1">{selected.drawingNumber}</p>
-              <p className="text-xs text-t3 truncate">{selected.clientCompany}</p>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <Button type="button" variant="secondary" size="sm" onClick={() => setSelectedId(null)}>
-                Close
-              </Button>
-              <Button type="button" size="sm" onClick={openWorkspace}>
-                Open
-              </Button>
-            </div>
+        <div className="md:hidden fixed inset-0 z-40 flex flex-col bg-sr">
+          <div className="flex items-center justify-between gap-3 border-b border-bd px-4 py-3">
+            <button
+              type="button"
+              className="text-sm font-medium text-t2 hover:text-t1"
+              onClick={() => setSelectedId(null)}
+            >
+              ← Back to Jobs
+            </button>
+            <Button type="button" variant="secondary" size="sm" onClick={openWorkspace}>
+              Open Full Project
+            </Button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <JobsInspectorErrorBoundary projectLabel={selected.id}>
+              <JobsInspector
+                project={selected}
+                workItemsModel={workItemsModel}
+                onOpenWorkspace={openWorkspace}
+                onStatusChanged={() => { void handleStatusChanged() }}
+              />
+            </JobsInspectorErrorBoundary>
           </div>
         </div>
       )}

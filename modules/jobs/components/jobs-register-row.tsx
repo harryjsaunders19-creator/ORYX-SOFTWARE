@@ -2,7 +2,7 @@
 
 import { memo } from "react"
 import { cn, formatGBP } from "@/shared/utils/utils"
-import { siteDisplay } from "./jobs-register-helpers"
+import { drawingNumberContext, siteDisplay } from "./jobs-register-helpers"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { REGISTER_ROW_H } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
@@ -29,12 +29,13 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
   const patchUrl = workItemsModel && project.kind === "work_item"
     ? `/api/work-items/${project.detailId}`
     : undefined
+  const contextLine = drawingNumberContext(project)
 
   return (
     <div
       role="row"
       aria-selected={selected}
-      tabIndex={-1}
+      tabIndex={0}
       data-selected={selected ? "true" : undefined}
       style={{ ...style, height: REGISTER_ROW_H }}
       onClick={() => onSelect(project.id)}
@@ -46,28 +47,38 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       }}
       className={cn(
         "group grid grid-cols-[1.2fr_1.4fr_0.9fr_0.7fr] items-center gap-0 border-b border-bd/40 px-0 cursor-pointer transition-colors duration-150",
-        "outline-none",
+        "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ac2",
         selected
-          ? "bg-ac/5 border-l-4 border-l-ac"
-          : "border-l-4 border-l-transparent hover:bg-[#f3f3f3]",
+          ? "bg-ac2-bg/70 border-l-[3px] border-l-ac2 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-ac2)_22%,transparent)]"
+          : "border-l-[3px] border-l-transparent hover:bg-surface-low",
       )}
     >
       <div role="cell" className="min-w-0 px-4 py-3">
-        <p className="text-sm font-bold text-t1 truncate">
+        <p
+          className={cn(
+            "text-sm truncate",
+            selected ? "font-bold text-t1" : "font-bold text-t1",
+          )}
+        >
           {project.drawingNumber}
         </p>
-        <p className="text-[10px] uppercase font-bold text-t4 mt-0.5 truncate">
-          {project.currentWorkType === "revision" && project.currentRevisionLetter
-            ? `Rev ${project.currentRevisionLetter}`
-            : project.currentWorkType === "original"
-              ? "Original"
-              : "Closed"}
+        <p
+          className={cn(
+            "text-xs mt-0.5 truncate",
+            selected ? "text-t2" : "text-t3",
+          )}
+        >
+          {contextLine}
         </p>
       </div>
 
       <div role="cell" className="min-w-0 px-4 py-3">
-        <p className="text-sm font-medium text-t1 truncate">{project.clientCompany || "—"}</p>
-        <p className="text-xs text-t3 mt-0.5 truncate">{site}</p>
+        <p className={cn("text-sm truncate", selected ? "font-medium text-t1" : "font-medium text-t1")}>
+          {project.clientCompany || "—"}
+        </p>
+        <p className={cn("text-xs mt-0.5 truncate", selected ? "text-t2" : "text-t3")}>
+          {site}
+        </p>
       </div>
 
       <div
@@ -76,10 +87,10 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
-        <p className="text-[10px] font-bold uppercase tracking-wide text-t4 truncate">
+        <p className="text-xs font-medium tracking-wide text-t2 truncate">
           {project.currentWorkLabel}
         </p>
-        <div className="mt-0.5">
+        <div className="mt-1">
           {canChangeStatus ? (
             <WorkItemStatusSelector
               workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
@@ -91,16 +102,23 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
                   : null
               }
               patchUrl={patchUrl}
-              size="md"
+              size="lg"
+              className="[&_span]:shadow-sm"
               onStatusChanged={next => onStatusChanged?.(project.id, next)}
             />
           ) : (
-            <p className="text-xs text-t3">{project.currentWorkDetail}</p>
+            <p className="text-sm text-t3">{project.currentWorkDetail}</p>
           )}
         </div>
       </div>
 
-      <div role="cell" className="px-4 py-3 text-right text-sm font-medium tabular-nums text-t1">
+      <div
+        role="cell"
+        className={cn(
+          "px-4 py-3 text-right text-sm font-medium tabular-nums",
+          selected ? "text-t1" : "text-t1",
+        )}
+      >
         {formatGBP(project.value)}
       </div>
     </div>

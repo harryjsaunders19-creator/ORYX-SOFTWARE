@@ -4,9 +4,9 @@
  * Screen ids: f313bb87a8a3426190f85fd4b8cb6ef7, 46351d0bec1f43faa32bc5136f955565
  */
 export const REGISTER_ROW_H = 64
-/** Stitch uses w-[65%] / w-[35%] of the main canvas (after sidebar). */
-export const REGISTER_PCT = 65
-export const INSPECTOR_PCT = 35
+/** Desktop split: register ~63% / inspector ~37%. */
+export const REGISTER_PCT = 63
+export const INSPECTOR_PCT = 37
 /** @deprecated Prefer percentage split; kept for callers. */
 export const INSPECTOR_W = 420
 
@@ -45,6 +45,8 @@ export interface JobsRegisterProject {
   canAddRevision: boolean
   clientId: string | null
   typeOfWorks: string | null
+  /** Parent completion date when available (ISO). */
+  dateCompleted: string | null
   /** Parent/original design workflow status (independent of current revision). */
   projectStatus: string
   /** Derived current-work classification. */

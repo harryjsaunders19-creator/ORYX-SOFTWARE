@@ -17,6 +17,8 @@ import {
   revisionBadgeLabel,
   siteDisplay,
   shortStatusLabel,
+  drawingNumberContext,
+  missingLabel,
 } from "../../modules/jobs/components/jobs-register-helpers.ts"
 
 describe("jobs-register-helpers", () => {
@@ -67,6 +69,56 @@ describe("jobs-register-helpers", () => {
     assert.equal(siteDisplay(null, null), "—")
     assert.equal(siteDisplay(undefined, ""), "—")
     assert.equal(siteDisplay("", "Terminal 2, London"), "Terminal 2")
+  })
+
+  it("builds drawing-number context without Closed label", () => {
+    assert.equal(
+      drawingNumberContext({
+        currentRevisionLetter: "E",
+        currentWorkType: "revision",
+        revisionCount: 3,
+      }),
+      "Rev E",
+    )
+    assert.equal(
+      drawingNumberContext({
+        currentRevisionLetter: null,
+        currentWorkType: "none",
+        revisionCount: 3,
+      }),
+      "3 revisions",
+    )
+    assert.equal(
+      drawingNumberContext({
+        currentRevisionLetter: null,
+        currentWorkType: "none",
+        revisionCount: 0,
+        dateCompleted: "2026-07-24",
+      }),
+      "Completed 24 Jul 2026",
+    )
+    assert.equal(
+      drawingNumberContext({
+        currentRevisionLetter: null,
+        currentWorkType: "original",
+        revisionCount: 0,
+      }),
+      "Original only",
+    )
+    assert.equal(
+      drawingNumberContext({
+        currentRevisionLetter: null,
+        currentWorkType: "none",
+        revisionCount: 0,
+      }),
+      "Original design",
+    )
+  })
+
+  it("replaces bare dashes with readable empty states", () => {
+    assert.equal(missingLabel(null, "Unassigned"), "Unassigned")
+    assert.equal(missingLabel("—", "Not invoiced"), "Not invoiced")
+    assert.equal(missingLabel("Ready", "Not invoiced"), "Ready")
   })
 })
 

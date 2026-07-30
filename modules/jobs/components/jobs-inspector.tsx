@@ -2,9 +2,8 @@
 
 import { useMemo, useState, lazy, Suspense } from "react"
 import {
-  Plus, Upload, Send, FileText, MoreHorizontal, ArrowRight,
+  Plus, Upload, Send, MoreHorizontal, ArrowRight,
 } from "lucide-react"
-import { Button } from "@/shared/ui/button"
 import { useApi } from "@/shared/hooks/use-api"
 import { cn } from "@/shared/utils/utils"
 import type { Job } from "@/lib/types"
@@ -154,7 +153,7 @@ export function JobsInspector({
           billable: wi.billable ?? true,
           value: wi.quoteValue,
           drawingStatus: shortStatusLabel(wi.status),
-          invoiceStatus: wi.invoiceStatus ?? "—",
+          invoiceStatus: wi.invoiceStatus ?? "Not invoiced",
           completionStatus: wi.completedAt ? "Complete" : shortStatusLabel(wi.status),
           isCurrent: wi.id === currentId,
         }))
@@ -173,7 +172,7 @@ export function JobsInspector({
       billable: r.billable ?? true,
       value: r.quoteValue ?? null,
       drawingStatus: shortStatusLabel(r.status),
-      invoiceStatus: "—",
+      invoiceStatus: "Not invoiced",
       completionStatus: (r.dateCompleted || r.issuedAt) ? "Complete" : shortStatusLabel(r.status),
       isCurrent: r.isCurrent ?? idx === 0,
     }))
@@ -346,17 +345,64 @@ export function JobsInspector({
     <aside
       className={cn(
         "jobs-inspector flex h-full min-h-0 w-full flex-col bg-sr",
-        "border-l border-bd",
       )}
-      style={{ boxShadow: "-4px 0 24px rgba(0,0,0,0.02)" }}
       aria-label={`Inspector for ${drawingNumber}`}
     >
-      {/* Quick actions — Stitch sticky toolbar */}
-      <div className="sticky top-0 z-30 border-b border-bd bg-sr p-4">
-        <div className="flex items-center gap-2">
+      {/* Header — identity + summary */}
+      <div className="shrink-0 border-b border-bd px-4 pt-3 pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="truncate text-xl font-bold tracking-tight text-t1">
+              {drawingNumber}
+            </h3>
+            <p className="mt-0.5 truncate text-sm">
+              <span className="font-medium text-t1">{client}</span>
+              <span className="text-t4"> · </span>
+              <span className="text-t3">{site}</span>
+            </p>
+            <p className="mt-1 truncate text-xs text-t3">
+              Original {shortStatusLabel(originalStatus)}
+              {currentWork.type === "revision" ? (
+                <>
+                  {" · "}
+                  <span className="font-medium text-t2">
+                    {currentWork.revisionLabel ?? revLabel}
+                  </span>
+                  {" — "}
+                  {shortStatusLabel(currentWork.status)}
+                </>
+              ) : currentWork.type === "original" ? (
+                <> · Active original</>
+              ) : (
+                <> · No active work</>
+              )}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              className="inline-flex h-8 items-center gap-1 rounded border border-bd px-2 text-xs font-medium text-t2 transition-colors hover:bg-surface-low hover:text-t1"
+              onClick={onOpenWorkspace}
+            >
+              Open Full Project
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              className="rounded border border-bd p-1.5 text-t3 transition-colors hover:bg-surface-low hover:text-t1"
+              aria-label="More actions"
+              onClick={onOpenWorkspace}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Quick actions */}
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            className="flex flex-1 min-w-[120px] items-center justify-center gap-2 rounded bg-blue-600 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded bg-ac px-3 text-xs font-semibold text-on-ac transition-colors hover:bg-ach disabled:opacity-50"
             onClick={() => {
               if (workItemsModel) {
                 onOpenWorkspace()
@@ -366,92 +412,67 @@ export function JobsInspector({
             }}
             disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
           >
-            <Plus className="h-[18px] w-[18px]" />
+            <Plus className="h-3.5 w-3.5" />
             Add Revision
           </button>
-          <div className="flex gap-1">
-            <IconBtn title="Upload Drawing" onClick={onOpenWorkspace}><Upload className="h-5 w-5" /></IconBtn>
-            <IconBtn title="Issue Drawing" onClick={onOpenWorkspace}><Send className="h-5 w-5" /></IconBtn>
-            <IconBtn title="Generate Quote" onClick={() => { window.location.href = `/quotes?new=1&jobId=${encodeURIComponent(project.detailId)}` }}><FileText className="h-5 w-5" /></IconBtn>
-            <IconBtn title="More" onClick={onOpenWorkspace}><MoreHorizontal className="h-5 w-5" /></IconBtn>
-          </div>
+          <IconBtn title="Upload" onClick={onOpenWorkspace}><Upload className="h-3.5 w-3.5" /></IconBtn>
+          <IconBtn title="Issue" onClick={onOpenWorkspace}><Send className="h-3.5 w-3.5" /></IconBtn>
+          <IconBtn title="More" onClick={onOpenWorkspace}><MoreHorizontal className="h-3.5 w-3.5" /></IconBtn>
         </div>
-      </div>
 
-      {/* Header */}
-      <div className="border-b border-bd px-5 pt-4 pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-2xl font-bold tracking-tight text-t1 truncate">{drawingNumber}</h3>
-              <span className="rounded border border-bd bg-surface-low px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-t3">
-                {revLabel}
-              </span>
-            </div>
-            <p className="mt-1 text-sm">
-              <span className="font-semibold text-t1">{client}</span>
-              <span className="text-t4"> / </span>
-              <span className="text-t3">{site}</span>
+        {/* Compact dual status cards */}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded border border-bd bg-surface-low/80 p-2.5">
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-t3">
+              Original Design
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded border border-bd bg-surface-low/60 p-3">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-t3 mb-2">
-                  Original Design
-                </p>
-                <p className="text-[10px] font-bold uppercase text-t4 mb-1.5">ORIGINAL DESIGN</p>
-                {originalId ? (
-                  <WorkItemStatusSelector
-                    workItemType="original"
-                    workItemId={originalId}
-                    currentStatus={originalStatus}
-                    revisionLabel={null}
-                    patchUrl={originalPatchUrl}
-                    onStatusChanged={() => { void refreshAfterStatus() }}
-                  />
-                ) : (
-                  <span className="text-sm text-t3">—</span>
-                )}
-              </div>
-              <div className="rounded border border-bd bg-sr p-3">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-t3 mb-2">
-                  Current Work
-                </p>
-                <p className="text-[10px] font-bold uppercase text-t4 mb-1.5">
-                  {currentWork.revisionLabel ?? "COMPLETE"}
-                </p>
-                {currentWork.type !== "none" && currentWork.id ? (
-                  <WorkItemStatusSelector
-                    workItemType={currentWork.type === "revision" ? "revision" : "original"}
-                    workItemId={currentWork.id}
-                    currentStatus={currentWork.status}
-                    revisionLabel={currentWork.type === "revision" ? currentWork.revisionLabel : null}
-                    patchUrl={currentWorkPatchUrl}
-                    onStatusChanged={() => { void refreshAfterStatus() }}
-                  />
-                ) : (
-                  <p className="text-sm text-t3">No Active Work</p>
-                )}
-                {currentWork.multipleActiveWarning && (
-                  <p className="mt-2 text-[10px] text-wn-tx">
-                    Multiple active revisions detected — showing latest by sequence.
-                  </p>
-                )}
-              </div>
-            </div>
+            {originalId ? (
+              <WorkItemStatusSelector
+                workItemType="original"
+                workItemId={originalId}
+                currentStatus={originalStatus}
+                revisionLabel={null}
+                patchUrl={originalPatchUrl}
+                size="md"
+                onStatusChanged={() => { void refreshAfterStatus() }}
+              />
+            ) : (
+              <span className="text-sm text-t3">Not available</span>
+            )}
           </div>
-          <button
-            type="button"
-            className="rounded border border-bd p-1.5 text-t3 transition-colors hover:bg-surface-low hover:text-t1"
-            aria-label="More actions"
-            onClick={onOpenWorkspace}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
+          <div className="rounded border border-bd bg-sr p-2.5">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-t3">
+              Current Work
+            </p>
+            {currentWork.type !== "none" && (
+              <p className="mb-1 text-xs font-medium text-t2">
+                {currentWork.revisionLabel ?? "ORIGINAL"}
+              </p>
+            )}
+            {currentWork.type !== "none" && currentWork.id ? (
+              <WorkItemStatusSelector
+                workItemType={currentWork.type === "revision" ? "revision" : "original"}
+                workItemId={currentWork.id}
+                currentStatus={currentWork.status}
+                revisionLabel={currentWork.type === "revision" ? currentWork.revisionLabel : null}
+                patchUrl={currentWorkPatchUrl}
+                size="md"
+                onStatusChanged={() => { void refreshAfterStatus() }}
+              />
+            ) : (
+              <p className="text-sm text-t3">No Active Work</p>
+            )}
+            {currentWork.multipleActiveWarning && (
+              <p className="mt-1.5 text-[11px] text-wn-tx">
+                Multiple active revisions — showing latest by sequence.
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <nav className="flex border-b border-bd overflow-x-auto" aria-label="Inspector sections">
+      <nav className="flex shrink-0 overflow-x-auto border-b border-bd" aria-label="Inspector sections">
         {(
           [
             ["overview", "Overview"],
@@ -466,9 +487,9 @@ export function JobsInspector({
             type="button"
             onClick={() => setTab(id)}
             className={cn(
-              "px-4 py-3 text-xs font-medium whitespace-nowrap transition-colors",
+              "whitespace-nowrap px-3.5 py-2.5 text-xs font-medium transition-colors",
               tab === id
-                ? "border-b-2 border-ac text-t1 font-bold"
+                ? "border-b-2 border-ac font-bold text-t1"
                 : "text-t3 hover:text-t1",
             )}
           >
@@ -477,7 +498,7 @@ export function JobsInspector({
         ))}
       </nav>
 
-      <div key={project.id} className="min-h-0 flex-1 space-y-8 overflow-y-auto px-5 py-5">
+      <div key={project.id} className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4">
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -488,12 +509,28 @@ export function JobsInspector({
           <>
             {(tab === "overview" || tab === "revisions") && (
               <JobsInspectorCurrentFocus
-                revisionLabel={revLabel}
-                currentTask={deriveNextAction(revStatus, project.requiredByDate)}
+                revisionLabel={
+                  currentWork.type === "none"
+                    ? "Complete"
+                    : (currentWork.revisionLabel ?? revLabel)
+                }
+                currentTask={
+                  currentWork.type === "none"
+                    ? "No active work"
+                    : deriveNextAction(revStatus, project.requiredByDate)
+                }
                 designer={currentRev?.designer || project.designer}
                 checker={null}
                 dueDate={project.requiredByDate}
                 status={revStatus}
+                nextAction={
+                  currentWork.type === "none"
+                    ? null
+                    : (project.nextAction &&
+                        project.nextAction !== deriveNextAction(revStatus, project.requiredByDate)
+                        ? project.nextAction
+                        : null)
+                }
               />
             )}
             {(tab === "overview" || tab === "commercial") && (
@@ -511,13 +548,6 @@ export function JobsInspector({
             )}
           </>
         )}
-      </div>
-
-      <div className="border-t border-bd p-4">
-        <Button type="button" className="w-full" onClick={onOpenWorkspace}>
-          Open Full Project
-          <ArrowRight className="h-4 w-4" />
-        </Button>
       </div>
 
       <Suspense fallback={null}>
@@ -560,9 +590,10 @@ function IconBtn({
       title={title}
       aria-label={title}
       onClick={onClick}
-      className="rounded border border-bd p-2 text-t2 hover:bg-surface-low transition-colors"
+      className="inline-flex h-8 items-center gap-1.5 rounded border border-bd px-2.5 text-xs font-medium text-t2 transition-colors hover:bg-surface-low hover:text-t1"
     >
       {children}
+      <span>{title}</span>
     </button>
   )
 }
