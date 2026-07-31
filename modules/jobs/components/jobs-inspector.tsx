@@ -557,15 +557,11 @@ export function JobsInspector({
 
   const statusChips = currentWork.type === "revision" ? (
     <>
-      <StatusChip
-        prefix={activeRevision?.letter ? `Rev ${activeRevision.letter}` : "Rev"}
-        status={currentWork.status}
-        tone="primary"
-      />
+      <StatusChip status={currentWork.status} tone="primary" />
       <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
     </>
   ) : currentWork.type === "original" ? (
-    <StatusChip prefix="Original" status={currentWork.status} tone="primary" />
+    <StatusChip status={currentWork.status} tone="primary" />
   ) : (
     <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
   )

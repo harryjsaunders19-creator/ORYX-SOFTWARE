@@ -140,7 +140,9 @@ export const MobileJobCard = memo(function MobileJobCard({
               onDesignerChanged={() => onDesignerChanged?.()}
             />
           ) : (
-            <p className="text-sm text-t2">{project.designer?.trim() || "Unassigned"}</p>
+            <p className={cn("text-sm", project.designer?.trim() ? "text-t2" : "text-t3")}>
+              {project.designer?.trim() || "Unassigned"}
+            </p>
           )}
         </div>
         <div className={cn("shrink-0 rounded-md px-2 py-1 text-right", dueTone.tint)}>

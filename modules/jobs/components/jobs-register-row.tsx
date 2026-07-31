@@ -103,7 +103,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       }}
       className={cn(
         REGISTER_GRID,
-        "group items-center gap-0 border-b border-bd/40 px-0 cursor-pointer transition-colors duration-150",
+        "group items-center gap-0 border-b border-bd/40 px-0 cursor-pointer transition-[background-color,box-shadow] duration-150 ease-out",
         "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ac2",
         selected
           ? "bg-ac2-bg/70 border-l-[3px] border-l-ac2 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-ac2)_22%,transparent)]"
@@ -166,7 +166,6 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
-        <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-t4">Designer</p>
         {canEdit ? (
           <DesignerAssignmentSelector
             workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
@@ -182,7 +181,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
             onDesignerChanged={next => onDesignerChanged?.(project.id, next)}
           />
         ) : (
-          <p className="truncate text-sm text-t3">
+          <p className={cn("truncate text-sm", project.designer?.trim() ? "text-t1" : "text-t3")}>
             {project.designer?.trim() || "Unassigned"}
           </p>
         )}
