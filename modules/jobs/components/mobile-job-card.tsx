@@ -75,13 +75,14 @@ export const MobileJobCard = memo(function MobileJobCard({
         }
       }}
       className={cn(
-        "w-full min-w-0 rounded-lg border bg-s1 p-3.5 text-left outline-none",
+        "w-full min-w-0 rounded-xl border bg-s1 p-4 text-left outline-none",
+        "shadow-[0px_4px_20px_rgba(0,0,0,0.04)]",
         "transition-[background-color,box-shadow,border-color] duration-150 ease-out",
         "cursor-pointer focus-visible:ring-2 focus-visible:ring-ac",
         selected
-          ? "border-sel-bd/30 bg-sel-bg shadow-[inset_4px_0_0_0_var(--color-sel-bd)]"
+          ? "border-t1/20 bg-t1/[0.03] shadow-[inset_4px_0_0_0_var(--color-t1)]"
           : cn(
-              "border-bd hover:bg-surface-low",
+              "border-bd/80 hover:bg-surface-low",
               due.severity === "overdue" && "shadow-[inset_3px_0_0_0_var(--color-dn)]",
               due.severity === "orange" && "shadow-[inset_3px_0_0_0_color-mix(in_srgb,var(--color-wn-ic)_80%,transparent)]",
             ),

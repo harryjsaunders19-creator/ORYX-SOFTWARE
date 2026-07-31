@@ -656,16 +656,21 @@ export function JobsInspector({
               <h2 className="text-xl font-bold tracking-tight text-t1 tabular-nums">
                 {drawingNumber}
               </h2>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-t3">
                 {[client, site].filter(Boolean).join(" · ") || "—"}
               </p>
               {typeOfWorksLabel ? (
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-t3">
                   Type of Works: {typeOfWorksLabel}
                 </p>
               ) : null}
-              <div className="mt-3 flex flex-wrap items-center gap-2">{statusChips}</div>
-              {!isDrawer ? <div className="mt-3">{summaryStrip}</div> : null}
+              {/* Status / due strip kept on mobile drawer for scan; desktop Final header is title-only. */}
+              {isDrawer ? (
+                <>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">{statusChips}</div>
+                  <div className="mt-3">{summaryStrip}</div>
+                </>
+              ) : null}
             </div>
           </div>
           {!isDrawer && onCollapse ? (
@@ -727,6 +732,15 @@ export function JobsInspector({
           </button>
         </div>
 
+        {timelineLoading && revisions.length === 0 ? (
+          <div className="space-y-2" aria-busy="true">
+            <div className="h-14 skeleton rounded-lg" />
+            <div className="h-14 skeleton rounded-lg" />
+          </div>
+        ) : (
+          <RevisionTimeline revisions={revisions} jobKey={project.id} />
+        )}
+
         <CurrentRevisionSection
           currentWork={currentWork}
           revLabel={revLabel}
@@ -768,15 +782,6 @@ export function JobsInspector({
               window.open(`/api/jobs/${project.id}/documents/${id}/preview`, "_blank")
             }}
           />
-        )}
-
-        {timelineLoading && revisions.length === 0 ? (
-          <div className="space-y-2" aria-busy="true">
-            <div className="h-14 skeleton rounded-lg" />
-            <div className="h-14 skeleton rounded-lg" />
-          </div>
-        ) : (
-          <RevisionTimeline revisions={revisions} jobKey={project.id} />
         )}
       </div>
 

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Building2,
-  History,
   Pencil,
   ShieldCheck,
 } from "lucide-react"
@@ -18,7 +17,6 @@ import {
   RevisionCard,
   inspectorType,
 } from "@/shared/layouts/inspector"
-import { missingLabel } from "./jobs-register-helpers"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { StagePipeline } from "./engineering-workflow-indicator"
@@ -671,7 +669,7 @@ export function CATIISummary({
     : null
 
   return (
-    <AccordionSection icon={ShieldCheck} title="Linked Records" defaultOpen={false}>
+    <AccordionSection icon={ShieldCheck} title="Linked Records" defaultOpen>
       {activeCheck ? (
         <InfoCard className="!p-3.5">
           <div className="flex items-start justify-between gap-3">
@@ -742,120 +740,111 @@ export type HistoryRevision = {
   requiredByDate?: string | null
 }
 
+function revisionTitle(rev: HistoryRevision, current = false): string {
+  if (rev.letter) {
+    return current ? `Revision ${rev.letter} (Current)` : `Revision ${rev.letter}`
+  }
+  return current ? "Original (Current)" : "Original"
+}
+
+/**
+ * Stitch Final Revision History — current revision as a raised card,
+ * prior revisions as a faded stacked list underneath.
+ */
 export function RevisionTimeline({
   revisions,
   jobKey,
   onSelectRevision,
 }: {
   revisions: HistoryRevision[]
-  /** Resets expanded/collapsed + selection when the open job changes. */
+  /** Unused — kept for call-site compatibility when switching jobs. */
   jobKey?: string
   onSelectRevision?: (revision: HistoryRevision) => void
 }) {
-  const revOnly = revisions.filter(r => r.letter)
-  const count = revOnly.length || revisions.length
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-
-  useEffect(() => {
-    setSelectedId(null)
-  }, [jobKey])
-
-  const statusCaption = (rev: HistoryRevision) => {
-    if (rev.isCurrent) return "Current"
-    if (rev.status === "ISSUED") return "Completed"
-    if (!rev.isCurrent && rev.status !== "ISSUED") {
-      const newer = revisions.some(r =>
-        r.letter
-        && rev.letter
-        && r.letter > rev.letter
-        && (r.isCurrent || r.status === "ISSUED"),
-      )
-      if (newer) return "Superseded"
-    }
-    return getDrawingStatusLabel(rev.status)
-  }
+  void jobKey
+  const current =
+    revisions.find(r => r.isCurrent)
+    ?? revisions[0]
+    ?? null
+  const priors = current
+    ? revisions.filter(r => r.id !== current.id)
+    : []
 
   return (
-    <AccordionSection
-      icon={History}
-      title={`Revision History (${count})`}
-      defaultOpen={false}
-      resetKey={jobKey}
-      className="pb-2"
-    >
-          <InfoCard className="!p-0 overflow-hidden">
-            {revisions.length === 0 ? (
-              <p className={cn(fieldMuted, "px-3.5 py-3")}>Original drawing only</p>
-            ) : (
-              <ol className="space-y-0">
-                {revisions.map(rev => {
-                  const title = rev.letter ? `REV ${rev.letter}` : "Original"
-                  const colour = getDrawingStatusColour(rev.status)
-                  const selected = selectedId === rev.id
-                  const due = getRevisionDueInfo(rev.requiredByDate ?? null, {
-                    completed: rev.status === "ISSUED",
-                  })
+    <section aria-label="Revision History">
+      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-wider text-t3">
+        Revision History
+      </h3>
 
-                  return (
-                    <li key={rev.id} className="border-b border-inspector-divider last:border-b-0">
-                      <button
-                        type="button"
-                        className={cn(
-                          "flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors",
-                          selected ? "bg-surface-low/80" : "hover:bg-surface-low/50",
-                        )}
-                        onClick={() => {
-                          setSelectedId(prev => (prev === rev.id ? null : rev.id))
-                          onSelectRevision?.(rev)
-                        }}
-                      >
-                        <span className={cn("text-sm font-semibold", rev.isCurrent ? "text-t1" : "text-t2")}>
-                          {title}
-                        </span>
-                        <span
-                          className={cn(
-                            "text-xs font-medium",
-                            rev.isCurrent ? "text-rs-tx" : colour.text,
-                          )}
-                        >
-                          {statusCaption(rev)}
-                        </span>
-                      </button>
-                      <div
-                        className={cn(
-                          "grid transition-[grid-template-rows] duration-200 ease-out",
-                          selected ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-                        )}
-                      >
-                        <div className="min-h-0 overflow-hidden">
-                          <div className="space-y-1.5 border-t border-inspector-divider/70 px-3.5 pb-3 pt-2 text-xs text-t3">
-                            <p>
-                              <span className={colour.text}>{getDrawingStatusLabel(rev.status)}</span>
-                              {" · "}
-                              {missingLabel(rev.designer, "Unassigned")}
-                              {" · "}
-                              {safeDateLabel(rev.createdAt) || "—"}
-                            </p>
-                            {rev.requiredByDate ? (
-                              <p className={revisionDueToneClass(due.severity).text}>
-                                Target due {due.dateLabel}
-                                {due.severity !== "complete" && due.severity !== "none"
-                                  ? ` · ${due.daysLabel}`
-                                  : ""}
-                              </p>
-                            ) : null}
-                            {rev.reason?.trim() ? (
-                              <p className="text-sm leading-snug text-t2">{rev.reason.trim()}</p>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ol>
+      {revisions.length === 0 || !current ? (
+        <p className={fieldMuted}>Original drawing only</p>
+      ) : (
+        <div className="space-y-4">
+          <button
+            type="button"
+            className={cn(
+              "w-full rounded-xl border border-bd bg-s1 p-5 text-left shadow-[0px_4px_20px_rgba(0,0,0,0.04)]",
+              "space-y-3 transition-colors hover:bg-surface-low/40",
+              "outline-none focus-visible:ring-2 focus-visible:ring-ac",
             )}
-          </InfoCard>
-    </AccordionSection>
+            onClick={() => onSelectRevision?.(current)}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-bold text-t1">
+                {revisionTitle(current, true)}
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-t3 tabular-nums">
+                {safeDateLabel(current.createdAt) || "—"}
+              </span>
+            </div>
+            <div className="space-y-1 border-t border-bd pt-2">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-t3">
+                {current.letter ? "Reason for Revision" : "Description"}
+              </p>
+              <p className="text-sm leading-snug text-t1">
+                {current.reason?.trim()
+                  || (current.letter
+                    ? "No amendment instructions have been entered."
+                    : "No description has been entered.")}
+              </p>
+            </div>
+          </button>
+
+          {priors.length > 0 ? (
+            <div className="space-y-3 px-2">
+              {priors.map((rev, index) => (
+                <div key={rev.id}>
+                  {index > 0 ? (
+                    <div className="mb-3 h-px bg-bd/40" aria-hidden />
+                  ) : null}
+                  <button
+                    type="button"
+                    className={cn(
+                      "w-full text-left opacity-70 transition-opacity hover:opacity-100",
+                      "outline-none focus-visible:ring-2 focus-visible:ring-ac rounded-md",
+                    )}
+                    onClick={() => onSelectRevision?.(rev)}
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-t1">
+                        {revisionTitle(rev)}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wide text-t3 tabular-nums">
+                        {safeDateLabel(rev.createdAt) || "—"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-t3">
+                      {rev.reason?.trim()
+                        || getDrawingStatusLabel(rev.status)
+                        || "—"}
+                    </p>
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </section>
   )
 }

@@ -1,7 +1,7 @@
 /**
- * Jobs Register visual tokens — mirrored from Stitch
- * "Job Registry - Annotated Refinement Final" (ORYX Job Registry Layout Final).
- * Screen ids: f2fc67c8d0b9456c8b8f303c39b52eeb, 3e5552cabe9f4d17a6ce4e7953b00962 (mobile)
+ * Jobs Register visual tokens — mirrored from the Stitch export
+ * `stitch_minimalist_monochrome_job_card` (ORYX OS | Engineering Hub · Job List).
+ * Design system: Industrial Mono Refined. Inspector rail: 480px.
  */
 /** Stitch Final registry row height (py-5 denser list). */
 export const REGISTER_ROW_H = 72
