@@ -48,15 +48,17 @@ function RegisterDueCell({
   return (
     <div className={cn("min-w-0 rounded-md px-1.5 py-1 leading-tight", tone.tint)}>
       <p className={cn("truncate text-xs font-bold", tone.text)}>
-        {due.registerPrimary}
+        {due.severity === "none" || due.severity === "complete"
+          ? due.registerPrimary
+          : due.daysLabel}
       </p>
-      {due.registerSecondary ? (
+      {due.severity !== "none" && due.severity !== "complete" ? (
+        <p className={cn("mt-0.5 truncate text-[10px] font-medium", tone.text)}>
+          {due.shortDateLabel}
+        </p>
+      ) : due.registerSecondary ? (
         <p className={cn("mt-0.5 truncate text-[11px] font-semibold", tone.text)}>
           {due.registerSecondary}
-        </p>
-      ) : due.severity !== "none" && due.severity !== "complete" && due.daysRemaining != null ? (
-        <p className={cn("mt-0.5 truncate text-[10px] font-medium", tone.text)}>
-          {due.daysLabel}
         </p>
       ) : null}
     </div>
@@ -176,12 +178,12 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
             designers={designers}
             patchUrl={patchUrl}
             compact
-            unassignedLabel="—"
+            unassignedLabel="Unassigned"
             onDesignerChanged={next => onDesignerChanged?.(project.id, next)}
           />
         ) : (
           <p className="truncate text-sm text-t3">
-            {project.designer?.trim() || "—"}
+            {project.designer?.trim() || "Unassigned"}
           </p>
         )}
       </div>

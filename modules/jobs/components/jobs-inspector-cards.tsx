@@ -176,14 +176,15 @@ export function RevisionSummaryStrip({
   dueSeverity: ReturnType<typeof getRevisionDueInfo>["severity"]
 }) {
   const dueTone = revisionDueToneClass(dueSeverity)
-  const designerLabel = designer.trim() || "—"
+  const hasDesigner = Boolean(designer.trim())
+  const designerLabel = hasDesigner ? designer.trim() : "Unassigned"
   return (
     <p className="mt-2 truncate text-xs leading-snug text-t3">
       <span className="font-semibold uppercase tracking-wide text-t2">{revision}</span>
       <span className="mx-1.5 text-t4" aria-hidden>·</span>
       <span>{stage}</span>
       <span className="mx-1.5 text-t4" aria-hidden>·</span>
-      <span className={designer.trim() ? "text-t2" : "text-t4"}>{designerLabel}</span>
+      <span className={hasDesigner ? "text-t2" : "text-t4"}>{designerLabel}</span>
       <span className="mx-1.5 text-t4" aria-hidden>·</span>
       <span className={cn("font-semibold", dueTone.text)}>{duePrimary}</span>
     </p>
@@ -338,7 +339,21 @@ export function CurrentRevisionSection({
                 onStatusChanged={onChanged}
               />
             </div>
+          </div>
 
+          <div className="rounded-lg border border-bd/70 bg-surface-low/70 px-3.5 py-3.5">
+            <p className={fieldLabel}>{briefLabel}</p>
+            <p
+              className={cn(
+                "text-[15px] font-semibold leading-relaxed whitespace-pre-wrap",
+                briefText?.trim() ? "text-t1" : "text-t3 font-medium",
+              )}
+            >
+              {briefText?.trim() || briefEmpty}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <DesignerAssignmentSelector
               workItemType={isRevision ? "revision" : "original"}
               workItemId={currentWork.id!}
@@ -347,14 +362,9 @@ export function CurrentRevisionSection({
               designers={designers}
               patchUrl={patchUrl}
               labeled
-              unassignedLabel="—"
+              unassignedLabel="Unassigned"
               onDesignerChanged={onChanged}
             />
-            <div>
-              <p className={fieldLabel}>Checker</p>
-              <p className={fieldMuted}>—</p>
-            </div>
-
             <div>
               <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
               <p className="text-sm font-semibold text-t1">
@@ -362,45 +372,27 @@ export function CurrentRevisionSection({
               </p>
             </div>
 
-            <div className="sm:col-span-2">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <p className={fieldLabel}>Target Due</p>
-                  <p className={cn("text-sm font-semibold", dueTone.text)}>
-                    {due.severity === "none" ? "No Due Date" : due.dateLabel}
-                  </p>
-                </div>
-                <div>
-                  <p className={fieldLabel}>Days Remaining</p>
-                  <span
-                    className={cn(
-                      "inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold",
-                      dueTone.text,
-                      dueTone.tint,
-                    )}
-                  >
-                    {due.severity === "none" ? "—" : due.daysLabel}
-                  </span>
-                </div>
-              </div>
+            <div className="sm:col-span-2 rounded-md border border-bd/50 bg-sr px-3 py-2.5">
+              <p className={fieldLabel}>Days Remaining</p>
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-md px-2.5 py-1 text-base font-bold",
+                  dueTone.text,
+                  dueTone.tint,
+                )}
+              >
+                {due.severity === "none" ? "No Due Date" : due.daysLabel}
+              </span>
+              <p className="mt-2 text-[11px] font-medium text-t3">Target Due</p>
+              <p className={cn("text-sm", due.severity === "none" ? "text-t3" : "text-t2")}>
+                {due.severity === "none" ? "No Due Date" : due.dateLabel}
+              </p>
             </div>
 
             <div>
               <p className={fieldLabel}>Issued</p>
               <p className="text-sm font-semibold text-t1">{issuedLabel}</p>
             </div>
-          </div>
-
-          <div className="rounded-md border border-bd/60 bg-surface-low/40 px-3 py-2">
-            <p className={fieldLabel}>{briefLabel}</p>
-            <p
-              className={cn(
-                "text-sm leading-snug whitespace-pre-wrap",
-                briefText?.trim() ? "text-t2" : "text-t3",
-              )}
-            >
-              {briefText?.trim() || briefEmpty}
-            </p>
           </div>
         </div>
       )}

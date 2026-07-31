@@ -53,7 +53,7 @@ export type DesignerAssignmentSelectorProps = {
   labeled?: boolean
   /**
    * Empty-state copy when no engineer is assigned.
-   * Compact/list defaults to "—"; labeled/inspector defaults to "—".
+   * Defaults to "Unassigned" with muted styling.
    */
   unassignedLabel?: string
   className?: string
@@ -74,7 +74,7 @@ export function DesignerAssignmentSelector({
   disabled = false,
   compact = false,
   labeled = false,
-  unassignedLabel = "—",
+  unassignedLabel = "Unassigned",
   className,
   onDesignerChanged,
 }: DesignerAssignmentSelectorProps) {
@@ -215,7 +215,7 @@ export function DesignerAssignmentSelector({
             />
           </div>
         )}
-        <SelectItem value={UNASSIGNED}>—</SelectItem>
+        <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
         {options.map(d => (
           <SelectItem key={d} value={d}>
             {d}

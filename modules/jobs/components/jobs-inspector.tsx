@@ -2,7 +2,7 @@
 
 import { useMemo, useState, lazy, Suspense } from "react"
 import {
-  MoreHorizontal, Plus, ShieldCheck, Link2, ChevronLeft,
+  Plus, ShieldCheck, Link2, ChevronLeft,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
@@ -16,12 +16,6 @@ import {
   siteDisplay,
 } from "./jobs-register-helpers"
 import { downloadCat2CheckSheet } from "./cat2-check-sheet-export"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/shared/ui/dropdown-menu"
 import { Button } from "@/shared/ui/button"
 import {
   Dialog,
@@ -598,9 +592,7 @@ export function JobsInspector({
       duePrimary={
         summaryDue.severity === "none"
           ? "No Due Date"
-          : summaryDue.severity === "overdue"
-            ? `OVERDUE · ${summaryDue.shortDateLabel}`
-            : `Due ${summaryDue.shortDateLabel}`
+          : summaryDue.daysLabel
       }
       dueSeverity={summaryDue.severity}
     />
@@ -619,36 +611,6 @@ export function JobsInspector({
     }
     setAddRevOpen(true)
   }
-
-  const moreMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "inline-flex items-center justify-center gap-1.5 rounded-md border border-bd text-t3 transition-colors hover:bg-surface-low hover:text-t1",
-            isDrawer ? "h-11 px-2.5 text-sm font-medium text-t1" : "p-1.5",
-          )}
-          aria-label="More actions"
-        >
-          <MoreHorizontal className="h-4 w-4" />
-          {isDrawer ? <span>More</span> : null}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={openAddRevision}>Add Revision</DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={cat2Busy || !canExportCat2}
-          onSelect={() => { void handleCat2() }}
-        >
-          CATII Check
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={openQuoteAction}>
-          {primaryQuote ? "Open Quote" : "Attach Quote"}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
 
   return (
     <aside
@@ -688,7 +650,6 @@ export function JobsInspector({
             />
           ) : null
         }
-        moreSlot={moreMenu}
       >
         {isDrawer ? (
           <div className="flex flex-col gap-2">
@@ -727,7 +688,7 @@ export function JobsInspector({
             </div>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               className={cn(actionBtn, "border-transparent bg-ac text-on-ac hover:bg-ach")}
@@ -759,7 +720,6 @@ export function JobsInspector({
               <Link2 className="h-3.5 w-3.5" />
               {primaryQuote ? "Open Quote" : "Attach Quote"}
             </button>
-            {moreMenu}
           </div>
         )}
       </InspectorHeader>

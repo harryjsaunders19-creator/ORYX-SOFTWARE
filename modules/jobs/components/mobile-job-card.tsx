@@ -136,16 +136,22 @@ export const MobileJobCard = memo(function MobileJobCard({
               designers={designers}
               patchUrl={patchUrl}
               compact
-              unassignedLabel="—"
+              unassignedLabel="Unassigned"
               onDesignerChanged={() => onDesignerChanged?.()}
             />
           ) : (
-            <p className="text-sm text-t2">{project.designer?.trim() || "—"}</p>
+            <p className="text-sm text-t2">{project.designer?.trim() || "Unassigned"}</p>
           )}
         </div>
         <div className={cn("shrink-0 rounded-md px-2 py-1 text-right", dueTone.tint)}>
-          <p className={cn("text-xs font-bold", dueTone.text)}>{due.registerPrimary}</p>
-          {due.registerSecondary ? (
+          <p className={cn("text-xs font-bold", dueTone.text)}>
+            {due.severity === "none" || due.severity === "complete"
+              ? due.registerPrimary
+              : due.daysLabel}
+          </p>
+          {due.severity !== "none" && due.severity !== "complete" ? (
+            <p className={cn("mt-0.5 text-[11px] font-medium", dueTone.text)}>{due.shortDateLabel}</p>
+          ) : due.registerSecondary ? (
             <p className={cn("mt-0.5 text-[11px] font-semibold", dueTone.text)}>{due.registerSecondary}</p>
           ) : null}
         </div>
