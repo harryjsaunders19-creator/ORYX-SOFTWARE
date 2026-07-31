@@ -811,3 +811,19 @@ html.stitch-layout .stitch-top-bar-title {
   background: transparent !important;
   border: none !important;
 }
+
+/*
+ * Mobile Jobs detail: one flex column + one scroll owner.
+ * 100dvh tracks the visible viewport as the mobile browser chrome shows/hides.
+ */
+.mobile-job-detail {
+  height: 100vh;
+  max-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+.mobile-job-detail__content {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}

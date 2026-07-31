@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, lazy, Suspense } from "react"
+import { useEffect, useMemo, useState, lazy, Suspense } from "react"
 import {
   Plus, ShieldCheck, Link2, ChevronLeft,
 } from "lucide-react"
@@ -55,6 +55,9 @@ const AttachExistingQuoteModal = lazy(() =>
   import("./attach-existing-quote-modal").then(m => ({ default: m.AttachExistingQuoteModal })),
 )
 
+/** Detail secondary fetches must not briefly show another job's attachments/quotes. */
+const SECONDARY_SWR = { keepPreviousData: false } as const
+
 interface JobsInspectorProps {
   project: JobsRegisterProject
   workItemsModel: boolean
@@ -77,6 +80,7 @@ interface DocumentsResponse {
 }
 
 interface RevisionsResponse {
+  parentId?: string
   chain?: {
     id: string
     revisionLetter: string | null
@@ -144,23 +148,48 @@ export function JobsInspector({
   const [wiRevSaving, setWiRevSaving] = useState(false)
   const [attachQuoteOpen, setAttachQuoteOpen] = useState(false)
   const [cat2Busy, setCat2Busy] = useState(false)
+  // Defer documents/quotes one frame so the panel paints list data first.
+  const [secondaryReady, setSecondaryReady] = useState(false)
+
+  useEffect(() => {
+    setSecondaryReady(false)
+    const id = requestAnimationFrame(() => setSecondaryReady(true))
+    return () => cancelAnimationFrame(id)
+  }, [project.id])
 
   const parentKey = workItemsModel ? `/api/parent-jobs/${project.id}` : null
   const jobKey = !workItemsModel ? `/api/jobs/${project.id}?include=parent,current` : null
   const revisionsKey = !workItemsModel ? `/api/jobs/${project.id}/revisions` : null
-  const docsKey = `/api/jobs/${project.id}/documents?limit=40`
-  const quotesKey = `/api/quotes?search=${encodeURIComponent(project.drawingNumber)}&page=1&limit=25`
+  const docsKey = secondaryReady ? `/api/jobs/${project.id}/documents?limit=40` : null
+  const quotesKey = secondaryReady
+    ? `/api/quotes?search=${encodeURIComponent(project.drawingNumber)}&page=1&limit=25`
+    : null
 
-  const { data: parentDash, isLoading: parentLoading, mutate: mutateParent } =
+  const { data: parentDashRaw, isLoading: parentLoading, mutate: mutateParent } =
     useApi<ParentJobDashboard>(parentKey)
-  const { data: jobDetail, isLoading: jobLoading, mutate: mutateJob } =
+  const { data: jobDetailRaw, isLoading: jobLoading, mutate: mutateJob } =
     useApi<Job>(jobKey)
-  const { data: revisionsData, mutate: mutateRevisions } =
+  const { data: revisionsDataRaw, mutate: mutateRevisions } =
     useApi<RevisionsResponse>(revisionsKey)
-  const { data: docsData, mutate: mutateDocs } = useApi<DocumentsResponse>(docsKey)
-  const { data: quotesData, mutate: mutateQuotes } = useApi<QuotesListResponse>(quotesKey)
+  const { data: docsData, mutate: mutateDocs } = useApi<DocumentsResponse>(docsKey, SECONDARY_SWR)
+  const { data: quotesData, mutate: mutateQuotes } = useApi<QuotesListResponse>(quotesKey, SECONDARY_SWR)
 
-  const loading = workItemsModel ? parentLoading : jobLoading
+  // Ignore keepPreviousData from a different job when switching selection.
+  const parentDash =
+    parentDashRaw?.parent?.id === project.id ? parentDashRaw : undefined
+  const jobDetail =
+    jobDetailRaw && jobDetailRaw.id === project.id ? jobDetailRaw : undefined
+  const revisionsData =
+    revisionsDataRaw
+    && (!revisionsDataRaw.parentId || revisionsDataRaw.parentId === project.id)
+      ? revisionsDataRaw
+      : undefined
+
+  const secondaryLoading = Boolean(secondaryReady && !docsData)
+  const revisionsLoading = !workItemsModel && !revisionsData && Boolean(jobLoading)
+  const timelineLoading = workItemsModel
+    ? Boolean(parentLoading && !parentDash)
+    : revisionsLoading
 
   const parent = parentDash?.parent
   const originalWorkItem = workItemsModel
@@ -598,9 +627,13 @@ export function JobsInspector({
 
   return (
     <aside
-      className="jobs-inspector flex h-full min-h-0 w-full flex-col bg-transparent"
+      className={cn(
+        "jobs-inspector flex min-h-0 w-full flex-col bg-transparent",
+        isDrawer ? "mobile-job-detail__body h-auto min-h-0 flex-1" : "h-full",
+      )}
       aria-label={`Inspector for ${drawingNumber}`}
     >
+      <div className={cn(isDrawer && "mobile-job-detail__header shrink-0")}>
       <InspectorHeader
         drawingNumber={drawingNumber}
         revisionBadge={
@@ -705,63 +738,66 @@ export function JobsInspector({
           </ActionToolbar>
         )}
       </InspectorHeader>
+      </div>
 
       <div
         key={project.id}
         className={cn(
-          "min-h-0 flex-1 space-y-5 overflow-y-auto px-7 py-5",
-          isDrawer && "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+          "mobile-job-detail__content min-h-0 flex-1 space-y-5 overflow-x-hidden overflow-y-auto overscroll-contain px-7 py-5",
+          "[-webkit-overflow-scrolling:touch]",
+          isDrawer && "pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]",
         )}
       >
-        {loading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-20 skeleton rounded-lg" />
-            ))}
+        <CurrentRevisionSection
+          currentWork={currentWork}
+          revLabel={revLabel}
+          designer={drawingDesigner}
+          designers={designers}
+          lastCompleted={lastCompleted}
+          lastCompletedLabel={lastCompletedLabel}
+          descriptionOfWorks={descriptionOfWorks}
+          revisionReason={activeRevision?.reason ?? null}
+          revisionDate={
+            activeRevision?.createdAt
+            ?? originalWorkItem?.dateCreated
+            ?? jobDetail?.dateCreated
+            ?? parent?.createdAt
+            ?? null
+          }
+          requiredByDate={
+            activeRevision?.requiredByDate
+            ?? currentWork.dueDate
+            ?? null
+          }
+          patchUrl={currentWorkPatchUrl}
+          onChanged={() => { void refreshAll() }}
+        />
+
+        <ProjectDetailsSection data={projectDetails} jobKey={project.id} />
+
+        {secondaryLoading && !activeCheck && !previousCheck ? (
+          <div className="h-16 skeleton rounded-lg" aria-hidden />
+        ) : (
+          <CATIISummary
+            activeLabel={activeCat2Label}
+            activeCheck={activeCheck}
+            previousCheck={previousCheck}
+            busy={cat2Busy}
+            canCreate={canExportCat2}
+            onCreate={() => { void handleCat2() }}
+            onOpen={id => {
+              window.open(`/api/jobs/${project.id}/documents/${id}/preview`, "_blank")
+            }}
+          />
+        )}
+
+        {timelineLoading && revisions.length === 0 ? (
+          <div className="space-y-2" aria-busy="true">
+            <div className="h-14 skeleton rounded-lg" />
+            <div className="h-14 skeleton rounded-lg" />
           </div>
         ) : (
-          <>
-            <CurrentRevisionSection
-              currentWork={currentWork}
-              revLabel={revLabel}
-              designer={drawingDesigner}
-              designers={designers}
-              lastCompleted={lastCompleted}
-              lastCompletedLabel={lastCompletedLabel}
-              descriptionOfWorks={descriptionOfWorks}
-              revisionReason={activeRevision?.reason ?? null}
-              revisionDate={
-                activeRevision?.createdAt
-                ?? originalWorkItem?.dateCreated
-                ?? jobDetail?.dateCreated
-                ?? parent?.createdAt
-                ?? null
-              }
-              requiredByDate={
-                activeRevision?.requiredByDate
-                ?? currentWork.dueDate
-                ?? null
-              }
-              patchUrl={currentWorkPatchUrl}
-              onChanged={() => { void refreshAll() }}
-            />
-
-            <ProjectDetailsSection data={projectDetails} jobKey={project.id} />
-
-            <CATIISummary
-              activeLabel={activeCat2Label}
-              activeCheck={activeCheck}
-              previousCheck={previousCheck}
-              busy={cat2Busy}
-              canCreate={canExportCat2}
-              onCreate={() => { void handleCat2() }}
-              onOpen={id => {
-                window.open(`/api/jobs/${project.id}/documents/${id}/preview`, "_blank")
-              }}
-            />
-
-            <RevisionTimeline revisions={revisions} jobKey={project.id} />
-          </>
+          <RevisionTimeline revisions={revisions} jobKey={project.id} />
         )}
       </div>
 

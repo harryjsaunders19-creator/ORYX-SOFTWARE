@@ -10,6 +10,7 @@ import {
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
+import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
@@ -66,6 +67,9 @@ export function JobsRegister({
 
   const searchRef = useRef<HTMLInputElement>(null)
   const mobileSearchRef = useRef<HTMLInputElement>(null)
+  const mobileListRef = useRef<HTMLDivElement>(null)
+  const savedMobileListScroll = useRef(0)
+  const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
   const [search, setSearch] = useState(searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
   const [scope, setScope] = useState<JobsRegisterScope>("all")
@@ -182,6 +186,9 @@ export function JobsRegister({
   }, [router])
 
   const selectProject = useCallback((id: string) => {
+    if (mobileListRef.current) {
+      savedMobileListScroll.current = mobileListRef.current.scrollTop
+    }
     // Same row while collapsed → reopen; otherwise select and open.
     if (selectedId === id && !isInspectorOpen) {
       setIsInspectorOpen(true)
@@ -193,6 +200,11 @@ export function JobsRegister({
 
   const collapseInspector = useCallback(() => {
     setIsInspectorOpen(false)
+    requestAnimationFrame(() => {
+      if (mobileListRef.current) {
+        mobileListRef.current.scrollTop = savedMobileListScroll.current
+      }
+    })
   }, [])
 
   const reopenInspector = useCallback(() => {
@@ -273,6 +285,10 @@ export function JobsRegister({
     else await mutateClassic()
   }, [workItemsModel, mutateWork, mutateClassic])
 
+  const onStatusChangedCb = useCallback(() => {
+    void handleStatusChanged()
+  }, [handleStatusChanged])
+
   const scopes: { id: JobsRegisterScope; label: string }[] = [
     { id: "all", label: "All" },
     { id: "active", label: "Active" },
@@ -281,6 +297,29 @@ export function JobsRegister({
   ]
 
   const inspectorVisible = Boolean(selected) && isInspectorOpen
+  const showDesktopInspector = inspectorVisible && selected && mediaReady && !isMobile
+  const showMobileInspector = inspectorVisible && selected && mediaReady && isMobile
+
+  // Lock background scroll while the mobile full-screen detail is open.
+  useEffect(() => {
+    if (!showMobileInspector) return
+    const main = document.querySelector("main.oryx-app-main") as HTMLElement | null
+    const prevBody = document.body.style.overflow
+    const prevMain = main?.style.overflow ?? ""
+    const prevMainTouch = main?.style.touchAction ?? ""
+    document.body.style.overflow = "hidden"
+    if (main) {
+      main.style.overflow = "hidden"
+      main.style.touchAction = "none"
+    }
+    return () => {
+      document.body.style.overflow = prevBody
+      if (main) {
+        main.style.overflow = prevMain
+        main.style.touchAction = prevMainTouch
+      }
+    }
+  }, [showMobileInspector])
 
   const toolbarBtn =
     "inline-flex h-9 items-center gap-2 rounded border border-bd px-3 text-sm font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-40"
@@ -461,8 +500,8 @@ export function JobsRegister({
             workItemsModel={workItemsModel}
             designers={designers}
             highlightQuery={debouncedSearch}
-            onStatusChanged={() => { void handleStatusChanged() }}
-            onDesignerChanged={() => { void handleStatusChanged() }}
+            onStatusChanged={onStatusChangedCb}
+            onDesignerChanged={onStatusChangedCb}
             loading={loading}
           />
 
@@ -504,7 +543,7 @@ export function JobsRegister({
           </div>
         </section>
 
-        {inspectorVisible && selected && (
+        {showDesktopInspector && selected && (
           <JobsInspectorShell
             className={cn(
               "my-3 mr-3 w-[min(420px,38%)] lg:w-[min(460px,39%)] shrink-0",
@@ -515,7 +554,7 @@ export function JobsRegister({
                 project={selected}
                 workItemsModel={workItemsModel}
                 designers={designers}
-                onStatusChanged={() => { void handleStatusChanged() }}
+                onStatusChanged={onStatusChangedCb}
                 onCollapse={collapseInspector}
                 collapseVariant="chevron"
                 presentation="panel"
@@ -524,7 +563,7 @@ export function JobsRegister({
           </JobsInspectorShell>
         )}
 
-        {selected && !isInspectorOpen && (
+        {selected && !isInspectorOpen && mediaReady && !isMobile && (
           <JobsInspectorReopenHandle onOpen={reopenInspector} />
         )}
       </div>
@@ -550,6 +589,7 @@ export function JobsRegister({
         />
 
         <MobileJobsList
+          ref={mobileListRef}
           projects={projects}
           selectedId={selectedId}
           workItemsModel={workItemsModel}
@@ -557,8 +597,8 @@ export function JobsRegister({
           loading={loading}
           highlightQuery={debouncedSearch}
           onSelect={selectProject}
-          onStatusChanged={() => { void handleStatusChanged() }}
-          onDesignerChanged={() => { void handleStatusChanged() }}
+          onStatusChanged={onStatusChangedCb}
+          onDesignerChanged={onStatusChangedCb}
         />
 
         {pages > 1 && (
@@ -589,16 +629,17 @@ export function JobsRegister({
         )}
       </div>
 
-      {/* Mobile full-screen job details drawer */}
-      {inspectorVisible && selected && (
+      {/* Mobile full-screen job details — single scroll owner for content */}
+      {showMobileInspector && selected && (
         <div
-          className="fixed inset-0 z-50 flex flex-col bg-s2 md:hidden"
+          className="mobile-job-detail fixed inset-0 z-50 flex h-screen max-h-screen flex-col overflow-hidden bg-s2 md:hidden"
           role="dialog"
           aria-modal="true"
           aria-label={`Project details for ${selected.drawingNumber}`}
           style={{
+            height: "100dvh",
+            maxHeight: "100dvh",
             paddingTop: "env(safe-area-inset-top)",
-            paddingBottom: "env(safe-area-inset-bottom)",
           }}
         >
           <JobsInspectorErrorBoundary projectLabel={selected.id}>
@@ -606,7 +647,7 @@ export function JobsRegister({
               project={selected}
               workItemsModel={workItemsModel}
               designers={designers}
-              onStatusChanged={() => { void handleStatusChanged() }}
+              onStatusChanged={onStatusChangedCb}
               onCollapse={collapseInspector}
               collapseVariant="close"
               presentation="drawer"

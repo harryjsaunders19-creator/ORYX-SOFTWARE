@@ -1,5 +1,6 @@
 "use client"
 
+import { forwardRef } from "react"
 import { cn } from "@/shared/utils/utils"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { MobileJobCard } from "./mobile-job-card"
@@ -17,7 +18,7 @@ type Props = {
   className?: string
 }
 
-export function MobileJobsList({
+export const MobileJobsList = forwardRef<HTMLDivElement, Props>(function MobileJobsList({
   projects,
   selectedId,
   workItemsModel,
@@ -28,9 +29,10 @@ export function MobileJobsList({
   onStatusChanged,
   onDesignerChanged,
   className,
-}: Props) {
+}, ref) {
   return (
     <div
+      ref={ref}
       className={cn(
         "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3",
         "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
@@ -69,4 +71,4 @@ export function MobileJobsList({
       )}
     </div>
   )
-}
+})
