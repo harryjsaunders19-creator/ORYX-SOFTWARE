@@ -2,11 +2,12 @@
 
 import type { ReactNode } from "react"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
+import { InspectorShell } from "@/shared/layouts/inspector-shell"
 import { cn } from "@/shared/utils/utils"
 
 /**
- * Surface 2 — elevated inspector / focus panel.
- * Sits above the Surface 1 workspace (lists/tables) on Surface 0 page chrome.
+ * Jobs module wrapper around the shared Oryx InspectorShell (Surface 2).
+ * Outer chrome only — internal inspector cards are unchanged.
  */
 export function JobsInspectorShell({
   children,
@@ -16,24 +17,9 @@ export function JobsInspectorShell({
   className?: string
 }) {
   return (
-    <section
-      className={cn(
-        "flex min-h-0 flex-col overflow-hidden p-4",
-        "rounded-xl border border-bds/60 bg-s2 shadow-inspector",
-        "motion-safe:transition-[box-shadow,border-color,opacity] motion-safe:duration-200 motion-safe:ease-out",
-        className,
-      )}
-      aria-label="Job details"
-    >
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-s2",
-          "ring-1 ring-inset ring-bd/50",
-        )}
-      >
-        {children}
-      </div>
-    </section>
+    <InspectorShell label="Job details" className={className}>
+      {children}
+    </InspectorShell>
   )
 }
 

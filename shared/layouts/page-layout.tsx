@@ -12,9 +12,13 @@ import { OryxLogo } from "@/shared/branding/oryx-logo"
 export const surfaceApp = "bg-s0"
 /** Workspace: lists, tables, main content containers. */
 export const surfaceWorkspace = "bg-s1"
-/** Inspector / focus panel: elevated active object. */
+/**
+ * Outer Inspector chrome (Surface 2) — prefer `InspectorShell` from
+ * `@/shared/layouts/inspector-shell` for full panels. Class string kept
+ * for lightweight reuse of the same tokens.
+ */
 export const surfaceInspector =
-  "bg-s2 shadow-inspector border border-bds/60 rounded-xl"
+  "bg-s2 shadow-inspector border-2 border-inspector-bd rounded-xl"
 
 /** Stitch surface — bordered workspace card (Surface 1). */
 export const surfaceCard = "oryx-surface-card bg-s1 border border-bd rounded-xl"
@@ -196,7 +200,7 @@ export function KpiTile({ label, value, sub, valueClassName, className }: {
   )
 }
 
-/** Titled content panel — elevated focus sections (Surface 2). */
+/** Titled content section card — not the outer InspectorShell. */
 export function DetailPanel({ title, children, className, headerAction }: {
   title: string
   children: React.ReactNode
@@ -204,8 +208,8 @@ export function DetailPanel({ title, children, className, headerAction }: {
   headerAction?: React.ReactNode
 }) {
   return (
-    <div className={cn(surfaceInspector, "overflow-hidden", className)}>
-      <div className="px-4 py-3 border-b border-bd/70 flex items-center justify-between gap-2">
+    <div className={cn(surfaceCard, "overflow-hidden", className)}>
+      <div className="px-4 py-3 border-b border-bd flex items-center justify-between gap-2">
         <p className={cn(Typography.BodyLarge, "font-semibold text-t2")}>{title}</p>
         {headerAction}
       </div>

@@ -11,7 +11,8 @@
  *  Surfaces (prefer these for all modules):
  *    s0  Application background   → bg-s0
  *    s1  Workspace (lists/tables) → bg-s1
- *    s2  Inspector / focus panel  → bg-s2 + shadow-inspector
+ *    s2  Inspector / focus panel  → bg-s2 + border-2 border-inspector-bd + shadow-inspector
+ *        Use InspectorShell from shared/layouts/inspector-shell.tsx
  *  Legacy aliases: pg ≈ s0, sr ≈ s1.
  *
  *  Other tokens: border-bd / text-t1 / text-ac / bg-sel-bg / shadow-modal
@@ -72,7 +73,7 @@
    */
   --color-s0:     #F1F3F5;
   --color-s1:     #FFFFFF;
-  --color-s2:     #F6F7F9;
+  --color-s2:     #F4F6F9;
   --color-pg:     #F1F3F5;
   --color-sr:     #FFFFFF;
   --color-surface-low: #EBEDF0;
@@ -84,6 +85,8 @@
   /* Borders */
   --color-bd:     #c6c6cd;
   --color-bds:    #76777d;
+  /* Outer inspector panel outline (2px via border-2) */
+  --color-inspector-bd: #C7CED8;
 
   /* Text */
   --color-t1:     #191c1d;
@@ -204,8 +207,8 @@
   --shadow-card:  0 1px 2px 0 rgb(0 0 0 / 0.04);
   --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.12), 0 4px 12px 0 rgb(0 0 0 / 0.04);
   --shadow-sidebar: none;
-  /* Soft elevation for the Jobs inspector workspace */
-  --shadow-inspector: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 14px -4px rgb(0 0 0 / 0.07);
+  /* Elevation for the active Inspector panel (Surface 2) */
+  --shadow-inspector: 0 8px 24px rgb(15 23 42 / 0.08);
 }
 
 /*
@@ -218,13 +221,14 @@
 html.dark {
   --color-s0:     #0A0A0B;
   --color-s1:     #141517;
-  --color-s2:     #1C2129;
+  --color-s2:     #242A34;
   --color-pg:     #0A0A0B;
   --color-sr:     #141517;
   --color-surface-low: #22262E;
   --color-outline: #3F3F46;
   --color-bd:     #2A2E36;
   --color-bds:    #3F3F46;
+  --color-inspector-bd: #404854;
   --color-t1:     #FAFAFA;
   --color-t2:     #D4D4D8;
   --color-t3:     #A1A1AA;
@@ -292,7 +296,7 @@ html.dark {
   --color-tag-catiii-bg:    rgba(45, 212, 191, 0.12);
   --shadow-card:  0 1px 2px 0 rgb(0 0 0 / 0.2), 0 8px 24px -8px rgb(0 0 0 / 0.4);
   --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.5), 0 4px 12px 0 rgb(0 0 0 / 0.3);
-  --shadow-inspector: 0 1px 3px rgb(0 0 0 / 0.35), 0 8px 22px -6px rgb(0 0 0 / 0.5);
+  --shadow-inspector: 0 8px 24px rgb(0 0 0 / 0.45);
   color-scheme: dark;
 }
 
@@ -562,12 +566,13 @@ html.dark {
 html.stitch-layout {
   --color-s0: #F1F3F5;
   --color-s1: #FFFFFF;
-  --color-s2: #F6F7F9;
+  --color-s2: #F4F6F9;
   --color-pg: #F1F3F5;
   --color-sr: #FFFFFF;
   --color-surface-low: #EBEDF0;
   --color-bd: #c6c6cd;
   --color-bds: #76777d;
+  --color-inspector-bd: #C7CED8;
   --color-t1: #191c1d;
   --color-t2: #45464c;
   --color-t3: #76777d;
@@ -597,12 +602,13 @@ html.stitch-layout {
 html.stitch-layout.dark {
   --color-s0: #0A0A0B;
   --color-s1: #141517;
-  --color-s2: #1C2129;
+  --color-s2: #242A34;
   --color-pg: #0A0A0B;
   --color-sr: #141517;
   --color-surface-low: #22262E;
   --color-bd: #2A2E36;
   --color-bds: #52525b;
+  --color-inspector-bd: #404854;
   --color-t1: #f4f4f5;
   --color-t2: #d4d4d8;
   --color-t3: #a1a1aa;
