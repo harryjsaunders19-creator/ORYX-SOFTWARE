@@ -3,17 +3,22 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Building2,
-  ChevronDown,
   History,
   Pencil,
-  PencilRuler,
   ShieldCheck,
 } from "lucide-react"
 import { cn, getRevisionDueInfo, revisionDueToneClass } from "@/shared/utils/utils"
 import {
-  InformationCard,
-  informationCardClassName,
-} from "@/shared/layouts/information-card"
+  AccordionSection,
+  EmptyStateCard,
+  InfoCard,
+  infoCardClassName,
+  InspectorSection,
+  PropertyCell,
+  PropertyGrid,
+  RevisionCard,
+  inspectorType,
+} from "@/shared/layouts/inspector"
 import { missingLabel } from "./jobs-register-helpers"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
@@ -26,104 +31,17 @@ import type { LinkedQuoteSummary } from "@/lib/types"
 import { ClientSiteCell } from "./client-site-cell"
 import { useToast } from "@/shared/ui/toast"
 
-export const sectionHeading =
-  "text-[13px] font-medium tracking-wide text-t2"
-/** Metadata labels — secondary to values, but readable (~t2 weight). */
-export const fieldLabel = "mb-0 text-[11px] font-medium leading-none text-t2"
-export const fieldValue = "text-sm font-medium leading-snug text-t1"
-export const fieldMuted = "text-sm leading-snug text-t2"
+export const sectionHeading = inspectorType.sectionHeading
+export const fieldLabel = inspectorType.fieldLabel
+export const fieldValue = inspectorType.fieldValue
+export const fieldMuted = inspectorType.fieldMuted
 
-/** @deprecated Prefer `InformationCard` / `informationCardClassName`. */
-export const inspectorContentCard = informationCardClassName
+/** @deprecated Prefer InfoCard / infoCardClassName from shared/layouts/inspector. */
+export const inspectorContentCard = infoCardClassName
+export const informationCardClassName = infoCardClassName
 
 /** Section boundary — spacing-first, with a calm divider. */
 export const inspectorSectionRule = "border-t border-inspector-divider pt-6"
-
-const sectionIconClass = "h-4 w-4 shrink-0 text-t3"
-/** Reserves chevron column so static and accordion headers share alignment. */
-const sectionChevronSlot = "h-5 w-5 shrink-0"
-
-function InspectorSectionHeader({
-  icon: Icon,
-  children,
-  trailing,
-}: {
-  icon: typeof PencilRuler
-  children: ReactNode
-  trailing?: ReactNode
-}) {
-  return (
-    <div className="flex min-h-11 w-full items-center justify-between gap-3 py-1">
-      <h4 className={cn(sectionHeading, "mb-0 flex min-w-0 items-center gap-2")}>
-        <Icon className={sectionIconClass} aria-hidden />
-        <span className="min-w-0 truncate">{children}</span>
-      </h4>
-      <div className="flex shrink-0 items-center justify-center">
-        {trailing ?? <span className={sectionChevronSlot} aria-hidden />}
-      </div>
-    </div>
-  )
-}
-
-function AccordionHeader({
-  icon,
-  expanded,
-  onClick,
-  children,
-}: {
-  icon: typeof PencilRuler
-  expanded: boolean
-  onClick: () => void
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      className="w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-ac"
-      aria-expanded={expanded}
-      onClick={onClick}
-    >
-      <InspectorSectionHeader
-        icon={icon}
-        trailing={
-          <ChevronDown
-            className={cn(
-              sectionChevronSlot,
-              "text-t2 transition-transform duration-200",
-              expanded && "rotate-180",
-            )}
-            aria-hidden
-          />
-        }
-      >
-        {children}
-      </InspectorSectionHeader>
-    </button>
-  )
-}
-
-function PropertyCell({
-  label,
-  children,
-}: {
-  label: string
-  children: ReactNode
-}) {
-  return (
-    <div className="flex min-h-[3.5rem] flex-col gap-1.5">
-      <p className={fieldLabel}>{label}</p>
-      <div className="flex min-h-7 items-center">{children}</div>
-    </div>
-  )
-}
-
-function PropertyGrid({ children }: { children: ReactNode }) {
-  return (
-    <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-      {children}
-    </div>
-  )
-}
 
 export function safeDateLabel(value: string | null | undefined): string {
   if (!value) return ""
@@ -553,11 +471,14 @@ export function CurrentRevisionSection({
 }) {
   const active = currentWork.type !== "none" && Boolean(currentWork.id)
   const isRevision = currentWork.type === "revision"
-  const briefLabel = isRevision ? "Amendment Required" : "Description of Works"
+  const briefLabel = isRevision ? "Amendment Required" : "Engineer Instructions"
   const briefText = isRevision ? revisionReason : descriptionOfWorks
   const briefEmpty = isRevision
     ? "No amendment instructions have been entered."
     : "No description has been entered."
+  const revisionDisplay = isRevision
+    ? (currentWork.revisionLabel ?? revLabel)
+    : "Original"
   const issuedLabel =
     currentWork.status === "ISSUED"
       ? (safeDateLabel(lastCompleted) || "Issued")
@@ -570,44 +491,42 @@ export function CurrentRevisionSection({
   return (
     <section className="pt-1">
       {!active ? (
-        <InformationCard title="Current Drawing" className="px-4 py-4">
-          <p className="text-[15px] font-semibold text-t1">No active drawing work</p>
-          <div className="mt-3 space-y-1 text-sm text-t3">
-            <p className="font-medium text-t2">Latest completed</p>
-            <p>
-              {completedTitle ? (
-                <>
-                  <span className="font-semibold text-t1">{completedTitle}</span>
-                  {completedDate ? (
-                    <>
-                      <span className="mx-1.5 text-t4" aria-hidden>·</span>
-                      Completed {completedDate}
-                    </>
-                  ) : null}
-                </>
-              ) : completedDate ? (
-                <>Completed {completedDate}</>
-              ) : (
-                "No completed drawings yet"
-              )}
-            </p>
-          </div>
-          <p className="mt-3 text-sm text-t3">
-            Create a new revision using the button above.
-          </p>
-        </InformationCard>
+        <EmptyStateCard
+          eyebrow="Current Revision"
+          title="No active drawing work"
+          description={
+            <>
+              <p className="font-medium text-t2">Latest completed</p>
+              <p>
+                {completedTitle ? (
+                  <>
+                    <span className="font-semibold text-t1">{completedTitle}</span>
+                    {completedDate ? (
+                      <>
+                        <span className="mx-1.5 text-t4" aria-hidden>·</span>
+                        Completed {completedDate}
+                      </>
+                    ) : null}
+                  </>
+                ) : completedDate ? (
+                  <>Completed {completedDate}</>
+                ) : (
+                  "No completed drawings yet"
+                )}
+              </p>
+            </>
+          }
+        >
+          Create a new revision using the button above.
+        </EmptyStateCard>
       ) : (
         <div className="space-y-6">
-          <InformationCard title={briefLabel} className="min-h-[7.5rem] px-4 py-4">
-            <p
-              className={cn(
-                "text-[15px] font-semibold leading-relaxed whitespace-pre-wrap",
-                briefText?.trim() ? "text-t1" : "font-medium text-t3",
-              )}
-            >
-              {briefText?.trim() || briefEmpty}
-            </p>
-          </InformationCard>
+          <RevisionCard
+            revisionLabel={revisionDisplay}
+            instructionTitle={briefLabel}
+            instructions={briefText}
+            emptyInstructions={briefEmpty}
+          />
 
           <PropertyGrid>
             <PropertyCell label="Status">
@@ -685,59 +604,37 @@ export function ProjectDetailsSection({
   jobKey?: string
 }) {
   const isManagedSite = Boolean(data.siteId)
-  const [expanded, setExpanded] = useState(false)
-
-  useEffect(() => {
-    setExpanded(false)
-  }, [jobKey])
 
   return (
-    <section className={inspectorSectionRule}>
-      <AccordionHeader
-        icon={Building2}
-        expanded={expanded}
-        onClick={() => setExpanded(v => !v)}
-      >
-        Project Details
-      </AccordionHeader>
-
-      <div
-        className={cn(
-          "grid transition-[grid-template-rows] duration-200 ease-out",
-          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-        )}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <div className={cn(informationCardClassName, "mt-3.5 space-y-3 px-3.5 py-3.5")}>
-            <Meta label="Client" value={data.client} />
-            <Meta label="Site" value={data.siteName} />
-            <Meta label="Address" value={data.siteAddress} />
-            <Meta label="Description" value={data.descriptionOfWorks} />
-            <Meta label="Requested By" value={data.requestedBy} />
-            <Meta label="Requested Date" value={safeDateLabel(data.dateRequested) || null} />
-            {isManagedSite && data.otherJobsAtSiteCount > 0 && (
-              <div>
-                <p className={cn(fieldLabel, "mb-1")}>Other Jobs At This Location</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-t1">
-                    {data.otherJobsAtSiteCount} Job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
-                  </p>
-                  {data.onViewSiteJobs && (
-                    <button
-                      type="button"
-                      onClick={data.onViewSiteJobs}
-                      className="text-xs font-medium text-ac hover:text-ach"
-                    >
-                      View Jobs
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
+    <AccordionSection icon={Building2} title="Project Details" resetKey={jobKey}>
+      <InfoCard className="!p-3.5 space-y-3">
+        <Meta label="Client" value={data.client} />
+        <Meta label="Site" value={data.siteName} />
+        <Meta label="Address" value={data.siteAddress} />
+        <Meta label="Description" value={data.descriptionOfWorks} />
+        <Meta label="Requested By" value={data.requestedBy} />
+        <Meta label="Requested Date" value={safeDateLabel(data.dateRequested) || null} />
+        {isManagedSite && data.otherJobsAtSiteCount > 0 && (
+          <div>
+            <p className={cn(fieldLabel, "mb-1")}>Other Jobs At This Location</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-t1">
+                {data.otherJobsAtSiteCount} Job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
+              </p>
+              {data.onViewSiteJobs && (
+                <button
+                  type="button"
+                  onClick={data.onViewSiteJobs}
+                  className="text-xs font-medium text-ac hover:text-ach"
+                >
+                  View Jobs
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-    </section>
+        )}
+      </InfoCard>
+    </AccordionSection>
   )
 }
 
@@ -774,10 +671,9 @@ export function CATIISummary({
     : null
 
   return (
-    <section className={inspectorSectionRule}>
-      <InspectorSectionHeader icon={ShieldCheck}>CATII Check</InspectorSectionHeader>
+    <InspectorSection icon={ShieldCheck} title="CATII Check">
       {activeCheck ? (
-        <InformationCard className="mt-3.5 px-3.5 py-3.5">
+        <InfoCard className="!p-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
@@ -794,9 +690,9 @@ export function CATIISummary({
               Open Check
             </button>
           </div>
-        </InformationCard>
+        </InfoCard>
       ) : (
-        <div className="mt-1 space-y-1.5">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-3">
             <p className={fieldMuted}>No CATII check for {activeLabel}</p>
             {canCreate && (
@@ -826,7 +722,7 @@ export function CATIISummary({
           )}
         </div>
       )}
-    </section>
+    </InspectorSection>
   )
 }
 
@@ -858,11 +754,9 @@ export function RevisionTimeline({
 }) {
   const revOnly = revisions.filter(r => r.letter)
   const count = revOnly.length || revisions.length
-  const [expanded, setExpanded] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   useEffect(() => {
-    setExpanded(false)
     setSelectedId(null)
   }, [jobKey])
 
@@ -882,23 +776,13 @@ export function RevisionTimeline({
   }
 
   return (
-    <section className={cn(inspectorSectionRule, "pb-2")}>
-      <AccordionHeader
-        icon={History}
-        expanded={expanded}
-        onClick={() => setExpanded(v => !v)}
-      >
-        Revision History ({count})
-      </AccordionHeader>
-
-      <div
-        className={cn(
-          "grid transition-[grid-template-rows] duration-200 ease-out",
-          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-        )}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <div className={cn(informationCardClassName, "mt-3.5 overflow-hidden")}>
+    <AccordionSection
+      icon={History}
+      title={`Revision History (${count})`}
+      resetKey={jobKey}
+      className="pb-2"
+    >
+          <InfoCard className="!p-0 overflow-hidden">
             {revisions.length === 0 ? (
               <p className={cn(fieldMuted, "px-3.5 py-3")}>Original drawing only</p>
             ) : (
@@ -970,9 +854,7 @@ export function RevisionTimeline({
                 })}
               </ol>
             )}
-          </div>
-        </div>
-      </div>
-    </section>
+          </InfoCard>
+    </AccordionSection>
   )
 }

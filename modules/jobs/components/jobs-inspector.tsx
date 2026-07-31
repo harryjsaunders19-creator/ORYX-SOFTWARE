@@ -8,6 +8,11 @@ import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
 import { cn, defaultRequiredByDate, getRevisionDueInfo } from "@/shared/utils/utils"
+import {
+  ActionToolbar,
+  inspectorActionPrimaryClass,
+  inspectorActionSecondaryClass,
+} from "@/shared/layouts/inspector"
 import type { Job, LinkedQuoteSummary, Quote } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { JobsRegisterProject } from "./jobs-register-types"
@@ -30,7 +35,6 @@ import {
   type CurrentWorkRevisionLike,
 } from "@/modules/jobs/lib/current-work"
 import { getEngineeringStageFromDrawingStatus } from "@/modules/jobs/lib/engineering-workflow"
-import { getInspectorStatusAccentClass } from "@/modules/jobs/lib/drawing-status-colours"
 import {
   InspectorHeader,
   StatusChip,
@@ -525,10 +529,8 @@ export function JobsInspector({
   const attachJobStub = { id: project.id, drawingNumber } as Job
 
   const isDrawer = presentation === "drawer"
-  const actionBtn =
-    "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors disabled:opacity-50"
-  const primaryActionBtn = cn(actionBtn, "border border-transparent bg-ac text-on-ac hover:bg-ach")
-  const secondaryActionBtn = cn(actionBtn, "border border-bd bg-transparent text-t1 hover:bg-surface-low")
+  const primaryActionBtn = inspectorActionPrimaryClass
+  const secondaryActionBtn = inspectorActionSecondaryClass
 
   const drawingDesigner =
     activeRevision?.designer
@@ -598,9 +600,6 @@ export function JobsInspector({
       : currentWork.type === "original"
         ? "Original"
         : "Complete"
-  const statusAccentClass = getInspectorStatusAccentClass(summaryStatus, {
-    overdue: summaryDue.severity === "overdue",
-  })
   const summaryStrip = (
     <RevisionSummaryStrip
       revision={summaryRevision}
@@ -632,17 +631,9 @@ export function JobsInspector({
 
   return (
     <aside
-      className="jobs-inspector relative flex h-full min-h-0 w-full flex-col bg-transparent"
+      className="jobs-inspector flex h-full min-h-0 w-full flex-col bg-transparent"
       aria-label={`Inspector for ${drawingNumber}`}
     >
-      <span
-        className={cn(
-          "pointer-events-none absolute bottom-4 left-2 top-4 z-30 w-[3px] rounded-full opacity-55",
-          statusAccentClass,
-        )}
-        aria-hidden
-      />
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col pl-2">
       <InspectorHeader
         drawingNumber={drawingNumber}
         revisionBadge={
@@ -714,7 +705,7 @@ export function JobsInspector({
             </div>
           </div>
         ) : (
-          <div className="grid w-full grid-cols-3 gap-2.5">
+          <ActionToolbar>
             <button
               type="button"
               className={primaryActionBtn}
@@ -746,14 +737,14 @@ export function JobsInspector({
               <Link2 className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{primaryQuote ? "Open Quote" : "Attach Quote"}</span>
             </button>
-          </div>
+          </ActionToolbar>
         )}
       </InspectorHeader>
 
       <div
         key={project.id}
         className={cn(
-          "min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-6",
+          "min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6",
           isDrawer && "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >
@@ -957,7 +948,6 @@ export function JobsInspector({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
     </aside>
   )
 }

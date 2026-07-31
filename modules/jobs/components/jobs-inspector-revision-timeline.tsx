@@ -4,7 +4,7 @@ import { useState } from "react"
 import { ChevronDown, ChevronRight } from "lucide-react"
 import { cn, formatGBP } from "@/shared/utils/utils"
 import { missingLabel, shortStatusLabel } from "./jobs-register-helpers"
-import { inspectorContentCard } from "./jobs-inspector-cards"
+import { infoCardClassName } from "@/shared/layouts/inspector"
 
 function safeDateLabel(value: string | null | undefined): string {
   if (!value) return "Unknown date"
@@ -96,7 +96,7 @@ function RevisionEntry({ revision }: { revision: InspectorRevision }) {
           className="absolute left-1.5 top-3 z-10 h-3.5 w-3.5 rounded-full border-[2.5px] border-sr bg-ac2"
           aria-hidden
         />
-        <div className={cn(inspectorContentCard, "border-l-[3px] border-l-ac2 p-4")}>
+        <div className={cn(infoCardClassName, "border-l-[3px] border-l-ac2 p-4")}>
           <div className="mb-3 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">

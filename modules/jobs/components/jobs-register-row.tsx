@@ -104,11 +104,11 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       className={cn(
         REGISTER_GRID,
         "group items-center gap-0 border-b border-bd/40 px-0 cursor-pointer",
-        "transition-[background-color,box-shadow,border-color] duration-200 ease-out",
+        "transition-[background-color,box-shadow,border-color] duration-150 ease-out",
         "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ac",
         selected
           ? "bg-sel-bg border-l-4 border-l-sel-bd shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-sel-bd)_12%,transparent)]"
-          : "border-l-4 border-l-transparent hover:bg-surface-low/80",
+          : "border-l-4 border-l-transparent hover:bg-surface-low",
       )}
     >
       <div role="cell" className="min-w-0 px-3 py-2">
