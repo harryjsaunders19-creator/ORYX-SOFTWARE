@@ -297,8 +297,15 @@ export function JobsRegister({
   ]
 
   const inspectorVisible = Boolean(selected) && isInspectorOpen
-  const showDesktopInspector = inspectorVisible && selected && mediaReady && !isMobile
-  const showMobileInspector = inspectorVisible && selected && mediaReady && isMobile
+  // Prefer CSS breakpoint for chrome; mount only one inspector to avoid duplicate fetches.
+  // Before media is ready, mount the mobile drawer (hidden on md+) so phones never wait
+  // on a desktop-only mount that stays display:none.
+  const showMobileInspector = Boolean(
+    inspectorVisible && selected && (!mediaReady || isMobile),
+  )
+  const showDesktopInspector = Boolean(
+    inspectorVisible && selected && mediaReady && !isMobile,
+  )
 
   // Lock background scroll while the mobile full-screen detail is open.
   useEffect(() => {
