@@ -3,7 +3,6 @@
 import { memo } from "react"
 import {
   cn,
-  formatRevisionDueCompact,
   getRevisionDueInfo,
   revisionDueToneClass,
 } from "@/shared/utils/utils"
@@ -53,7 +52,10 @@ export const MobileJobCard = memo(function MobileJobCard({
     completed: project.currentWorkType === "none",
   })
   const dueTone = revisionDueToneClass(due.severity)
-  const dueLabel = formatRevisionDueCompact(due)
+  const absoluteLine =
+    due.severity === "none" ? "No Due Date" : `Due ${due.shortDateLabel}`
+  const relativeLine =
+    due.severity === "none" || due.severity === "complete" ? null : due.daysLabel
   const showDueIcon = due.severity === "overdue" || due.severity === "orange"
 
   return (
@@ -74,7 +76,7 @@ export const MobileJobCard = memo(function MobileJobCard({
         "transition-[background-color,box-shadow,border-color] duration-150 ease-out",
         "cursor-pointer focus-visible:ring-2 focus-visible:ring-ac",
         selected
-          ? "border-sel-bd/40 bg-sel-bg shadow-[inset_3px_0_0_0_var(--color-sel-bd)]"
+          ? "border-sel-bd/30 bg-sel-bg shadow-[inset_4px_0_0_0_var(--color-sel-bd)]"
           : cn(
               "border-bd hover:bg-surface-low",
               due.severity === "overdue" && "shadow-[inset_3px_0_0_0_var(--color-dn)]",
@@ -113,7 +115,6 @@ export const MobileJobCard = memo(function MobileJobCard({
             revisionLabel={
               project.currentWorkType === "revision" ? project.currentWorkLabel : null
             }
-            stageLabel={stage.label}
             patchUrl={patchUrl}
             size="lg"
             disabled={!canEdit}
@@ -141,7 +142,7 @@ export const MobileJobCard = memo(function MobileJobCard({
               designers={designers}
               patchUrl={patchUrl}
               compact
-              unassignedLabel="Assign designer…"
+              unassignedLabel="Assign designer"
               onDesignerChanged={() => onDesignerChanged?.()}
             />
           ) : (
@@ -152,17 +153,22 @@ export const MobileJobCard = memo(function MobileJobCard({
         </div>
         <div
           className={cn(
-            "inline-flex max-w-[50%] shrink-0 items-center gap-1 rounded-full border px-2 py-1",
+            "inline-flex max-w-[50%] shrink-0 flex-col items-end gap-0.5 rounded-md border px-2 py-1.5 text-right",
             dueTone.tint,
             dueTone.border,
           )}
         >
-          {showDueIcon ? (
-            <AlertTriangle className={cn("h-3 w-3 shrink-0", dueTone.text)} aria-hidden />
+          <span className={cn("inline-flex items-center gap-1 text-[12px] font-bold tabular-nums", dueTone.text)}>
+            {showDueIcon ? (
+              <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
+            ) : null}
+            {absoluteLine}
+          </span>
+          {relativeLine ? (
+            <span className={cn("text-[10px] font-semibold tabular-nums", dueTone.text)}>
+              {relativeLine}
+            </span>
           ) : null}
-          <p className={cn("truncate text-[11px] font-bold tabular-nums", dueTone.text)}>
-            {dueLabel}
-          </p>
         </div>
       </div>
     </article>

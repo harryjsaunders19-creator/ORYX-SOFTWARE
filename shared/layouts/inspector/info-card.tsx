@@ -11,16 +11,21 @@ export const infoCardClassName = cn(
 /** Elevated information surface for high-priority inspector content. */
 export function InfoCard({
   title,
+  titleClassName,
   children,
   className,
 }: {
   title?: string
+  /** Optional override for the eyebrow/title (e.g. stronger Current Revision). */
+  titleClassName?: string
   children: ReactNode
   className?: string
 }) {
   return (
     <div className={cn(infoCardClassName, inspectorTokens.cardPadding, className)}>
-      {title ? <p className={cn(inspectorType.cardEyebrow, "mb-2")}>{title}</p> : null}
+      {title ? (
+        <p className={cn(inspectorType.cardEyebrow, "mb-2.5", titleClassName)}>{title}</p>
+      ) : null}
       {children}
     </div>
   )

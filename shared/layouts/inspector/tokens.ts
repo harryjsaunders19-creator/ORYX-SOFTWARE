@@ -23,11 +23,11 @@ export const inspectorTokens = {
 } as const
 
 export const inspectorType = {
-  sectionHeading: "text-[13px] font-medium tracking-wide text-t2",
-  fieldLabel: "mb-0 text-[11px] font-medium leading-none text-t2",
+  sectionHeading: "text-[13px] font-semibold tracking-wide text-t1",
+  fieldLabel: "mb-0 text-[10px] font-semibold uppercase tracking-[0.12em] leading-none text-t3",
   fieldValue: "text-sm font-medium leading-snug text-t1",
   fieldMuted: "text-sm leading-snug text-t2",
-  cardEyebrow: "text-[11px] font-semibold uppercase tracking-[0.14em] text-t2",
+  cardEyebrow: "text-[11px] font-semibold uppercase tracking-[0.14em] text-t3",
   cardTitle: "text-[15px] font-semibold leading-snug text-t1",
   cardBody: "text-[15px] font-semibold leading-relaxed whitespace-pre-wrap text-t1",
   cardBodyEmpty: "text-[15px] font-medium leading-relaxed text-t2",

@@ -4,7 +4,6 @@ import { memo } from "react"
 import { AlertTriangle, MoreHorizontal } from "lucide-react"
 import {
   cn,
-  formatRevisionDueCompact,
   getRevisionDueInfo,
   revisionDueToneClass,
 } from "@/shared/utils/utils"
@@ -58,24 +57,36 @@ function RegisterDueCell({
 }) {
   const due = getRevisionDueInfo(requiredByDate, { completed })
   const tone = revisionDueToneClass(due.severity)
-  const label = formatRevisionDueCompact(due)
   const showIcon = due.severity === "overdue" || due.severity === "orange"
+  const absoluteLine =
+    due.severity === "none" ? "No Due Date" : `Due ${due.shortDateLabel}`
+  const relativeLine =
+    due.severity === "none"
+      ? null
+      : due.severity === "complete"
+        ? null
+        : due.daysLabel
 
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5",
-        "text-[11px] font-semibold leading-tight tabular-nums",
+        "inline-flex max-w-full flex-col items-start gap-0.5 rounded-md border px-2 py-1",
+        "leading-tight tabular-nums",
         tone.text,
         tone.tint,
         tone.border,
       )}
-      title={due.dateLabel !== "—" ? due.dateLabel : label}
+      title={due.dateLabel !== "—" ? due.dateLabel : absoluteLine}
     >
-      {showIcon ? (
-        <AlertTriangle className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
+      <span className="inline-flex min-w-0 items-center gap-1">
+        {showIcon ? (
+          <AlertTriangle className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
+        ) : null}
+        <span className="min-w-0 truncate text-[12px] font-bold">{absoluteLine}</span>
+      </span>
+      {relativeLine ? (
+        <span className="truncate text-[10px] font-semibold opacity-90">{relativeLine}</span>
       ) : null}
-      <span className="min-w-0 truncate">{label}</span>
     </span>
   )
 }
@@ -136,9 +147,9 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
         "transition-[background-color,box-shadow,border-color] duration-150 ease-out",
         "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ac",
         selected
-          ? "bg-sel-bg border-l-[3px] border-l-sel-bd shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-sel-bd)_14%,transparent)]"
+          ? "bg-sel-bg border-l-4 border-l-sel-bd"
           : cn(
-              "border-l-[3px] hover:bg-surface-low",
+              "border-l-4 hover:bg-surface-low",
               urgencyAccent ?? "border-l-transparent",
               zebra && "bg-surface-low/70",
             ),
@@ -146,13 +157,13 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
     >
       <div role="cell" className="min-w-0 px-3 py-1.5">
         <div className="flex min-w-0 items-center gap-1.5">
-          <p className="min-w-0 truncate text-sm font-bold tabular-nums tracking-tight text-t1">
+          <p className="min-w-0 truncate text-[15px] font-bold tabular-nums tracking-tight text-t1">
             {project.drawingNumber}
           </p>
           {revBadge ? <RevisionBadge>{revBadge}</RevisionBadge> : null}
         </div>
-        {secondary ? (
-          <p className="mt-0.5 truncate text-[11px] font-medium text-t2">
+          {secondary ? (
+          <p className="mt-0.5 truncate text-[11px] font-normal text-t3">
             {secondary}
           </p>
         ) : null}
@@ -183,7 +194,6 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
               revisionLabel={
                 project.currentWorkType === "revision" ? project.currentWorkLabel : null
               }
-              stageLabel={stage.label}
               patchUrl={patchUrl}
               size="md"
               onStatusChanged={next => onStatusChanged?.(project.id, next)}
@@ -215,7 +225,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
             designers={designers}
             patchUrl={patchUrl}
             compact
-            unassignedLabel="Unassigned"
+            unassignedLabel="Assign designer"
             onDesignerChanged={next => onDesignerChanged?.(project.id, next)}
           />
         ) : (

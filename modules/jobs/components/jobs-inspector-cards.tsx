@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Building2,
   History,
-  Pencil,
   ShieldCheck,
 } from "lucide-react"
 import { cn, getRevisionDueInfo, revisionDueToneClass } from "@/shared/utils/utils"
@@ -172,27 +171,25 @@ export function StatusChip({
   )
 }
 
-/** Compact state strip under the drawing title — spaced chips, not one run-on line. */
+/** Compact state strip under the drawing title — revision + due only (no status/stage repeat). */
 export function RevisionSummaryStrip({
   revision,
-  stage,
   designer,
   duePrimary,
   dueSeverity,
-  stageStatus,
 }: {
   revision: string
-  stage: string
+  /** @deprecated Stage is shown via Status badge + Stage Pipeline — ignored. */
+  stage?: string
   designer: string
   duePrimary: string
   dueSeverity: ReturnType<typeof getRevisionDueInfo>["severity"]
-  /** Drawing status for colour-coding the stage chip. */
+  /** @deprecated Status colour lives on the header StatusChip — ignored. */
   stageStatus?: string | null
 }) {
   const dueTone = revisionDueToneClass(dueSeverity)
-  const stageColour = stageStatus ? getDrawingStatusColour(stageStatus) : null
   const hasDesigner = Boolean(designer.trim())
-  const designerLabel = hasDesigner ? designer.trim() : "Assign designer…"
+  const designerLabel = hasDesigner ? designer.trim() : null
   const emphasizeDue =
     dueSeverity === "overdue" || dueSeverity === "orange" || dueSeverity === "amber"
 
@@ -201,27 +198,11 @@ export function RevisionSummaryStrip({
       <span className="inline-flex items-center rounded-md border border-inspector-card-bd bg-inspector-card px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-t1 tabular-nums">
         {revision}
       </span>
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium",
-          stageColour ? cn(stageColour.text, stageColour.tint) : "bg-surface-low text-t2",
-        )}
-      >
-        {stageColour ? (
-          <span className={cn("h-1.5 w-1.5 rounded-full", stageColour.dot)} aria-hidden />
-        ) : null}
-        {stage}
-      </span>
-      <span
-        className={cn(
-          "inline-flex items-center rounded-md px-2 py-1 text-[11px]",
-          hasDesigner
-            ? "bg-surface-low font-medium text-t2"
-            : "border border-dashed border-bd font-medium text-t2",
-        )}
-      >
-        {designerLabel}
-      </span>
+      {designerLabel ? (
+        <span className="inline-flex items-center rounded-md bg-surface-low px-2 py-1 text-[11px] font-medium text-t2">
+          {designerLabel}
+        </span>
+      ) : null}
       <span
         className={cn(
           "inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-semibold tabular-nums",
@@ -377,80 +358,77 @@ function EditableTargetDue({
     }
   }, [busy, disabled, onChanged, optimistic, patchUrl, requiredByDate, toast, workItemId])
 
-  return (
-    <>
-      <PropertyCell label="Due Date">
-        {editing && !disabled ? (
-          <input
-            ref={inputRef}
-            type="date"
-            className="w-full max-w-[11rem] rounded border border-bd bg-sr px-2 py-1 text-sm text-t1 outline-none focus-visible:ring-2 focus-visible:ring-ac"
-            defaultValue={value?.slice(0, 10) ?? ""}
-            disabled={busy}
-            autoFocus
-            onBlur={e => {
-              if (e.target.value && e.target.value !== (value?.slice(0, 10) ?? "")) {
-                void save(e.target.value)
-              } else {
-                setEditing(false)
-              }
-            }}
-            onChange={e => {
-              if (e.target.value) void save(e.target.value)
-            }}
-            onKeyDown={e => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                void save((e.target as HTMLInputElement).value)
-              }
-              if (e.key === "Escape") {
-                e.preventDefault()
-                setEditing(false)
-              }
-            }}
-            onClick={e => e.stopPropagation()}
-          />
-        ) : (
-          <button
-            type="button"
-            disabled={disabled || busy || completed}
-            onClick={e => {
-              e.stopPropagation()
-              if (!disabled && !completed) setEditing(true)
-            }}
-            className={cn(
-              "group/due inline-flex max-w-full items-center gap-1.5 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ac",
-              (disabled || completed) ? "cursor-default" : "cursor-pointer",
-            )}
-            title={completed ? "Completed" : "Edit due date"}
-            aria-label="Edit due date"
-          >
-            <span className={cn("text-sm", due.severity === "none" ? "text-t3" : "font-medium text-t2")}>
-              {due.severity === "none" ? "No Due Date" : due.shortDateLabel}
-            </span>
-            {!disabled && !completed && (
-              <Pencil className="h-3 w-3 shrink-0 text-t4 opacity-0 transition-opacity group-hover/due:opacity-100" aria-hidden />
-            )}
-            {busy && <span className="text-[10px] text-t4">Saving…</span>}
-          </button>
-        )}
-      </PropertyCell>
+  const absoluteLine =
+    due.severity === "none" ? "No Due Date" : `Due ${due.shortDateLabel}`
+  const relativeLine =
+    due.severity === "none"
+      ? null
+      : due.severity === "complete"
+        ? "Completed"
+        : due.daysLabel
 
-      <PropertyCell label="Days Remaining">
-        <span
+  return (
+    <PropertyCell label="Due Date">
+      {editing && !disabled ? (
+        <input
+          ref={inputRef}
+          type="date"
+          className="w-full max-w-[11rem] rounded border border-bd bg-sr px-2 py-1 text-sm text-t1 outline-none focus-visible:ring-2 focus-visible:ring-ac"
+          defaultValue={value?.slice(0, 10) ?? ""}
+          disabled={busy}
+          autoFocus
+          onBlur={e => {
+            if (e.target.value && e.target.value !== (value?.slice(0, 10) ?? "")) {
+              void save(e.target.value)
+            } else {
+              setEditing(false)
+            }
+          }}
+          onChange={e => {
+            if (e.target.value) void save(e.target.value)
+          }}
+          onKeyDown={e => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              void save((e.target as HTMLInputElement).value)
+            }
+            if (e.key === "Escape") {
+              e.preventDefault()
+              setEditing(false)
+            }
+          }}
+          onClick={e => e.stopPropagation()}
+        />
+      ) : (
+        <button
+          type="button"
+          disabled={disabled || busy || completed}
+          onClick={e => {
+            e.stopPropagation()
+            if (!disabled && !completed) setEditing(true)
+          }}
           className={cn(
-            "inline-flex items-center rounded-md font-bold leading-none",
-            due.severity === "overdue" || due.severity === "orange"
-              ? "px-2 py-1 text-[13px]"
-              : "px-1.5 py-0.5 text-[12px]",
-            dueTone.text,
+            "group/due inline-flex max-w-full flex-col items-start gap-0.5 rounded-md border px-2.5 py-1.5 text-left outline-none",
+            "focus-visible:ring-2 focus-visible:ring-ac",
+            dueTone.border,
             dueTone.tint,
+            (disabled || completed) ? "cursor-default" : "cursor-pointer hover:brightness-[0.98]",
           )}
+          title={completed ? "Completed" : "Edit due date"}
+          aria-label="Edit due date"
         >
-          {due.severity === "none" ? "No Due Date" : due.daysLabel}
-        </span>
-      </PropertyCell>
-    </>
+          <span className={cn("text-sm font-bold tabular-nums leading-tight", dueTone.text)}>
+            {absoluteLine}
+          </span>
+          {relativeLine ? (
+            <span className={cn("text-[11px] font-semibold tabular-nums leading-tight", dueTone.text)}>
+              {relativeLine}
+            </span>
+          ) : null}
+          {busy && <span className="text-[10px] text-t3">Saving…</span>}
+        </button>
+      )}
+    </PropertyCell>
   )
 }
 
@@ -506,7 +484,7 @@ export function CurrentRevisionSection({
   })
 
   return (
-    <section className="pt-1">
+    <section className="pt-2">
       {!active ? (
         <EmptyStateCard
           eyebrow="Current Revision"
@@ -537,7 +515,7 @@ export function CurrentRevisionSection({
           Create a new revision using the button above.
         </EmptyStateCard>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <RevisionCard
             revisionLabel={revisionDisplay}
             instructionTitle={briefLabel}
@@ -546,18 +524,27 @@ export function CurrentRevisionSection({
           />
 
           <PropertyGrid>
-            <PropertyCell label="Status">
-              <WorkItemStatusSelector
-                workItemType={isRevision ? "revision" : "original"}
-                workItemId={currentWork.id!}
-                currentStatus={currentWork.status}
-                revisionLabel={isRevision ? currentWork.revisionLabel : null}
-                stageLabel={stage.label}
-                patchUrl={patchUrl}
-                size="md"
-                onStatusChanged={onChanged}
-              />
+            <PropertyCell label="Status" className="col-span-2">
+              <div className="flex w-full flex-col gap-2.5">
+                <WorkItemStatusSelector
+                  workItemType={isRevision ? "revision" : "original"}
+                  workItemId={currentWork.id!}
+                  currentStatus={currentWork.status}
+                  revisionLabel={isRevision ? currentWork.revisionLabel : null}
+                  patchUrl={patchUrl}
+                  size="md"
+                  onStatusChanged={onChanged}
+                />
+                <StagePipeline stageId={stage.id} />
+              </div>
             </PropertyCell>
+
+            <PropertyCell label={isRevision ? "Revision Date" : "Date Created"}>
+              <p className={cn(fieldMuted, "tabular-nums")}>
+                {safeDateLabel(revisionDate) || "—"}
+              </p>
+            </PropertyCell>
+
             <PropertyCell label="Designer">
               <DesignerAssignmentSelector
                 workItemType={isRevision ? "revision" : "original"}
@@ -566,9 +553,15 @@ export function CurrentRevisionSection({
                 revisionLabel={isRevision ? (currentWork.revisionLabel ?? revLabel) : null}
                 designers={designers}
                 patchUrl={patchUrl}
-                unassignedLabel="Assign designer…"
+                unassignedLabel="Assign designer"
                 onDesignerChanged={onChanged}
               />
+            </PropertyCell>
+
+            <PropertyCell label="Issued">
+              <p className={cn(fieldMuted, "font-medium", issuedLabel === "Pending" && "text-t2")}>
+                {issuedLabel}
+              </p>
             </PropertyCell>
 
             <EditableTargetDue
@@ -578,27 +571,7 @@ export function CurrentRevisionSection({
               completed={completed}
               onChanged={onChanged}
             />
-
-            <PropertyCell label={isRevision ? "Revision Date" : "Date Created"}>
-              <p className={cn(fieldMuted, "tabular-nums")}>
-                {safeDateLabel(revisionDate) || "—"}
-              </p>
-            </PropertyCell>
-            <PropertyCell label="Issued">
-              <p className={cn(fieldMuted, "font-medium", issuedLabel === "Pending" && "text-t2")}>
-                {issuedLabel}
-              </p>
-            </PropertyCell>
           </PropertyGrid>
-
-          <div className="flex items-center justify-between gap-3 rounded-md border border-bd/60 bg-surface-low/60 px-3 py-2">
-            <p className="text-[11px] font-medium text-t2">
-              Stage pipeline
-              <span className="mx-1.5 text-t3" aria-hidden>·</span>
-              <span className="font-semibold text-t1">{stage.label}</span>
-            </p>
-            <StagePipeline stageId={stage.id} />
-          </div>
         </div>
       )}
     </section>

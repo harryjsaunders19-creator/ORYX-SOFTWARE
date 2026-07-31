@@ -32,8 +32,12 @@ export function RevisionCard({
       : null
 
   return (
-    <InfoCard title="Current Revision" className={cn("!p-3.5 min-h-0", className)}>
-      <div className="flex flex-wrap items-baseline gap-2">
+    <InfoCard
+      title="Current Revision"
+      titleClassName="text-[11px] font-bold uppercase tracking-[0.16em] text-t1"
+      className={cn("!px-4 !py-4 min-h-0", className)}
+    >
+      <div className="flex flex-wrap items-baseline gap-2 pt-1">
         <p className="text-lg font-bold tracking-tight text-t1 tabular-nums">
           {revisionLabel}
         </p>
@@ -43,11 +47,11 @@ export function RevisionCard({
           </span>
         ) : null}
       </div>
-      <p className={cn(inspectorType.cardEyebrow, "mt-3 mb-1.5 text-t2")}>{instructionTitle}</p>
+      <p className={cn(inspectorType.cardEyebrow, "mt-4 mb-2")}>{instructionTitle}</p>
       <p
         className={cn(
           body
-            ? "text-sm font-semibold leading-relaxed whitespace-pre-wrap text-t1"
+            ? "text-[15px] font-semibold leading-relaxed whitespace-pre-wrap text-t1"
             : "text-sm font-medium leading-relaxed text-t2",
         )}
       >
@@ -65,7 +69,11 @@ export function RevisionCardShell({
   className?: string
 }) {
   return (
-    <InfoCard title="Current Revision" className={cn("!p-3.5", className)}>
+    <InfoCard
+      title="Current Revision"
+      titleClassName="text-[11px] font-bold uppercase tracking-[0.16em] text-t1"
+      className={cn("!px-4 !py-4", className)}
+    >
       {children}
     </InfoCard>
   )

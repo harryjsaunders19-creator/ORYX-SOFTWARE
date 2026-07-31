@@ -42,7 +42,15 @@ export function EmptyStateCard({
   className?: string
 }) {
   return (
-    <InfoCard title={eyebrow} className={className}>
+    <InfoCard
+      title={eyebrow}
+      titleClassName={
+        eyebrow === "Current Revision"
+          ? "text-[11px] font-bold uppercase tracking-[0.16em] text-t1"
+          : undefined
+      }
+      className={className}
+    >
       <EmptyState title={title} description={description}>
         {children}
       </EmptyState>

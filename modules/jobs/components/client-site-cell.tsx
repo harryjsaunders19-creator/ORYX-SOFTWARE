@@ -64,19 +64,19 @@ export function ClientSiteCell({
 
   const clientClass = cn(
     "font-semibold text-t1 transition-colors",
-    variant === "register" && "truncate text-base leading-snug group-hover:text-t1",
-    variant === "card" && "text-base leading-snug [overflow-wrap:anywhere]",
-    variant === "header" && "text-[15px] font-semibold leading-snug [overflow-wrap:anywhere]",
+    variant === "register" && "truncate text-[15px] leading-snug group-hover:text-t1",
+    variant === "card" && "text-[15px] leading-snug [overflow-wrap:anywhere]",
+    variant === "header" && "text-base font-semibold leading-snug [overflow-wrap:anywhere]",
     variant === "compact" && "truncate text-sm leading-snug",
     selected && "text-t1",
   )
 
   const siteClass = cn(
     "flex min-w-0 items-center gap-1 text-t2 transition-colors",
-    variant === "register" && "mt-0.5 truncate text-[12px] leading-snug font-medium group-hover:text-t1",
-    variant === "card" && "mt-1 text-sm leading-snug font-medium [overflow-wrap:anywhere]",
-    variant === "header" && "mt-2.5 text-sm font-medium leading-snug text-t2 [overflow-wrap:anywhere]",
-    variant === "compact" && "mt-0.5 truncate text-xs leading-snug font-medium",
+    variant === "register" && "mt-0.5 truncate text-[12px] font-normal leading-snug group-hover:text-t1",
+    variant === "card" && "mt-1 text-sm font-normal leading-snug [overflow-wrap:anywhere]",
+    variant === "header" && "mt-1.5 text-sm font-normal leading-snug text-t2 [overflow-wrap:anywhere]",
+    variant === "compact" && "mt-0.5 truncate text-xs font-normal leading-snug",
     selected ? "text-t2" : "text-t2",
   )
 

@@ -34,7 +34,6 @@ import {
   getCurrentWorkItem,
   type CurrentWorkRevisionLike,
 } from "@/modules/jobs/lib/current-work"
-import { getEngineeringStageFromDrawingStatus } from "@/modules/jobs/lib/engineering-workflow"
 import {
   InspectorHeader,
   StatusChip,
@@ -573,12 +572,6 @@ export function JobsInspector({
     setAttachQuoteOpen(true)
   }
 
-  const summaryStatus =
-    currentWork.type === "none" ? originalStatus : currentWork.status
-  const summaryStage = getEngineeringStageFromDrawingStatus(
-    summaryStatus,
-    { closed: currentWork.type === "none" },
-  )
   const summaryDue = getRevisionDueInfo(
     activeRevision?.requiredByDate ?? currentWork.dueDate ?? project.requiredByDate,
     { completed: currentWork.type === "none" || currentWork.status === "ISSUED" },
@@ -592,11 +585,11 @@ export function JobsInspector({
 
   const statusChips = currentWork.type === "revision" ? (
     <>
-      <StatusChip status={currentWork.status} stageLabel={summaryStage.label} tone="primary" />
+      <StatusChip status={currentWork.status} tone="primary" />
       <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
     </>
   ) : currentWork.type === "original" ? (
-    <StatusChip status={currentWork.status} stageLabel={summaryStage.label} tone="primary" />
+    <StatusChip status={currentWork.status} tone="primary" />
   ) : (
     <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
   )
@@ -604,11 +597,9 @@ export function JobsInspector({
   const summaryStrip = (
     <RevisionSummaryStrip
       revision={summaryRevision}
-      stage={summaryStage.label}
       designer={drawingDesigner}
       duePrimary={formatRevisionDueCompact(summaryDue)}
       dueSeverity={summaryDue.severity}
-      stageStatus={summaryStatus}
     />
   )
 
@@ -683,7 +674,7 @@ export function JobsInspector({
                 onClick={openQuoteAction}
               >
                 <Link2 className="h-4 w-4 shrink-0" />
-                <span className="truncate">{primaryQuote ? "Open Quote" : "Attach Quote"}</span>
+                <span className="truncate">{primaryQuote ? "View Quote" : "Attach Quote"}</span>
               </button>
               <button
                 type="button"
@@ -718,7 +709,7 @@ export function JobsInspector({
               onClick={openQuoteAction}
             >
               <Link2 className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{primaryQuote ? "Open Quote" : "Attach Quote"}</span>
+              <span className="truncate">{primaryQuote ? "View Quote" : "Attach Quote"}</span>
             </button>
             <button
               type="button"
