@@ -7,7 +7,14 @@
  *  ORYX DESIGN SYSTEM — Stitch Engineering OS
  *
  *  Tailwind CSS v4: tokens live here in @theme (not tailwind.config).
- *    --color-sr → bg-sr · --color-pg → bg-pg · --shadow-modal → shadow-modal
+ *
+ *  Surfaces (prefer these for all modules):
+ *    s0  Application background   → bg-s0
+ *    s1  Workspace (lists/tables) → bg-s1
+ *    s2  Inspector / focus panel  → bg-s2 + shadow-inspector
+ *  Legacy aliases: pg ≈ s0, sr ≈ s1.
+ *
+ *  Other tokens: border-bd / text-t1 / text-ac / bg-sel-bg / shadow-modal
  *
  *  Radius (raw px — html font-size is 14px, so rem radii drift):
  *    control  --radius-lg  8px   buttons, inputs, selects
@@ -15,8 +22,8 @@
  *    dense    --radius-md  8px   chips, nested controls
  *
  *  Spacing rhythm: 8px grid (Tailwind 2 = 8px). Prefer gap-2/4/6/8.
- *  Colour: restrained — charcoal primary, teal secondary, semantic
- *  status only. No decorative indigo/purple accents in product UI.
+ *  Colour: restrained — charcoal primary, teal = active work only.
+ *  Selection uses sel-* (slate), never status greens/ambers/reds.
  * ================================================================
  */
 
@@ -56,10 +63,19 @@
   --text-label--line-height: 1.333;
 
   /* ── Colours ───────────────────────────────────────── */
-  /* Backgrounds — Stitch Monochrome (Border) */
-  --color-pg:     #f8f9fa;
-  --color-sr:     #ffffff;
-  --color-surface-low: #f3f4f5;
+  /*
+   * Surface hierarchy (Oryx OS):
+   *   s0 — Application background (page / empty space)
+   *   s1 — Workspace (lists, tables, main content)
+   *   s2 — Inspector / focus panel (active object)
+   * Legacy aliases: pg ≈ s0, sr ≈ s1. Prefer s0/s1/s2 for new UI.
+   */
+  --color-s0:     #F1F3F5;
+  --color-s1:     #FFFFFF;
+  --color-s2:     #F6F7F9;
+  --color-pg:     #F1F3F5;
+  --color-sr:     #FFFFFF;
+  --color-surface-low: #EBEDF0;
   --color-sidebar:     #f8f9fa;
   --color-nav-hover:   #edeeef;
   --color-nav-active:  #e7e8e9;
@@ -87,7 +103,7 @@
   --color-ac2-bg: #E7F5F3;
 
   /* UI selection / focus (neutral slate — never status green) */
-  --color-sel-bg: #F0F2F5;
+  --color-sel-bg: #E8ECF1;
   --color-sel-bd: #111827;
 
   /* Danger */
@@ -200,11 +216,14 @@
  * styles) switch automatically — no per-component dark: classes needed.
  */
 html.dark {
+  --color-s0:     #0A0A0B;
+  --color-s1:     #141517;
+  --color-s2:     #1C2129;
   --color-pg:     #0A0A0B;
-  --color-sr:     #18181B;
-  --color-surface-low: #27272A;
+  --color-sr:     #141517;
+  --color-surface-low: #22262E;
   --color-outline: #3F3F46;
-  --color-bd:     #27272A;
+  --color-bd:     #2A2E36;
   --color-bds:    #3F3F46;
   --color-t1:     #FAFAFA;
   --color-t2:     #D4D4D8;
@@ -219,7 +238,7 @@ html.dark {
   --color-ac2h:   #5EEAD4;
   --color-ac2-bg: rgba(45, 212, 191, 0.12);
   /* UI selection — deep slate-blue, not teal/green */
-  --color-sel-bg: #1C2430;
+  --color-sel-bg: #252B36;
   --color-sel-bd: #E4E4E7;
   --color-dn:     #EF4444;
   --color-dnh:    #F87171;
@@ -541,9 +560,12 @@ html.dark {
  * Stitch ORYX OS — light canvas + dark sidebar by default; dark mode flips canvas.
  */
 html.stitch-layout {
-  --color-pg: #f8f9fa;
-  --color-sr: #ffffff;
-  --color-surface-low: #f3f4f5;
+  --color-s0: #F1F3F5;
+  --color-s1: #FFFFFF;
+  --color-s2: #F6F7F9;
+  --color-pg: #F1F3F5;
+  --color-sr: #FFFFFF;
+  --color-surface-low: #EBEDF0;
   --color-bd: #c6c6cd;
   --color-bds: #76777d;
   --color-t1: #191c1d;
@@ -554,7 +576,7 @@ html.stitch-layout {
   --color-ach: #000000;
   --color-ac-bg: #f3f4f6;
   --color-on-ac: #ffffff;
-  --color-sel-bg: #F0F2F5;
+  --color-sel-bg: #E8ECF1;
   --color-sel-bd: #111827;
   --color-sidebar: #2e3132;
   --color-nav-hover: rgba(255, 255, 255, 0.06);
@@ -564,19 +586,22 @@ html.stitch-layout {
   --stitch-sidebar-text: #ffffff;
   --stitch-sidebar-text-muted: #a1a1aa;
   --stitch-outline-variant: #c6c6cd;
-  --stitch-canvas-bg: #f8f9fa;
-  --stitch-top-bar-bg: #f8f9fa;
-  --stitch-search-bg: #f3f4f5;
+  --stitch-canvas-bg: #F1F3F5;
+  --stitch-top-bar-bg: #F1F3F5;
+  --stitch-search-bg: #EBEDF0;
   --stitch-sidebar-w: 256px;
   --stitch-top-bar-h: 64px;
   color-scheme: light;
 }
 
 html.stitch-layout.dark {
-  --color-pg: #0c0d0e;
-  --color-sr: #18181b;
-  --color-surface-low: #27272a;
-  --color-bd: #3f3f46;
+  --color-s0: #0A0A0B;
+  --color-s1: #141517;
+  --color-s2: #1C2129;
+  --color-pg: #0A0A0B;
+  --color-sr: #141517;
+  --color-surface-low: #22262E;
+  --color-bd: #2A2E36;
   --color-bds: #52525b;
   --color-t1: #f4f4f5;
   --color-t2: #d4d4d8;
@@ -586,7 +611,7 @@ html.stitch-layout.dark {
   --color-ach: #ffffff;
   --color-ac-bg: rgba(255, 255, 255, 0.08);
   --color-on-ac: #111827;
-  --color-sel-bg: #1C2430;
+  --color-sel-bg: #252B36;
   --color-sel-bd: #E4E4E7;
   /* Sidebar stays fixed in both themes — only the main canvas darkens */
   --color-sidebar: #2e3132;
@@ -594,9 +619,9 @@ html.stitch-layout.dark {
   --color-nav-active: #373b3b;
   --stitch-sidebar-bg: #2e3132;
   --stitch-sidebar-active: #373b3b;
-  --stitch-canvas-bg: #0c0d0e;
-  --stitch-top-bar-bg: #18181b;
-  --stitch-search-bg: #27272a;
+  --stitch-canvas-bg: #0A0A0B;
+  --stitch-top-bar-bg: #141517;
+  --stitch-search-bg: #22262E;
   --stitch-outline-variant: #3f3f46;
   color-scheme: dark;
 }

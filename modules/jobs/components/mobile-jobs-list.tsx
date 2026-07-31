@@ -45,7 +45,7 @@ export function MobileJobsList({
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <div className="rounded-lg border border-bd bg-sr px-4 py-10 text-center">
+        <div className="rounded-lg border border-bd bg-s1 px-4 py-10 text-center">
           <p className="text-sm font-medium text-t1">No projects found</p>
           <p className="mt-1 text-sm text-t3">Try a different search or filter.</p>
         </div>

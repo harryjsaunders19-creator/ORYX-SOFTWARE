@@ -225,7 +225,7 @@ export function InspectorHeader({
   children: ReactNode
 }) {
   return (
-    <div className="sticky top-0 z-20 shrink-0 border-b border-bd/70 bg-sr/95 px-5 pt-4 pb-4 backdrop-blur-sm">
+    <div className="sticky top-0 z-20 shrink-0 border-b border-bd/70 bg-s2/95 px-5 pt-4 pb-4 backdrop-blur-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-2">
           {leadingSlot}

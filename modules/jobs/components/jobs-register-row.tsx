@@ -107,8 +107,8 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
         "transition-[background-color,box-shadow,border-color] duration-200 ease-out",
         "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ac",
         selected
-          ? "bg-sel-bg border-l-4 border-l-sel-bd shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-sel-bd)_10%,transparent)]"
-          : "border-l-4 border-l-transparent hover:bg-surface-low",
+          ? "bg-sel-bg border-l-4 border-l-sel-bd shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-sel-bd)_12%,transparent)]"
+          : "border-l-4 border-l-transparent hover:bg-surface-low/80",
       )}
     >
       <div role="cell" className="min-w-0 px-3 py-2">

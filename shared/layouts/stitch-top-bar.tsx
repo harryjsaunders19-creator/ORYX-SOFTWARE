@@ -80,7 +80,7 @@ export function StitchTopBar({ onMenuClick }: Props) {
   return (
     <>
       <header
-        className="stitch-top-bar fixed top-0 z-40 flex items-center justify-between gap-6 border-b border-bd bg-pg px-6 max-md:gap-3 max-md:px-4"
+        className="stitch-top-bar fixed top-0 z-40 flex items-center justify-between gap-6 border-b border-bd bg-s0 px-6 max-md:gap-3 max-md:px-4"
       >
         <div className="flex min-w-0 items-center gap-3">
           {onMenuClick && (

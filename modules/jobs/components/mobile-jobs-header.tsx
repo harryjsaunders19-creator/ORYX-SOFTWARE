@@ -56,7 +56,7 @@ export function MobileJobsHeader({
   summaryLabel,
 }: Props) {
   return (
-    <header className="shrink-0 border-b border-bd bg-sr px-4 pt-3 pb-3">
+    <header className="shrink-0 border-b border-bd bg-s1 px-4 pt-3 pb-3">
       <div className="flex items-center justify-between gap-3">
         <h1 className="min-w-0 text-[28px] font-bold leading-tight tracking-tight text-t1">
           {title}

@@ -56,8 +56,8 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   const onOpenStable = useCallback((id: string) => onOpenWorkspace(id), [onOpenWorkspace])
 
   return (
-    <div className={cn("mx-5 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-bd bg-sr", className)}>
-      <div role="row" className={cn(REGISTER_GRID, "sticky top-0 z-10 items-center border-b border-bd bg-sr")}>
+    <div className={cn("mx-5 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-bd bg-s1", className)}>
+      <div role="row" className={cn(REGISTER_GRID, "sticky top-0 z-10 items-center border-b border-bd bg-s1")}>
         {HEADERS.map((label, i) => (
           <div
             key={label || `overflow-${i}`}

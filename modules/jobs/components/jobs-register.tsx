@@ -316,10 +316,10 @@ export function JobsRegister({
   return (
     <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100dvh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
       {/* ── Desktop layout ───────────────────────────────────────── */}
-      <div className="hidden md:flex min-h-0 flex-1 gap-3 overflow-hidden bg-pg">
+      <div className="hidden md:flex min-h-0 flex-1 gap-3 overflow-hidden bg-s0">
         <section
           className={cn(
-            "flex min-h-0 flex-col overflow-hidden bg-sr",
+            "flex min-h-0 flex-col overflow-hidden bg-s1",
             "motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out",
             inspectorVisible ? "min-w-0 flex-1" : "w-full",
           )}
@@ -428,7 +428,7 @@ export function JobsRegister({
               )}
 
               {filtersOpen && !isChecking && (
-                <div className="flex flex-wrap items-end gap-3 rounded-lg border border-bd bg-pg px-3 py-2.5">
+                <div className="flex flex-wrap items-end gap-3 rounded-lg border border-bd bg-s0 px-3 py-2.5">
                   <div className="min-w-[180px] flex-1">
                     <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-t4">Client</label>
                     <ClientCombobox
@@ -486,7 +486,7 @@ export function JobsRegister({
             loading={loading}
           />
 
-          <div className="flex items-center justify-between gap-3 border-t border-bd bg-sr px-6 py-2.5">
+          <div className="flex items-center justify-between gap-3 border-t border-bd bg-s1 px-6 py-2.5">
             <p className="text-xs text-t3 tabular-nums">
               <span className="font-medium text-t2">{total.toLocaleString()}</span> Total Projects
               <span className="mx-2 text-bd">|</span>
@@ -550,7 +550,7 @@ export function JobsRegister({
       </div>
 
       {/* ── Mobile layout ────────────────────────────────────────── */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-pg md:hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-s0 md:hidden">
         <MobileJobsHeader
           title={title}
           subtitle={subtitle}
@@ -583,7 +583,7 @@ export function JobsRegister({
 
         {pages > 1 && (
           <div
-            className="flex shrink-0 items-center justify-center gap-2 border-t border-bd bg-sr px-4 py-2.5"
+            className="flex shrink-0 items-center justify-center gap-2 border-t border-bd bg-s1 px-4 py-2.5"
             style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
           >
             <button
@@ -612,7 +612,7 @@ export function JobsRegister({
       {/* Mobile full-screen job details drawer */}
       {inspectorVisible && selected && (
         <div
-          className="fixed inset-0 z-50 flex flex-col bg-sr md:hidden"
+          className="fixed inset-0 z-50 flex flex-col bg-s2 md:hidden"
           role="dialog"
           aria-modal="true"
           aria-label={`Project details for ${selected.drawingNumber}`}

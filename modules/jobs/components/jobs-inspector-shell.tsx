@@ -5,8 +5,8 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { cn } from "@/shared/utils/utils"
 
 /**
- * Premium outer boundary for the Jobs inspector workspace.
- * Visually distinct from the job list via surface tint, border, and soft elevation.
+ * Surface 2 — elevated inspector / focus panel.
+ * Sits above the Surface 1 workspace (lists/tables) on Surface 0 page chrome.
  */
 export function JobsInspectorShell({
   children,
@@ -19,8 +19,7 @@ export function JobsInspectorShell({
     <section
       className={cn(
         "flex min-h-0 flex-col overflow-hidden p-4",
-        "rounded-xl border border-bds/55 bg-surface-low shadow-inspector",
-        "dark:border-bds dark:bg-[color-mix(in_srgb,var(--color-sr)_88%,white)]",
+        "rounded-xl border border-bds/60 bg-s2 shadow-inspector",
         "motion-safe:transition-[box-shadow,border-color,opacity] motion-safe:duration-200 motion-safe:ease-out",
         className,
       )}
@@ -28,10 +27,8 @@ export function JobsInspectorShell({
     >
       <div
         className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg",
-          "bg-sr",
-          "dark:bg-[color-mix(in_srgb,var(--color-sr)_96%,white)]",
-          "ring-1 ring-bd/70 dark:ring-bds/70",
+          "flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-s2",
+          "ring-1 ring-inset ring-bd/50",
         )}
       >
         {children}
@@ -54,9 +51,9 @@ export function JobsInspectorReopenHandle({
         title="Show job details"
         aria-label="Show job details"
         className={cn(
-          "flex w-7 flex-col items-center justify-center rounded-md border border-bd bg-surface-low text-t3",
-          "transition-colors hover:bg-sr hover:text-t1",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2",
+          "flex w-7 flex-col items-center justify-center rounded-md border border-bd bg-s1 text-t3",
+          "transition-colors hover:bg-s2 hover:text-t1",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac",
         )}
       >
         <ChevronLeft className="h-4 w-4" aria-hidden />
@@ -81,7 +78,7 @@ export function JobsInspectorCollapseButton({
       className={cn(
         "rounded-md border border-bd p-1.5 text-t3 transition-colors",
         "hover:bg-surface-low hover:text-t1",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac",
       )}
     >
       {variant === "close" ? (

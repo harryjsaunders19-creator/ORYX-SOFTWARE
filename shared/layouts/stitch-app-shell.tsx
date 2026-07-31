@@ -70,7 +70,7 @@ export function StitchAppShell({ children }: { children: React.ReactNode }) {
   if (!loading && mustChangePassword && pathname !== "/set-password") return null
 
   return (
-    <div className="min-h-screen bg-pg text-t1">
+    <div className="min-h-screen bg-s0 text-t1">
       <StitchSideNav
         mobileOpen={sidebarOpen}
         onMobileClose={() => setSidebarOpen(false)}
@@ -78,7 +78,7 @@ export function StitchAppShell({ children }: { children: React.ReactNode }) {
         onCollapsedChange={handleCollapsedChange}
       />
       <StitchTopBar onMenuClick={() => setSidebarOpen(true)} />
-      <main className="oryx-app-main overflow-y-auto thin-scroll bg-pg">
+      <main className="oryx-app-main overflow-y-auto thin-scroll bg-s0">
         {children}
       </main>
     </div>
