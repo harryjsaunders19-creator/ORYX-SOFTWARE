@@ -140,7 +140,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
           : cn(
               "border-l-[3px] hover:bg-surface-low",
               urgencyAccent ?? "border-l-transparent",
-              zebra && "bg-s0/55",
+              zebra && "bg-surface-low/70",
             ),
       )}
     >
