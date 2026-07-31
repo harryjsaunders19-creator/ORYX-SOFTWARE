@@ -4,7 +4,7 @@ import type { ReactNode } from "react"
 import { cn } from "@/shared/utils/utils"
 
 const btnBase =
-  "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors disabled:opacity-50"
+  "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac"
 
 export const inspectorActionPrimaryClass = cn(
   btnBase,

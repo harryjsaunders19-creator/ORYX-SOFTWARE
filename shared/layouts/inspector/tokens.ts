@@ -27,8 +27,8 @@ export const inspectorType = {
   fieldLabel: "mb-0 text-[11px] font-medium leading-none text-t2",
   fieldValue: "text-sm font-medium leading-snug text-t1",
   fieldMuted: "text-sm leading-snug text-t2",
-  cardEyebrow: "text-[11px] font-semibold uppercase tracking-[0.14em] text-t3",
+  cardEyebrow: "text-[11px] font-semibold uppercase tracking-[0.14em] text-t2",
   cardTitle: "text-[15px] font-semibold leading-snug text-t1",
   cardBody: "text-[15px] font-semibold leading-relaxed whitespace-pre-wrap text-t1",
-  cardBodyEmpty: "text-[15px] font-medium leading-relaxed text-t3",
+  cardBodyEmpty: "text-[15px] font-medium leading-relaxed text-t2",
 } as const

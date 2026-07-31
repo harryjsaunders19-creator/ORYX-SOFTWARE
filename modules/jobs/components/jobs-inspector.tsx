@@ -7,7 +7,7 @@ import {
 import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
-import { cn, defaultRequiredByDate, getRevisionDueInfo } from "@/shared/utils/utils"
+import { cn, defaultRequiredByDate, formatRevisionDueCompact, getRevisionDueInfo } from "@/shared/utils/utils"
 import {
   ActionToolbar,
   inspectorActionPrimaryClass,
@@ -573,17 +573,6 @@ export function JobsInspector({
     setAttachQuoteOpen(true)
   }
 
-  const statusChips = currentWork.type === "revision" ? (
-    <>
-      <StatusChip status={currentWork.status} tone="primary" />
-      <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
-    </>
-  ) : currentWork.type === "original" ? (
-    <StatusChip status={currentWork.status} tone="primary" />
-  ) : (
-    <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
-  )
-
   const summaryStatus =
     currentWork.type === "none" ? originalStatus : currentWork.status
   const summaryStage = getEngineeringStageFromDrawingStatus(
@@ -600,16 +589,24 @@ export function JobsInspector({
       : currentWork.type === "original"
         ? "Original"
         : "Complete"
+
+  const statusChips = currentWork.type === "revision" ? (
+    <>
+      <StatusChip status={currentWork.status} stageLabel={summaryStage.label} tone="primary" />
+      <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
+    </>
+  ) : currentWork.type === "original" ? (
+    <StatusChip status={currentWork.status} stageLabel={summaryStage.label} tone="primary" />
+  ) : (
+    <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
+  )
+
   const summaryStrip = (
     <RevisionSummaryStrip
       revision={summaryRevision}
       stage={summaryStage.label}
       designer={drawingDesigner}
-      duePrimary={
-        summaryDue.severity === "none"
-          ? "No Due Date"
-          : summaryDue.daysLabel
-      }
+      duePrimary={formatRevisionDueCompact(summaryDue)}
       dueSeverity={summaryDue.severity}
       stageStatus={summaryStatus}
     />
@@ -682,6 +679,14 @@ export function JobsInspector({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
+                className={cn(primaryActionBtn, "h-11")}
+                onClick={openQuoteAction}
+              >
+                <Link2 className="h-4 w-4 shrink-0" />
+                <span className="truncate">{primaryQuote ? "Open Quote" : "Attach Quote"}</span>
+              </button>
+              <button
+                type="button"
                 className={cn(secondaryActionBtn, "h-11")}
                 onClick={() => void handleCat2()}
                 disabled={cat2Busy || !canExportCat2}
@@ -693,14 +698,6 @@ export function JobsInspector({
               >
                 <ShieldCheck className="h-4 w-4 shrink-0" />
                 <span className="truncate">{cat2Busy ? "Creating…" : "CATII Check"}</span>
-              </button>
-              <button
-                type="button"
-                className={cn(secondaryActionBtn, "h-11")}
-                onClick={openQuoteAction}
-              >
-                <Link2 className="h-4 w-4 shrink-0" />
-                <span className="truncate">{primaryQuote ? "Open Quote" : "Attach Quote"}</span>
               </button>
             </div>
           </div>
@@ -717,6 +714,14 @@ export function JobsInspector({
             </button>
             <button
               type="button"
+              className={primaryActionBtn}
+              onClick={openQuoteAction}
+            >
+              <Link2 className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{primaryQuote ? "Open Quote" : "Attach Quote"}</span>
+            </button>
+            <button
+              type="button"
               className={secondaryActionBtn}
               onClick={() => void handleCat2()}
               disabled={cat2Busy || !canExportCat2}
@@ -729,14 +734,6 @@ export function JobsInspector({
               <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{cat2Busy ? "Creating…" : "CATII Check"}</span>
             </button>
-            <button
-              type="button"
-              className={secondaryActionBtn}
-              onClick={openQuoteAction}
-            >
-              <Link2 className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{primaryQuote ? "Open Quote" : "Attach Quote"}</span>
-            </button>
           </ActionToolbar>
         )}
       </InspectorHeader>
@@ -744,7 +741,7 @@ export function JobsInspector({
       <div
         key={project.id}
         className={cn(
-          "min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6",
+          "min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5",
           isDrawer && "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >

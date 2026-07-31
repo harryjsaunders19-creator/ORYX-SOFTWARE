@@ -1,15 +1,26 @@
 "use client"
 
 import { memo } from "react"
-import { MoreHorizontal } from "lucide-react"
-import { cn, getRevisionDueInfo, revisionDueToneClass } from "@/shared/utils/utils"
-import { drawingNumberContext, siteDisplay } from "./jobs-register-helpers"
+import { AlertTriangle, MoreHorizontal } from "lucide-react"
+import {
+  cn,
+  formatRevisionDueCompact,
+  getRevisionDueInfo,
+  revisionDueToneClass,
+} from "@/shared/utils/utils"
+import {
+  drawingSecondaryContext,
+  registerRevisionBadge,
+  siteDisplay,
+} from "./jobs-register-helpers"
+import { RevisionBadge } from "./revision-badge"
 import { ClientSiteCell } from "./client-site-cell"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { REGISTER_ROW_H } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { DrawingStatusCompleteLabel } from "./drawing-status-badge"
+import { StagePipeline } from "./engineering-workflow-indicator"
 import {
   getEngineeringStageFromDrawingStatus,
 } from "@/modules/jobs/lib/engineering-workflow"
@@ -26,6 +37,8 @@ export const REGISTER_GRID =
 interface JobsRegisterRowProps {
   project: JobsRegisterProject
   selected: boolean
+  /** Zero-based index for zebra striping. */
+  rowIndex?: number
   workItemsModel: boolean
   designers: string[]
   highlightQuery?: string
@@ -45,29 +58,32 @@ function RegisterDueCell({
 }) {
   const due = getRevisionDueInfo(requiredByDate, { completed })
   const tone = revisionDueToneClass(due.severity)
+  const label = formatRevisionDueCompact(due)
+  const showIcon = due.severity === "overdue" || due.severity === "orange"
+
   return (
-    <div className={cn("min-w-0 rounded-md px-1.5 py-1 leading-tight", tone.tint)}>
-      <p className={cn("truncate text-xs font-bold", tone.text)}>
-        {due.severity === "none" || due.severity === "complete"
-          ? due.registerPrimary
-          : due.daysLabel}
-      </p>
-      {due.severity !== "none" && due.severity !== "complete" ? (
-        <p className={cn("mt-0.5 truncate text-[10px] font-medium", tone.text)}>
-          Due {due.shortDateLabel}
-        </p>
-      ) : due.registerSecondary ? (
-        <p className={cn("mt-0.5 truncate text-[11px] font-semibold", tone.text)}>
-          {due.registerSecondary}
-        </p>
+    <span
+      className={cn(
+        "inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5",
+        "text-[11px] font-semibold leading-tight tabular-nums",
+        tone.text,
+        tone.tint,
+        tone.border,
+      )}
+      title={due.dateLabel !== "—" ? due.dateLabel : label}
+    >
+      {showIcon ? (
+        <AlertTriangle className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
       ) : null}
-    </div>
+      <span className="min-w-0 truncate">{label}</span>
+    </span>
   )
 }
 
 export const JobsRegisterRow = memo(function JobsRegisterRow({
   project,
   selected,
+  rowIndex = 0,
   workItemsModel,
   designers,
   highlightQuery,
@@ -82,10 +98,23 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
   const patchUrl = workItemsModel && project.kind === "work_item"
     ? `/api/work-items/${project.detailId}`
     : undefined
-  const contextLine = drawingNumberContext(project)
+  const revBadge = registerRevisionBadge(project)
+  const secondary = drawingSecondaryContext(project)
   const stage = getEngineeringStageFromDrawingStatus(project.currentStatus, {
     closed: project.currentWorkType === "none",
   })
+  const due = getRevisionDueInfo(project.requiredByDate, {
+    completed: project.currentWorkType === "none",
+  })
+  const zebra = !selected && rowIndex % 2 === 1
+  const urgencyAccent =
+    !selected && due.severity === "overdue"
+      ? "border-l-dn"
+      : !selected && due.severity === "orange"
+        ? "border-l-wn-ic/80"
+        : !selected && due.severity === "amber"
+          ? "border-l-yl/60"
+          : null
 
   return (
     <div
@@ -107,18 +136,29 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
         "transition-[background-color,box-shadow,border-color] duration-150 ease-out",
         "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ac",
         selected
-          ? "bg-sel-bg border-l-4 border-l-sel-bd shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-sel-bd)_12%,transparent)]"
-          : "border-l-4 border-l-transparent hover:bg-surface-low",
+          ? "bg-sel-bg border-l-[3px] border-l-sel-bd shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-sel-bd)_14%,transparent)]"
+          : cn(
+              "border-l-[3px] hover:bg-surface-low",
+              urgencyAccent ?? "border-l-transparent",
+              zebra && "bg-s0/55",
+            ),
       )}
     >
-      <div role="cell" className="min-w-0 px-3 py-2">
-        <p className="truncate text-sm font-bold text-t1">{project.drawingNumber}</p>
-        <p className={cn("mt-0.5 truncate text-[11px] font-semibold uppercase tracking-wide", selected ? "text-t2" : "text-t3")}>
-          {contextLine}
-        </p>
+      <div role="cell" className="min-w-0 px-3 py-1.5">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <p className="min-w-0 truncate text-sm font-bold tabular-nums tracking-tight text-t1">
+            {project.drawingNumber}
+          </p>
+          {revBadge ? <RevisionBadge>{revBadge}</RevisionBadge> : null}
+        </div>
+        {secondary ? (
+          <p className="mt-0.5 truncate text-[11px] font-medium text-t2">
+            {secondary}
+          </p>
+        ) : null}
       </div>
 
-      <div role="cell" className="min-w-0 px-3 py-2">
+      <div role="cell" className="min-w-0 px-3 py-1.5">
         <ClientSiteCell
           clientName={project.clientCompany}
           siteName={site}
@@ -130,12 +170,12 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
 
       <div
         role="cell"
-        className="min-w-0 px-3 py-2"
+        className="min-w-0 px-3 py-1.5"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
         {canEdit ? (
-          <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex min-w-0 flex-col gap-1">
             <WorkItemStatusSelector
               workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
               workItemId={project.detailId}
@@ -143,27 +183,24 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
               revisionLabel={
                 project.currentWorkType === "revision" ? project.currentWorkLabel : null
               }
+              stageLabel={stage.label}
               patchUrl={patchUrl}
               size="md"
               onStatusChanged={next => onStatusChanged?.(project.id, next)}
             />
-            <p className="truncate text-[11px] leading-snug text-t3">
-              Stage: <span className="font-semibold text-t2">{stage.label}</span>
-            </p>
+            <StagePipeline stageId={stage.id} className="pl-0.5" />
           </div>
         ) : (
           <div className="min-w-0">
             <DrawingStatusCompleteLabel />
-            <p className="mt-0.5 truncate text-[11px] text-t3">
-              Stage: <span className="font-semibold text-t2">Complete</span>
-            </p>
+            <StagePipeline stageId="complete" className="mt-1 pl-0.5" />
           </div>
         )}
       </div>
 
       <div
         role="cell"
-        className="min-w-0 px-3 py-2"
+        className="min-w-0 px-3 py-1.5"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
@@ -182,13 +219,13 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
             onDesignerChanged={next => onDesignerChanged?.(project.id, next)}
           />
         ) : (
-          <p className={cn("truncate text-sm", project.designer?.trim() ? "text-t1" : "text-t3")}>
+          <p className={cn("truncate text-sm", project.designer?.trim() ? "text-t1" : "text-t2")}>
             {project.designer?.trim() || "Unassigned"}
           </p>
         )}
       </div>
 
-      <div role="cell" className="min-w-0 px-2 py-2">
+      <div role="cell" className="min-w-0 px-2 py-1.5">
         <RegisterDueCell
           requiredByDate={project.requiredByDate}
           completed={project.currentWorkType === "none"}
@@ -205,7 +242,12 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="rounded p-1.5 text-t3 transition-colors hover:bg-surface-low hover:text-t1"
+              className={cn(
+                "rounded-md p-1.5 text-t3 transition-colors",
+                "hover:bg-surface-low hover:text-t1",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac",
+                "opacity-70 group-hover:opacity-100 data-[state=open]:opacity-100 data-[state=open]:bg-surface-low data-[state=open]:text-t1",
+              )}
               aria-label={`Actions for ${project.drawingNumber}`}
             >
               <MoreHorizontal className="h-4 w-4" />

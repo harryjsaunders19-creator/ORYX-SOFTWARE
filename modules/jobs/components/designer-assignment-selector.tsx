@@ -158,15 +158,23 @@ export function DesignerAssignmentSelector({
           {display}
         </span>
       ) : (
-        <span className={cn("truncate text-t3", labeled || compact ? "text-sm" : "text-sm")}>
+        <span
+          className={cn(
+            "inline-flex max-w-full items-center truncate rounded-md border border-dashed border-bd px-1.5 py-0.5 font-medium text-t2 transition-colors",
+            "group-hover/designer:border-ac/50 group-hover/designer:text-t1",
+            "group-focus-visible/designer:border-ac group-focus-visible/designer:text-t1",
+            labeled || compact ? "text-sm" : "text-sm",
+          )}
+        >
           {emptyCopy}
         </span>
       )}
       {!disabled && (
         <Pencil
           className={cn(
-            "h-3 w-3 shrink-0 text-t4 opacity-0 transition-opacity group-hover/designer:opacity-100 group-focus-visible/designer:opacity-100",
+            "h-3 w-3 shrink-0 text-t3 opacity-0 transition-opacity group-hover/designer:opacity-100 group-focus-visible/designer:opacity-100",
             open && "opacity-100",
+            !display && "opacity-70",
           )}
           aria-hidden
         />

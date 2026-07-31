@@ -1,14 +1,22 @@
 "use client"
 
 import { memo } from "react"
-import { cn, getRevisionDueInfo, revisionDueToneClass } from "@/shared/utils/utils"
-import { siteDisplay } from "./jobs-register-helpers"
+import {
+  cn,
+  formatRevisionDueCompact,
+  getRevisionDueInfo,
+  revisionDueToneClass,
+} from "@/shared/utils/utils"
+import { registerRevisionBadge, siteDisplay } from "./jobs-register-helpers"
+import { RevisionBadge } from "./revision-badge"
 import { ClientSiteCell } from "./client-site-cell"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { DrawingStatusCompleteLabel } from "./drawing-status-badge"
+import { StagePipeline } from "./engineering-workflow-indicator"
 import { getEngineeringStageFromDrawingStatus } from "@/modules/jobs/lib/engineering-workflow"
+import { AlertTriangle } from "lucide-react"
 
 type Props = {
   project: JobsRegisterProject
@@ -37,12 +45,7 @@ export const MobileJobCard = memo(function MobileJobCard({
     ? `/api/work-items/${project.detailId}`
     : undefined
   const workType = project.currentWorkType === "revision" ? "revision" : "original"
-  const revBadge =
-    project.currentWorkType === "revision" && project.currentRevisionLetter
-      ? `Rev ${project.currentRevisionLetter}`
-      : project.currentWorkType === "original"
-        ? "Original"
-        : null
+  const revBadge = registerRevisionBadge(project)
   const stage = getEngineeringStageFromDrawingStatus(project.currentStatus, {
     closed: project.currentWorkType === "none",
   })
@@ -50,6 +53,8 @@ export const MobileJobCard = memo(function MobileJobCard({
     completed: project.currentWorkType === "none",
   })
   const dueTone = revisionDueToneClass(due.severity)
+  const dueLabel = formatRevisionDueCompact(due)
+  const showDueIcon = due.severity === "overdue" || due.severity === "orange"
 
   return (
     <article
@@ -70,18 +75,18 @@ export const MobileJobCard = memo(function MobileJobCard({
         "cursor-pointer focus-visible:ring-2 focus-visible:ring-ac",
         selected
           ? "border-sel-bd/40 bg-sel-bg shadow-[inset_3px_0_0_0_var(--color-sel-bd)]"
-          : "border-bd hover:bg-surface-low",
+          : cn(
+              "border-bd hover:bg-surface-low",
+              due.severity === "overdue" && "shadow-[inset_3px_0_0_0_var(--color-dn)]",
+              due.severity === "orange" && "shadow-[inset_3px_0_0_0_color-mix(in_srgb,var(--color-wn-ic)_80%,transparent)]",
+            ),
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <h3 className="min-w-0 flex-1 text-base font-bold leading-snug tracking-tight text-t1 [overflow-wrap:anywhere]">
+        <h3 className="min-w-0 flex-1 text-base font-bold leading-snug tracking-tight text-t1 tabular-nums [overflow-wrap:anywhere]">
           {project.drawingNumber}
         </h3>
-        {revBadge ? (
-          <span className="shrink-0 rounded-md border border-bd bg-surface-low px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-t2">
-            {revBadge}
-          </span>
-        ) : null}
+        {revBadge ? <RevisionBadge>{revBadge}</RevisionBadge> : null}
       </div>
 
       <ClientSiteCell
@@ -108,15 +113,14 @@ export const MobileJobCard = memo(function MobileJobCard({
             revisionLabel={
               project.currentWorkType === "revision" ? project.currentWorkLabel : null
             }
+            stageLabel={stage.label}
             patchUrl={patchUrl}
             size="lg"
             disabled={!canEdit}
             onStatusChanged={() => onStatusChanged?.()}
           />
         )}
-        <p className="mt-1 text-[11px] text-t3">
-          Stage: <span className="font-semibold text-t2">{stage.label}</span>
-        </p>
+        <StagePipeline stageId={stage.id} className="mt-1.5" />
       </div>
 
       <div className="mt-3 flex items-end justify-between gap-3 border-t border-bd/60 pt-3">
@@ -125,7 +129,7 @@ export const MobileJobCard = memo(function MobileJobCard({
           onClick={e => e.stopPropagation()}
           onKeyDown={e => e.stopPropagation()}
         >
-          <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-t4">Designer</p>
+          <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-t2">Designer</p>
           {canEdit ? (
             <DesignerAssignmentSelector
               workItemType={workType}
@@ -137,28 +141,28 @@ export const MobileJobCard = memo(function MobileJobCard({
               designers={designers}
               patchUrl={patchUrl}
               compact
-              unassignedLabel="Unassigned"
+              unassignedLabel="Assign designer…"
               onDesignerChanged={() => onDesignerChanged?.()}
             />
           ) : (
-            <p className={cn("text-sm", project.designer?.trim() ? "text-t2" : "text-t3")}>
+            <p className={cn("text-sm", project.designer?.trim() ? "text-t2" : "text-t2")}>
               {project.designer?.trim() || "Unassigned"}
             </p>
           )}
         </div>
-        <div className={cn("shrink-0 rounded-md px-2 py-1 text-right", dueTone.tint)}>
-          <p className={cn("text-xs font-bold", dueTone.text)}>
-            {due.severity === "none" || due.severity === "complete"
-              ? due.registerPrimary
-              : due.daysLabel}
-          </p>
-          {due.severity !== "none" && due.severity !== "complete" ? (
-            <p className={cn("mt-0.5 text-[11px] font-medium", dueTone.text)}>
-              Due {due.shortDateLabel}
-            </p>
-          ) : due.registerSecondary ? (
-            <p className={cn("mt-0.5 text-[11px] font-semibold", dueTone.text)}>{due.registerSecondary}</p>
+        <div
+          className={cn(
+            "inline-flex max-w-[50%] shrink-0 items-center gap-1 rounded-full border px-2 py-1",
+            dueTone.tint,
+            dueTone.border,
+          )}
+        >
+          {showDueIcon ? (
+            <AlertTriangle className={cn("h-3 w-3 shrink-0", dueTone.text)} aria-hidden />
           ) : null}
+          <p className={cn("truncate text-[11px] font-bold tabular-nums", dueTone.text)}>
+            {dueLabel}
+          </p>
         </div>
       </div>
     </article>

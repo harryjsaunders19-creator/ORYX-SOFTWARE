@@ -263,6 +263,66 @@ export function drawingNumberContext(project: {
   return "Original design"
 }
 
+/**
+ * Quiet REV / Original pill for the register Drawing column.
+ * Returns null when there is nothing useful to show beside the ID.
+ */
+export function registerRevisionBadge(project: {
+  currentRevisionLetter: string | null
+  currentWorkType: CurrentWorkType | string
+  currentWorkLabel?: string | null
+}): string | null {
+  if (project.currentWorkType === "revision") {
+    const fromLabel = project.currentWorkLabel?.trim()
+    if (fromLabel && /^REV\b/i.test(fromLabel)) {
+      return fromLabel.toUpperCase().startsWith("REV")
+        ? fromLabel.toUpperCase()
+        : revisionBadgeLabel(fromLabel)
+    }
+    return revisionBadgeLabel(project.currentRevisionLetter)
+  }
+  if (project.currentWorkType === "original") return "Original"
+  return null
+}
+
+/**
+ * Secondary context under Drawing ID when REV is shown as a side badge
+ * (avoids repeating "REV A" on the line below).
+ */
+export function drawingSecondaryContext(project: {
+  currentWorkType: CurrentWorkType | string
+  revisionCount: number
+  dateCompleted?: string | null
+  typeOfWorks?: string | null
+  currentWorkDetail?: string | null
+}): string | null {
+  const works = project.typeOfWorks?.trim()
+  if (works) return works
+  if (project.currentWorkType === "none") {
+    return project.currentWorkDetail?.trim() || "Complete"
+  }
+  if (project.currentWorkType === "original") {
+    if (project.revisionCount > 0) {
+      return project.revisionCount === 1
+        ? "1 prior revision"
+        : `${project.revisionCount} prior revisions`
+    }
+    return "Original design"
+  }
+  const completed = project.dateCompleted?.trim()
+  if (completed) {
+    const d = new Date(completed)
+    if (!Number.isNaN(d.getTime())) {
+      return `Completed ${d.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })}`
+    }
+  }
+  return null
+}
+
 /** Prefer a readable empty-state label over a bare em dash. */
 export function missingLabel(
   value: string | null | undefined,

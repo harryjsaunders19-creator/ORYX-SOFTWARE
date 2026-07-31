@@ -8,31 +8,39 @@ import {
 
 /**
  * Compact Drawing Status treatment — coloured text + dot + light tint.
+ * Optionally appends engineering stage (e.g. "New Request · Request").
  * Used by register selectors, inspector, and revision history.
  */
 export function DrawingStatusBadge({
   status,
+  stageLabel,
   size = "md",
   className,
 }: {
   status: string
+  /** When set, shown as "Status · Stage" in one chip. */
+  stageLabel?: string | null
   size?: "md" | "lg"
   className?: string
 }) {
-  const label = getDrawingStatusLabel(status)
+  const statusLabel = getDrawingStatusLabel(status)
+  const label = stageLabel?.trim()
+    ? `${statusLabel} · ${stageLabel.trim()}`
+    : statusLabel
   const colour = getDrawingStatusColour(status)
   const badge = getDrawingStatusBadgeClass(status)
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5",
+        "inline-flex max-w-full items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5",
         Typography.Badge,
         "font-medium",
         badge,
         size === "lg" && "px-2.5 py-1",
         className,
       )}
+      title={label}
     >
       <span
         className={cn(
@@ -42,7 +50,7 @@ export function DrawingStatusBadge({
         )}
         aria-hidden
       />
-      {label}
+      <span className="min-w-0 truncate">{label}</span>
     </span>
   )
 }
@@ -59,7 +67,7 @@ export function DrawingStatusCompleteLabel({
   return (
     <div className={cn("min-w-0", className)}>
       <p className={cn("text-sm font-medium", colour.text)}>Complete</p>
-      <p className="mt-0.5 text-xs text-t3">{detail}</p>
+      <p className="mt-0.5 text-xs text-t2">{detail}</p>
     </div>
   )
 }

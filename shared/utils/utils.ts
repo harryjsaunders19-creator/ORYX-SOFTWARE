@@ -223,21 +223,39 @@ export function getRevisionDueInfo(
 export function revisionDueToneClass(severity: RevisionDueSeverity): {
   text: string
   tint: string
+  border: string
 } {
   switch (severity) {
     case "ok":
-      return { text: "text-ok-tx", tint: "bg-ok-bg" }
+      return { text: "text-ok-tx", tint: "bg-ok-bg", border: "border-ok-ic/25" }
     case "amber":
-      return { text: "text-yl-tx", tint: "bg-yl-bg" }
+      return { text: "text-yl-tx", tint: "bg-yl-bg", border: "border-yl-bd" }
     case "orange":
-      return { text: "text-wn-tx", tint: "bg-wn-bg" }
+      return { text: "text-wn-tx", tint: "bg-wn-bg", border: "border-wn-ic/40" }
     case "overdue":
-      return { text: "text-dn-tx", tint: "bg-dn-bg" }
+      return { text: "text-dn-tx", tint: "bg-dn-bg", border: "border-dn/40" }
     case "complete":
-      return { text: "text-t3", tint: "bg-gy-bg" }
+      return { text: "text-t3", tint: "bg-gy-bg", border: "border-bd/50" }
     default:
-      return { text: "text-t3", tint: "bg-transparent" }
+      return { text: "text-t3", tint: "bg-transparent", border: "border-bd/40" }
   }
+}
+
+/**
+ * Consistent due copy: absolute date + relative urgency.
+ * e.g. "Due 08 Aug · 8 days", "Due 08 Aug · Overdue", "Due Today".
+ */
+export function formatRevisionDueCompact(due: RevisionDueInfo): string {
+  if (due.severity === "none") return "No due date"
+  if (due.severity === "complete") {
+    return due.shortDateLabel !== "—" ? `Due ${due.shortDateLabel}` : "No due date"
+  }
+  if (due.severity === "overdue") {
+    return `Due ${due.shortDateLabel} · Overdue`
+  }
+  if (due.daysRemaining === 0) return `Due ${due.shortDateLabel} · today`
+  if (due.daysRemaining === 1) return `Due ${due.shortDateLabel} · 1 day`
+  return `Due ${due.shortDateLabel} · ${due.daysRemaining} days`
 }
 
 /** Sum of quote value plus tracked variation and additional charges. */

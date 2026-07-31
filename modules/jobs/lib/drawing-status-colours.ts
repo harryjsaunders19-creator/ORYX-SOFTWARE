@@ -61,8 +61,24 @@ export function getDrawingStatusLabel(status: string): string {
   return getJobStatus(status).label
 }
 
-/** Compact badge classes: coloured text + light tint, no heavy border fill. */
+/**
+ * Compact badge classes with stronger status differentiation:
+ * filled soft tint for active work, outline for issued/complete.
+ */
 export function getDrawingStatusBadgeClass(status: string): string {
   const c = getDrawingStatusColour(status)
-  return `${c.text} ${c.tint}`
+  switch (String(status || "").toUpperCase()) {
+    case "ISSUED":
+      return `${c.text} bg-transparent border border-ok-ic/35`
+    case "READY_TO_SEND":
+      return `${c.text} ${c.tint} border border-wn-ic/30`
+    case "CHECKING":
+      return `${c.text} ${c.tint} border border-tag-revision/30`
+    case "IN_DESIGN":
+      return `${c.text} ${c.tint} border border-rs-ic/20`
+    case "NEW_REQUEST":
+      return `${c.text} ${c.tint} border border-ac2/25`
+    default:
+      return `${c.text} ${c.tint} border border-transparent`
+  }
 }

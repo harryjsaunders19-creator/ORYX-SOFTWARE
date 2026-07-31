@@ -27,6 +27,8 @@ export type WorkItemStatusSelectorProps = {
   workItemId: string
   currentStatus: string
   revisionLabel?: string | null
+  /** When set, badge shows "Status · Stage" in one compact chip. */
+  stageLabel?: string | null
   /** Override PATCH URL — work-items model uses /api/work-items/:id */
   patchUrl?: string
   size?: "md" | "lg"
@@ -49,6 +51,7 @@ export function WorkItemStatusSelector({
   workItemId,
   currentStatus,
   revisionLabel = null,
+  stageLabel = null,
   patchUrl,
   size = "md",
   disabled = false,
@@ -123,8 +126,10 @@ export function WorkItemStatusSelector({
         <SelectPrimitive.Trigger
           onClick={e => e.stopPropagation()}
           className={cn(
-            "inline-flex items-center gap-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-ac",
-            size === "lg" && "hover:brightness-[0.97] active:scale-[0.98] transition-all",
+            "group/status inline-flex max-w-full items-center gap-1 rounded-md outline-none",
+            "transition-colors hover:brightness-[0.98]",
+            "focus-visible:ring-2 focus-visible:ring-ac",
+            size === "lg" && "active:scale-[0.98] transition-all",
             (disabled || busy) && "opacity-60 cursor-not-allowed",
             className,
           )}
@@ -132,8 +137,12 @@ export function WorkItemStatusSelector({
           aria-label={title}
           title={title}
         >
-          <DrawingStatusBadge status={displayStatus} size={size} />
-          <ChevronDown className="h-3.5 w-3.5 text-t4 opacity-70 group-hover:opacity-100 transition-opacity" />
+          <DrawingStatusBadge
+            status={displayStatus}
+            stageLabel={stageLabel}
+            size={size}
+          />
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-t3 opacity-70 transition-opacity group-hover/status:opacity-100 group-focus-visible/status:opacity-100" />
         </SelectPrimitive.Trigger>
         <SelectContent align="start">
           <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-t3 border-b border-bd mb-1">

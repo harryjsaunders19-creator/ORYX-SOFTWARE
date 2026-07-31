@@ -22,6 +22,8 @@ import {
 import { missingLabel } from "./jobs-register-helpers"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
+import { StagePipeline } from "./engineering-workflow-indicator"
+import { getEngineeringStageFromDrawingStatus } from "@/modules/jobs/lib/engineering-workflow"
 import {
   getDrawingStatusColour,
   getDrawingStatusLabel,
@@ -111,30 +113,37 @@ function Meta({
 export function StatusChip({
   prefix,
   status,
+  stageLabel,
   emptyLabel,
   tone = "primary",
 }: {
   /** Optional context prefix. Omit for primary revision status (status only). */
   prefix?: string
   status?: string | null
+  /** When set, shown as "Status · Stage" (reduces Stage line redundancy). */
+  stageLabel?: string | null
   emptyLabel?: string
   /** Primary = revision/current work; secondary = parent/project context. */
   tone?: "primary" | "secondary"
 }) {
-  const labelText = status
+  const statusText = status
     ? getDrawingStatusLabel(status)
     : (emptyLabel ?? "—")
-  const display = prefix ? `${prefix}: ${labelText}` : labelText
+  const withStage =
+    stageLabel?.trim() && !prefix
+      ? `${statusText} · ${stageLabel.trim()}`
+      : statusText
+  const display = prefix ? `${prefix}: ${withStage}` : withStage
 
   if (!status) {
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-t3",
-          tone === "primary" ? "border border-bd bg-s1" : "border border-transparent bg-transparent text-t4",
+          "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-t2",
+          tone === "primary" ? "border border-bd bg-s1" : "border border-transparent bg-transparent text-t3",
         )}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-t4" aria-hidden />
+        <span className="h-1.5 w-1.5 rounded-full bg-t3" aria-hidden />
         {display}
       </span>
     )
@@ -142,8 +151,8 @@ export function StatusChip({
   const colour = getDrawingStatusColour(status)
   if (tone === "secondary") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-t3">
-        <span className="h-1.5 w-1.5 rounded-full bg-t4" aria-hidden />
+      <span className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-t2">
+        <span className="h-1.5 w-1.5 rounded-full bg-t3" aria-hidden />
         {display}
       </span>
     )
@@ -151,9 +160,10 @@ export function StatusChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border border-bd/80 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide",
+        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide",
         colour.text,
         colour.tint,
+        "border-bd/60",
       )}
     >
       <span className={cn("h-1.5 w-1.5 rounded-full", colour.dot)} aria-hidden />
@@ -182,12 +192,13 @@ export function RevisionSummaryStrip({
   const dueTone = revisionDueToneClass(dueSeverity)
   const stageColour = stageStatus ? getDrawingStatusColour(stageStatus) : null
   const hasDesigner = Boolean(designer.trim())
-  const designerLabel = hasDesigner ? designer.trim() : "Unassigned"
-  const emphasizeDue = dueSeverity === "overdue" || dueSeverity === "orange"
+  const designerLabel = hasDesigner ? designer.trim() : "Assign designer…"
+  const emphasizeDue =
+    dueSeverity === "overdue" || dueSeverity === "orange" || dueSeverity === "amber"
 
   return (
     <div className="mt-3.5 flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center rounded-md border border-inspector-card-bd bg-inspector-card px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-t1">
+      <span className="inline-flex items-center rounded-md border border-inspector-card-bd bg-inspector-card px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-t1 tabular-nums">
         {revision}
       </span>
       <span
@@ -204,15 +215,18 @@ export function RevisionSummaryStrip({
       <span
         className={cn(
           "inline-flex items-center rounded-md px-2 py-1 text-[11px]",
-          hasDesigner ? "bg-surface-low font-medium text-t2" : "bg-transparent text-t4",
+          hasDesigner
+            ? "bg-surface-low font-medium text-t2"
+            : "border border-dashed border-bd font-medium text-t2",
         )}
       >
         {designerLabel}
       </span>
       <span
         className={cn(
-          "inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold",
+          "inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-semibold tabular-nums",
           dueTone.text,
+          dueTone.border,
           emphasizeDue ? dueTone.tint : "bg-transparent",
         )}
       >
@@ -256,7 +270,7 @@ export function InspectorHeader({
             <div className="flex flex-wrap items-center gap-2">
               <h3
                 className={cn(
-                  "font-bold tracking-tight text-t1",
+                  "font-bold tracking-tight text-t1 tabular-nums",
                   dense
                     ? "text-lg leading-snug [overflow-wrap:anywhere]"
                     : "truncate text-[22px]",
@@ -265,7 +279,7 @@ export function InspectorHeader({
                 {drawingNumber}
               </h3>
               {revisionBadge && (
-                <span className="rounded-md border border-inspector-card-bd bg-inspector-card px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-t2">
+                <span className="inline-flex items-center rounded-md border border-bd/70 bg-inspector-card px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-t2 tabular-nums">
                   {revisionBadge}
                 </span>
               )}
@@ -487,6 +501,9 @@ export function CurrentRevisionSection({
   const dueSource = requiredByDate ?? currentWork.dueDate ?? null
   const completedDate = safeDateLabel(lastCompleted)
   const completedTitle = lastCompletedLabel?.trim() || null
+  const stage = getEngineeringStageFromDrawingStatus(currentWork.status, {
+    closed: currentWork.type === "none",
+  })
 
   return (
     <section className="pt-1">
@@ -520,7 +537,7 @@ export function CurrentRevisionSection({
           Create a new revision using the button above.
         </EmptyStateCard>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <RevisionCard
             revisionLabel={revisionDisplay}
             instructionTitle={briefLabel}
@@ -535,6 +552,7 @@ export function CurrentRevisionSection({
                 workItemId={currentWork.id!}
                 currentStatus={currentWork.status}
                 revisionLabel={isRevision ? currentWork.revisionLabel : null}
+                stageLabel={stage.label}
                 patchUrl={patchUrl}
                 size="md"
                 onStatusChanged={onChanged}
@@ -548,7 +566,7 @@ export function CurrentRevisionSection({
                 revisionLabel={isRevision ? (currentWork.revisionLabel ?? revLabel) : null}
                 designers={designers}
                 patchUrl={patchUrl}
-                unassignedLabel="Unassigned"
+                unassignedLabel="Assign designer…"
                 onDesignerChanged={onChanged}
               />
             </PropertyCell>
@@ -562,14 +580,25 @@ export function CurrentRevisionSection({
             />
 
             <PropertyCell label={isRevision ? "Revision Date" : "Date Created"}>
-              <p className={fieldMuted}>
+              <p className={cn(fieldMuted, "tabular-nums")}>
                 {safeDateLabel(revisionDate) || "—"}
               </p>
             </PropertyCell>
             <PropertyCell label="Issued">
-              <p className={fieldMuted}>{issuedLabel}</p>
+              <p className={cn(fieldMuted, "font-medium", issuedLabel === "Pending" && "text-t2")}>
+                {issuedLabel}
+              </p>
             </PropertyCell>
           </PropertyGrid>
+
+          <div className="flex items-center justify-between gap-3 rounded-md border border-bd/60 bg-surface-low/60 px-3 py-2">
+            <p className="text-[11px] font-medium text-t2">
+              Stage pipeline
+              <span className="mx-1.5 text-t3" aria-hidden>·</span>
+              <span className="font-semibold text-t1">{stage.label}</span>
+            </p>
+            <StagePipeline stageId={stage.id} />
+          </div>
         </div>
       )}
     </section>

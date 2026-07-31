@@ -10,6 +10,7 @@ import { inspectorType } from "./tokens"
  */
 export function RevisionCard({
   revisionLabel,
+  amendmentNumber,
   instructionTitle = "Amendment Required",
   instructions,
   emptyInstructions,
@@ -17,17 +18,39 @@ export function RevisionCard({
 }: {
   /** e.g. "REV A" or "Original" */
   revisionLabel: string
+  /** Optional amendment / sequence number shown beside the revision. */
+  amendmentNumber?: string | number | null
   instructionTitle?: string
   instructions?: string | null
   emptyInstructions?: string
   className?: string
 }) {
   const body = instructions?.trim()
+  const amendment =
+    amendmentNumber != null && String(amendmentNumber).trim()
+      ? String(amendmentNumber).trim()
+      : null
+
   return (
-    <InfoCard title="Current Revision" className={cn("min-h-[7.5rem]", className)}>
-      <p className="text-base font-bold tracking-tight text-t1">{revisionLabel}</p>
-      <p className={cn(inspectorType.cardEyebrow, "mt-4 mb-2")}>{instructionTitle}</p>
-      <p className={cn(body ? inspectorType.cardBody : inspectorType.cardBodyEmpty)}>
+    <InfoCard title="Current Revision" className={cn("!p-3.5 min-h-0", className)}>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <p className="text-lg font-bold tracking-tight text-t1 tabular-nums">
+          {revisionLabel}
+        </p>
+        {amendment ? (
+          <span className="inline-flex items-center rounded-md border border-bd/70 bg-s0 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-t2 tabular-nums">
+            Amd {amendment}
+          </span>
+        ) : null}
+      </div>
+      <p className={cn(inspectorType.cardEyebrow, "mt-3 mb-1.5 text-t2")}>{instructionTitle}</p>
+      <p
+        className={cn(
+          body
+            ? "text-sm font-semibold leading-relaxed whitespace-pre-wrap text-t1"
+            : "text-sm font-medium leading-relaxed text-t2",
+        )}
+      >
         {body || emptyInstructions || "No instructions have been entered."}
       </p>
     </InfoCard>
@@ -42,7 +65,7 @@ export function RevisionCardShell({
   className?: string
 }) {
   return (
-    <InfoCard title="Current Revision" className={className}>
+    <InfoCard title="Current Revision" className={cn("!p-3.5", className)}>
       {children}
     </InfoCard>
   )

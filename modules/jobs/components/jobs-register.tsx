@@ -486,11 +486,11 @@ export function JobsRegister({
             loading={loading}
           />
 
-          <div className="flex items-center justify-between gap-3 border-t border-bd bg-s1 px-6 py-2.5">
-            <p className="text-xs text-t3 tabular-nums">
-              <span className="font-medium text-t2">{total.toLocaleString()}</span> Total Projects
+          <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-3 border-t border-bd bg-s1/95 px-5 py-1.5 backdrop-blur-sm">
+            <p className="text-[11px] text-t2 tabular-nums">
+              <span className="font-semibold text-t1">{total.toLocaleString()}</span> Total Projects
               <span className="mx-2 text-bd">|</span>
-              <span className="font-medium text-t2">{activeRevisions}</span> Active Revisions
+              <span className="font-semibold text-t1">{activeRevisions}</span> Active Revisions
             </p>
             <div className="flex items-center gap-3">
               {pages > 1 && (
