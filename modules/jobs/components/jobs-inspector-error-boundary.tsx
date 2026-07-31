@@ -37,7 +37,7 @@ export class JobsInspectorErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <aside className="flex h-full min-h-0 w-full flex-col border-l border-bd bg-sr p-5">
+        <aside className="flex h-full min-h-0 w-full flex-col border-l border-bd bg-s2 p-5">
           <h3 className="text-base font-bold text-t1">Inspector failed to load</h3>
           <p className="mt-2 text-sm text-t3">
             The register is still available. Try another project, or open the full workspace.

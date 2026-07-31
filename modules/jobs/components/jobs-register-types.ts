@@ -3,7 +3,8 @@
  * "Jobs - Command Center (Inter Typography)" / Project Command Center Split View.
  * Screen ids: f313bb87a8a3426190f85fd4b8cb6ef7, 46351d0bec1f43faa32bc5136f955565
  */
-export const REGISTER_ROW_H = 64
+/** Denser register rows — comfortable scan density without crowding. */
+export const REGISTER_ROW_H = 68
 /** Desktop split: register ~63% / inspector ~37%. */
 export const REGISTER_PCT = 63
 export const INSPECTOR_PCT = 37
@@ -31,6 +32,7 @@ export interface JobsRegisterProject {
   kind: "job" | "work_item"
   drawingNumber: string
   clientCompany: string
+  siteId: string | null
   siteName: string | null
   address: string
   currentRevisionLetter: string | null

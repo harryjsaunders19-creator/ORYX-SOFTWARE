@@ -14,11 +14,18 @@ import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
 import { cn } from "@/shared/utils/utils"
+import { ClientCombobox } from "@/components/client-combobox"
 import type { Job, JobFormData, JobsResponse } from "@/lib/types"
 import type { MixedWorkloadRow } from "@/modules/jobs/services/mixed-workload-service"
 import { JobsRegisterTable } from "./jobs-register-table"
 import { JobsInspector } from "./jobs-inspector"
 import { JobsInspectorErrorBoundary } from "./jobs-inspector-error-boundary"
+import {
+  JobsInspectorReopenHandle,
+  JobsInspectorShell,
+} from "./jobs-inspector-shell"
+import { MobileJobsHeader } from "./mobile-jobs-header"
+import { MobileJobsList } from "./mobile-jobs-list"
 import {
   jobToRegisterProject,
   workItemToRegisterProject,
@@ -41,8 +48,8 @@ interface WorkItemsResponse {
 }
 
 /**
- * Jobs Register + persistent Inspector — Stitch Command Center layout.
- * ~63% register / ~37% inspector when a project is selected.
+ * Jobs Register + collapsible job-card Inspector.
+ * Register expands full-width until a row is selected; inspector is ~36–38%.
  */
 export function JobsRegister({
   workItemsModel,
@@ -58,13 +65,21 @@ export function JobsRegister({
   const { isAdmin } = useUser()
 
   const searchRef = useRef<HTMLInputElement>(null)
+  const mobileSearchRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState(searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
   const [scope, setScope] = useState<JobsRegisterScope>("all")
   const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("selected"))
+  const [isInspectorOpen, setIsInspectorOpen] = useState(!!searchParams.get("selected"))
   const [createOpen, setCreateOpen] = useState(false)
   const [createSaving, setCreateSaving] = useState(false)
+  const [filterClientId, setFilterClientId] = useState(searchParams.get("clientId") ?? "")
+  const [filtersOpen, setFiltersOpen] = useState(!!searchParams.get("clientId"))
+  const { data: filterClientData } = useApi<{ client: { name: string } }>(
+    filterClientId ? `/api/clients/${filterClientId}` : null,
+  )
+  const filterClientName = filterClientData?.client.name ?? ""
 
   useEffect(() => {
     if (searchParams.get("new") === "1") {
@@ -92,8 +107,9 @@ export function JobsRegister({
     p.set("onlyOriginals", "true")
     if (debouncedSearch.trim()) p.set("search", debouncedSearch.trim())
     if (classicStatus && classicStatus !== "ALL") p.set("status", classicStatus)
+    if (filterClientId) p.set("clientId", filterClientId)
     return p.toString()
-  }, [page, debouncedSearch, classicStatus])
+  }, [page, debouncedSearch, classicStatus, filterClientId])
 
   const workQs = useMemo(() => {
     const p = new URLSearchParams()
@@ -102,8 +118,9 @@ export function JobsRegister({
     if (debouncedSearch.trim()) p.set("search", debouncedSearch.trim())
     if (isChecking) p.set("status", "CHECKING")
     else if (scope === "completed") p.set("status", "ISSUED")
+    if (filterClientId) p.set("clientId", filterClientId)
     return p.toString()
-  }, [page, debouncedSearch, isChecking, scope])
+  }, [page, debouncedSearch, isChecking, scope, filterClientId])
 
   const classicKey = !workItemsModel ? `/api/jobs?${classicQs}` : null
   const workKey = workItemsModel ? `/api/work-items?${workQs}` : null
@@ -154,44 +171,55 @@ export function JobsRegister({
   const activeRevisions = projects.filter(p => p.currentWorkType === "revision").length
 
   useEffect(() => {
-    if (selectedId && !projects.some(p => p.id === selectedId)) setSelectedId(null)
-  }, [projects, selectedId])
-
-  // Auto-select first row on desktop so inspector stays the workspace
-  useEffect(() => {
-    if (!selectedId && projects.length > 0 && !isChecking) {
-      if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-        setSelectedId(projects[0].id)
-      }
+    if (selectedId && !projects.some(p => p.id === selectedId)) {
+      setSelectedId(null)
+      setIsInspectorOpen(false)
     }
-  }, [projects, selectedId, isChecking])
-
-  const openWorkspace = useCallback(() => {
-    if (!selected) return
-    router.push(`/jobs/${selected.id}`)
-  }, [router, selected])
+  }, [projects, selectedId])
 
   const openWorkspaceById = useCallback((id: string) => {
     router.push(`/jobs/${id}`)
   }, [router])
 
+  const selectProject = useCallback((id: string) => {
+    // Same row while collapsed → reopen; otherwise select and open.
+    if (selectedId === id && !isInspectorOpen) {
+      setIsInspectorOpen(true)
+      return
+    }
+    setSelectedId(id)
+    setIsInspectorOpen(true)
+  }, [selectedId, isInspectorOpen])
+
+  const collapseInspector = useCallback(() => {
+    setIsInspectorOpen(false)
+  }, [])
+
+  const reopenInspector = useCallback(() => {
+    if (selectedId) setIsInspectorOpen(true)
+  }, [selectedId])
+
   const navigateProjects = useCallback((dir: -1 | 1) => {
     if (projects.length === 0) return
     const idx = selectedId ? projects.findIndex(p => p.id === selectedId) : -1
     const next = Math.min(projects.length - 1, Math.max(0, (idx < 0 ? 0 : idx) + dir))
-    setSelectedId(projects[next]?.id ?? null)
+    const nextId = projects[next]?.id ?? null
+    if (!nextId) return
+    setSelectedId(nextId)
+    setIsInspectorOpen(true)
   }, [projects, selectedId])
 
   useJobsRegisterKeyboard({
-    onFocusSearch: () => searchRef.current?.focus(),
-    onNavigate: navigateProjects,
-    onOpenWorkspace: openWorkspace,
-    onAddRevision: () => { if (selected) openWorkspace() },
-    onGenerateInvoice: () => { if (selected) openWorkspace() },
-    onCloseInspector: () => {
-      // Stitch keeps inspector as workspace — Esc clears selection only when intentional
-      setSelectedId(null)
+    onFocusSearch: () => {
+      if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+        searchRef.current?.focus()
+      } else {
+        mobileSearchRef.current?.focus()
+      }
     },
+    onNavigate: navigateProjects,
+    onAddRevision: () => {},
+    onCloseInspector: collapseInspector,
   })
 
   const handleCreate = async (form: JobFormData) => {
@@ -212,7 +240,10 @@ export function JobsRegister({
         toast("Project created", "success")
         setCreateOpen(false)
         await mutateWork()
-        if (body.parent?.id) setSelectedId(body.parent.id)
+        if (body.parent?.id) {
+          setSelectedId(body.parent.id)
+          setIsInspectorOpen(true)
+        }
         return
       }
 
@@ -231,6 +262,7 @@ export function JobsRegister({
       setCreateOpen(false)
       await mutateClassic()
       setSelectedId(job.id)
+      setIsInspectorOpen(true)
     } finally {
       setCreateSaving(false)
     }
@@ -248,33 +280,50 @@ export function JobsRegister({
     { id: "completed", label: "Completed" },
   ]
 
-  const inspectorOpen = Boolean(selected)
+  const inspectorVisible = Boolean(selected) && isInspectorOpen
 
   const toolbarBtn =
     "inline-flex h-9 items-center gap-2 rounded border border-bd px-3 text-sm font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-40"
 
+  const handleExport = () => {
+    void exportJobsToCsv(
+      {
+        search: debouncedSearch.trim(),
+        statusFilter: classicStatus,
+        itemTypeFilter: "ALL",
+        typeOfWorksFilter: "ALL",
+        deadlineFilter: "all",
+        onlyOriginals: true,
+        onlyRevisions: false,
+      },
+      toast,
+    )
+  }
+
+  const summaryLabel = `${total.toLocaleString()} project${total === 1 ? "" : "s"} · ${activeRevisions} active revision${activeRevisions === 1 ? "" : "s"}`
+
+  const title = isChecking ? "Checking queue" : "Jobs"
+  const subtitle = isChecking
+    ? "Work awaiting technical review before issue"
+    : "Manage scaffold design projects, revisions and progress"
+
   return (
-    <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100vh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Register ~63% (full width when inspector closed on mobile) */}
+    <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100dvh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
+      {/* ── Desktop layout ───────────────────────────────────────── */}
+      <div className="hidden md:flex min-h-0 flex-1 gap-3 overflow-hidden bg-s0">
         <section
           className={cn(
-            "flex min-h-0 flex-col overflow-hidden border-r border-bd bg-sr",
-            inspectorOpen ? "w-full md:w-[63%] lg:w-[62%]" : "w-full",
+            "flex min-h-0 flex-col overflow-hidden bg-s1",
+            "motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out",
+            inspectorVisible ? "min-w-0 flex-1" : "w-full",
           )}
         >
           <div className="border-b border-bd px-5 pt-4 pb-3">
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 shrink-0">
-                  <h1 className="text-2xl font-bold text-t1 tracking-tight">
-                    {isChecking ? "Checking queue" : "Jobs"}
-                  </h1>
-                  <p className="mt-0.5 text-sm text-t3">
-                    {isChecking
-                      ? "Work awaiting technical review before issue"
-                      : "Manage scaffold design projects, revisions and progress"}
-                  </p>
+                  <h1 className="text-2xl font-bold tracking-tight text-t1">{title}</h1>
+                  <p className="mt-0.5 text-sm text-t3">{subtitle}</p>
                 </div>
 
                 <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
@@ -320,30 +369,13 @@ export function JobsRegister({
                     <>
                       <button
                         type="button"
-                        className={toolbarBtn}
-                        onClick={() => router.push("/jobs/checking")}
+                        className={cn(toolbarBtn, (filtersOpen || filterClientId) && "border-ac text-ac")}
+                        onClick={() => setFiltersOpen(v => !v)}
                       >
                         <SlidersHorizontal className="h-3.5 w-3.5" />
                         Filters
                       </button>
-                      <button
-                        type="button"
-                        className={toolbarBtn}
-                        onClick={() => {
-                          void exportJobsToCsv(
-                            {
-                              search: debouncedSearch.trim(),
-                              statusFilter: classicStatus,
-                              itemTypeFilter: "ALL",
-                              typeOfWorksFilter: "ALL",
-                              deadlineFilter: "all",
-                              onlyOriginals: true,
-                              onlyRevisions: false,
-                            },
-                            toast,
-                          )
-                        }}
-                      >
+                      <button type="button" className={toolbarBtn} onClick={handleExport}>
                         <Download className="h-3.5 w-3.5" />
                         Export
                       </button>
@@ -359,7 +391,7 @@ export function JobsRegister({
                       {isAdmin && (
                         <Button type="button" size="sm" className="h-9" onClick={() => setCreateOpen(true)}>
                           <Plus className="h-3.5 w-3.5" />
-                          New Project
+                          New Job
                         </Button>
                       )}
                     </>
@@ -388,26 +420,57 @@ export function JobsRegister({
                   ))}
                 </div>
               )}
+
+              {filtersOpen && !isChecking && (
+                <div className="flex flex-wrap items-end gap-3 rounded-lg border border-bd bg-s0 px-3 py-2.5">
+                  <div className="min-w-[180px] flex-1">
+                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-t4">Client</label>
+                    <ClientCombobox
+                      value={filterClientId}
+                      name={filterClientName}
+                      onChange={(clientId) => {
+                        setFilterClientId(clientId)
+                        setPage(1)
+                      }}
+                    />
+                  </div>
+                  {filterClientId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9"
+                      onClick={() => {
+                        setFilterClientId("")
+                        setPage(1)
+                      }}
+                    >
+                      Reset filters
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           <JobsRegisterTable
             projects={projects}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={selectProject}
             onOpenWorkspace={openWorkspaceById}
             workItemsModel={workItemsModel}
             designers={designers}
+            highlightQuery={debouncedSearch}
             onStatusChanged={() => { void handleStatusChanged() }}
             onDesignerChanged={() => { void handleStatusChanged() }}
             loading={loading}
           />
 
-          <div className="flex items-center justify-between gap-3 border-t border-bd bg-sr px-6 py-2.5">
-            <p className="text-xs text-t3 tabular-nums">
-              <span className="font-medium text-t2">{total.toLocaleString()}</span> Total Projects
+          <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-3 border-t border-bd bg-s1/95 px-5 py-1.5 backdrop-blur-sm">
+            <p className="text-[11px] text-t2 tabular-nums">
+              <span className="font-semibold text-t1">{total.toLocaleString()}</span> Total Projects
               <span className="mx-2 text-bd">|</span>
-              <span className="font-medium text-t2">{activeRevisions}</span> Active Revisions
+              <span className="font-semibold text-t1">{activeRevisions}</span> Active Revisions
             </p>
             <div className="flex items-center gap-3">
               {pages > 1 && (
@@ -420,7 +483,7 @@ export function JobsRegister({
                   >
                     Prev
                   </button>
-                  <span className="text-xs text-t3 tabular-nums px-1">
+                  <span className="px-1 text-xs tabular-nums text-t3">
                     {page}/{pages}
                   </span>
                   <button
@@ -433,7 +496,7 @@ export function JobsRegister({
                   </button>
                 </div>
               )}
-              <p className="hidden sm:flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-t3">
+              <p className="hidden items-center gap-1.5 text-[10px] uppercase tracking-wide text-t3 sm:flex">
                 <span className="h-1.5 w-1.5 rounded-full bg-ok-ic" aria-hidden />
                 System Operational
               </p>
@@ -441,48 +504,114 @@ export function JobsRegister({
           </div>
         </section>
 
-        {/* Inspector ~37% — persistent workspace */}
-        {inspectorOpen && selected && (
-          <section className="hidden md:flex min-h-0 w-[37%] lg:w-[38%] shrink-0 flex-col overflow-hidden border-l border-bd">
+        {inspectorVisible && selected && (
+          <JobsInspectorShell
+            className={cn(
+              "my-3 mr-3 w-[min(420px,38%)] lg:w-[min(460px,39%)] shrink-0",
+            )}
+          >
             <JobsInspectorErrorBoundary projectLabel={selected.id}>
               <JobsInspector
                 project={selected}
                 workItemsModel={workItemsModel}
                 designers={designers}
-                onOpenWorkspace={openWorkspace}
                 onStatusChanged={() => { void handleStatusChanged() }}
+                onCollapse={collapseInspector}
+                collapseVariant="chevron"
+                presentation="panel"
               />
             </JobsInspectorErrorBoundary>
-          </section>
+          </JobsInspectorShell>
+        )}
+
+        {selected && !isInspectorOpen && (
+          <JobsInspectorReopenHandle onOpen={reopenInspector} />
         )}
       </div>
 
-      {/* Tablet / mobile: full-width inspector drawer */}
-      {selected && (
-        <div className="md:hidden fixed inset-0 z-40 flex flex-col bg-sr">
-          <div className="flex items-center justify-between gap-3 border-b border-bd px-4 py-3">
+      {/* ── Mobile layout ────────────────────────────────────────── */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-s0 md:hidden">
+        <MobileJobsHeader
+          title={title}
+          subtitle={subtitle}
+          search={search}
+          onSearchChange={setSearch}
+          searchRef={mobileSearchRef}
+          scope={scope}
+          onScopeChange={setScope}
+          showProjectActions={!isChecking}
+          canCreate={isAdmin}
+          canImport={isAdmin}
+          onNewProject={() => setCreateOpen(true)}
+          onFilters={() => router.push("/jobs/checking")}
+          onExport={handleExport}
+          onImport={() => router.push("/jobs/import")}
+          summaryLabel={summaryLabel}
+        />
+
+        <MobileJobsList
+          projects={projects}
+          selectedId={selectedId}
+          workItemsModel={workItemsModel}
+          designers={designers}
+          loading={loading}
+          highlightQuery={debouncedSearch}
+          onSelect={selectProject}
+          onStatusChanged={() => { void handleStatusChanged() }}
+          onDesignerChanged={() => { void handleStatusChanged() }}
+        />
+
+        {pages > 1 && (
+          <div
+            className="flex shrink-0 items-center justify-center gap-2 border-t border-bd bg-s1 px-4 py-2.5"
+            style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
+          >
             <button
               type="button"
-              className="text-sm font-medium text-t2 hover:text-t1"
-              onClick={() => setSelectedId(null)}
+              className="h-10 rounded-md border border-bd px-3 text-sm disabled:opacity-40"
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
             >
-              ← Back to Jobs
+              Prev
             </button>
-            <Button type="button" variant="secondary" size="sm" onClick={openWorkspace}>
-              Open Full Project
-            </Button>
+            <span className="px-2 text-sm tabular-nums text-t3">
+              {page}/{pages}
+            </span>
+            <button
+              type="button"
+              className="h-10 rounded-md border border-bd px-3 text-sm disabled:opacity-40"
+              disabled={page >= pages}
+              onClick={() => setPage(p => Math.min(pages, p + 1))}
+            >
+              Next
+            </button>
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <JobsInspectorErrorBoundary projectLabel={selected.id}>
-              <JobsInspector
-                project={selected}
-                workItemsModel={workItemsModel}
-                designers={designers}
-                onOpenWorkspace={openWorkspace}
-                onStatusChanged={() => { void handleStatusChanged() }}
-              />
-            </JobsInspectorErrorBoundary>
-          </div>
+        )}
+      </div>
+
+      {/* Mobile full-screen job details drawer */}
+      {inspectorVisible && selected && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-s2 md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Project details for ${selected.drawingNumber}`}
+          style={{
+            paddingTop: "env(safe-area-inset-top)",
+            paddingBottom: "env(safe-area-inset-bottom)",
+          }}
+        >
+          <JobsInspectorErrorBoundary projectLabel={selected.id}>
+            <JobsInspector
+              project={selected}
+              workItemsModel={workItemsModel}
+              designers={designers}
+              onStatusChanged={() => { void handleStatusChanged() }}
+              onCollapse={collapseInspector}
+              collapseVariant="close"
+              presentation="drawer"
+            />
+          </JobsInspectorErrorBoundary>
         </div>
       )}
 

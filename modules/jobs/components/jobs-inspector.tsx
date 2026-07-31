@@ -2,37 +2,51 @@
 
 import { useMemo, useState, lazy, Suspense } from "react"
 import {
-  Plus, ShieldCheck, Link2, ArrowRight, ChevronDown,
+  Plus, ShieldCheck, Link2, ChevronLeft,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
-import { cn, formatGBP } from "@/shared/utils/utils"
+import { cn, defaultRequiredByDate, formatRevisionDueCompact, getRevisionDueInfo } from "@/shared/utils/utils"
+import {
+  ActionToolbar,
+  inspectorActionPrimaryClass,
+  inspectorActionSecondaryClass,
+} from "@/shared/layouts/inspector"
 import type { Job, LinkedQuoteSummary, Quote } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import {
-  deriveNextAction,
   revisionBadgeLabel,
   siteDisplay,
-  shortStatusLabel,
-  missingLabel,
 } from "./jobs-register-helpers"
-import { WorkItemStatusSelector } from "./work-item-status-selector"
-import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { downloadCat2CheckSheet } from "./cat2-check-sheet-export"
+import { Button } from "@/shared/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/shared/ui/dropdown-menu"
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/dialog"
 import {
   getCurrentWorkItem,
   type CurrentWorkRevisionLike,
 } from "@/modules/jobs/lib/current-work"
-import { QuoteStatusBadge } from "@/modules/quotes/components/quote-status-badge"
+import {
+  InspectorHeader,
+  StatusChip,
+  RevisionSummaryStrip,
+  CurrentRevisionSection,
+  ProjectDetailsSection,
+  CATIISummary,
+  RevisionTimeline,
+  type HistoryRevision,
+  type QuoteCardItem,
+  type Cat2Summary,
+} from "./jobs-inspector-cards"
+import { JobsInspectorCollapseButton } from "./jobs-inspector-shell"
 
 const AddRevisionModal = lazy(() =>
   import("./add-revision-modal").then(m => ({ default: m.AddRevisionModal })),
@@ -45,8 +59,11 @@ interface JobsInspectorProps {
   project: JobsRegisterProject
   workItemsModel: boolean
   designers: string[]
-  onOpenWorkspace: () => void
   onStatusChanged?: () => void
+  onCollapse?: () => void
+  collapseVariant?: "chevron" | "close"
+  /** Mobile drawer uses stacked actions and a back control. */
+  presentation?: "panel" | "drawer"
 }
 
 interface DocumentsResponse {
@@ -55,6 +72,7 @@ interface DocumentsResponse {
     filename: string
     originalFilename?: string | null
     createdAt: string
+    revisionLetter?: string | null
   }[]
 }
 
@@ -72,8 +90,10 @@ interface RevisionsResponse {
     issuedAt?: string | null
     isCurrent?: boolean
     title?: string
+    requestedBy?: string | null
+    requestedDate?: string | null
+    requiredByDate?: string | null
   }[]
-  canAddRevision?: boolean
 }
 
 interface QuotesListResponse {
@@ -90,77 +110,46 @@ function timeValue(value: string | null | undefined): number {
   return Number.isFinite(ts) ? ts : 0
 }
 
-function safeDateLabel(value: string | null | undefined): string {
-  if (!value) return "Unknown date"
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return "Unknown date"
-  return d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
-}
-
-function dueLabel(value: string | null | undefined): string {
-  if (!value) return "Not set"
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return "Not set"
-  const absolute = d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const target = new Date(d)
-  target.setHours(0, 0, 0, 0)
-  const diff = Math.round((target.getTime() - today.getTime()) / 86_400_000)
-  if (diff < 0) return `Overdue · ${absolute}`
-  if (diff === 0) return `Today · ${absolute}`
-  if (diff <= 7) return `This week · ${absolute}`
-  return absolute
-}
-
-/** Shared light card language for all inspector sections. */
-const inspectorCard = "rounded-lg border border-bd bg-sr p-3.5"
-const inspectorHeading = "mb-2.5 text-xs font-semibold uppercase tracking-wider text-t3"
-const inspectorLabel = "mb-1 text-xs text-t3"
-const inspectorValue = "text-sm text-t1"
-const inspectorMuted = "text-sm text-t3"
-const inspectorAction =
-  "inline-flex h-7 items-center rounded border border-bd px-2 text-xs font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-50"
-
-type CompactRevision = {
-  id: string
-  letter: string | null
-  title: string
-  status: string
-  createdAt: string
-  designer: string
-  reason: string | null
-  billable: boolean
-  isCurrent: boolean
+function toQuoteCard(
+  q: Pick<Quote, "id" | "quoteNumber" | "quoteValue" | "status"> | LinkedQuoteSummary,
+  scopeLabel?: string,
+): QuoteCardItem {
+  return {
+    id: q.id,
+    quoteNumber: q.quoteNumber,
+    quoteValue: q.quoteValue ?? 0,
+    status: q.status,
+    updatedAt: "updatedAt" in q ? String(q.updatedAt ?? "") : "",
+    scopeLabel,
+  }
 }
 
 export function JobsInspector({
   project,
   workItemsModel,
   designers,
-  onOpenWorkspace,
   onStatusChanged,
+  onCollapse,
+  collapseVariant = "chevron",
+  presentation = "panel",
 }: JobsInspectorProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [addRevOpen, setAddRevOpen] = useState(false)
+  const [wiRevOpen, setWiRevOpen] = useState(false)
+  const [wiRevReason, setWiRevReason] = useState("")
+  const [wiRevBillable, setWiRevBillable] = useState(true)
+  const [wiRevCost, setWiRevCost] = useState("")
+  const [wiRevDue, setWiRevDue] = useState(defaultRequiredByDate())
+  const [wiRevSaving, setWiRevSaving] = useState(false)
   const [attachQuoteOpen, setAttachQuoteOpen] = useState(false)
   const [cat2Busy, setCat2Busy] = useState(false)
-  const [unlinkBusy, setUnlinkBusy] = useState(false)
 
   const parentKey = workItemsModel ? `/api/parent-jobs/${project.id}` : null
   const jobKey = !workItemsModel ? `/api/jobs/${project.id}?include=parent,current` : null
   const revisionsKey = !workItemsModel ? `/api/jobs/${project.id}/revisions` : null
-  const docsKey = `/api/jobs/${project.id}/documents?limit=20`
-  const quotesKey = `/api/quotes?search=${encodeURIComponent(project.drawingNumber)}&page=1&limit=20`
+  const docsKey = `/api/jobs/${project.id}/documents?limit=40`
+  const quotesKey = `/api/quotes?search=${encodeURIComponent(project.drawingNumber)}&page=1&limit=25`
 
   const { data: parentDash, isLoading: parentLoading, mutate: mutateParent } =
     useApi<ParentJobDashboard>(parentKey)
@@ -173,49 +162,107 @@ export function JobsInspector({
 
   const loading = workItemsModel ? parentLoading : jobLoading
 
-  const revisions: CompactRevision[] = useMemo(() => {
-    if (workItemsModel && parentDash) {
-      const workItems = asSafeArray(parentDash.workItems).filter(Boolean)
-      const currentId = parentDash.currentActive?.id
-      return [...workItems]
-        .sort((a, b) => timeValue(b.dateCreated || b.createdAt) - timeValue(a.dateCreated || a.createdAt))
-        .map(wi => ({
-          id: wi.id,
-          letter: wi.revisionLetter,
-          title: wi.title || (wi.revisionLetter ? `Rev ${wi.revisionLetter}` : "Original"),
-          status: wi.status,
-          createdAt: wi.dateCreated || wi.createdAt,
-          designer: wi.designer ?? "",
-          reason: wi.description,
-          billable: wi.billable ?? true,
-          isCurrent: wi.id === currentId,
-        }))
-    }
-    return asSafeArray(revisionsData?.chain).filter(Boolean).map((r, idx) => ({
-      id: r.id,
-      letter: r.revisionLetter,
-      title: r.title || (r.revisionLetter ? `Rev ${r.revisionLetter}` : "Original"),
-      status: r.status,
-      createdAt: r.dateCreated,
-      designer: r.designer ?? "",
-      reason: r.notes,
-      billable: r.billable ?? true,
-      isCurrent: r.isCurrent ?? idx === 0,
-    }))
-  }, [workItemsModel, parentDash, revisionsData])
-
   const parent = parentDash?.parent
-  const client = parent?.clientCompany ?? jobDetail?.clientCompany ?? project.clientCompany
-  const site = siteDisplay(
-    parent?.siteName ?? jobDetail?.siteName ?? project.siteName,
-    parent?.address ?? jobDetail?.address ?? project.address,
-  )
-  const drawingNumber =
-    parent?.drawingNumber ?? jobDetail?.drawingNumber ?? project.drawingNumber
-
   const originalWorkItem = workItemsModel
     ? parentDash?.workItems.find(w => w.workType === "ORIGINAL") ?? null
     : null
+
+  type RichRevision = HistoryRevision & {
+    requestedBy: string | null
+    requestedDate: string | null
+    legacyJobId: string | null
+  }
+
+  const revisions: RichRevision[] = useMemo(() => {
+    if (workItemsModel && parentDash) {
+      const workItems = asSafeArray(parentDash.workItems).filter(Boolean)
+      const currentId = parentDash.currentActive?.id
+      const quotes = asSafeArray(quotesData?.quotes)
+      const docs = asSafeArray(docsData?.documents)
+      return [...workItems]
+        .sort((a, b) => timeValue(b.dateCreated || b.createdAt) - timeValue(a.dateCreated || a.createdAt))
+        .map(wi => {
+          const letter = wi.revisionLetter
+          const quote = quotes.find(q => {
+            if (!q.jobId) return false
+            if (wi.workType === "ORIGINAL") {
+              return q.jobId === project.id || q.jobId === wi.legacyJobId
+            }
+            return q.jobId === wi.legacyJobId
+          }) ?? null
+          const hasCat2 = docs.some(d => {
+            const name = `${d.originalFilename ?? ""} ${d.filename ?? ""}`
+            if (!/cat\s*ii|cat2|catii/i.test(name)) return false
+            if (letter && new RegExp(`rev\\s*${letter}\\b`, "i").test(name)) return true
+            if (!letter && !new RegExp("rev\\s*[a-z]", "i").test(name)) return true
+            return Boolean(d.revisionLetter && letter && d.revisionLetter === letter)
+          })
+          return {
+            id: wi.id,
+            letter,
+            title: wi.title || (letter ? `Rev ${letter}` : "Original"),
+            status: wi.status,
+            createdAt: wi.dateCreated || wi.createdAt,
+            designer: wi.designer ?? "",
+            reason: wi.description ?? wi.notes,
+            billable: wi.billable ?? true,
+            fee: wi.quoteValue ?? null,
+            quoteNumber: quote?.quoteNumber ?? wi.quoteReference ?? null,
+            hasCat2,
+            isCurrent: wi.id === currentId,
+            requiredByDate: wi.requiredByDate ?? null,
+            requestedBy: parent?.requestedBy ?? null,
+            requestedDate: wi.requestedDate,
+            legacyJobId: wi.legacyJobId,
+          }
+        })
+    }
+
+    const docs = asSafeArray(docsData?.documents)
+    const quotes = asSafeArray(quotesData?.quotes)
+    return asSafeArray(revisionsData?.chain).filter(Boolean).map((r, idx) => {
+      const letter = r.revisionLetter
+      const quote = quotes.find(q => q.jobId === r.id) ?? null
+      const hasCat2 = docs.some(d => {
+        const name = `${d.originalFilename ?? ""} ${d.filename ?? ""}`
+        if (!/cat\s*ii|cat2|catii/i.test(name)) return false
+        if (letter && new RegExp(`rev\\s*${letter}\\b`, "i").test(name)) return true
+        if (!letter && !new RegExp("rev\\s*[a-z]", "i").test(name)) return true
+        return false
+      })
+      return {
+        id: r.id,
+        letter,
+        title: r.title || (letter ? `Rev ${letter}` : "Original"),
+        status: r.status,
+        createdAt: r.dateCreated,
+        designer: r.designer ?? "",
+        reason: r.notes,
+        billable: r.billable ?? true,
+        fee: r.quoteValue ?? null,
+        quoteNumber: quote?.quoteNumber ?? null,
+        hasCat2,
+        isCurrent: r.isCurrent ?? idx === 0,
+        requiredByDate: r.requiredByDate ?? null,
+        requestedBy: r.requestedBy ?? jobDetail?.requestedBy ?? null,
+        requestedDate: r.requestedDate ?? null,
+        legacyJobId: r.id,
+      }
+    })
+  }, [workItemsModel, parentDash, revisionsData, quotesData, docsData, project.id, parent?.requestedBy, jobDetail?.requestedBy])
+
+  const client = parent?.clientCompany ?? jobDetail?.clientCompany ?? project.clientCompany
+  const siteName = parent?.siteName ?? jobDetail?.siteName ?? project.siteName
+  const siteAddress =
+    parent?.siteAddress
+    ?? parent?.address
+    ?? jobDetail?.siteAddress
+    ?? jobDetail?.address
+    ?? project.address
+  const site = siteDisplay(siteName, siteAddress)
+  const drawingNumber =
+    parent?.drawingNumber ?? jobDetail?.drawingNumber ?? project.drawingNumber
+
   const originalStatus = workItemsModel
     ? (originalWorkItem?.status ?? project.projectStatus)
     : (jobDetail?.status ?? project.projectStatus)
@@ -228,73 +275,154 @@ export function JobsInspector({
         revisionLetter: r.letter,
         status: r.status,
         designer: r.designer,
-        requiredByDate: null,
+        requiredByDate: r.requiredByDate ?? null,
       }))
     return getCurrentWorkItem(
       {
-        id: project.id,
+        id: workItemsModel ? (originalWorkItem?.id ?? project.id) : project.id,
         status: originalStatus,
-        designer: project.designer,
-        requiredByDate: project.requiredByDate,
+        designer: originalWorkItem?.designer ?? project.designer,
+        requiredByDate: originalWorkItem?.requiredByDate ?? project.requiredByDate,
       },
       revLike,
     )
-  }, [revisions, project.id, project.designer, project.requiredByDate, originalStatus])
+  }, [
+    revisions,
+    project.id,
+    project.designer,
+    project.requiredByDate,
+    originalStatus,
+    workItemsModel,
+    originalWorkItem,
+  ])
 
-  const currentRev = revisions.find(r => r.isCurrent) ?? revisions[0]
+  const activeRevision = currentWork.type === "revision"
+    ? revisions.find(r => r.id === currentWork.id) ?? revisions.find(r => r.isCurrent && r.letter) ?? null
+    : null
+
   const revLabel = revisionBadgeLabel(
     currentWork.type === "revision"
-      ? (currentRev?.letter ?? project.currentRevisionLetter)
+      ? (activeRevision?.letter ?? project.currentRevisionLetter)
       : null,
   )
 
-  const linkedQuote: LinkedQuoteSummary | null = useMemo(() => {
-    if (jobDetail?.currentQuote) return jobDetail.currentQuote
-    if (project.currentQuote) {
-      return {
-        ...project.currentQuote,
-        updatedAt: "",
-      }
-    }
-    const match = asSafeArray(quotesData?.quotes).find(q => q.jobId === project.id)
-    if (!match) return null
-    return {
-      id: match.id,
-      quoteNumber: match.quoteNumber,
-      quoteValue: match.quoteValue ?? 0,
-      status: match.status,
-      updatedAt: match.updatedAt ?? "",
-    }
-  }, [jobDetail?.currentQuote, project.currentQuote, project.id, quotesData?.quotes])
+  const descriptionOfWorks = useMemo(() => {
+    const typeOfWorks = parent?.typeOfWorks ?? jobDetail?.typeOfWorks ?? project.typeOfWorks
+    const description =
+      parent?.description?.trim()
+      || jobDetail?.notes?.trim()
+      || (parent?.customTypeDescription ?? jobDetail?.customTypeDescription ?? null)
+      || null
+    return description || (typeOfWorks ? String(typeOfWorks) : null)
+  }, [parent, jobDetail, project.typeOfWorks])
 
-  const cat2Doc = useMemo(() => {
-    return asSafeArray(docsData?.documents).find(d => {
-      const name = `${d.originalFilename ?? ""} ${d.filename ?? ""}`
-      return /cat\s*ii|cat2|catii/i.test(name)
-    }) ?? null
+  const projectDetails = useMemo(() => {
+    const projectDesigner =
+      originalWorkItem?.designer
+      || jobDetail?.designer
+      || project.designer
+      || null
+    return {
+      client,
+      siteId: null,
+      siteName: siteName?.trim() || site || null,
+      siteAddress: siteAddress?.trim() || null,
+      descriptionOfWorks,
+      requestedBy: parent?.requestedBy ?? jobDetail?.requestedBy ?? null,
+      dateRequested:
+        originalWorkItem?.requestedDate
+        ?? jobDetail?.requestedDate
+        ?? jobDetail?.dateCreated
+        ?? parent?.createdAt
+        ?? null,
+      designDue: null,
+      designer: projectDesigner?.trim() || null,
+      checker: null as string | null,
+      otherJobsAtSiteCount: 0,
+    }
+  }, [
+    parent,
+    jobDetail,
+    project.designer,
+    client,
+    siteName,
+    site,
+    siteAddress,
+    descriptionOfWorks,
+    originalWorkItem,
+  ])
+
+  const originalQuote: QuoteCardItem | null = useMemo(() => {
+    if (jobDetail?.currentQuote) return toQuoteCard(jobDetail.currentQuote)
+    const linkedToParent = asSafeArray(quotesData?.quotes).filter(q => q.jobId === project.id)
+    const preferred =
+      linkedToParent.find(q => q.status === "ACCEPTED")
+      ?? linkedToParent[0]
+      ?? null
+    if (preferred) return toQuoteCard(preferred)
+    if (project.currentQuote) return toQuoteCard(project.currentQuote)
+    return null
+  }, [jobDetail, quotesData?.quotes, project.id, project.currentQuote])
+
+  const revisionQuote: QuoteCardItem | null = useMemo(() => {
+    if (!activeRevision?.legacyJobId) return null
+    const hit = asSafeArray(quotesData?.quotes).find(q => q.jobId === activeRevision.legacyJobId)
+    if (!hit) return null
+    return toQuoteCard(hit, activeRevision.letter ? `Rev ${activeRevision.letter}` : "Revision")
+  }, [quotesData?.quotes, activeRevision])
+
+  const cat2Docs: Cat2Summary[] = useMemo(() => {
+    return asSafeArray(docsData?.documents)
+      .filter(d => /cat\s*ii|cat2|catii/i.test(`${d.originalFilename ?? ""} ${d.filename ?? ""}`))
+      .map(d => {
+        const name = `${d.originalFilename ?? ""} ${d.filename ?? ""}`
+        const letterMatch = name.match(/rev\s*([a-z0-9]+)/i)
+        const revisionLabel = d.revisionLetter
+          ? `Rev ${d.revisionLetter}`
+          : letterMatch?.[1]
+            ? `Rev ${letterMatch[1].toUpperCase()}`
+            : "Original"
+        return {
+          id: d.id,
+          label: d.originalFilename || d.filename || "CAT II Check Sheet",
+          createdAt: d.createdAt,
+          revisionLabel,
+        }
+      })
+      .sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt))
   }, [docsData?.documents])
+
+  const activeCat2Label =
+    currentWork.type === "revision"
+      ? (currentWork.revisionLabel ?? revLabel)
+      : "Original"
+
+  const activeCheck = useMemo(() => {
+    if (currentWork.type === "revision") {
+      const letter = (activeRevision?.letter ?? "").toUpperCase()
+      return cat2Docs.find(d =>
+        d.revisionLabel?.toUpperCase() === `REV ${letter}`
+        || d.revisionLabel?.toUpperCase() === letter,
+      ) ?? null
+    }
+    return cat2Docs.find(d => !d.revisionLabel || d.revisionLabel === "Original") ?? null
+  }, [cat2Docs, currentWork.type, activeRevision])
+
+  const previousCheck = useMemo(() => {
+    if (activeCheck) return null
+    return cat2Docs[0] ?? null
+  }, [activeCheck, cat2Docs])
 
   const canExportCat2 = useMemo(() => {
     if (workItemsModel && parentDash) {
       return asSafeArray(parentDash.workItems).some(w => w.status === "ISSUED")
     }
     return (
-      originalStatus === "ISSUED" ||
-      project.projectStatus === "ISSUED" ||
-      revisions.some(r => r.status === "ISSUED")
+      originalStatus === "ISSUED"
+      || project.projectStatus === "ISSUED"
+      || revisions.some(r => r.status === "ISSUED")
     )
   }, [workItemsModel, parentDash, originalStatus, project.projectStatus, revisions])
-
-  const cat2TargetLabel = useMemo(() => {
-    const issuedRev = [...revisions]
-      .filter(r => r.status === "ISSUED" && r.letter)
-      .sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt))[0]
-    if (issuedRev?.letter) return `Rev ${issuedRev.letter}`
-    if (currentWork.type === "revision" && currentWork.revisionLabel) {
-      return currentWork.revisionLabel
-    }
-    return "original design"
-  }, [revisions, currentWork])
 
   const refreshAll = async () => {
     if (workItemsModel) await mutateParent()
@@ -315,7 +443,7 @@ export function JobsInspector({
         toast(result.error, "error")
         return
       }
-      toast(`CAT II Check created for ${cat2TargetLabel}`, "success")
+      toast(`CAT II Check created for ${activeCat2Label}`, "success")
       await mutateDocs()
       onStatusChanged?.()
     } catch {
@@ -325,212 +453,316 @@ export function JobsInspector({
     }
   }
 
-  const handleUnlinkQuote = async () => {
-    if (!linkedQuote) return
-    setUnlinkBusy(true)
+  const handleCreateWorkItemRevision = async () => {
+    const reason = wiRevReason.trim()
+    if (reason.length < 3) {
+      toast("Enter a reason for the revision (at least 3 characters)", "error")
+      return
+    }
+    if (!wiRevDue.trim()) {
+      toast("Enter a target due date", "error")
+      return
+    }
+    let quoteValue: number | null = null
+    if (wiRevBillable) {
+      const parsed = parseFloat(wiRevCost)
+      if (wiRevCost.trim() && !Number.isNaN(parsed)) {
+        quoteValue = Math.round(parsed * 100) / 100
+      }
+    } else {
+      quoteValue = 0
+    }
+    setWiRevSaving(true)
     try {
-      const res = await fetch(`/api/quotes/${linkedQuote.id}/link-job`, {
-        method: "PATCH",
+      const res = await fetch(`/api/parent-jobs/${project.id}/work-items`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: null }),
+        body: JSON.stringify({
+          description: reason,
+          notes: reason,
+          billable: wiRevBillable,
+          quoteValue,
+          requiredByDate: wiRevDue,
+        }),
       })
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string }
-        toast(body.error ?? "Failed to remove quote link", "error")
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        toast(err.error ?? "Failed to create revision", "error")
         return
       }
-      toast("Quote unlinked", "success")
+      toast("Revision created", "success")
+      setWiRevOpen(false)
+      setWiRevReason("")
+      setWiRevBillable(true)
+      setWiRevCost("")
+      setWiRevDue(defaultRequiredByDate())
       await refreshAll()
     } catch {
       toast("Network error", "error")
     } finally {
-      setUnlinkBusy(false)
+      setWiRevSaving(false)
     }
   }
 
-  const attachJobStub = {
-    id: project.id,
-    drawingNumber,
-  } as Job
+  const attachJobStub = { id: project.id, drawingNumber } as Job
 
-  const actionBtn =
-    "inline-flex h-8 items-center gap-1.5 rounded border border-bd bg-sr px-2.5 text-xs font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-50"
+  const isDrawer = presentation === "drawer"
+  const primaryActionBtn = inspectorActionPrimaryClass
+  const secondaryActionBtn = inspectorActionSecondaryClass
+
+  const drawingDesigner =
+    activeRevision?.designer
+    || (currentWork.type === "original" ? (originalWorkItem?.designer || project.designer) : project.designer)
+    || ""
+
+  const lastCompleted = useMemo(() => {
+    const issued = revisions
+      .filter(r => r.status === "ISSUED")
+      .map(r => r.createdAt)
+      .filter(Boolean)
+    if (issued.length === 0) {
+      return originalWorkItem?.completedAt
+        ?? jobDetail?.dateCompleted
+        ?? null
+    }
+    return issued.sort((a, b) => timeValue(b) - timeValue(a))[0] ?? null
+  }, [revisions, originalWorkItem, jobDetail])
+
+  const lastCompletedLabel = useMemo(() => {
+    const issued = revisions
+      .filter(r => r.status === "ISSUED")
+      .slice()
+      .sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt))
+    const latest = issued[0]
+    if (!latest) {
+      if (originalWorkItem?.completedAt || jobDetail?.dateCompleted) return "Original"
+      return null
+    }
+    return latest.letter ? `Rev ${latest.letter}` : "Original"
+  }, [revisions, originalWorkItem, jobDetail])
+
+  const primaryQuote = revisionQuote ?? originalQuote
+
+  const openQuoteAction = () => {
+    if (primaryQuote) {
+      router.push(`/quotes?search=${encodeURIComponent(primaryQuote.quoteNumber)}`)
+      return
+    }
+    setAttachQuoteOpen(true)
+  }
+
+  const summaryDue = getRevisionDueInfo(
+    activeRevision?.requiredByDate ?? currentWork.dueDate ?? project.requiredByDate,
+    { completed: currentWork.type === "none" || currentWork.status === "ISSUED" },
+  )
+  const summaryRevision =
+    currentWork.type === "revision"
+      ? (currentWork.revisionLabel ?? revLabel)
+      : currentWork.type === "original"
+        ? "Original"
+        : "Complete"
+
+  const statusChips = currentWork.type === "revision" ? (
+    <>
+      <StatusChip status={currentWork.status} tone="primary" />
+      <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
+    </>
+  ) : currentWork.type === "original" ? (
+    <StatusChip status={currentWork.status} tone="primary" />
+  ) : (
+    <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
+  )
+
+  const summaryStrip = (
+    <RevisionSummaryStrip
+      revision={summaryRevision}
+      designer={drawingDesigner}
+      duePrimary={formatRevisionDueCompact(summaryDue)}
+      dueSeverity={summaryDue.severity}
+    />
+  )
+
+  const openAddRevision = () => {
+    if (workItemsModel) {
+      if (parentDash?.canAddRevision === false) {
+        toast("Cannot add a revision until the current work is complete", "error")
+        return
+      }
+      setWiRevDue(defaultRequiredByDate())
+      setWiRevCost("")
+      setWiRevOpen(true)
+      return
+    }
+    setAddRevOpen(true)
+  }
 
   return (
     <aside
-      className="jobs-inspector flex h-full min-h-0 w-full flex-col bg-sr"
+      className="jobs-inspector flex h-full min-h-0 w-full flex-col bg-transparent"
       aria-label={`Inspector for ${drawingNumber}`}
     >
-      <div className="shrink-0 border-b border-bd px-4 pt-3 pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="truncate text-xl font-bold tracking-tight text-t1">
-              {drawingNumber}
-            </h3>
-            <p className="mt-0.5 truncate text-sm">
-              <span className="font-medium text-t1">{client}</span>
-              <span className="text-t4"> · </span>
-              <span className="text-t3">{site}</span>
-            </p>
-            <p className="mt-1 truncate text-xs text-t3">
-              Original {shortStatusLabel(originalStatus)}
-              {currentWork.type === "revision" ? (
-                <>
-                  {" · "}
-                  <span className="font-medium text-t2">
-                    {currentWork.revisionLabel ?? revLabel}
-                  </span>
-                  {" — "}
-                  {shortStatusLabel(currentWork.status)}
-                </>
-              ) : currentWork.type === "original" ? (
-                <> · Active original</>
-              ) : (
-                <> · Complete</>
-              )}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            className={cn(actionBtn, "border-transparent bg-ac text-on-ac hover:bg-ach")}
-            onClick={() => {
-              if (workItemsModel) {
-                onOpenWorkspace()
-                return
+      <InspectorHeader
+        drawingNumber={drawingNumber}
+        revisionBadge={
+          currentWork.type === "revision"
+            ? (currentWork.revisionLabel ?? revLabel)
+            : null
+        }
+        client={client}
+        site={site}
+        statusChips={statusChips}
+        summaryStrip={summaryStrip}
+        dense={isDrawer}
+        leadingSlot={
+          isDrawer && onCollapse ? (
+            <button
+              type="button"
+              onClick={onCollapse}
+              aria-label="Back to Jobs"
+              title="Back to Jobs"
+              className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-bd text-t2 transition-colors hover:bg-surface-low hover:text-t1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2"
+            >
+              <ChevronLeft className="h-5 w-5" aria-hidden />
+            </button>
+          ) : null
+        }
+        collapseSlot={
+          !isDrawer && onCollapse ? (
+            <JobsInspectorCollapseButton
+              onCollapse={onCollapse}
+              variant={collapseVariant}
+            />
+          ) : null
+        }
+      >
+        {isDrawer ? (
+          <ActionToolbar className="gap-2" columns={3}>
+            <button
+              type="button"
+              className={cn(primaryActionBtn, "h-10 min-h-10")}
+              onClick={openAddRevision}
+              disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
+            >
+              <Plus className="h-4 w-4 shrink-0" />
+              <span className="truncate">Add Revision</span>
+            </button>
+            <button
+              type="button"
+              className={cn(primaryActionBtn, "h-10 min-h-10")}
+              onClick={openQuoteAction}
+            >
+              <Link2 className="h-4 w-4 shrink-0" />
+              <span className="truncate">{primaryQuote ? "View Quote" : "Attach Quote"}</span>
+            </button>
+            <button
+              type="button"
+              className={cn(secondaryActionBtn, "h-10 min-h-10")}
+              onClick={() => void handleCat2()}
+              disabled={cat2Busy || !canExportCat2}
+              title={
+                canExportCat2
+                  ? `Create CATII Check for ${activeCat2Label}`
+                  : "CATII Check is available when original or a revision is complete"
               }
-              setAddRevOpen(true)
-            }}
-            disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add Revision
-          </button>
-          <button
-            type="button"
-            className={actionBtn}
-            onClick={() => void handleCat2()}
-            disabled={cat2Busy || !canExportCat2}
-            title={
-              canExportCat2
-                ? `Create CATII Check for ${cat2TargetLabel}`
-                : "CATII Check is available when original or a revision is complete"
-            }
-          >
-            <ShieldCheck className="h-3.5 w-3.5" />
-            {cat2Busy ? "Creating…" : "CATII Check"}
-          </button>
-          <button
-            type="button"
-            className={actionBtn}
-            onClick={() => setAttachQuoteOpen(true)}
-          >
-            <Link2 className="h-3.5 w-3.5" />
-            Attach Quote
-          </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className={actionBtn}>
-                More
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={onOpenWorkspace}>
-                Open Full Project
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => {
-                  window.location.href = `/quotes?new=1&jobId=${encodeURIComponent(project.id)}`
-                }}
-              >
-                Create New Quote
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => router.push(`/jobs/${project.id}`)}
-              >
-                Generate Invoice
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+            >
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              <span className="truncate">{cat2Busy ? "Creating…" : "CATII Check"}</span>
+            </button>
+          </ActionToolbar>
+        ) : (
+          <ActionToolbar>
+            <button
+              type="button"
+              className={primaryActionBtn}
+              onClick={openAddRevision}
+              disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
+            >
+              <Plus className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Add Revision</span>
+            </button>
+            <button
+              type="button"
+              className={primaryActionBtn}
+              onClick={openQuoteAction}
+            >
+              <Link2 className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{primaryQuote ? "View Quote" : "Attach Quote"}</span>
+            </button>
+            <button
+              type="button"
+              className={secondaryActionBtn}
+              onClick={() => void handleCat2()}
+              disabled={cat2Busy || !canExportCat2}
+              title={
+                canExportCat2
+                  ? `Create CATII Check for ${activeCat2Label}`
+                  : "CATII Check is available when original or a revision is complete"
+              }
+            >
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{cat2Busy ? "Creating…" : "CATII Check"}</span>
+            </button>
+          </ActionToolbar>
+        )}
+      </InspectorHeader>
 
-      <div key={project.id} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div
+        key={project.id}
+        className={cn(
+          "min-h-0 flex-1 space-y-5 overflow-y-auto px-7 py-5",
+          isDrawer && "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+        )}
+      >
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-24 skeleton rounded-lg" />
+              <div key={i} className="h-20 skeleton rounded-lg" />
             ))}
           </div>
         ) : (
           <>
-            <CurrentWorkSummary
+            <CurrentRevisionSection
               currentWork={currentWork}
               revLabel={revLabel}
-              designer={currentRev?.designer || project.designer}
+              designer={drawingDesigner}
               designers={designers}
-              dueDate={project.requiredByDate}
+              lastCompleted={lastCompleted}
+              lastCompletedLabel={lastCompletedLabel}
+              descriptionOfWorks={descriptionOfWorks}
+              revisionReason={activeRevision?.reason ?? null}
+              revisionDate={
+                activeRevision?.createdAt
+                ?? originalWorkItem?.dateCreated
+                ?? jobDetail?.dateCreated
+                ?? parent?.createdAt
+                ?? null
+              }
+              requiredByDate={
+                activeRevision?.requiredByDate
+                ?? currentWork.dueDate
+                ?? null
+              }
               patchUrl={currentWorkPatchUrl}
               onChanged={() => { void refreshAll() }}
             />
 
-            <WorksDescriptionCard
-              isRevision={currentWork.type === "revision"}
-              description={
-                currentWork.type === "revision"
-                  ? (currentRev?.reason ?? null)
-                  : (
-                      parent?.typeOfWorks
-                      ?? jobDetail?.typeOfWorks
-                      ?? project.typeOfWorks
-                      ?? jobDetail?.notes
-                      ?? null
-                    )
-              }
-            />
+            <ProjectDetailsSection data={projectDetails} jobKey={project.id} />
 
-            <LinkedQuotationSummary
-              quote={linkedQuote}
-              unlinkBusy={unlinkBusy}
-              onAttach={() => setAttachQuoteOpen(true)}
-              onOpen={() => {
-                if (!linkedQuote) return
-                router.push(`/quotes?search=${encodeURIComponent(linkedQuote.quoteNumber)}`)
-              }}
-              onChange={() => setAttachQuoteOpen(true)}
-              onUnlink={() => { void handleUnlinkQuote() }}
-            />
-
-            <CATIICheckSummary
-              doc={cat2Doc}
+            <CATIISummary
+              activeLabel={activeCat2Label}
+              activeCheck={activeCheck}
+              previousCheck={previousCheck}
               busy={cat2Busy}
               canCreate={canExportCat2}
-              targetLabel={cat2TargetLabel}
               onCreate={() => { void handleCat2() }}
-              onOpen={() => {
-                if (!cat2Doc) return
-                window.open(`/api/jobs/${project.id}/documents/${cat2Doc.id}/preview`, "_blank")
+              onOpen={id => {
+                window.open(`/api/jobs/${project.id}/documents/${id}/preview`, "_blank")
               }}
             />
 
-            <RevisionHistory revisions={revisions} />
+            <RevisionTimeline revisions={revisions} jobKey={project.id} />
           </>
         )}
-      </div>
-
-      <div className="shrink-0 border-t border-bd px-4 py-2">
-        <button
-          type="button"
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded px-2 py-1.5 text-xs font-medium text-t3 transition-colors hover:bg-surface-low hover:text-t1"
-          onClick={onOpenWorkspace}
-        >
-          Open Full Project
-          <ArrowRight className="h-3.5 w-3.5" />
-        </button>
       </div>
 
       <Suspense fallback={null}>
@@ -565,290 +797,81 @@ export function JobsInspector({
           />
         )}
       </Suspense>
-    </aside>
-  )
-}
 
-function CurrentWorkSummary({
-  currentWork,
-  revLabel,
-  designer,
-  designers,
-  dueDate,
-  patchUrl,
-  onChanged,
-}: {
-  currentWork: ReturnType<typeof getCurrentWorkItem>
-  revLabel: string
-  designer: string
-  designers: string[]
-  dueDate: string | null
-  patchUrl?: string
-  onChanged: () => void
-}) {
-  const active = currentWork.type !== "none" && Boolean(currentWork.id)
-  const label =
-    currentWork.type === "revision"
-      ? (currentWork.revisionLabel ?? revLabel)
-      : currentWork.type === "original"
-        ? "Original"
-        : "Complete"
-  const due = dueLabel(dueDate)
-  const overdue = due.startsWith("Overdue")
 
-  return (
-    <section className={inspectorCard}>
-      <h4 className={inspectorHeading}>Current Work</h4>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-bd pb-3">
-        <span className="text-sm font-semibold text-t1">{label}</span>
-        {active ? (
-          <WorkItemStatusSelector
-            workItemType={currentWork.type === "revision" ? "revision" : "original"}
-            workItemId={currentWork.id!}
-            currentStatus={currentWork.status}
-            revisionLabel={currentWork.type === "revision" ? currentWork.revisionLabel : null}
-            patchUrl={patchUrl}
-            size="md"
-            onStatusChanged={onChanged}
-          />
-        ) : (
-          <span className="inline-flex items-center rounded-md border border-ok-bd bg-ok-bg px-2 py-0.5 text-xs font-medium text-ok-tx">
-            Complete
-          </span>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-        <div>
-          <p className={inspectorLabel}>Designer</p>
-          {active ? (
-            <DesignerAssignmentSelector
-              workItemType={currentWork.type === "revision" ? "revision" : "original"}
-              workItemId={currentWork.id!}
-              currentDesigner={designer}
-              revisionLabel={currentWork.type === "revision" ? currentWork.revisionLabel : null}
-              designers={designers}
-              patchUrl={patchUrl}
-              compact
-              onDesignerChanged={onChanged}
-            />
-          ) : (
-            <p className={inspectorMuted}>{missingLabel(designer, "Unassigned")}</p>
-          )}
-        </div>
-        <div>
-          <p className={inspectorLabel}>Checker</p>
-          <p className={inspectorMuted}>Not assigned</p>
-        </div>
-        <div>
-          <p className={inspectorLabel}>Due</p>
-          <p className={cn(inspectorValue, overdue && "text-dn")}>
-            {due}
-            {overdue && (
-              <span className="ml-1.5 inline-flex rounded border border-dn-bd bg-dn-bg px-1.5 py-0.5 text-[10px] font-medium text-dn-tx">
-                Overdue
-              </span>
-            )}
-          </p>
-        </div>
-        <div>
-          <p className={inspectorLabel}>Next action</p>
-          <p className={inspectorValue}>
-            {active
-              ? deriveNextAction(currentWork.status, dueDate)
-              : "No active work"}
-          </p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function WorksDescriptionCard({
-  isRevision,
-  description,
-}: {
-  isRevision: boolean
-  description: string | null
-}) {
-  const text = description?.trim()
-  return (
-    <section className={inspectorCard}>
-      <h4 className={inspectorHeading}>
-        {isRevision ? "Reason for Revision" : "Description of Works"}
-      </h4>
-      <p className={cn("whitespace-pre-wrap", text ? inspectorValue : inspectorMuted)}>
-        {text || (isRevision ? "No reason recorded" : "No description recorded")}
-      </p>
-    </section>
-  )
-}
-
-function LinkedQuotationSummary({
-  quote,
-  unlinkBusy,
-  onAttach,
-  onOpen,
-  onChange,
-  onUnlink,
-}: {
-  quote: LinkedQuoteSummary | null
-  unlinkBusy: boolean
-  onAttach: () => void
-  onOpen: () => void
-  onChange: () => void
-  onUnlink: () => void
-}) {
-  return (
-    <section className={inspectorCard}>
-      <h4 className={inspectorHeading}>Quotation</h4>
-      {quote ? (
-        <div className="space-y-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-t1">{quote.quoteNumber}</p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-t2">
-              <span>{formatGBP(quote.quoteValue)}</span>
-              <span className="text-t4">·</span>
-              <QuoteStatusBadge status={quote.status} />
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3 border-t border-bd pt-2">
-            <button type="button" className="text-xs font-medium text-ac2 hover:underline" onClick={onOpen}>
-              Open Quote
-            </button>
-            <button type="button" className="text-xs font-medium text-t2 hover:underline" onClick={onChange}>
-              Change
-            </button>
-            <button
-              type="button"
-              className="text-xs font-medium text-t3 hover:underline disabled:opacity-50"
-              onClick={onUnlink}
-              disabled={unlinkBusy}
-            >
-              {unlinkBusy ? "Removing…" : "Remove Link"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between gap-2">
-          <p className={inspectorMuted}>No quotation attached</p>
-          <button type="button" className={inspectorAction} onClick={onAttach}>
-            Attach Quote
-          </button>
-        </div>
-      )}
-    </section>
-  )
-}
-
-function CATIICheckSummary({
-  doc,
-  busy,
-  canCreate,
-  targetLabel,
-  onCreate,
-  onOpen,
-}: {
-  doc: { id: string; filename: string; originalFilename?: string | null; createdAt: string } | null
-  busy: boolean
-  canCreate: boolean
-  targetLabel: string
-  onCreate: () => void
-  onOpen: () => void
-}) {
-  const label = doc?.originalFilename || doc?.filename || "CAT II Check Sheet"
-  return (
-    <section className={inspectorCard}>
-      <h4 className={inspectorHeading}>CATII Check</h4>
-      {doc ? (
-        <div className="space-y-2">
-          <p className="truncate text-sm font-semibold text-t1">{label}</p>
-          <p className="text-xs text-t3">
-            Created {safeDateLabel(doc.createdAt)} · {targetLabel}
-          </p>
-          <div className="border-t border-bd pt-2">
-            <button type="button" className="text-xs font-medium text-ac2 hover:underline" onClick={onOpen}>
-              Open Check
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between gap-2">
-          <p className={inspectorMuted}>No check created</p>
-          <button
-            type="button"
-            className={inspectorAction}
-            onClick={onCreate}
-            disabled={busy || !canCreate}
-            title={
-              canCreate
-                ? `Create CATII Check for ${targetLabel}`
-                : "Available when work is complete"
-            }
-          >
-            {busy ? "Creating…" : "Create CATII Check"}
-          </button>
-        </div>
-      )}
-    </section>
-  )
-}
-
-function RevisionHistory({ revisions }: { revisions: CompactRevision[] }) {
-  return (
-    <section>
-      <h4 className={inspectorHeading}>Revision History</h4>
-      {revisions.length === 0 ? (
-        <div className={inspectorCard}>
-          <p className={inspectorMuted}>Original design only</p>
-        </div>
-      ) : (
-        <ul className="space-y-2">
-          {revisions.map(rev => {
-            const title = rev.letter ? `Rev ${rev.letter}` : "Original"
-            const complete = rev.status === "ISSUED"
-            return (
-              <li
-                key={rev.id}
-                className={cn(
-                  inspectorCard,
-                  "p-3",
-                  rev.isCurrent && "border-l-[3px] border-l-ac2",
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="text-sm font-semibold text-t1">{title}</p>
-                      {rev.isCurrent && (
-                        <span className="inline-flex rounded border border-ac2/30 bg-ac2-bg px-1.5 py-0.5 text-[10px] font-medium text-ac2">
-                          Active
-                        </span>
-                      )}
-                      {complete && !rev.isCurrent && (
-                        <span className="inline-flex rounded border border-ok-bd bg-ok-bg px-1.5 py-0.5 text-[10px] font-medium text-ok-tx">
-                          Complete
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-xs text-t3">
-                      {shortStatusLabel(rev.status)}
-                      {" · "}
-                      {missingLabel(rev.designer, "Unassigned")}
-                    </p>
-                    <p className="mt-0.5 text-xs text-t3">{safeDateLabel(rev.createdAt)}</p>
-                    {rev.reason?.trim() && (
-                      <p className="mt-1 truncate text-xs text-t2">{rev.reason.trim()}</p>
-                    )}
+      <Dialog open={wiRevOpen} onOpenChange={open => { if (!open && !wiRevSaving) setWiRevOpen(false) }}>
+        <DialogContent size="md">
+          <DialogHeader>
+            <DialogTitle>Add Revision</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-t3" htmlFor="wi-rev-reason">
+                  Amendment Reason
+                </label>
+                <textarea
+                  id="wi-rev-reason"
+                  className="min-h-[96px] w-full rounded border border-bd bg-sr px-3 py-2 text-sm text-t1"
+                  value={wiRevReason}
+                  onChange={e => setWiRevReason(e.target.value)}
+                  placeholder="Explain what needs to change…"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-t2">
+                <input
+                  type="checkbox"
+                  checked={wiRevBillable}
+                  onChange={e => setWiRevBillable(e.target.checked)}
+                />
+                Billable?
+              </label>
+              {wiRevBillable ? (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-t3" htmlFor="wi-rev-cost">
+                    Revision Cost
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-t3">£</span>
+                    <input
+                      id="wi-rev-cost"
+                      className="w-full rounded border border-bd bg-sr py-2 pl-7 pr-3 text-sm text-t1"
+                      value={wiRevCost}
+                      onChange={e => setWiRevCost(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0.00"
+                    />
                   </div>
-                  <span className="shrink-0 rounded border border-bd bg-surface-low px-1.5 py-0.5 text-[10px] font-medium text-t3">
-                    {rev.billable ? "Chargeable" : "Free"}
-                  </span>
                 </div>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </section>
+              ) : null}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-t3" htmlFor="wi-rev-due">
+                  Target Due Date
+                </label>
+                <input
+                  id="wi-rev-due"
+                  type="date"
+                  className="w-full rounded border border-bd bg-sr px-3 py-2 text-sm text-t1"
+                  value={wiRevDue}
+                  onChange={e => setWiRevDue(e.target.value)}
+                />
+              </div>
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" variant="secondary" disabled={wiRevSaving} onClick={() => setWiRevOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              loading={wiRevSaving}
+              onClick={() => { void handleCreateWorkItemRevision() }}
+            >
+              Create Revision
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </aside>
   )
 }

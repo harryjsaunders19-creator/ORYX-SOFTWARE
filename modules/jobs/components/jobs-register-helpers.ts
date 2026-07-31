@@ -69,9 +69,9 @@ export function shortStatusLabel(status: string | null | undefined): string {
 }
 
 export function revisionBadgeLabel(letter: string | null | undefined): string {
-  if (typeof letter !== "string" || !letter.trim()) return "Rev 0"
+  if (typeof letter !== "string" || !letter.trim()) return "REV 0"
   const normalized = letter.trim().toUpperCase()
-  return normalized.startsWith("REV") ? normalized : `Rev ${normalized}`
+  return normalized.startsWith("REV") ? normalized : `REV ${normalized}`
 }
 
 /** Map classic job list row (original) → register project. */
@@ -104,6 +104,7 @@ export function jobToRegisterProject(job: Job): JobsRegisterProject {
     kind: "job",
     drawingNumber: job.drawingNumber ?? "—",
     clientCompany: job.clientCompany ?? "",
+    siteId: null,
     siteName: job.siteName,
     address: job.address ?? "",
     currentRevisionLetter:
@@ -128,7 +129,7 @@ export function jobToRegisterProject(job: Job): JobsRegisterProject {
     currentWorkType: current.type,
     currentWorkLabel: current.revisionLabel ?? "COMPLETE",
     currentWorkDetail:
-      current.type === "none" ? "Complete" : current.displayLabel,
+      current.type === "none" ? "No Active Work" : current.displayLabel,
     currentQuote: job.currentQuote
       ? {
           id: job.currentQuote.id,
@@ -165,6 +166,7 @@ export function workItemToRegisterProject(row: MixedWorkloadRow): JobsRegisterPr
     kind: row.kind,
     drawingNumber: row.drawingNumber ?? "—",
     clientCompany: row.clientCompany ?? "",
+    siteId: null,
     siteName: row.siteName,
     address: row.address ?? "",
     currentRevisionLetter: row.revisionLetter,
@@ -184,7 +186,7 @@ export function workItemToRegisterProject(row: MixedWorkloadRow): JobsRegisterPr
     projectStatus: isRevision ? "ISSUED" : status,
     currentWorkType,
     currentWorkLabel: label,
-    currentWorkDetail: complete ? "Complete" : shortStatusLabel(status),
+    currentWorkDetail: complete ? "No Active Work" : shortStatusLabel(status),
     currentQuote: null,
   }
 }
@@ -226,7 +228,7 @@ export function siteDisplay(
 
 /**
  * Secondary line under the drawing number — useful project context
- * (never redundant "Closed" when Current Work already says COMPLETE).
+ * (never redundant "Closed" when Drawing Status already says Complete).
  */
 export function drawingNumberContext(project: {
   currentRevisionLetter: string | null
@@ -259,6 +261,88 @@ export function drawingNumberContext(project: {
   if (works) return works
   if (project.currentWorkType === "original") return "Original only"
   return "Original design"
+}
+
+/**
+ * Quiet REV / Original pill for the register Drawing column.
+ * Returns null when there is nothing useful to show beside the ID.
+ */
+export function registerRevisionBadge(project: {
+  currentRevisionLetter: string | null
+  currentWorkType: CurrentWorkType | string
+  currentWorkLabel?: string | null
+}): string | null {
+  if (project.currentWorkType === "revision") {
+    const fromLabel = project.currentWorkLabel?.trim()
+    if (fromLabel && /^REV\b/i.test(fromLabel)) {
+      return fromLabel.toUpperCase().startsWith("REV")
+        ? fromLabel.toUpperCase()
+        : revisionBadgeLabel(fromLabel)
+    }
+    return revisionBadgeLabel(project.currentRevisionLetter)
+  }
+  if (project.currentWorkType === "original") return "Original"
+  return null
+}
+
+/**
+ * Work-type subtitle under the drawing number in the register.
+ * e.g. REV A · Original · Complete
+ */
+export function registerWorkTypeLabel(project: {
+  currentWorkType: CurrentWorkType | string
+  currentWorkLabel?: string | null
+  currentRevisionLetter?: string | null
+}): string {
+  if (project.currentWorkType === "revision") {
+    const fromLabel = project.currentWorkLabel?.trim()
+    if (fromLabel) {
+      return fromLabel.toUpperCase().startsWith("REV")
+        ? fromLabel.toUpperCase()
+        : revisionBadgeLabel(fromLabel)
+    }
+    return revisionBadgeLabel(project.currentRevisionLetter ?? null)
+  }
+  if (project.currentWorkType === "original") return "Original"
+  return "Complete"
+}
+
+/**
+ * Secondary context under Drawing ID when REV is shown as a side badge
+ * (avoids repeating "REV A" on the line below).
+ */
+export function drawingSecondaryContext(project: {
+  currentWorkType: CurrentWorkType | string
+  revisionCount: number
+  dateCompleted?: string | null
+  typeOfWorks?: string | null
+  currentWorkDetail?: string | null
+}): string | null {
+  const works = project.typeOfWorks?.trim()
+  if (works) return works
+  if (project.currentWorkType === "none") {
+    return project.currentWorkDetail?.trim() || "Complete"
+  }
+  if (project.currentWorkType === "original") {
+    if (project.revisionCount > 0) {
+      return project.revisionCount === 1
+        ? "1 prior revision"
+        : `${project.revisionCount} prior revisions`
+    }
+    return "Original design"
+  }
+  const completed = project.dateCompleted?.trim()
+  if (completed) {
+    const d = new Date(completed)
+    if (!Number.isNaN(d.getTime())) {
+      return `Completed ${d.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })}`
+    }
+  }
+  return null
 }
 
 /** Prefer a readable empty-state label over a bare em dash. */
