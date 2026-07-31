@@ -91,8 +91,8 @@ function Meta({
   if (!trimmed && !important) return null
   return (
     <div>
-      <p className={cn(fieldLabel, "mb-1")}>{label}</p>
-      <p className={cn(trimmed ? fieldValue : fieldMuted, "whitespace-pre-wrap")}>
+      <p className={cn(fieldLabel, "mb-1 text-t4")}>{label}</p>
+      <p className={cn(trimmed ? "text-sm text-t2" : fieldMuted, "whitespace-pre-wrap")}>
         {trimmed || "—"}
       </p>
     </div>
@@ -586,10 +586,10 @@ export function ProjectDetailsSection({
 
   return (
     <section aria-label="Job Summary">
-      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-t3">
+      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-t4">
         Job Summary
       </h3>
-      <div className="space-y-4">
+      <div className="space-y-4 rounded-2xl border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
         <Meta label="Client" value={data.client} />
         <Meta label="Site" value={data.siteName} />
         <Meta label="Address" value={data.siteAddress} />
@@ -599,7 +599,7 @@ export function ProjectDetailsSection({
         <Meta label="Design Due" value={safeDateLabel(data.designDue) || null} />
         {isManagedSite && data.otherJobsAtSiteCount > 0 && (
           <div>
-            <p className={cn(fieldLabel, "mb-1")}>Other Jobs At This Location</p>
+            <p className={cn(fieldLabel, "mb-1 text-t4")}>Other Jobs At This Location</p>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold text-t1">
                 {data.otherJobsAtSiteCount} Job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
@@ -608,7 +608,7 @@ export function ProjectDetailsSection({
                 <button
                   type="button"
                   onClick={data.onViewSiteJobs}
-                  className="text-xs font-medium text-t1 underline-offset-2 hover:underline"
+                  className="text-xs font-medium text-t2 underline-offset-2 hover:underline"
                 >
                   View Jobs
                 </button>
@@ -655,34 +655,36 @@ export function CATIISummary({
 
   return (
     <section aria-label="Linked Records">
-      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-t3">
+      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-t4">
         Linked Records
       </h3>
       {activeCheck ? (
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
-            <p className="mt-0.5 text-sm text-t3">
-              {activeCheck.revisionLabel ?? activeLabel}
-              {" · On file"}
-            </p>
+        <div className="rounded-2xl border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
+              <p className="mt-0.5 text-sm text-t3">
+                {activeCheck.revisionLabel ?? activeLabel}
+                {" · On file"}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="shrink-0 text-xs font-medium text-t2 underline-offset-2 hover:underline"
+              onClick={() => onOpen(activeCheck.id)}
+            >
+              Open Check
+            </button>
           </div>
-          <button
-            type="button"
-            className="shrink-0 text-xs font-medium text-t1 underline-offset-2 hover:underline"
-            onClick={() => onOpen(activeCheck.id)}
-          >
-            Open Check
-          </button>
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 rounded-2xl border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
           <div className="flex items-center justify-between gap-3">
             <p className={fieldMuted}>No CATII check for {activeLabel}</p>
             {canCreate && (
               <button
                 type="button"
-                className="text-xs font-medium text-t1 underline-offset-2 hover:underline disabled:opacity-50"
+                className="text-xs font-medium text-t2 underline-offset-2 hover:underline disabled:opacity-50"
                 onClick={onCreate}
                 disabled={busy}
               >
@@ -697,7 +699,7 @@ export function CATIISummary({
               {" · "}
               <button
                 type="button"
-                className="font-medium text-t1 underline-offset-2 hover:underline"
+                className="font-medium text-t2 underline-offset-2 hover:underline"
                 onClick={() => onOpen(previousCheck.id)}
               >
                 Open
@@ -760,18 +762,18 @@ export function RevisionTimeline({
 
   return (
     <section aria-label="Revision History">
-      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-t3">
+      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-t4">
         Revision History
       </h3>
 
       {revisions.length === 0 || !current ? (
-        <div className="space-y-5">
+        <div className="space-y-5 rounded-2xl border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
           <p className={fieldMuted}>Original drawing only</p>
           {children}
         </div>
       ) : (
         <div className="space-y-5">
-          <div className="space-y-4">
+          <div className="space-y-4 rounded-2xl border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
             <button
               type="button"
               className={cn(
@@ -784,15 +786,15 @@ export function RevisionTimeline({
                 <span className="text-sm font-bold text-t1">
                   {revisionTitle(current, true)}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-t3 tabular-nums">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-t4 tabular-nums">
                   {safeDateLabel(current.createdAt) || "—"}
                 </span>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-t3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-t4">
                   {current.letter ? "Reason for Revision" : "Description"}
                 </p>
-                <p className="text-sm leading-snug text-t1">
+                <p className="text-sm leading-snug text-t2">
                   {current.reason?.trim()
                     || (current.letter
                       ? "No amendment instructions have been entered."
@@ -801,17 +803,17 @@ export function RevisionTimeline({
               </div>
             </button>
             {children ? (
-              <div className="border-t border-[#E5E7EB] pt-4">
+              <div className="border-t border-jobs-panel-divider pt-4">
                 {children}
               </div>
             ) : null}
           </div>
 
           {priors.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-3 px-1">
               {priors.map((rev) => (
                 <div key={rev.id}>
-                  <div className="mb-3 h-px bg-[#E5E7EB]" aria-hidden />
+                  <div className="mb-3 h-px bg-jobs-panel-divider" aria-hidden />
                   <button
                     type="button"
                     className={cn(
@@ -821,10 +823,10 @@ export function RevisionTimeline({
                     onClick={() => onSelectRevision?.(rev)}
                   >
                     <div className="mb-1 flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium text-t1">
+                      <span className="text-sm font-medium text-t2">
                         {revisionTitle(rev)}
                       </span>
-                      <span className="text-[10px] uppercase tracking-wide text-t3 tabular-nums">
+                      <span className="text-[10px] uppercase tracking-wide text-t4 tabular-nums">
                         {safeDateLabel(rev.createdAt) || "—"}
                       </span>
                     </div>

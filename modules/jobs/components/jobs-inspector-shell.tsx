@@ -5,8 +5,8 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { cn } from "@/shared/utils/utils"
 
 /**
- * Floating Job Detail workspace — white elevated panel (not Surface-2 grey chrome).
- * Separated from the Job List by parent gap; feels like Linear/Notion detail panes.
+ * Floating Job Detail workspace — theme-aware elevated panel.
+ * Light: white on white. Dark: #181C22 on #0F1115 (not a bright inverted card).
  */
 export function JobsInspectorShell({
   children,
@@ -20,13 +20,13 @@ export function JobsInspectorShell({
       aria-label="Job details"
       className={cn(
         "jobs-detail-panel flex min-h-0 w-[480px] shrink-0 flex-col overflow-hidden",
-        "rounded-[18px] border border-[#E5E7EB] bg-white",
-        "shadow-[0_4px_18px_rgba(0,0,0,0.06)]",
+        "rounded-[18px] border border-jobs-panel-bd bg-jobs-panel",
+        "shadow-jobs-panel",
         "motion-safe:animate-[jobs-panel-in_180ms_ease-out]",
         className,
       )}
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-jobs-panel">
         {children}
       </div>
     </section>
@@ -47,9 +47,9 @@ export function JobsInspectorReopenHandle({
         title="Show job details"
         aria-label="Show job details"
         className={cn(
-          "flex w-7 flex-col items-center justify-center rounded-[10px] border border-[#E5E7EB] bg-white text-t3",
-          "shadow-[0_2px_8px_rgba(0,0,0,0.04)]",
-          "transition-colors duration-150 hover:bg-neutral-50 hover:text-t1",
+          "flex w-7 flex-col items-center justify-center rounded-[10px] border border-jobs-panel-bd bg-jobs-panel text-t3",
+          "shadow-jobs-panel",
+          "transition-colors duration-150 hover:bg-jobs-panel-hover hover:text-t1",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac",
         )}
       >
@@ -74,7 +74,7 @@ export function JobsInspectorCollapseButton({
       title="Collapse job details"
       className={cn(
         "rounded-lg p-1.5 text-t3 transition-colors duration-150",
-        "hover:bg-neutral-50 hover:text-t1",
+        "hover:bg-jobs-panel-hover hover:text-t1",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac",
       )}
     >

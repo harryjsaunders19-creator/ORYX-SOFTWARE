@@ -370,13 +370,13 @@ export function JobsRegister({
       {/* ── Desktop layout — floating Job Detail workspace ───────── */}
       <div
         className={cn(
-          "hidden md:flex min-h-0 flex-1 overflow-hidden bg-white",
+          "hidden md:flex min-h-0 flex-1 overflow-hidden bg-s0",
           inspectorVisible ? "gap-6 py-5 pr-6" : "",
         )}
       >
         <section
           className={cn(
-            "flex min-h-0 flex-col overflow-hidden bg-white",
+            "flex min-h-0 flex-col overflow-hidden bg-s0",
             inspectorVisible ? "min-w-0 flex-1" : "w-full",
           )}
         >
@@ -670,7 +670,7 @@ export function JobsRegister({
       {/* Mobile full-screen job details — single scroll owner for content */}
       {showMobileInspector && selected && (
         <div
-          className="mobile-job-detail fixed inset-0 z-50 flex h-screen max-h-screen flex-col overflow-hidden bg-s2 md:hidden"
+          className="mobile-job-detail fixed inset-0 z-50 flex h-screen max-h-screen flex-col overflow-hidden bg-jobs-panel md:hidden"
           role="dialog"
           aria-modal="true"
           aria-label={`Project details for ${selected.drawingNumber}`}

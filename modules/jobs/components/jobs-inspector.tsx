@@ -619,12 +619,12 @@ export function JobsInspector({
   return (
     <aside
       className={cn(
-        "jobs-inspector flex min-h-0 w-full flex-col bg-white",
+        "jobs-inspector flex min-h-0 w-full flex-col bg-jobs-panel",
         isDrawer ? "mobile-job-detail__body h-auto min-h-0 flex-1" : "h-full",
       )}
       aria-label={`Inspector for ${drawingNumber}`}
     >
-      <div className={cn("shrink-0", isDrawer ? "mobile-job-detail__header border-b border-[#E5E7EB]" : "")}>
+      <div className={cn("shrink-0", isDrawer ? "mobile-job-detail__header border-b border-jobs-panel-bd" : "")}>
         <div
           className={cn(
             "flex items-start justify-between gap-3",
@@ -638,7 +638,7 @@ export function JobsInspector({
                 onClick={onCollapse}
                 aria-label="Back to Jobs"
                 title="Back to Jobs"
-                className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[#E5E7EB] text-t2 transition-colors duration-150 hover:bg-neutral-50 hover:text-t1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2"
+                className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-jobs-panel-bd text-t2 transition-colors duration-150 hover:bg-jobs-panel-hover hover:text-t1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2"
               >
                 <ChevronLeft className="h-5 w-5" aria-hidden />
               </button>
@@ -651,13 +651,13 @@ export function JobsInspector({
                 <span className="font-semibold text-t2 tabular-nums">
                   {summaryRevision}
                 </span>
-                <span className="text-[#E5E7EB]" aria-hidden>·</span>
+                <span className="text-jobs-panel-divider" aria-hidden>·</span>
                 <span className="font-medium">
                   {drawingDesigner?.trim() || "Unassigned"}
                 </span>
                 {typeOfWorksLabel ? (
                   <>
-                    <span className="text-[#E5E7EB]" aria-hidden>·</span>
+                    <span className="text-jobs-panel-divider" aria-hidden>·</span>
                     <span className="font-medium">{typeOfWorksLabel}</span>
                   </>
                 ) : null}
@@ -678,7 +678,7 @@ export function JobsInspector({
           ) : null}
         </div>
         {!isDrawer ? (
-          <div className="mx-7 border-t border-[#E5E7EB]" aria-hidden />
+          <div className="mx-7 border-t border-jobs-panel-divider" aria-hidden />
         ) : null}
       </div>
 
@@ -704,7 +704,7 @@ export function JobsInspector({
           </button>
           <button
             type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#E5E7EB] px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-neutral-50"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-jobs-panel-btn-bd bg-transparent px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover"
             onClick={primaryQuote ? openQuoteAction : openCreateQuote}
           >
             <FilePlus2 className="h-4 w-4 shrink-0" />
@@ -712,7 +712,7 @@ export function JobsInspector({
           </button>
           <button
             type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#E5E7EB] px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-neutral-50"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-jobs-panel-btn-bd bg-transparent px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover"
             onClick={() => setAttachQuoteOpen(true)}
           >
             <Paperclip className="h-4 w-4 shrink-0" />
@@ -720,7 +720,7 @@ export function JobsInspector({
           </button>
           <button
             type="button"
-            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#E5E7EB] px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-neutral-50 disabled:opacity-40"
+            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-jobs-panel-btn-bd bg-transparent px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover disabled:opacity-40"
             onClick={() => void handleCat2()}
             disabled={cat2Busy || !canExportCat2}
             title={
@@ -734,11 +734,11 @@ export function JobsInspector({
           </button>
         </section>
 
-        <div className="border-t border-[#E5E7EB]" aria-hidden />
+        <div className="border-t border-jobs-panel-divider" aria-hidden />
 
         <ProjectDetailsSection data={projectDetails} jobKey={project.id} />
 
-        <div className="border-t border-[#E5E7EB]" aria-hidden />
+        <div className="border-t border-jobs-panel-divider" aria-hidden />
 
         {timelineLoading && revisions.length === 0 ? (
           <div className="space-y-5" aria-busy="true">
@@ -798,7 +798,7 @@ export function JobsInspector({
           </RevisionTimeline>
         )}
 
-        <div className="border-t border-[#E5E7EB]" aria-hidden />
+        <div className="border-t border-jobs-panel-divider" aria-hidden />
 
         {secondaryLoading && !activeCheck && !previousCheck ? (
           <div className="h-16 skeleton rounded-lg" aria-hidden />
@@ -818,17 +818,17 @@ export function JobsInspector({
       </div>
 
       {!isDrawer ? (
-        <div className="flex shrink-0 gap-3 border-t border-[#E5E7EB] bg-white px-7 py-5">
+        <div className="flex shrink-0 gap-3 border-t border-jobs-panel-divider bg-jobs-panel px-7 py-5">
           <button
             type="button"
-            className="flex-1 rounded-xl border border-[#E5E7EB] py-2.5 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-neutral-50"
+            className="flex-1 rounded-xl border border-jobs-panel-btn-bd bg-transparent py-2.5 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover"
             onClick={() => onEdit?.() ?? router.push(`/jobs/${project.id}`)}
           >
             Edit
           </button>
           <button
             type="button"
-            className="flex-1 rounded-xl border border-dn/20 py-2.5 text-sm font-semibold text-dn transition-colors duration-150 hover:bg-dn/5"
+            className="flex-1 rounded-xl border border-dn/30 bg-transparent py-2.5 text-sm font-semibold text-dn transition-colors duration-150 hover:bg-dn/10"
             onClick={() => router.push(`/jobs/${project.id}`)}
             title="Open project to cancel"
           >

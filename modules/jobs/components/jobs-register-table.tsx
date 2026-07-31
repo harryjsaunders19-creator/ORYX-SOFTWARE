@@ -59,8 +59,8 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   return (
     <div
       className={cn(
-        "mx-8 mb-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#E5E7EB] bg-white",
-        "shadow-[0px_4px_18px_rgba(0,0,0,0.04)]",
+        "mx-8 mb-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-jobs-panel-bd bg-s1",
+        "shadow-[0px_4px_18px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)]",
         className,
       )}
     >
