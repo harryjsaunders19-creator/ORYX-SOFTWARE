@@ -69,3 +69,5 @@ stitch-screens.json
 
 # Local Synology deploy paths (see docs/synology.env.example)
 synology.env
+
+.env.stitch.local
