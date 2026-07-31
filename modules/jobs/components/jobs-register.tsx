@@ -367,11 +367,16 @@ export function JobsRegister({
 
   return (
     <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100dvh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
-      {/* ── Desktop layout — Stitch Job Registry Final ───────────── */}
-      <div className="hidden md:flex min-h-0 flex-1 overflow-hidden bg-s0">
+      {/* ── Desktop layout — floating Job Detail workspace ───────── */}
+      <div
+        className={cn(
+          "hidden md:flex min-h-0 flex-1 overflow-hidden bg-white",
+          inspectorVisible ? "gap-6 py-5 pr-6" : "",
+        )}
+      >
         <section
           className={cn(
-            "flex min-h-0 flex-col overflow-hidden bg-s0",
+            "flex min-h-0 flex-col overflow-hidden bg-white",
             inspectorVisible ? "min-w-0 flex-1" : "w-full",
           )}
         >
@@ -580,11 +585,7 @@ export function JobsRegister({
         </section>
 
         {showDesktopInspector && selected && (
-          <JobsInspectorShell
-            className={cn(
-              "!my-0 !mr-0 w-[480px] shrink-0 !rounded-none !border-0 !border-l !border-bd !bg-s1 !p-0 !shadow-none",
-            )}
-          >
+          <JobsInspectorShell>
             <JobsInspectorErrorBoundary projectLabel={selected.id}>
               <JobsInspector
                 project={selected}

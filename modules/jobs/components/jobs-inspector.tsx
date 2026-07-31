@@ -7,7 +7,7 @@ import {
 import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
-import { cn, defaultRequiredByDate, formatRevisionDueCompact, getRevisionDueInfo } from "@/shared/utils/utils"
+import { cn, defaultRequiredByDate } from "@/shared/utils/utils"
 import type { Job, LinkedQuoteSummary, Quote } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { JobsRegisterProject } from "./jobs-register-types"
@@ -31,7 +31,6 @@ import {
 } from "@/modules/jobs/lib/current-work"
 import {
   StatusChip,
-  RevisionSummaryStrip,
   CurrentRevisionSection,
   ProjectDetailsSection,
   CATIISummary,
@@ -575,10 +574,6 @@ export function JobsInspector({
     setAttachQuoteOpen(true)
   }
 
-  const summaryDue = getRevisionDueInfo(
-    activeRevision?.requiredByDate ?? currentWork.dueDate ?? project.requiredByDate,
-    { completed: currentWork.type === "none" || currentWork.status === "ISSUED" },
-  )
   const summaryRevision =
     currentWork.type === "revision"
       ? (currentWork.revisionLabel ?? revLabel)
@@ -595,15 +590,6 @@ export function JobsInspector({
     <StatusChip status={currentWork.status} tone="primary" />
   ) : (
     <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
-  )
-
-  const summaryStrip = (
-    <RevisionSummaryStrip
-      revision={summaryRevision}
-      designer={drawingDesigner}
-      duePrimary={formatRevisionDueCompact(summaryDue)}
-      dueSeverity={summaryDue.severity}
-    />
   )
 
   const openAddRevision = () => {
@@ -633,13 +619,18 @@ export function JobsInspector({
   return (
     <aside
       className={cn(
-        "jobs-inspector flex min-h-0 w-full flex-col bg-transparent",
+        "jobs-inspector flex min-h-0 w-full flex-col bg-white",
         isDrawer ? "mobile-job-detail__body h-auto min-h-0 flex-1" : "h-full",
       )}
       aria-label={`Inspector for ${drawingNumber}`}
     >
-      <div className={cn("shrink-0 border-b border-bd", isDrawer && "mobile-job-detail__header")}>
-        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-5">
+      <div className={cn("shrink-0", isDrawer ? "mobile-job-detail__header border-b border-[#E5E7EB]" : "")}>
+        <div
+          className={cn(
+            "flex items-start justify-between gap-3",
+            isDrawer ? "px-6 pt-6 pb-5" : "px-7 pt-7 pb-7",
+          )}
+        >
           <div className="flex min-w-0 items-start gap-2">
             {isDrawer && onCollapse ? (
               <button
@@ -647,29 +638,35 @@ export function JobsInspector({
                 onClick={onCollapse}
                 aria-label="Back to Jobs"
                 title="Back to Jobs"
-                className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-bd text-t2 transition-colors hover:bg-surface-low hover:text-t1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2"
+                className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[#E5E7EB] text-t2 transition-colors duration-150 hover:bg-neutral-50 hover:text-t1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2"
               >
                 <ChevronLeft className="h-5 w-5" aria-hidden />
               </button>
             ) : null}
             <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight text-t1 tabular-nums">
+              <h2 className="text-[22px] font-bold tracking-tight text-t1 tabular-nums leading-tight">
                 {drawingNumber}
               </h2>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-t3">
+              <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-t3">
+                <span className="font-semibold text-t2 tabular-nums">
+                  {summaryRevision}
+                </span>
+                <span className="text-[#E5E7EB]" aria-hidden>·</span>
+                <span className="font-medium">
+                  {drawingDesigner?.trim() || "Unassigned"}
+                </span>
+                {typeOfWorksLabel ? (
+                  <>
+                    <span className="text-[#E5E7EB]" aria-hidden>·</span>
+                    <span className="font-medium">{typeOfWorksLabel}</span>
+                  </>
+                ) : null}
+              </div>
+              <p className="mt-2 text-[12px] font-medium text-t3">
                 {[client, site].filter(Boolean).join(" · ") || "—"}
               </p>
-              {typeOfWorksLabel ? (
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-t3">
-                  Type of Works: {typeOfWorksLabel}
-                </p>
-              ) : null}
-              {/* Status / due strip kept on mobile drawer for scan; desktop Final header is title-only. */}
               {isDrawer ? (
-                <>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">{statusChips}</div>
-                  <div className="mt-3">{summaryStrip}</div>
-                </>
+                <div className="mt-3 flex flex-wrap items-center gap-2">{statusChips}</div>
               ) : null}
             </div>
           </div>
@@ -680,20 +677,25 @@ export function JobsInspector({
             />
           ) : null}
         </div>
+        {!isDrawer ? (
+          <div className="mx-7 border-t border-[#E5E7EB]" aria-hidden />
+        ) : null}
       </div>
 
       <div
         key={project.id}
         className={cn(
-          "mobile-job-detail__content min-h-0 flex-1 space-y-8 overflow-x-hidden overflow-y-auto overscroll-contain px-6 py-6",
+          "mobile-job-detail__content min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-contain",
           "[-webkit-overflow-scrolling:touch]",
-          isDrawer && "pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]",
+          isDrawer
+            ? "px-6 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
+            : "px-7 py-7",
         )}
       >
-        <div className="grid grid-cols-2 gap-3">
+        <section aria-label="Actions" className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-t1 px-3 text-sm font-semibold text-sr transition-transform active:scale-[0.98] disabled:opacity-40"
+            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-t1 px-3 text-sm font-semibold text-sr transition-transform duration-150 active:scale-[0.98] disabled:opacity-40"
             onClick={openAddRevision}
             disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
           >
@@ -702,7 +704,7 @@ export function JobsInspector({
           </button>
           <button
             type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-bd px-3 text-sm font-semibold text-t1 transition-colors hover:bg-surface-low"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#E5E7EB] px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-neutral-50"
             onClick={primaryQuote ? openQuoteAction : openCreateQuote}
           >
             <FilePlus2 className="h-4 w-4 shrink-0" />
@@ -710,7 +712,7 @@ export function JobsInspector({
           </button>
           <button
             type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-bd px-3 text-sm font-semibold text-t1 transition-colors hover:bg-surface-low"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#E5E7EB] px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-neutral-50"
             onClick={() => setAttachQuoteOpen(true)}
           >
             <Paperclip className="h-4 w-4 shrink-0" />
@@ -718,7 +720,7 @@ export function JobsInspector({
           </button>
           <button
             type="button"
-            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-bd px-3 text-sm font-semibold text-t1 transition-colors hover:bg-surface-low disabled:opacity-40"
+            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#E5E7EB] px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-neutral-50 disabled:opacity-40"
             onClick={() => void handleCat2()}
             disabled={cat2Busy || !canExportCat2}
             title={
@@ -730,9 +732,13 @@ export function JobsInspector({
             <ShieldCheck className="h-4 w-4 shrink-0" />
             {cat2Busy ? "Creating…" : "CAT II Check"}
           </button>
-        </div>
+        </section>
+
+        <div className="border-t border-[#E5E7EB]" aria-hidden />
 
         <ProjectDetailsSection data={projectDetails} jobKey={project.id} />
+
+        <div className="border-t border-[#E5E7EB]" aria-hidden />
 
         {timelineLoading && revisions.length === 0 ? (
           <div className="space-y-5" aria-busy="true">
@@ -792,6 +798,8 @@ export function JobsInspector({
           </RevisionTimeline>
         )}
 
+        <div className="border-t border-[#E5E7EB]" aria-hidden />
+
         {secondaryLoading && !activeCheck && !previousCheck ? (
           <div className="h-16 skeleton rounded-lg" aria-hidden />
         ) : (
@@ -810,17 +818,17 @@ export function JobsInspector({
       </div>
 
       {!isDrawer ? (
-        <div className="flex shrink-0 gap-3 border-t border-bd bg-s1 px-6 py-5">
+        <div className="flex shrink-0 gap-3 border-t border-[#E5E7EB] bg-white px-7 py-5">
           <button
             type="button"
-            className="flex-1 rounded-lg border border-bd py-2 text-sm font-semibold text-t1 transition-colors hover:bg-surface-low"
+            className="flex-1 rounded-xl border border-[#E5E7EB] py-2.5 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-neutral-50"
             onClick={() => onEdit?.() ?? router.push(`/jobs/${project.id}`)}
           >
             Edit
           </button>
           <button
             type="button"
-            className="flex-1 rounded-lg border border-dn/20 py-2 text-sm font-semibold text-dn transition-colors hover:bg-dn/5"
+            className="flex-1 rounded-xl border border-dn/20 py-2.5 text-sm font-semibold text-dn transition-colors duration-150 hover:bg-dn/5"
             onClick={() => router.push(`/jobs/${project.id}`)}
             title="Open project to cancel"
           >

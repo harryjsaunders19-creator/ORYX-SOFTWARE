@@ -550,6 +550,18 @@ html.dark {
     background-color: var(--color-bds);
   }
 
+  /* Jobs floating detail panel entrance */
+  @keyframes jobs-panel-in {
+    from {
+      opacity: 0;
+      transform: translateX(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
   /* Skeleton placeholder */
   .skeleton {
     background-color: var(--color-bd);

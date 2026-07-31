@@ -586,10 +586,10 @@ export function ProjectDetailsSection({
 
   return (
     <section aria-label="Job Summary">
-      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-wider text-t3">
+      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-t3">
         Job Summary
       </h3>
-      <div className="space-y-4 rounded-xl border border-bd bg-s1 p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
+      <div className="space-y-4">
         <Meta label="Client" value={data.client} />
         <Meta label="Site" value={data.siteName} />
         <Meta label="Address" value={data.siteAddress} />
@@ -608,7 +608,7 @@ export function ProjectDetailsSection({
                 <button
                   type="button"
                   onClick={data.onViewSiteJobs}
-                  className="text-xs font-medium text-ac hover:text-ach"
+                  className="text-xs font-medium text-t1 underline-offset-2 hover:underline"
                 >
                   View Jobs
                 </button>
@@ -655,27 +655,25 @@ export function CATIISummary({
 
   return (
     <section aria-label="Linked Records">
-      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-wider text-t3">
+      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-t3">
         Linked Records
       </h3>
       {activeCheck ? (
-        <div className="rounded-xl border border-bd bg-s1 p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
-              <p className="mt-0.5 text-sm text-t3">
-                {activeCheck.revisionLabel ?? activeLabel}
-                {" · On file"}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="shrink-0 text-xs font-medium text-t1 underline-offset-2 hover:underline"
-              onClick={() => onOpen(activeCheck.id)}
-            >
-              Open Check
-            </button>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
+            <p className="mt-0.5 text-sm text-t3">
+              {activeCheck.revisionLabel ?? activeLabel}
+              {" · On file"}
+            </p>
           </div>
+          <button
+            type="button"
+            className="shrink-0 text-xs font-medium text-t1 underline-offset-2 hover:underline"
+            onClick={() => onOpen(activeCheck.id)}
+          >
+            Open Check
+          </button>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -736,9 +734,8 @@ function revisionTitle(rev: HistoryRevision, current = false): string {
 }
 
 /**
- * Stitch Final Revision History — current revision as a raised white card,
- * prior revisions as a faded stacked list underneath. Current-work controls
- * can be passed as children to keep one condensed revision block.
+ * Revision History — spacing + typography hierarchy (no coloured container).
+ * Current-work controls nest under the current revision as children.
  */
 export function RevisionTimeline({
   revisions,
@@ -763,18 +760,18 @@ export function RevisionTimeline({
 
   return (
     <section aria-label="Revision History">
-      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-wider text-t3">
+      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-t3">
         Revision History
       </h3>
 
       {revisions.length === 0 || !current ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <p className={fieldMuted}>Original drawing only</p>
           {children}
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="space-y-4 rounded-xl border border-bd bg-s1 p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
+        <div className="space-y-5">
+          <div className="space-y-4">
             <button
               type="button"
               className={cn(
@@ -791,7 +788,7 @@ export function RevisionTimeline({
                   {safeDateLabel(current.createdAt) || "—"}
                 </span>
               </div>
-              <div className="space-y-1 border-t border-bd pt-2">
+              <div className="space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-t3">
                   {current.letter ? "Reason for Revision" : "Description"}
                 </p>
@@ -804,23 +801,21 @@ export function RevisionTimeline({
               </div>
             </button>
             {children ? (
-              <div className="border-t border-bd pt-4">
+              <div className="border-t border-[#E5E7EB] pt-4">
                 {children}
               </div>
             ) : null}
           </div>
 
           {priors.length > 0 ? (
-            <div className="space-y-3 px-2">
-              {priors.map((rev, index) => (
+            <div className="space-y-3">
+              {priors.map((rev) => (
                 <div key={rev.id}>
-                  {index > 0 ? (
-                    <div className="mb-3 h-px bg-bd/40" aria-hidden />
-                  ) : null}
+                  <div className="mb-3 h-px bg-[#E5E7EB]" aria-hidden />
                   <button
                     type="button"
                     className={cn(
-                      "w-full text-left opacity-70 transition-opacity hover:opacity-100",
+                      "w-full text-left opacity-70 transition-opacity duration-150 hover:opacity-100",
                       "outline-none focus-visible:ring-2 focus-visible:ring-ac rounded-md",
                     )}
                     onClick={() => onSelectRevision?.(rev)}

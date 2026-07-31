@@ -37,17 +37,17 @@ export class JobsInspectorErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <aside className="flex h-full min-h-0 w-full flex-col border-l border-bd bg-s2 p-5">
+        <aside className="flex h-full min-h-0 w-full flex-col bg-white p-7">
           <h3 className="text-base font-bold text-t1">Inspector failed to load</h3>
           <p className="mt-2 text-sm text-t3">
             The register is still available. Try another project, or open the full workspace.
           </p>
-          <pre className="mt-4 max-h-40 overflow-auto rounded border border-bd bg-surface-low p-3 text-left text-xs text-dn whitespace-pre-wrap">
+          <pre className="mt-4 max-h-40 overflow-auto rounded-lg border border-[#E5E7EB] bg-neutral-50 p-3 text-left text-xs text-dn whitespace-pre-wrap">
             {this.state.error.message || String(this.state.error)}
           </pre>
           <button
             type="button"
-            className="mt-4 rounded border border-bd px-3 py-2 text-sm font-medium text-t1 hover:bg-surface-low"
+            className="mt-4 rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm font-medium text-t1 transition-colors duration-150 hover:bg-neutral-50"
             onClick={() => this.setState({ error: null })}
           >
             Try again
