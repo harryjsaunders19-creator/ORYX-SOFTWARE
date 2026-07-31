@@ -554,6 +554,8 @@ html.stitch-layout {
   --color-ach: #000000;
   --color-ac-bg: #f3f4f6;
   --color-on-ac: #ffffff;
+  --color-sel-bg: #F0F2F5;
+  --color-sel-bd: #111827;
   --color-sidebar: #2e3132;
   --color-nav-hover: rgba(255, 255, 255, 0.06);
   --color-nav-active: #373b3b;
@@ -584,6 +586,8 @@ html.stitch-layout.dark {
   --color-ach: #ffffff;
   --color-ac-bg: rgba(255, 255, 255, 0.08);
   --color-on-ac: #111827;
+  --color-sel-bg: #1C2430;
+  --color-sel-bd: #E4E4E7;
   /* Sidebar stays fixed in both themes — only the main canvas darkens */
   --color-sidebar: #2e3132;
   --color-nav-hover: rgba(255, 255, 255, 0.06);
