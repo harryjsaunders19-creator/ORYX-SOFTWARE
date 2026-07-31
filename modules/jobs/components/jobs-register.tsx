@@ -316,12 +316,12 @@ export function JobsRegister({
   return (
     <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100dvh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
       {/* ── Desktop layout ───────────────────────────────────────── */}
-      <div className="hidden md:flex min-h-0 flex-1 overflow-hidden">
+      <div className="hidden md:flex min-h-0 flex-1 gap-3 overflow-hidden bg-pg">
         <section
           className={cn(
             "flex min-h-0 flex-col overflow-hidden bg-sr",
             "motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out",
-            inspectorVisible ? "w-[62%] lg:w-[61%]" : "w-full",
+            inspectorVisible ? "min-w-0 flex-1" : "w-full",
           )}
         >
           <div className="border-b border-bd px-5 pt-4 pb-3">
@@ -527,7 +527,7 @@ export function JobsRegister({
         {inspectorVisible && selected && (
           <JobsInspectorShell
             className={cn(
-              "my-3 mr-3 w-[calc(38%-0.75rem)] lg:w-[calc(39%-0.75rem)] shrink-0",
+              "my-3 mr-3 w-[min(420px,38%)] lg:w-[min(460px,39%)] shrink-0",
             )}
           >
             <JobsInspectorErrorBoundary projectLabel={selected.id}>

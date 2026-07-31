@@ -610,7 +610,7 @@ export function JobsInspector({
 
   return (
     <aside
-      className="jobs-inspector flex h-full min-h-0 w-full flex-col bg-sr"
+      className="jobs-inspector flex h-full min-h-0 w-full flex-col bg-transparent"
       aria-label={`Inspector for ${drawingNumber}`}
     >
       <InspectorHeader

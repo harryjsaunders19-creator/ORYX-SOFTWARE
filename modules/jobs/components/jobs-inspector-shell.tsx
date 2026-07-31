@@ -4,7 +4,10 @@ import type { ReactNode } from "react"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { cn } from "@/shared/utils/utils"
 
-/** Outer visual boundary for the Jobs inspector job card. */
+/**
+ * Premium outer boundary for the Jobs inspector workspace.
+ * Visually distinct from the job list via surface tint, border, and soft elevation.
+ */
 export function JobsInspectorShell({
   children,
   className,
@@ -15,15 +18,22 @@ export function JobsInspectorShell({
   return (
     <section
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden p-1.5",
-        "rounded-xl border border-bd bg-surface-low shadow-card",
-        "dark:border-bds",
-        "motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-out",
+        "flex min-h-0 flex-col overflow-hidden p-4",
+        "rounded-xl border border-bds/55 bg-surface-low shadow-inspector",
+        "dark:border-bds dark:bg-[color-mix(in_srgb,var(--color-sr)_88%,white)]",
+        "motion-safe:transition-[box-shadow,border-color,opacity] motion-safe:duration-200 motion-safe:ease-out",
         className,
       )}
       aria-label="Job details"
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-bd/50 bg-sr dark:border-bds/40">
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg",
+          "bg-sr",
+          "dark:bg-[color-mix(in_srgb,var(--color-sr)_96%,white)]",
+          "ring-1 ring-bd/70 dark:ring-bds/70",
+        )}
+      >
         {children}
       </div>
     </section>
@@ -70,7 +80,7 @@ export function JobsInspectorCollapseButton({
       title="Collapse job details"
       className={cn(
         "rounded-md border border-bd p-1.5 text-t3 transition-colors",
-        "hover:bg-sr hover:text-t1",
+        "hover:bg-surface-low hover:text-t1",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2",
       )}
     >
