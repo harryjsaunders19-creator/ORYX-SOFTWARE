@@ -28,15 +28,16 @@ import { useToast } from "@/shared/ui/toast"
 
 export const sectionHeading =
   "text-[13px] font-medium tracking-wide text-t2"
-export const fieldLabel = "mb-0 text-[11px] font-medium leading-none text-t3"
-export const fieldValue = "text-sm leading-snug text-t1"
-export const fieldMuted = "text-sm leading-snug text-t3"
+/** Metadata labels — secondary to values, but readable (~t2 weight). */
+export const fieldLabel = "mb-0 text-[11px] font-medium leading-none text-t2"
+export const fieldValue = "text-sm font-medium leading-snug text-t1"
+export const fieldMuted = "text-sm leading-snug text-t2"
 
 /** @deprecated Prefer `InformationCard` / `informationCardClassName`. */
 export const inspectorContentCard = informationCardClassName
 
 /** Section boundary — spacing-first, with a calm divider. */
-export const inspectorSectionRule = "border-t border-inspector-divider pt-5"
+export const inspectorSectionRule = "border-t border-inspector-divider pt-6"
 
 const sectionIconClass = "h-4 w-4 shrink-0 text-t3"
 /** Reserves chevron column so static and accordion headers share alignment. */
@@ -118,7 +119,7 @@ function PropertyCell({
 
 function PropertyGrid({ children }: { children: ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-x-5 gap-y-3">
+    <div className="grid grid-cols-2 gap-x-5 gap-y-4">
       {children}
     </div>
   )
@@ -267,7 +268,7 @@ export function RevisionSummaryStrip({
   const emphasizeDue = dueSeverity === "overdue" || dueSeverity === "orange"
 
   return (
-    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+    <div className="mt-3.5 flex flex-wrap items-center gap-2">
       <span className="inline-flex items-center rounded-md border border-inspector-card-bd bg-inspector-card px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-t1">
         {revision}
       </span>
@@ -329,7 +330,7 @@ export function InspectorHeader({
   children: ReactNode
 }) {
   return (
-    <div className="sticky top-0 z-20 shrink-0 border-b border-inspector-divider bg-s2/95 px-5 pt-4 pb-4 backdrop-blur-sm">
+    <div className="sticky top-0 z-20 shrink-0 border-b border-inspector-divider bg-s2/95 px-5 pt-5 pb-5 backdrop-blur-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-2">
           {leadingSlot}
@@ -352,7 +353,7 @@ export function InspectorHeader({
               )}
             </div>
             <ClientSiteCell
-              className="mt-2"
+              className="mt-3"
               clientName={client}
               siteName={site}
               variant="header"
@@ -367,8 +368,8 @@ export function InspectorHeader({
         </div>
       </div>
 
-      <div className="mt-3.5 flex flex-wrap items-center gap-2">{statusChips}</div>
-      <div className="mt-3.5">{children}</div>
+      <div className="mt-5 flex flex-wrap items-center gap-2">{statusChips}</div>
+      <div className="mt-5">{children}</div>
     </div>
   )
 }
@@ -596,7 +597,7 @@ export function CurrentRevisionSection({
           </p>
         </InformationCard>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <InformationCard title={briefLabel} className="min-h-[7.5rem] px-4 py-4">
             <p
               className={cn(
@@ -707,7 +708,7 @@ export function ProjectDetailsSection({
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className={cn(informationCardClassName, "mt-3 space-y-3 px-3.5 py-3")}>
+          <div className={cn(informationCardClassName, "mt-3.5 space-y-3 px-3.5 py-3.5")}>
             <Meta label="Client" value={data.client} />
             <Meta label="Site" value={data.siteName} />
             <Meta label="Address" value={data.siteAddress} />
@@ -776,7 +777,7 @@ export function CATIISummary({
     <section className={inspectorSectionRule}>
       <InspectorSectionHeader icon={ShieldCheck}>CATII Check</InspectorSectionHeader>
       {activeCheck ? (
-        <InformationCard className="mt-1 px-3.5 py-3">
+        <InformationCard className="mt-3.5 px-3.5 py-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
@@ -897,7 +898,7 @@ export function RevisionTimeline({
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className={cn(informationCardClassName, "mt-3 overflow-hidden")}>
+          <div className={cn(informationCardClassName, "mt-3.5 overflow-hidden")}>
             {revisions.length === 0 ? (
               <p className={cn(fieldMuted, "px-3.5 py-3")}>Original drawing only</p>
             ) : (

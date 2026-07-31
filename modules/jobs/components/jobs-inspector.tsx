@@ -637,12 +637,12 @@ export function JobsInspector({
     >
       <span
         className={cn(
-          "pointer-events-none absolute bottom-3 left-1.5 top-3 z-30 w-1 rounded-full",
+          "pointer-events-none absolute bottom-4 left-2 top-4 z-30 w-[3px] rounded-full opacity-55",
           statusAccentClass,
         )}
         aria-hidden
       />
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col pl-2.5">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col pl-2">
       <InspectorHeader
         drawingNumber={drawingNumber}
         revisionBadge={
@@ -714,7 +714,7 @@ export function JobsInspector({
             </div>
           </div>
         ) : (
-          <div className="grid w-full grid-cols-3 gap-2">
+          <div className="grid w-full grid-cols-3 gap-2.5">
             <button
               type="button"
               className={primaryActionBtn}
@@ -753,7 +753,7 @@ export function JobsInspector({
       <div
         key={project.id}
         className={cn(
-          "min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5",
+          "min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-6",
           isDrawer && "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >
