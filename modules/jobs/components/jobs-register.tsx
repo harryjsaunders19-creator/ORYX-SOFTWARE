@@ -5,7 +5,7 @@ import {
 } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
-  Search, Plus, SlidersHorizontal, X, Upload, Download,
+  Search, Plus, SlidersHorizontal, X, Upload, Download, ChevronLeft, ChevronRight,
 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
@@ -348,31 +348,44 @@ export function JobsRegister({
 
   const summaryLabel = `${total.toLocaleString()} project${total === 1 ? "" : "s"} · ${activeRevisions} active revision${activeRevisions === 1 ? "" : "s"}`
 
-  const title = isChecking ? "Checking queue" : "Jobs"
+  const title = isChecking ? "Checking queue" : "Job List"
+  const mobileTitle = isChecking ? "Checking queue" : "Job Registry"
   const subtitle = isChecking
     ? "Work awaiting technical review before issue"
-    : "Manage scaffold design projects, revisions and progress"
+    : "Manage and track live engineering projects across all sites."
+  const mobileSubtitle = isChecking
+    ? "Work awaiting technical review before issue"
+    : "Active project directory."
+
+  const pageWindow = useMemo(() => {
+    const windowSize = 3
+    if (pages <= windowSize) return Array.from({ length: pages }, (_, i) => i + 1)
+    if (page <= 2) return [1, 2, 3].filter(p => p <= pages)
+    if (page >= pages - 1) return [pages - 2, pages - 1, pages].filter(p => p >= 1)
+    return [page - 1, page, page + 1]
+  }, [page, pages])
 
   return (
     <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100dvh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
-      {/* ── Desktop layout ───────────────────────────────────────── */}
-      <div className="hidden md:flex min-h-0 flex-1 gap-3 overflow-hidden bg-s0">
+      {/* ── Desktop layout — Stitch Job Registry Final ───────────── */}
+      <div className="hidden md:flex min-h-0 flex-1 overflow-hidden bg-s0">
         <section
           className={cn(
-            "flex min-h-0 flex-col overflow-hidden bg-s1",
-            "motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out",
+            "flex min-h-0 flex-col overflow-hidden bg-s0",
             inspectorVisible ? "min-w-0 flex-1" : "w-full",
           )}
         >
-          <div className="border-b border-bd px-5 pt-4 pb-3">
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 shrink-0">
-                  <h1 className="text-2xl font-bold tracking-tight text-t1">{title}</h1>
-                  <p className="mt-0.5 text-sm text-t3">{subtitle}</p>
+          <div className="px-10 pt-8 pb-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <h1 className="text-[32px] font-bold leading-none tracking-tighter text-t1">
+                    {title}
+                  </h1>
+                  <p className="mt-2 text-sm text-t3">{subtitle}</p>
                 </div>
 
-                <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+                <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
                   {!isChecking && (
                     <div className="relative w-full min-w-[180px] max-w-sm grow sm:grow-0 sm:w-56 lg:w-64">
                       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-t4" />
@@ -380,8 +393,8 @@ export function JobsRegister({
                         ref={searchRef}
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        placeholder="Search project or drawing…"
-                        className="h-9 border-bd bg-surface-low pl-8 pr-8 text-sm"
+                        placeholder="Search jobs, clients, or drawing numbers…"
+                        className="h-9 border-bd bg-s1 pl-8 pr-8 text-sm"
                         aria-label="Search projects"
                       />
                       {search && (
@@ -415,15 +428,15 @@ export function JobsRegister({
                     <>
                       <button
                         type="button"
-                        className={cn(toolbarBtn, (filtersOpen || filterClientId) && "border-ac text-ac")}
+                        className={cn(toolbarBtn, (filtersOpen || filterClientId) && "border-t1 text-t1")}
                         onClick={() => setFiltersOpen(v => !v)}
                       >
                         <SlidersHorizontal className="h-3.5 w-3.5" />
-                        Filters
+                        Filter
                       </button>
                       <button type="button" className={toolbarBtn} onClick={handleExport}>
                         <Download className="h-3.5 w-3.5" />
-                        Export
+                        Export CSV
                       </button>
                       <button
                         type="button"
@@ -437,7 +450,7 @@ export function JobsRegister({
                       {isAdmin && (
                         <Button type="button" size="sm" className="h-9" onClick={() => setCreateOpen(true)}>
                           <Plus className="h-3.5 w-3.5" />
-                          New Job
+                          Create Job
                         </Button>
                       )}
                     </>
@@ -457,8 +470,8 @@ export function JobsRegister({
                       className={cn(
                         "inline-flex h-8 items-center rounded-md px-3 text-sm font-medium transition-all",
                         scope === s.id
-                          ? "bg-ac text-on-ac"
-                          : "border border-bd bg-surface-low text-t3 hover:border-ac hover:text-t1",
+                          ? "bg-t1 text-sr"
+                          : "border border-bd bg-s1 text-t3 hover:border-t1 hover:text-t1",
                       )}
                     >
                       {s.label}
@@ -468,7 +481,7 @@ export function JobsRegister({
               )}
 
               {filtersOpen && !isChecking && (
-                <div className="flex flex-wrap items-end gap-3 rounded-lg border border-bd bg-s0 px-3 py-2.5">
+                <div className="flex flex-wrap items-end gap-3 rounded-lg border border-bd bg-s1 px-3 py-2.5">
                   <div className="min-w-[180px] flex-1">
                     <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-t4">Client</label>
                     <ClientCombobox
@@ -512,40 +525,56 @@ export function JobsRegister({
             loading={loading}
           />
 
-          <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-3 border-t border-bd bg-s1/95 px-5 py-1.5 backdrop-blur-sm">
-            <p className="text-[11px] text-t2 tabular-nums">
-              <span className="font-semibold text-t1">{total.toLocaleString()}</span> Total Projects
-              <span className="mx-2 text-bd">|</span>
-              <span className="font-semibold text-t1">{activeRevisions}</span> Active Revisions
+          <div className="flex shrink-0 items-center justify-between gap-3 px-10 py-4">
+            <p className="text-xs text-t3 tabular-nums">
+              Showing{" "}
+              <span className="font-semibold text-t2">
+                {projects.length.toLocaleString()}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-t2">{total.toLocaleString()}</span>{" "}
+              jobs
+              {activeRevisions > 0 ? (
+                <>
+                  <span className="mx-2 text-bd">·</span>
+                  <span className="font-semibold text-t2">{activeRevisions}</span> active revisions
+                </>
+              ) : null}
             </p>
-            <div className="flex items-center gap-3">
-              {pages > 1 && (
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    className="rounded border border-bd px-2 py-1 text-xs disabled:opacity-40"
-                    disabled={page <= 1}
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                  >
-                    Prev
-                  </button>
-                  <span className="px-1 text-xs tabular-nums text-t3">
-                    {page}/{pages}
-                  </span>
-                  <button
-                    type="button"
-                    className="rounded border border-bd px-2 py-1 text-xs disabled:opacity-40"
-                    disabled={page >= pages}
-                    onClick={() => setPage(p => Math.min(pages, p + 1))}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-              <p className="hidden items-center gap-1.5 text-[10px] uppercase tracking-wide text-t3 sm:flex">
-                <span className="h-1.5 w-1.5 rounded-full bg-ok-ic" aria-hidden />
-                System Operational
-              </p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="rounded-lg border border-bd p-2 text-t2 disabled:opacity-40 hover:bg-surface-low"
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              {pages > 1 && pageWindow.map(p => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPage(p)}
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold tabular-nums transition-colors",
+                    p === page
+                      ? "bg-t1 text-sr"
+                      : "text-t2 hover:bg-surface-low",
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="rounded-lg border border-bd p-2 text-t2 disabled:opacity-40 hover:bg-surface-low"
+                disabled={page >= pages}
+                onClick={() => setPage(p => Math.min(pages, p + 1))}
+                aria-label="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </section>
@@ -553,7 +582,7 @@ export function JobsRegister({
         {showDesktopInspector && selected && (
           <JobsInspectorShell
             className={cn(
-              "my-3 mr-3 w-[min(420px,38%)] lg:w-[min(460px,39%)] shrink-0",
+              "!my-0 !mr-0 w-[480px] shrink-0 !rounded-none !border-0 !border-l !border-bd !bg-s1 !p-0 !shadow-none",
             )}
           >
             <JobsInspectorErrorBoundary projectLabel={selected.id}>
@@ -563,8 +592,9 @@ export function JobsRegister({
                 designers={designers}
                 onStatusChanged={onStatusChangedCb}
                 onCollapse={collapseInspector}
-                collapseVariant="chevron"
+                collapseVariant="close"
                 presentation="panel"
+                onEdit={() => openWorkspaceById(selected.id)}
               />
             </JobsInspectorErrorBoundary>
           </JobsInspectorShell>
@@ -578,8 +608,8 @@ export function JobsRegister({
       {/* ── Mobile layout ────────────────────────────────────────── */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-s0 md:hidden">
         <MobileJobsHeader
-          title={title}
-          subtitle={subtitle}
+          title={mobileTitle}
+          subtitle={mobileSubtitle}
           search={search}
           onSearchChange={setSearch}
           searchRef={mobileSearchRef}
@@ -589,7 +619,7 @@ export function JobsRegister({
           canCreate={isAdmin}
           canImport={isAdmin}
           onNewProject={() => setCreateOpen(true)}
-          onFilters={() => router.push("/jobs/checking")}
+          onFilters={() => setFiltersOpen(v => !v)}
           onExport={handleExport}
           onImport={() => router.push("/jobs/import")}
           summaryLabel={summaryLabel}
@@ -658,6 +688,7 @@ export function JobsRegister({
               onCollapse={collapseInspector}
               collapseVariant="close"
               presentation="drawer"
+              onEdit={() => openWorkspaceById(selected.id)}
             />
           </JobsInspectorErrorBoundary>
         </div>

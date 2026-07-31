@@ -23,11 +23,11 @@ interface JobsRegisterTableProps {
 }
 
 const HEADERS = [
-  "Drawing",
-  "Client / Site",
+  "Job ID / Drawing",
+  "Client",
+  "Site Location",
   "Status",
   "Designer",
-  "Due",
   "",
 ] as const
 
@@ -57,13 +57,18 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   const onOpenStable = useCallback((id: string) => onOpenWorkspace(id), [onOpenWorkspace])
 
   return (
-    <div className={cn("mx-5 mb-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-bd bg-s1", className)}>
+    <div
+      className={cn(
+        "mx-8 mb-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-bd bg-s1",
+        "shadow-[0px_4px_20px_rgba(0,0,0,0.04)]",
+        className,
+      )}
+    >
       <div
         role="row"
         className={cn(
           REGISTER_GRID,
-          "sticky top-0 z-20 shrink-0 items-center border-b border-bd bg-s1",
-          "shadow-[0_1px_0_0_var(--color-bd)]",
+          "sticky top-0 z-20 shrink-0 items-center border-b border-bd bg-surface-low",
         )}
       >
         {HEADERS.map((label, i) => (
@@ -71,7 +76,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
             key={label || `overflow-${i}`}
             role="columnheader"
             className={cn(
-              "px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-t3",
+              "px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-t3",
             )}
           >
             {label}
@@ -104,7 +109,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
         ) : (
           <div
             role="table"
-            aria-label="Jobs register"
+            aria-label="Job list"
             style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}
           >
             {virtualizer.getVirtualItems().map(item => {

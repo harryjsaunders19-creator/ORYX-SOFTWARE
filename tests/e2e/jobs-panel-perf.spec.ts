@@ -20,7 +20,7 @@ test.describe("Jobs panel request budget", () => {
 
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto("/jobs")
-    await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole("heading", { name: "Job List" })).toBeVisible({ timeout: 30_000 })
 
     const counts = {
       jobDetail: 0,

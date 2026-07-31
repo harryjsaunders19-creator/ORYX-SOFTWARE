@@ -1,15 +1,15 @@
 /**
  * Jobs Register visual tokens — mirrored from Stitch
- * "Jobs - Command Center (Inter Typography)" / Project Command Center Split View.
- * Screen ids: f313bb87a8a3426190f85fd4b8cb6ef7, 46351d0bec1f43faa32bc5136f955565
+ * "Job Registry - Annotated Refinement Final" (ORYX Job Registry Layout Final).
+ * Screen ids: f2fc67c8d0b9456c8b8f303c39b52eeb, 3e5552cabe9f4d17a6ce4e7953b00962 (mobile)
  */
-/** Denser register rows — comfortable scan density without crowding. */
-export const REGISTER_ROW_H = 68
-/** Desktop split: register ~63% / inspector ~37%. */
-export const REGISTER_PCT = 63
-export const INSPECTOR_PCT = 37
-/** @deprecated Prefer percentage split; kept for callers. */
-export const INSPECTOR_W = 420
+/** Stitch Final registry row height (py-5 denser list). */
+export const REGISTER_ROW_H = 72
+/** Desktop: list flexes; inspector is a fixed 480px rail. */
+export const REGISTER_PCT = 65
+export const INSPECTOR_PCT = 35
+/** Stitch Final inspector rail width. */
+export const INSPECTOR_W = 480
 
 export const WORKFLOW_STAGES = [
   { id: "created", label: "Revision Created" },

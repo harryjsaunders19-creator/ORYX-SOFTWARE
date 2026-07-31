@@ -2,17 +2,12 @@
 
 import { useEffect, useMemo, useState, lazy, Suspense } from "react"
 import {
-  Plus, ShieldCheck, Link2, ChevronLeft,
+  Plus, ShieldCheck, ChevronLeft, FilePlus2, Paperclip,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
 import { cn, defaultRequiredByDate, formatRevisionDueCompact, getRevisionDueInfo } from "@/shared/utils/utils"
-import {
-  ActionToolbar,
-  inspectorActionPrimaryClass,
-  inspectorActionSecondaryClass,
-} from "@/shared/layouts/inspector"
 import type { Job, LinkedQuoteSummary, Quote } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { JobsRegisterProject } from "./jobs-register-types"
@@ -35,7 +30,6 @@ import {
   type CurrentWorkRevisionLike,
 } from "@/modules/jobs/lib/current-work"
 import {
-  InspectorHeader,
   StatusChip,
   RevisionSummaryStrip,
   CurrentRevisionSection,
@@ -67,6 +61,8 @@ interface JobsInspectorProps {
   collapseVariant?: "chevron" | "close"
   /** Mobile drawer uses stacked actions and a back control. */
   presentation?: "panel" | "drawer"
+  /** Opens the full project workspace (Stitch Final “Edit”). */
+  onEdit?: () => void
 }
 
 interface DocumentsResponse {
@@ -136,6 +132,7 @@ export function JobsInspector({
   onCollapse,
   collapseVariant = "chevron",
   presentation = "panel",
+  onEdit,
 }: JobsInspectorProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -536,8 +533,6 @@ export function JobsInspector({
   const attachJobStub = { id: project.id, drawingNumber } as Job
 
   const isDrawer = presentation === "drawer"
-  const primaryActionBtn = inspectorActionPrimaryClass
-  const secondaryActionBtn = inspectorActionSecondaryClass
 
   const drawingDesigner =
     activeRevision?.designer
@@ -625,6 +620,16 @@ export function JobsInspector({
     setAddRevOpen(true)
   }
 
+  const openCreateQuote = () => {
+    router.push("/quotes")
+  }
+
+  const typeOfWorksLabel =
+    parent?.typeOfWorks
+    ?? jobDetail?.typeOfWorks
+    ?? project.typeOfWorks
+    ?? null
+
   return (
     <aside
       className={cn(
@@ -633,121 +638,95 @@ export function JobsInspector({
       )}
       aria-label={`Inspector for ${drawingNumber}`}
     >
-      <div className={cn(isDrawer && "mobile-job-detail__header shrink-0")}>
-      <InspectorHeader
-        drawingNumber={drawingNumber}
-        revisionBadge={
-          currentWork.type === "revision"
-            ? (currentWork.revisionLabel ?? revLabel)
-            : null
-        }
-        client={client}
-        site={site}
-        statusChips={statusChips}
-        summaryStrip={summaryStrip}
-        dense={isDrawer}
-        leadingSlot={
-          isDrawer && onCollapse ? (
-            <button
-              type="button"
-              onClick={onCollapse}
-              aria-label="Back to Jobs"
-              title="Back to Jobs"
-              className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-bd text-t2 transition-colors hover:bg-surface-low hover:text-t1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2"
-            >
-              <ChevronLeft className="h-5 w-5" aria-hidden />
-            </button>
-          ) : null
-        }
-        collapseSlot={
-          !isDrawer && onCollapse ? (
+      <div className={cn("shrink-0 border-b border-bd", isDrawer && "mobile-job-detail__header")}>
+        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-5">
+          <div className="flex min-w-0 items-start gap-2">
+            {isDrawer && onCollapse ? (
+              <button
+                type="button"
+                onClick={onCollapse}
+                aria-label="Back to Jobs"
+                title="Back to Jobs"
+                className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-bd text-t2 transition-colors hover:bg-surface-low hover:text-t1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac2"
+              >
+                <ChevronLeft className="h-5 w-5" aria-hidden />
+              </button>
+            ) : null}
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight text-t1 tabular-nums">
+                {drawingNumber}
+              </h2>
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
+                {[client, site].filter(Boolean).join(" · ") || "—"}
+              </p>
+              {typeOfWorksLabel ? (
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
+                  Type of Works: {typeOfWorksLabel}
+                </p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap items-center gap-2">{statusChips}</div>
+              {!isDrawer ? <div className="mt-3">{summaryStrip}</div> : null}
+            </div>
+          </div>
+          {!isDrawer && onCollapse ? (
             <JobsInspectorCollapseButton
               onCollapse={onCollapse}
               variant={collapseVariant}
             />
-          ) : null
-        }
-      >
-        {isDrawer ? (
-          <ActionToolbar className="gap-2" columns={3}>
-            <button
-              type="button"
-              className={cn(primaryActionBtn, "h-10 min-h-10")}
-              onClick={openAddRevision}
-              disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
-            >
-              <Plus className="h-4 w-4 shrink-0" />
-              <span className="truncate">Add Revision</span>
-            </button>
-            <button
-              type="button"
-              className={cn(primaryActionBtn, "h-10 min-h-10")}
-              onClick={openQuoteAction}
-            >
-              <Link2 className="h-4 w-4 shrink-0" />
-              <span className="truncate">{primaryQuote ? "View Quote" : "Attach Quote"}</span>
-            </button>
-            <button
-              type="button"
-              className={cn(secondaryActionBtn, "h-10 min-h-10")}
-              onClick={() => void handleCat2()}
-              disabled={cat2Busy || !canExportCat2}
-              title={
-                canExportCat2
-                  ? `Create CATII Check for ${activeCat2Label}`
-                  : "CATII Check is available when original or a revision is complete"
-              }
-            >
-              <ShieldCheck className="h-4 w-4 shrink-0" />
-              <span className="truncate">{cat2Busy ? "Creating…" : "CATII Check"}</span>
-            </button>
-          </ActionToolbar>
-        ) : (
-          <ActionToolbar>
-            <button
-              type="button"
-              className={primaryActionBtn}
-              onClick={openAddRevision}
-              disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
-            >
-              <Plus className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Add Revision</span>
-            </button>
-            <button
-              type="button"
-              className={primaryActionBtn}
-              onClick={openQuoteAction}
-            >
-              <Link2 className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{primaryQuote ? "View Quote" : "Attach Quote"}</span>
-            </button>
-            <button
-              type="button"
-              className={secondaryActionBtn}
-              onClick={() => void handleCat2()}
-              disabled={cat2Busy || !canExportCat2}
-              title={
-                canExportCat2
-                  ? `Create CATII Check for ${activeCat2Label}`
-                  : "CATII Check is available when original or a revision is complete"
-              }
-            >
-              <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{cat2Busy ? "Creating…" : "CATII Check"}</span>
-            </button>
-          </ActionToolbar>
-        )}
-      </InspectorHeader>
+          ) : null}
+        </div>
       </div>
 
       <div
         key={project.id}
         className={cn(
-          "mobile-job-detail__content min-h-0 flex-1 space-y-5 overflow-x-hidden overflow-y-auto overscroll-contain px-7 py-5",
+          "mobile-job-detail__content min-h-0 flex-1 space-y-8 overflow-x-hidden overflow-y-auto overscroll-contain px-6 py-6",
           "[-webkit-overflow-scrolling:touch]",
           isDrawer && "pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]",
         )}
       >
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-t1 px-3 text-sm font-semibold text-sr transition-transform active:scale-[0.98] disabled:opacity-40"
+            onClick={openAddRevision}
+            disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
+          >
+            <Plus className="h-4 w-4 shrink-0" />
+            Add Revision
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-bd px-3 text-sm font-semibold text-t1 transition-colors hover:bg-surface-low"
+            onClick={primaryQuote ? openQuoteAction : openCreateQuote}
+          >
+            <FilePlus2 className="h-4 w-4 shrink-0" />
+            {primaryQuote ? "View Quote" : "Create Quote"}
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-bd px-3 text-sm font-semibold text-t1 transition-colors hover:bg-surface-low"
+            onClick={() => setAttachQuoteOpen(true)}
+          >
+            <Paperclip className="h-4 w-4 shrink-0" />
+            Attach Existing Quote
+          </button>
+          <button
+            type="button"
+            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-bd px-3 text-sm font-semibold text-t1 transition-colors hover:bg-surface-low disabled:opacity-40"
+            onClick={() => void handleCat2()}
+            disabled={cat2Busy || !canExportCat2}
+            title={
+              canExportCat2
+                ? `Create CATII Check for ${activeCat2Label}`
+                : "CATII Check is available when original or a revision is complete"
+            }
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            {cat2Busy ? "Creating…" : "CAT II Check"}
+          </button>
+        </div>
+
         <CurrentRevisionSection
           currentWork={currentWork}
           revLabel={revLabel}
@@ -800,6 +779,26 @@ export function JobsInspector({
           <RevisionTimeline revisions={revisions} jobKey={project.id} />
         )}
       </div>
+
+      {!isDrawer ? (
+        <div className="flex shrink-0 gap-3 border-t border-bd bg-s1 px-6 py-5">
+          <button
+            type="button"
+            className="flex-1 rounded-lg border border-bd py-2 text-sm font-semibold text-t1 transition-colors hover:bg-surface-low"
+            onClick={() => onEdit?.() ?? router.push(`/jobs/${project.id}`)}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="flex-1 rounded-lg border border-dn/20 py-2 text-sm font-semibold text-dn transition-colors hover:bg-dn/5"
+            onClick={() => router.push(`/jobs/${project.id}`)}
+            title="Open project to cancel"
+          >
+            Cancel Job
+          </button>
+        </div>
+      ) : null}
 
       <Suspense fallback={null}>
         {!workItemsModel && addRevOpen && jobDetail && (

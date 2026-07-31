@@ -606,7 +606,7 @@ export function ProjectDetailsSection({
   const isManagedSite = Boolean(data.siteId)
 
   return (
-    <AccordionSection icon={Building2} title="Project Details" defaultOpen resetKey={jobKey}>
+    <AccordionSection icon={Building2} title="Job Summary" defaultOpen resetKey={jobKey}>
       <InfoCard className="!p-3.5 space-y-3">
         <Meta label="Client" value={data.client} />
         <Meta label="Site" value={data.siteName} />
@@ -671,7 +671,7 @@ export function CATIISummary({
     : null
 
   return (
-    <AccordionSection icon={ShieldCheck} title="CATII Check" defaultOpen={false}>
+    <AccordionSection icon={ShieldCheck} title="Linked Records" defaultOpen={false}>
       {activeCheck ? (
         <InfoCard className="!p-3.5">
           <div className="flex items-start justify-between gap-3">

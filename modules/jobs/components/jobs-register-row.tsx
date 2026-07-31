@@ -1,35 +1,22 @@
 "use client"
 
 import { memo } from "react"
-import { AlertTriangle, MoreHorizontal } from "lucide-react"
-import {
-  cn,
-  getRevisionDueInfo,
-  revisionDueToneClass,
-} from "@/shared/utils/utils"
-import {
-  registerWorkTypeLabel,
-  siteDisplay,
-} from "./jobs-register-helpers"
-import { ClientSiteCell } from "./client-site-cell"
+import { ChevronRight } from "lucide-react"
+import { cn } from "@/shared/utils/utils"
+import { registerWorkTypeLabel } from "./jobs-register-helpers"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { REGISTER_ROW_H } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { DrawingStatusCompleteLabel } from "./drawing-status-badge"
-import { StagePipeline } from "./engineering-workflow-indicator"
 import {
-  getEngineeringStageFromDrawingStatus,
-} from "@/modules/jobs/lib/engineering-workflow"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/shared/ui/dropdown-menu"
+  getDrawingStatusBadgeClass,
+  getDrawingStatusColour,
+  getDrawingStatusLabel,
+} from "@/modules/jobs/lib/drawing-status-colours"
 
 export const REGISTER_GRID =
-  "grid grid-cols-[minmax(8rem,1.15fr)_minmax(10rem,1.35fr)_minmax(7.5rem,1fr)_minmax(6.5rem,0.9fr)_minmax(7.5rem,0.85fr)_2.25rem]"
+  "grid grid-cols-[minmax(9rem,1.2fr)_minmax(8rem,1.1fr)_minmax(8rem,1.1fr)_minmax(8rem,1fr)_minmax(7rem,0.9fr)_2.5rem]"
 
 interface JobsRegisterRowProps {
   project: JobsRegisterProject
@@ -46,43 +33,17 @@ interface JobsRegisterRowProps {
   onDesignerChanged?: (projectId: string, nextDesigner: string) => void
 }
 
-function RegisterDueCell({
-  requiredByDate,
-  completed,
-}: {
-  requiredByDate: string | null
-  completed: boolean
-}) {
-  const due = getRevisionDueInfo(requiredByDate, { completed })
-  const tone = revisionDueToneClass(due.severity)
-  const showIcon = due.severity === "overdue" || due.severity === "orange"
-  const absoluteLine =
-    due.severity === "none" ? "No Due Date" : `Due ${due.shortDateLabel}`
-  const relativeLine =
-    due.severity === "none"
-      ? "—"
-      : due.severity === "complete"
-        ? "Completed"
-        : due.daysLabel
-
+function StatusPill({ status }: { status: string }) {
+  const colour = getDrawingStatusColour(status)
   return (
     <span
       className={cn(
-        "inline-flex h-[2.75rem] w-[7.5rem] min-w-[7.5rem] max-w-[7.5rem] flex-col items-start justify-center gap-0.5 rounded-md border px-2.5 py-1",
-        "leading-tight tabular-nums",
-        tone.text,
-        tone.tint,
-        tone.border,
+        "inline-flex max-w-full items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide",
+        getDrawingStatusBadgeClass(status),
       )}
-      title={due.dateLabel !== "—" ? due.dateLabel : absoluteLine}
     >
-      <span className="inline-flex min-w-0 items-center gap-1">
-        {showIcon ? (
-          <AlertTriangle className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
-        ) : null}
-        <span className="min-w-0 truncate text-[10px] font-medium opacity-90">{absoluteLine}</span>
-      </span>
-      <span className="line-clamp-2 min-w-0 text-[12px] font-bold leading-tight">{relativeLine}</span>
+      <span className={cn("mr-1.5 h-1.5 w-1.5 shrink-0 rounded-full", colour.dot)} aria-hidden />
+      <span className="truncate">{getDrawingStatusLabel(status)}</span>
     </span>
   )
 }
@@ -93,34 +54,21 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
   rowIndex = 0,
   workItemsModel,
   designers,
-  highlightQuery,
+  highlightQuery: _highlightQuery,
   style,
   onSelect,
   onOpenWorkspace,
   onStatusChanged,
   onDesignerChanged,
 }: JobsRegisterRowProps) {
-  const site = siteDisplay(project.siteName, project.address)
+  void _highlightQuery
+  const site = (project.siteName?.trim() || project.address?.trim() || "—")
   const canEdit = project.currentWorkType !== "none" && Boolean(project.detailId)
   const patchUrl = workItemsModel && project.kind === "work_item"
     ? `/api/work-items/${project.detailId}`
     : undefined
   const workType = registerWorkTypeLabel(project)
-  const stage = getEngineeringStageFromDrawingStatus(project.currentStatus, {
-    closed: project.currentWorkType === "none",
-  })
-  const due = getRevisionDueInfo(project.requiredByDate, {
-    completed: project.currentWorkType === "none",
-  })
   const zebra = !selected && rowIndex % 2 === 1
-  const urgencyAccent =
-    !selected && due.severity === "overdue"
-      ? "border-l-dn"
-      : !selected && due.severity === "orange"
-        ? "border-l-wn-ic/80"
-        : !selected && due.severity === "amber"
-          ? "border-l-yl/60"
-          : null
 
   return (
     <div
@@ -130,6 +78,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       data-selected={selected ? "true" : undefined}
       style={{ ...style, height: REGISTER_ROW_H }}
       onClick={() => onSelect(project.id)}
+      onDoubleClick={() => onOpenWorkspace(project.id)}
       onKeyDown={e => {
         if (e.key === " " || e.key === "Enter") {
           e.preventDefault()
@@ -138,69 +87,62 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       }}
       className={cn(
         REGISTER_GRID,
-        "group items-center gap-0 border-b border-bd/40 px-0 cursor-pointer",
-        "transition-[background-color,box-shadow,border-color] duration-150 ease-out",
+        "group items-center gap-0 border-b border-bd/50 px-0 cursor-pointer",
+        "transition-[background-color,border-color,opacity] duration-150 ease-out",
         "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ac",
         selected
-          ? "bg-sel-bg border-l-4 border-l-sel-bd"
+          ? "border-l-4 border-l-t1 bg-t1/[0.04]"
           : cn(
-              "border-l-4 hover:bg-surface-low",
-              urgencyAccent ?? "border-l-transparent",
-              zebra && "bg-surface-low/70",
+              "border-l-4 border-l-transparent hover:bg-surface-low",
+              zebra && "bg-surface-low/40",
             ),
       )}
     >
-      <div role="cell" className="min-w-0 px-3 py-1.5">
-        <p className="min-w-0 truncate text-[15px] font-bold tabular-nums tracking-tight text-t1">
+      <div role="cell" className="min-w-0 px-6 py-3">
+        <p className="min-w-0 truncate text-[16px] font-bold tabular-nums tracking-tight text-t1">
           {project.drawingNumber}
         </p>
-        <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-wide text-t2">
+        <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide text-t3">
           {workType}
         </p>
       </div>
 
-      <div role="cell" className="min-w-0 px-3 py-1.5">
-        <ClientSiteCell
-          clientName={project.clientCompany}
-          siteName={site}
-          highlightQuery={highlightQuery}
-          variant="register"
-          selected={selected}
-        />
+      <div role="cell" className="min-w-0 px-6 py-3">
+        <p className="truncate text-sm text-t1">{project.clientCompany || "—"}</p>
+      </div>
+
+      <div role="cell" className="min-w-0 px-6 py-3">
+        <p className="truncate text-sm text-t2">{site}</p>
       </div>
 
       <div
         role="cell"
-        className="min-w-0 px-3 py-1.5"
+        className="min-w-0 px-6 py-3"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
         {canEdit ? (
-          <div className="flex min-w-0 flex-col gap-1">
-            <WorkItemStatusSelector
-              workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
-              workItemId={project.detailId}
-              currentStatus={project.currentStatus}
-              revisionLabel={
-                project.currentWorkType === "revision" ? project.currentWorkLabel : null
-              }
-              patchUrl={patchUrl}
-              size="md"
-              onStatusChanged={next => onStatusChanged?.(project.id, next)}
-            />
-            <StagePipeline stageId={stage.id} className="pl-0.5" />
-          </div>
+          <WorkItemStatusSelector
+            workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
+            workItemId={project.detailId}
+            currentStatus={project.currentStatus}
+            revisionLabel={
+              project.currentWorkType === "revision" ? project.currentWorkLabel : null
+            }
+            patchUrl={patchUrl}
+            size="md"
+            onStatusChanged={next => onStatusChanged?.(project.id, next)}
+          />
+        ) : project.currentWorkType === "none" ? (
+          <DrawingStatusCompleteLabel />
         ) : (
-          <div className="flex min-w-0 flex-col gap-1">
-            <DrawingStatusCompleteLabel />
-            <StagePipeline stageId="complete" className="pl-0.5" />
-          </div>
+          <StatusPill status={project.currentStatus} />
         )}
       </div>
 
       <div
         role="cell"
-        className="min-w-0 px-3 py-1.5"
+        className="min-w-0 px-6 py-3"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
@@ -215,50 +157,21 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
             designers={designers}
             patchUrl={patchUrl}
             compact
-            unassignedLabel="Assign designer"
+            unassignedLabel="Unassigned"
             onDesignerChanged={next => onDesignerChanged?.(project.id, next)}
           />
         ) : (
-          <p className={cn("truncate text-sm", project.designer?.trim() ? "text-t1" : "text-t2")}>
+          <p className={cn("truncate text-sm", project.designer?.trim() ? "text-t1" : "text-t3")}>
             {project.designer?.trim() || "Unassigned"}
           </p>
         )}
       </div>
 
-      <div role="cell" className="min-w-0 px-2 py-1.5">
-        <RegisterDueCell
-          requiredByDate={project.requiredByDate}
-          completed={project.currentWorkType === "none"}
+      <div role="cell" className="flex items-center justify-end px-4">
+        <ChevronRight
+          className="h-5 w-5 text-t3 opacity-0 transition-opacity group-hover:opacity-100 group-data-[selected=true]:opacity-100"
+          aria-hidden
         />
-      </div>
-
-      <div
-        role="cell"
-        className="flex items-center justify-center px-1"
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
-      >
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                "rounded-md p-1.5 text-t3 transition-colors",
-                "hover:bg-surface-low hover:text-t1",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac",
-                "opacity-70 group-hover:opacity-100 data-[state=open]:opacity-100 data-[state=open]:bg-surface-low data-[state=open]:text-t1",
-              )}
-              aria-label={`Actions for ${project.drawingNumber}`}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => onOpenWorkspace(project.id)}>
-              Open Full Project
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   )
