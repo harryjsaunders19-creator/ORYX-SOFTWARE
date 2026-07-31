@@ -152,7 +152,9 @@ export const MobileJobCard = memo(function MobileJobCard({
               : due.daysLabel}
           </p>
           {due.severity !== "none" && due.severity !== "complete" ? (
-            <p className={cn("mt-0.5 text-[11px] font-medium", dueTone.text)}>{due.shortDateLabel}</p>
+            <p className={cn("mt-0.5 text-[11px] font-medium", dueTone.text)}>
+              Due {due.shortDateLabel}
+            </p>
           ) : due.registerSecondary ? (
             <p className={cn("mt-0.5 text-[11px] font-semibold", dueTone.text)}>{due.registerSecondary}</p>
           ) : null}

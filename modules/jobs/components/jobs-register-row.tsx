@@ -54,7 +54,7 @@ function RegisterDueCell({
       </p>
       {due.severity !== "none" && due.severity !== "complete" ? (
         <p className={cn("mt-0.5 truncate text-[10px] font-medium", tone.text)}>
-          {due.shortDateLabel}
+          Due {due.shortDateLabel}
         </p>
       ) : due.registerSecondary ? (
         <p className={cn("mt-0.5 truncate text-[11px] font-semibold", tone.text)}>

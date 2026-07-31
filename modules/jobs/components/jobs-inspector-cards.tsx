@@ -309,7 +309,8 @@ function EditableTargetDue({
       setEditing(false)
       return
     }
-    if (trimmed === (requiredByDate ?? "")) {
+    const current = (optimistic !== undefined ? optimistic : requiredByDate)?.slice(0, 10) ?? ""
+    if (trimmed === current) {
       setEditing(false)
       return
     }
@@ -337,67 +338,81 @@ function EditableTargetDue({
     } finally {
       setBusy(false)
     }
-  }, [busy, disabled, onChanged, patchUrl, requiredByDate, toast, workItemId])
+  }, [busy, disabled, onChanged, optimistic, patchUrl, requiredByDate, toast, workItemId])
 
   return (
-    <div className="rounded-md border border-bd/50 bg-sr px-3 py-2.5">
-      <p className={fieldLabel}>Days Remaining</p>
-      <span
-        className={cn(
-          "inline-flex items-center rounded-md px-2.5 py-1 text-base font-bold",
-          dueTone.text,
-          dueTone.tint,
-        )}
-      >
-        {due.severity === "none" ? "No Due Date" : due.daysLabel}
-      </span>
-
-      <p className="mt-2.5 text-[11px] font-medium text-t3">Due</p>
-      {editing && !disabled ? (
-        <input
-          ref={inputRef}
-          type="date"
-          className="mt-0.5 w-full max-w-[11rem] rounded border border-bd bg-sr px-2 py-1 text-sm text-t1 outline-none focus-visible:ring-2 focus-visible:ring-ac"
-          defaultValue={value?.slice(0, 10) ?? ""}
-          disabled={busy}
-          autoFocus
-          onBlur={e => { void save(e.target.value) }}
-          onKeyDown={e => {
-            if (e.key === "Enter") {
-              e.preventDefault()
-              void save((e.target as HTMLInputElement).value)
-            }
-            if (e.key === "Escape") {
-              e.preventDefault()
-              setEditing(false)
-            }
-          }}
-          onClick={e => e.stopPropagation()}
-        />
-      ) : (
-        <button
-          type="button"
-          disabled={disabled || busy || completed}
-          onClick={e => {
-            e.stopPropagation()
-            if (!disabled && !completed) setEditing(true)
-          }}
+    <div className="space-y-2.5">
+      <div>
+        <p className={fieldLabel}>Days Remaining</p>
+        <span
           className={cn(
-            "group/due mt-0.5 inline-flex max-w-full items-center gap-1.5 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ac",
-            (disabled || completed) ? "cursor-default" : "cursor-pointer",
+            "inline-flex items-center rounded-md px-2.5 py-1 text-[15px] font-bold",
+            dueTone.text,
+            dueTone.tint,
           )}
-          title={completed ? "Completed" : "Edit due date"}
-          aria-label="Edit due date"
         >
-          <span className={cn("text-sm", due.severity === "none" ? "text-t3" : "font-medium text-t2")}>
-            {due.severity === "none" ? "No Due Date" : due.shortDateLabel}
-          </span>
-          {!disabled && !completed && (
-            <Pencil className="h-3 w-3 shrink-0 text-t4 opacity-0 transition-opacity group-hover/due:opacity-100" aria-hidden />
-          )}
-          {busy && <span className="text-[10px] text-t4">Saving…</span>}
-        </button>
-      )}
+          {due.severity === "none" ? "No Due Date" : due.daysLabel}
+        </span>
+      </div>
+
+      <div>
+        <p className={fieldLabel}>Due</p>
+        {editing && !disabled ? (
+          <input
+            ref={inputRef}
+            type="date"
+            className="mt-0.5 w-full max-w-[11rem] rounded border border-bd bg-sr px-2 py-1 text-sm text-t1 outline-none focus-visible:ring-2 focus-visible:ring-ac"
+            defaultValue={value?.slice(0, 10) ?? ""}
+            disabled={busy}
+            autoFocus
+            onBlur={e => {
+              // Fallback when the picker is dismissed without a change event.
+              if (e.target.value && e.target.value !== (value?.slice(0, 10) ?? "")) {
+                void save(e.target.value)
+              } else {
+                setEditing(false)
+              }
+            }}
+            onChange={e => {
+              if (e.target.value) void save(e.target.value)
+            }}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                void save((e.target as HTMLInputElement).value)
+              }
+              if (e.key === "Escape") {
+                e.preventDefault()
+                setEditing(false)
+              }
+            }}
+            onClick={e => e.stopPropagation()}
+          />
+        ) : (
+          <button
+            type="button"
+            disabled={disabled || busy || completed}
+            onClick={e => {
+              e.stopPropagation()
+              if (!disabled && !completed) setEditing(true)
+            }}
+            className={cn(
+              "group/due inline-flex max-w-full items-center gap-1.5 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ac",
+              (disabled || completed) ? "cursor-default" : "cursor-pointer",
+            )}
+            title={completed ? "Completed" : "Edit due date"}
+            aria-label="Edit due date"
+          >
+            <span className={cn("text-sm", due.severity === "none" ? "text-t3" : "font-medium text-t2")}>
+              {due.severity === "none" ? "No Due Date" : due.shortDateLabel}
+            </span>
+            {!disabled && !completed && (
+              <Pencil className="h-3 w-3 shrink-0 text-t4 opacity-0 transition-opacity group-hover/due:opacity-100" aria-hidden />
+            )}
+            {busy && <span className="text-[10px] text-t4">Saving…</span>}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -452,65 +467,69 @@ export function CurrentRevisionSection({
           </p>
         </div>
       ) : (
-        <div className="space-y-3.5">
-          <div className="rounded-lg border border-bd/80 bg-surface-low px-4 py-4">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
+        <div className="space-y-4">
+          <div className="min-h-[7.5rem] rounded-lg border border-bd/70 bg-surface-low px-4 py-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
               {briefLabel}
             </p>
             <p
               className={cn(
-                "text-base leading-relaxed whitespace-pre-wrap",
-                briefText?.trim() ? "font-semibold text-t1" : "font-medium text-t3",
+                "text-[15px] font-semibold leading-relaxed whitespace-pre-wrap",
+                briefText?.trim() ? "text-t1" : "font-medium text-t3",
               )}
             >
               {briefText?.trim() || briefEmpty}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <p className={fieldLabel}>Status</p>
-              <WorkItemStatusSelector
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <p className={fieldLabel}>Status</p>
+                <WorkItemStatusSelector
+                  workItemType={isRevision ? "revision" : "original"}
+                  workItemId={currentWork.id!}
+                  currentStatus={currentWork.status}
+                  revisionLabel={isRevision ? currentWork.revisionLabel : null}
+                  patchUrl={patchUrl}
+                  size="md"
+                  onStatusChanged={onChanged}
+                />
+              </div>
+              <DesignerAssignmentSelector
                 workItemType={isRevision ? "revision" : "original"}
                 workItemId={currentWork.id!}
-                currentStatus={currentWork.status}
-                revisionLabel={isRevision ? currentWork.revisionLabel : null}
+                currentDesigner={designer}
+                revisionLabel={isRevision ? (currentWork.revisionLabel ?? revLabel) : null}
+                designers={designers}
                 patchUrl={patchUrl}
-                size="md"
-                onStatusChanged={onChanged}
+                labeled
+                unassignedLabel="Unassigned"
+                onDesignerChanged={onChanged}
               />
             </div>
 
-            <EditableTargetDue
-              workItemId={currentWork.id!}
-              patchUrl={patchUrl}
-              requiredByDate={dueSource}
-              completed={completed}
-              onChanged={onChanged}
-            />
-
-            <DesignerAssignmentSelector
-              workItemType={isRevision ? "revision" : "original"}
-              workItemId={currentWork.id!}
-              currentDesigner={designer}
-              revisionLabel={isRevision ? (currentWork.revisionLabel ?? revLabel) : null}
-              designers={designers}
-              patchUrl={patchUrl}
-              labeled
-              unassignedLabel="Unassigned"
-              onDesignerChanged={onChanged}
-            />
-
-            <div>
-              <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
-              <p className="text-sm text-t2">
-                {safeDateLabel(revisionDate) || "—"}
-              </p>
+            <div className="border-t border-bd/50 pt-3">
+              <EditableTargetDue
+                workItemId={currentWork.id!}
+                patchUrl={patchUrl}
+                requiredByDate={dueSource}
+                completed={completed}
+                onChanged={onChanged}
+              />
             </div>
 
-            <div>
-              <p className={fieldLabel}>Issued</p>
-              <p className="text-sm text-t2">{issuedLabel}</p>
+            <div className="grid grid-cols-1 gap-3 border-t border-bd/40 pt-3 sm:grid-cols-2">
+              <div>
+                <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
+                <p className="text-sm text-t3">
+                  {safeDateLabel(revisionDate) || "—"}
+                </p>
+              </div>
+              <div>
+                <p className={fieldLabel}>Issued</p>
+                <p className="text-sm text-t3">{issuedLabel}</p>
+              </div>
             </div>
           </div>
         </div>
