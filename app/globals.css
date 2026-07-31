@@ -81,10 +81,14 @@
   --color-ac-bg:  #f3f4f6;
   --color-on-ac:  #ffffff;
 
-  /* Secondary accent — slate teal (used sparingly: one category of meaning) */
+  /* Secondary accent — slate teal (Active / in-progress meaning only) */
   --color-ac2:    #0E7A6E;
   --color-ac2h:   #0B6258;
   --color-ac2-bg: #E7F5F3;
+
+  /* UI selection / focus (neutral slate — never status green) */
+  --color-sel-bg: #F0F2F5;
+  --color-sel-bd: #111827;
 
   /* Danger */
   --color-dn:     #C0362C;   /* destructive actions */
@@ -214,6 +218,9 @@ html.dark {
   --color-ac2:    #2DD4BF;
   --color-ac2h:   #5EEAD4;
   --color-ac2-bg: rgba(45, 212, 191, 0.12);
+  /* UI selection — deep slate-blue, not teal/green */
+  --color-sel-bg: #1C2430;
+  --color-sel-bd: #E4E4E7;
   --color-dn:     #EF4444;
   --color-dnh:    #F87171;
   --color-dn-bg:  rgba(239, 68, 68, 0.12);

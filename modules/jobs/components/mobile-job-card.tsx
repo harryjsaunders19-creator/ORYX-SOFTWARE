@@ -65,11 +65,11 @@ export const MobileJobCard = memo(function MobileJobCard({
         }
       }}
       className={cn(
-        "w-full min-w-0 rounded-lg border bg-sr p-3.5 text-left outline-none transition-colors",
-        "focus-visible:ring-2 focus-visible:ring-ac2",
+        "w-full min-w-0 rounded-lg border bg-sr p-3.5 text-left outline-none transition-colors duration-200",
+        "cursor-pointer focus-visible:ring-2 focus-visible:ring-ac",
         selected
-          ? "border-ac2 bg-ac2-bg/40 shadow-[inset_3px_0_0_0_var(--color-ac2)]"
-          : "border-bd",
+          ? "border-bd bg-sel-bg shadow-[inset_3px_0_0_0_var(--color-sel-bd)]"
+          : "border-bd hover:bg-surface-low",
       )}
     >
       <div className="flex items-start justify-between gap-3">
