@@ -89,7 +89,7 @@
   --color-inspector-bd: #C7CED8;
   /* Cards / dividers inside the inspector (Light Mode hierarchy) */
   --color-inspector-card: #FFFFFF;
-  --color-inspector-card-bd: #CBD3DD;
+  --color-inspector-card-bd: #CBD5E1;
   --color-inspector-divider: #C9D1DB;
 
   /* Text */
@@ -585,7 +585,7 @@ html.stitch-layout {
   --color-bds: #76777d;
   --color-inspector-bd: #C7CED8;
   --color-inspector-card: #FFFFFF;
-  --color-inspector-card-bd: #CBD3DD;
+  --color-inspector-card-bd: #CBD5E1;
   --color-inspector-divider: #C9D1DB;
   --color-t1: #191c1d;
   --color-t2: #45464c;

@@ -66,7 +66,7 @@ export function ClientSiteCell({
     "font-semibold text-t1 transition-colors",
     variant === "register" && "truncate text-base leading-snug group-hover:text-t1",
     variant === "card" && "text-base leading-snug [overflow-wrap:anywhere]",
-    variant === "header" && "text-[15px] leading-snug [overflow-wrap:anywhere]",
+    variant === "header" && "text-[15px] font-semibold leading-snug [overflow-wrap:anywhere]",
     variant === "compact" && "truncate text-sm leading-snug",
     selected && "text-t1",
   )
@@ -75,7 +75,7 @@ export function ClientSiteCell({
     "flex min-w-0 items-center gap-1 text-t2 transition-colors",
     variant === "register" && "mt-1 truncate text-[13px] leading-snug group-hover:text-t1",
     variant === "card" && "mt-1 text-sm leading-snug [overflow-wrap:anywhere]",
-    variant === "header" && "mt-1 text-sm leading-snug [overflow-wrap:anywhere]",
+    variant === "header" && "mt-1.5 text-sm font-normal leading-snug text-t3 [overflow-wrap:anywhere]",
     variant === "compact" && "mt-0.5 truncate text-xs leading-snug",
     selected ? "text-t2" : "text-t2",
   )

@@ -23,22 +23,52 @@ import { ClientSiteCell } from "./client-site-cell"
 import { useToast } from "@/shared/ui/toast"
 
 export const sectionHeading =
-  "text-[11px] font-semibold uppercase tracking-[0.14em] text-t3"
+  "text-[13px] font-medium tracking-wide text-t2"
 export const fieldLabel = "mb-1 text-[11px] font-medium text-t3"
 export const fieldValue = "text-sm text-t1"
 export const fieldMuted = "text-sm text-t3"
 
 /** White (light) / preserved dark surface for key cards on the grey inspector. */
 export const inspectorContentCard =
-  "rounded-lg border border-inspector-card-bd bg-inspector-card shadow-inspector-card"
+  "rounded-[10px] border border-inspector-card-bd bg-inspector-card shadow-inspector-card"
 
-/** Stronger section rules between accordion blocks on the inspector. */
-export const inspectorSectionRule = "border-t border-inspector-divider"
+/** Section boundary — spacing-first, with a calm divider. */
+export const inspectorSectionRule = "border-t border-inspector-divider pt-5"
 
-/** Subtle rules between metadata groups (Status / Due / dates). */
-export const inspectorMetaRule = "border-t border-inspector-divider"
+const sectionIconClass = "h-4 w-4 shrink-0 text-t3"
 
-const sectionIconClass = "h-3.5 w-3.5 shrink-0 text-t3"
+function AccordionHeader({
+  icon: Icon,
+  expanded,
+  onClick,
+  children,
+}: {
+  icon: typeof PencilRuler
+  expanded: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      className="flex min-h-11 w-full items-center justify-between gap-3 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ac"
+      aria-expanded={expanded}
+      onClick={onClick}
+    >
+      <h4 className={cn(sectionHeading, "mb-0 flex items-center gap-2")}>
+        <Icon className={sectionIconClass} aria-hidden />
+        {children}
+      </h4>
+      <ChevronDown
+        className={cn(
+          "h-5 w-5 shrink-0 text-t2 transition-transform duration-200",
+          expanded && "rotate-180",
+        )}
+        aria-hidden
+      />
+    </button>
+  )
+}
 
 function SectionTitle({
   icon: Icon,
@@ -50,7 +80,7 @@ function SectionTitle({
   trailing?: ReactNode
 }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-2">
+    <div className="mb-3 flex min-h-11 items-center justify-between gap-2">
       <h4 className={cn(sectionHeading, "mb-0 flex items-center gap-2")}>
         <Icon className={sectionIconClass} aria-hidden />
         {children}
@@ -197,15 +227,12 @@ export function RevisionSummaryStrip({
   const hasDesigner = Boolean(designer.trim())
   const designerLabel = hasDesigner ? designer.trim() : "Unassigned"
   return (
-    <p className="mt-2 truncate text-xs leading-snug text-t3">
-      <span className="font-semibold uppercase tracking-wide text-t2">{revision}</span>
-      <span className="mx-1.5 text-t4" aria-hidden>·</span>
-      <span>{stage}</span>
-      <span className="mx-1.5 text-t4" aria-hidden>·</span>
-      <span className={hasDesigner ? "text-t2" : "text-t4"}>{designerLabel}</span>
-      <span className="mx-1.5 text-t4" aria-hidden>·</span>
+    <div className="mt-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs leading-snug">
+      <span className="font-semibold uppercase tracking-wide text-t1">{revision}</span>
+      <span className="font-medium text-t2">{stage}</span>
+      <span className={hasDesigner ? "font-medium text-t2" : "text-t4"}>{designerLabel}</span>
       <span className={cn("font-semibold", dueTone.text)}>{duePrimary}</span>
-    </p>
+    </div>
   )
 }
 
@@ -235,7 +262,7 @@ export function InspectorHeader({
   children: ReactNode
 }) {
   return (
-    <div className="sticky top-0 z-20 shrink-0 border-b border-bd/70 bg-s2/95 px-5 pt-4 pb-4 backdrop-blur-sm">
+    <div className="sticky top-0 z-20 shrink-0 border-b border-inspector-divider bg-s2/95 px-5 pt-4 pb-4 backdrop-blur-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-2">
           {leadingSlot}
@@ -252,13 +279,13 @@ export function InspectorHeader({
                 {drawingNumber}
               </h3>
               {revisionBadge && (
-                <span className="rounded-md border border-bd bg-s1 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-t2">
+                <span className="rounded-md border border-inspector-card-bd bg-inspector-card px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-t2">
                   {revisionBadge}
                 </span>
               )}
             </div>
             <ClientSiteCell
-              className="mt-1.5"
+              className="mt-2"
               clientName={client}
               siteName={site}
               variant="header"
@@ -273,8 +300,8 @@ export function InspectorHeader({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">{statusChips}</div>
-      <div className="mt-3">{children}</div>
+      <div className="mt-3.5 flex flex-wrap items-center gap-2">{statusChips}</div>
+      <div className="mt-3.5">{children}</div>
     </div>
   )
 }
@@ -351,22 +378,9 @@ function EditableTargetDue({
   }, [busy, disabled, onChanged, optimistic, patchUrl, requiredByDate, toast, workItemId])
 
   return (
-    <div className="space-y-2.5">
+    <>
       <div>
-        <p className={fieldLabel}>Days Remaining</p>
-        <span
-          className={cn(
-            "inline-flex items-center rounded-md px-2.5 py-1 text-[15px] font-bold",
-            dueTone.text,
-            dueTone.tint,
-          )}
-        >
-          {due.severity === "none" ? "No Due Date" : due.daysLabel}
-        </span>
-      </div>
-
-      <div>
-        <p className={fieldLabel}>Due</p>
+        <p className={fieldLabel}>Due Date</p>
         {editing && !disabled ? (
           <input
             ref={inputRef}
@@ -376,7 +390,6 @@ function EditableTargetDue({
             disabled={busy}
             autoFocus
             onBlur={e => {
-              // Fallback when the picker is dismissed without a change event.
               if (e.target.value && e.target.value !== (value?.slice(0, 10) ?? "")) {
                 void save(e.target.value)
               } else {
@@ -423,7 +436,20 @@ function EditableTargetDue({
           </button>
         )}
       </div>
-    </div>
+
+      <div>
+        <p className={fieldLabel}>Days Remaining</p>
+        <span
+          className={cn(
+            "inline-flex items-center rounded-md px-2.5 py-1 text-[15px] font-bold",
+            dueTone.text,
+            dueTone.tint,
+          )}
+        >
+          {due.severity === "none" ? "No Due Date" : due.daysLabel}
+        </span>
+      </div>
+    </>
   )
 }
 
@@ -434,6 +460,7 @@ export function CurrentRevisionSection({
   designer,
   designers,
   lastCompleted,
+  lastCompletedLabel,
   descriptionOfWorks,
   revisionReason,
   revisionDate,
@@ -446,6 +473,8 @@ export function CurrentRevisionSection({
   designer: string
   designers: string[]
   lastCompleted: string | null
+  /** e.g. "Rev D" or "Original" for the empty state. */
+  lastCompletedLabel?: string | null
   descriptionOfWorks: string | null
   revisionReason: string | null
   revisionDate: string | null
@@ -466,18 +495,43 @@ export function CurrentRevisionSection({
       : "Pending"
   const completed = currentWork.status === "ISSUED" || currentWork.type === "none"
   const dueSource = requiredByDate ?? currentWork.dueDate ?? null
+  const completedDate = safeDateLabel(lastCompleted)
+  const completedTitle = lastCompletedLabel?.trim() || null
 
   return (
     <section className="pt-1">
       {!active ? (
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-t1">No active drawing work</p>
-          <p className="text-sm text-t3">
-            Last completed {safeDateLabel(lastCompleted) || "—"}
+        <div className={cn(inspectorContentCard, "px-4 py-4")}>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
+            Current Drawing
+          </p>
+          <p className="text-[15px] font-semibold text-t1">No active drawing work</p>
+          <div className="mt-3 space-y-1 text-sm text-t3">
+            <p className="font-medium text-t2">Latest completed</p>
+            <p>
+              {completedTitle ? (
+                <>
+                  <span className="font-semibold text-t1">{completedTitle}</span>
+                  {completedDate ? (
+                    <>
+                      <span className="mx-1.5 text-t4" aria-hidden>·</span>
+                      Completed {completedDate}
+                    </>
+                  ) : null}
+                </>
+              ) : completedDate ? (
+                <>Completed {completedDate}</>
+              ) : (
+                "No completed drawings yet"
+              )}
+            </p>
+          </div>
+          <p className="mt-3 text-sm text-t3">
+            Create a new revision using the button above.
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div className={cn(inspectorContentCard, "min-h-[7.5rem] px-4 py-4")}>
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
               {briefLabel}
@@ -492,54 +546,48 @@ export function CurrentRevisionSection({
             </p>
           </div>
 
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <p className={fieldLabel}>Status</p>
-                <WorkItemStatusSelector
-                  workItemType={isRevision ? "revision" : "original"}
-                  workItemId={currentWork.id!}
-                  currentStatus={currentWork.status}
-                  revisionLabel={isRevision ? currentWork.revisionLabel : null}
-                  patchUrl={patchUrl}
-                  size="md"
-                  onStatusChanged={onChanged}
-                />
-              </div>
-              <DesignerAssignmentSelector
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <div>
+              <p className={fieldLabel}>Status</p>
+              <WorkItemStatusSelector
                 workItemType={isRevision ? "revision" : "original"}
                 workItemId={currentWork.id!}
-                currentDesigner={designer}
-                revisionLabel={isRevision ? (currentWork.revisionLabel ?? revLabel) : null}
-                designers={designers}
+                currentStatus={currentWork.status}
+                revisionLabel={isRevision ? currentWork.revisionLabel : null}
                 patchUrl={patchUrl}
-                labeled
-                unassignedLabel="Unassigned"
-                onDesignerChanged={onChanged}
+                size="md"
+                onStatusChanged={onChanged}
               />
             </div>
+            <DesignerAssignmentSelector
+              workItemType={isRevision ? "revision" : "original"}
+              workItemId={currentWork.id!}
+              currentDesigner={designer}
+              revisionLabel={isRevision ? (currentWork.revisionLabel ?? revLabel) : null}
+              designers={designers}
+              patchUrl={patchUrl}
+              labeled
+              unassignedLabel="Unassigned"
+              onDesignerChanged={onChanged}
+            />
 
-            <div className={cn(inspectorMetaRule, "pt-3")}>
-              <EditableTargetDue
-                workItemId={currentWork.id!}
-                patchUrl={patchUrl}
-                requiredByDate={dueSource}
-                completed={completed}
-                onChanged={onChanged}
-              />
+            <EditableTargetDue
+              workItemId={currentWork.id!}
+              patchUrl={patchUrl}
+              requiredByDate={dueSource}
+              completed={completed}
+              onChanged={onChanged}
+            />
+
+            <div>
+              <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
+              <p className="text-sm text-t3">
+                {safeDateLabel(revisionDate) || "—"}
+              </p>
             </div>
-
-            <div className={cn("grid grid-cols-1 gap-3 pt-3 sm:grid-cols-2", inspectorMetaRule)}>
-              <div>
-                <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
-                <p className="text-sm text-t3">
-                  {safeDateLabel(revisionDate) || "—"}
-                </p>
-              </div>
-              <div>
-                <p className={fieldLabel}>Issued</p>
-                <p className="text-sm text-t3">{issuedLabel}</p>
-              </div>
+            <div>
+              <p className={fieldLabel}>Issued</p>
+              <p className="text-sm text-t3">{issuedLabel}</p>
             </div>
           </div>
         </div>
@@ -583,25 +631,14 @@ export function ProjectDetailsSection({
   }, [jobKey])
 
   return (
-    <section className={cn(inspectorSectionRule, "pt-4")}>
-      <button
-        type="button"
-        className="mb-0 flex w-full items-center justify-between gap-2 text-left"
-        aria-expanded={expanded}
+    <section className={inspectorSectionRule}>
+      <AccordionHeader
+        icon={Building2}
+        expanded={expanded}
         onClick={() => setExpanded(v => !v)}
       >
-        <h4 className={cn(sectionHeading, "mb-0 flex items-center gap-2")}>
-          <Building2 className={sectionIconClass} aria-hidden />
-          Project Details
-        </h4>
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 shrink-0 text-t3 transition-transform duration-200",
-            expanded && "rotate-180",
-          )}
-          aria-hidden
-        />
-      </button>
+        Project Details
+      </AccordionHeader>
 
       <div
         className={cn(
@@ -676,7 +713,7 @@ export function CATIISummary({
     : null
 
   return (
-    <section className={cn(inspectorSectionRule, "pt-4")}>
+    <section className={inspectorSectionRule}>
       <SectionTitle icon={ShieldCheck}>CATII Check</SectionTitle>
       {activeCheck ? (
         <div className="flex items-start justify-between gap-3">
@@ -782,25 +819,14 @@ export function RevisionTimeline({
   }
 
   return (
-    <section className={cn(inspectorSectionRule, "pt-4 pb-2")}>
-      <button
-        type="button"
-        className="mb-0 flex w-full items-center justify-between gap-2 text-left"
-        aria-expanded={expanded}
+    <section className={cn(inspectorSectionRule, "pb-2")}>
+      <AccordionHeader
+        icon={History}
+        expanded={expanded}
         onClick={() => setExpanded(v => !v)}
       >
-        <h4 className={cn(sectionHeading, "mb-0 flex items-center gap-2")}>
-          <History className={sectionIconClass} aria-hidden />
-          Revision History ({count})
-        </h4>
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 shrink-0 text-t3 transition-transform duration-200",
-            expanded && "rotate-180",
-          )}
-          aria-hidden
-        />
-      </button>
+        Revision History ({count})
+      </AccordionHeader>
 
       <div
         className={cn(

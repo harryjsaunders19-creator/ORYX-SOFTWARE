@@ -525,7 +525,9 @@ export function JobsInspector({
 
   const isDrawer = presentation === "drawer"
   const actionBtn =
-    "inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-bd bg-sr px-2.5 text-sm font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-50"
+    "inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors disabled:opacity-50"
+  const primaryActionBtn = cn(actionBtn, "border border-transparent bg-ac text-on-ac hover:bg-ach")
+  const secondaryActionBtn = cn(actionBtn, "border border-bd bg-transparent text-t1 hover:bg-surface-low")
 
   const drawingDesigner =
     activeRevision?.designer
@@ -543,6 +545,19 @@ export function JobsInspector({
         ?? null
     }
     return issued.sort((a, b) => timeValue(b) - timeValue(a))[0] ?? null
+  }, [revisions, originalWorkItem, jobDetail])
+
+  const lastCompletedLabel = useMemo(() => {
+    const issued = revisions
+      .filter(r => r.status === "ISSUED")
+      .slice()
+      .sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt))
+    const latest = issued[0]
+    if (!latest) {
+      if (originalWorkItem?.completedAt || jobDetail?.dateCompleted) return "Original"
+      return null
+    }
+    return latest.letter ? `Rev ${latest.letter}` : "Original"
   }, [revisions, originalWorkItem, jobDetail])
 
   const primaryQuote = revisionQuote ?? originalQuote
@@ -651,7 +666,7 @@ export function JobsInspector({
           <div className="flex flex-col gap-2">
             <button
               type="button"
-              className={cn(actionBtn, "h-11 w-full border-transparent bg-ac text-on-ac hover:bg-ach")}
+              className={cn(primaryActionBtn, "h-11 w-full")}
               onClick={openAddRevision}
               disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
             >
@@ -661,7 +676,7 @@ export function JobsInspector({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                className={cn(actionBtn, "h-11")}
+                className={cn(secondaryActionBtn, "h-11")}
                 onClick={() => void handleCat2()}
                 disabled={cat2Busy || !canExportCat2}
                 title={
@@ -675,7 +690,7 @@ export function JobsInspector({
               </button>
               <button
                 type="button"
-                className={cn(actionBtn, "h-11")}
+                className={cn(secondaryActionBtn, "h-11")}
                 onClick={openQuoteAction}
               >
                 <Link2 className="h-4 w-4 shrink-0" />
@@ -687,7 +702,7 @@ export function JobsInspector({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className={cn(actionBtn, "border-transparent bg-ac text-on-ac hover:bg-ach")}
+              className={primaryActionBtn}
               onClick={openAddRevision}
               disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
             >
@@ -696,7 +711,7 @@ export function JobsInspector({
             </button>
             <button
               type="button"
-              className={actionBtn}
+              className={secondaryActionBtn}
               onClick={() => void handleCat2()}
               disabled={cat2Busy || !canExportCat2}
               title={
@@ -710,7 +725,7 @@ export function JobsInspector({
             </button>
             <button
               type="button"
-              className={actionBtn}
+              className={secondaryActionBtn}
               onClick={openQuoteAction}
             >
               <Link2 className="h-3.5 w-3.5" />
@@ -723,7 +738,7 @@ export function JobsInspector({
       <div
         key={project.id}
         className={cn(
-          "min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4",
+          "min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5",
           isDrawer && "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >
@@ -741,6 +756,7 @@ export function JobsInspector({
               designer={drawingDesigner}
               designers={designers}
               lastCompleted={lastCompleted}
+              lastCompletedLabel={lastCompletedLabel}
               descriptionOfWorks={descriptionOfWorks}
               revisionReason={activeRevision?.reason ?? null}
               revisionDate={
