@@ -286,6 +286,28 @@ export function registerRevisionBadge(project: {
 }
 
 /**
+ * Work-type subtitle under the drawing number in the register.
+ * e.g. REV A · Original · Complete
+ */
+export function registerWorkTypeLabel(project: {
+  currentWorkType: CurrentWorkType | string
+  currentWorkLabel?: string | null
+  currentRevisionLetter?: string | null
+}): string {
+  if (project.currentWorkType === "revision") {
+    const fromLabel = project.currentWorkLabel?.trim()
+    if (fromLabel) {
+      return fromLabel.toUpperCase().startsWith("REV")
+        ? fromLabel.toUpperCase()
+        : revisionBadgeLabel(fromLabel)
+    }
+    return revisionBadgeLabel(project.currentRevisionLetter ?? null)
+  }
+  if (project.currentWorkType === "original") return "Original"
+  return "Complete"
+}
+
+/**
  * Secondary context under Drawing ID when REV is shown as a side badge
  * (avoids repeating "REV A" on the line below).
  */

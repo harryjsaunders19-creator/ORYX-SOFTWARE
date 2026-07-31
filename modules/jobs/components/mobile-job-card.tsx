@@ -6,8 +6,7 @@ import {
   getRevisionDueInfo,
   revisionDueToneClass,
 } from "@/shared/utils/utils"
-import { registerRevisionBadge, siteDisplay } from "./jobs-register-helpers"
-import { RevisionBadge } from "./revision-badge"
+import { registerWorkTypeLabel, siteDisplay } from "./jobs-register-helpers"
 import { ClientSiteCell } from "./client-site-cell"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
@@ -43,8 +42,8 @@ export const MobileJobCard = memo(function MobileJobCard({
   const patchUrl = workItemsModel && project.kind === "work_item"
     ? `/api/work-items/${project.detailId}`
     : undefined
-  const workType = project.currentWorkType === "revision" ? "revision" : "original"
-  const revBadge = registerRevisionBadge(project)
+  const workItemType = project.currentWorkType === "revision" ? "revision" : "original"
+  const workType = registerWorkTypeLabel(project)
   const stage = getEngineeringStageFromDrawingStatus(project.currentStatus, {
     closed: project.currentWorkType === "none",
   })
@@ -55,7 +54,11 @@ export const MobileJobCard = memo(function MobileJobCard({
   const absoluteLine =
     due.severity === "none" ? "No Due Date" : `Due ${due.shortDateLabel}`
   const relativeLine =
-    due.severity === "none" || due.severity === "complete" ? null : due.daysLabel
+    due.severity === "none"
+      ? "—"
+      : due.severity === "complete"
+        ? "Completed"
+        : due.daysLabel
   const showDueIcon = due.severity === "overdue" || due.severity === "orange"
 
   return (
@@ -84,12 +87,12 @@ export const MobileJobCard = memo(function MobileJobCard({
             ),
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="min-w-0 flex-1 text-base font-bold leading-snug tracking-tight text-t1 tabular-nums [overflow-wrap:anywhere]">
-          {project.drawingNumber}
-        </h3>
-        {revBadge ? <RevisionBadge>{revBadge}</RevisionBadge> : null}
-      </div>
+      <h3 className="min-w-0 text-base font-bold leading-snug tracking-tight text-t1 tabular-nums [overflow-wrap:anywhere]">
+        {project.drawingNumber}
+      </h3>
+      <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-t2">
+        {workType}
+      </p>
 
       <ClientSiteCell
         className="mt-1.5"
@@ -109,7 +112,7 @@ export const MobileJobCard = memo(function MobileJobCard({
           <DrawingStatusCompleteLabel detail={project.currentWorkDetail || "No active work"} />
         ) : (
           <WorkItemStatusSelector
-            workItemType={workType}
+            workItemType={workItemType}
             workItemId={project.detailId}
             currentStatus={project.currentStatus}
             revisionLabel={
@@ -121,7 +124,7 @@ export const MobileJobCard = memo(function MobileJobCard({
             onStatusChanged={() => onStatusChanged?.()}
           />
         )}
-        <StagePipeline stageId={stage.id} className="mt-1.5" />
+        <StagePipeline stageId={stage.id} className="mt-1" />
       </div>
 
       <div className="mt-3 flex items-end justify-between gap-3 border-t border-bd/60 pt-3">
@@ -130,10 +133,12 @@ export const MobileJobCard = memo(function MobileJobCard({
           onClick={e => e.stopPropagation()}
           onKeyDown={e => e.stopPropagation()}
         >
-          <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-t2">Designer</p>
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-t3">
+            Designer
+          </p>
           {canEdit ? (
             <DesignerAssignmentSelector
-              workItemType={workType}
+              workItemType={workItemType}
               workItemId={project.detailId}
               currentDesigner={project.designer}
               revisionLabel={
@@ -153,22 +158,20 @@ export const MobileJobCard = memo(function MobileJobCard({
         </div>
         <div
           className={cn(
-            "inline-flex max-w-[50%] shrink-0 flex-col items-end gap-0.5 rounded-md border px-2 py-1.5 text-right",
+            "inline-flex h-[2.75rem] w-[7.5rem] min-w-[7.5rem] shrink-0 flex-col items-end justify-center gap-0.5 rounded-md border px-2.5 py-1 text-right",
             dueTone.tint,
             dueTone.border,
           )}
         >
-          <span className={cn("inline-flex items-center gap-1 text-[12px] font-bold tabular-nums", dueTone.text)}>
+          <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium tabular-nums opacity-90", dueTone.text)}>
             {showDueIcon ? (
               <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
             ) : null}
             {absoluteLine}
           </span>
-          {relativeLine ? (
-            <span className={cn("text-[10px] font-semibold tabular-nums", dueTone.text)}>
-              {relativeLine}
-            </span>
-          ) : null}
+          <span className={cn("text-[12px] font-bold tabular-nums leading-tight", dueTone.text)}>
+            {relativeLine}
+          </span>
         </div>
       </div>
     </article>

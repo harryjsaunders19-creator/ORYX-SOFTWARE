@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Building2,
   History,
+  Pencil,
   ShieldCheck,
 } from "lucide-react"
 import { cn, getRevisionDueInfo, revisionDueToneClass } from "@/shared/utils/utils"
@@ -12,7 +13,6 @@ import {
   EmptyStateCard,
   InfoCard,
   infoCardClassName,
-  InspectorSection,
   PropertyCell,
   PropertyGrid,
   RevisionCard,
@@ -243,7 +243,7 @@ export function InspectorHeader({
   children: ReactNode
 }) {
   return (
-    <div className="sticky top-0 z-20 shrink-0 border-b border-inspector-divider bg-s2/95 px-5 pt-5 pb-5 backdrop-blur-sm">
+    <div className="sticky top-0 z-20 shrink-0 border-b border-inspector-divider bg-s2/95 px-7 pt-5 pb-5 backdrop-blur-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-2">
           {leadingSlot}
@@ -310,7 +310,6 @@ function EditableTargetDue({
   const [optimistic, setOptimistic] = useState<string | null | undefined>(undefined)
   const value = optimistic !== undefined ? optimistic : requiredByDate
   const due = getRevisionDueInfo(value, { completed })
-  const dueTone = revisionDueToneClass(due.severity)
 
   useEffect(() => {
     setOptimistic(undefined)
@@ -359,7 +358,7 @@ function EditableTargetDue({
   }, [busy, disabled, onChanged, optimistic, patchUrl, requiredByDate, toast, workItemId])
 
   const absoluteLine =
-    due.severity === "none" ? "No Due Date" : `Due ${due.shortDateLabel}`
+    due.severity === "none" ? "No due date set" : `Due ${due.shortDateLabel}`
   const relativeLine =
     due.severity === "none"
       ? null
@@ -408,23 +407,22 @@ function EditableTargetDue({
             if (!disabled && !completed) setEditing(true)
           }}
           className={cn(
-            "group/due inline-flex max-w-full flex-col items-start gap-0.5 rounded-md border px-2.5 py-1.5 text-left outline-none",
+            "group/due inline-flex max-w-full items-center gap-1.5 rounded text-left outline-none",
             "focus-visible:ring-2 focus-visible:ring-ac",
-            dueTone.border,
-            dueTone.tint,
-            (disabled || completed) ? "cursor-default" : "cursor-pointer hover:brightness-[0.98]",
+            (disabled || completed) ? "cursor-default" : "cursor-pointer hover:text-t1",
           )}
           title={completed ? "Completed" : "Edit due date"}
           aria-label="Edit due date"
         >
-          <span className={cn("text-sm font-bold tabular-nums leading-tight", dueTone.text)}>
+          <span className={cn("text-sm tabular-nums", due.severity === "none" ? "text-t3" : "font-medium text-t2")}>
             {absoluteLine}
+            {relativeLine ? (
+              <span className="text-t3"> · {relativeLine}</span>
+            ) : null}
           </span>
-          {relativeLine ? (
-            <span className={cn("text-[11px] font-semibold tabular-nums leading-tight", dueTone.text)}>
-              {relativeLine}
-            </span>
-          ) : null}
+          {!disabled && !completed && (
+            <Pencil className="h-3 w-3 shrink-0 text-t3 opacity-0 transition-opacity group-hover/due:opacity-100 group-focus-visible/due:opacity-100" aria-hidden />
+          )}
           {busy && <span className="text-[10px] text-t3">Saving…</span>}
         </button>
       )}
@@ -525,7 +523,7 @@ export function CurrentRevisionSection({
 
           <PropertyGrid>
             <PropertyCell label="Status" className="col-span-2">
-              <div className="flex w-full flex-col gap-2.5">
+              <div className="flex w-full flex-col gap-1.5">
                 <WorkItemStatusSelector
                   workItemType={isRevision ? "revision" : "original"}
                   workItemId={currentWork.id!}
@@ -535,7 +533,7 @@ export function CurrentRevisionSection({
                   size="md"
                   onStatusChanged={onChanged}
                 />
-                <StagePipeline stageId={stage.id} />
+                <StagePipeline stageId={stage.id} labeled />
               </div>
             </PropertyCell>
 
@@ -608,7 +606,7 @@ export function ProjectDetailsSection({
   const isManagedSite = Boolean(data.siteId)
 
   return (
-    <AccordionSection icon={Building2} title="Project Details" resetKey={jobKey}>
+    <AccordionSection icon={Building2} title="Project Details" defaultOpen resetKey={jobKey}>
       <InfoCard className="!p-3.5 space-y-3">
         <Meta label="Client" value={data.client} />
         <Meta label="Site" value={data.siteName} />
@@ -673,7 +671,7 @@ export function CATIISummary({
     : null
 
   return (
-    <InspectorSection icon={ShieldCheck} title="CATII Check">
+    <AccordionSection icon={ShieldCheck} title="CATII Check" defaultOpen={false}>
       {activeCheck ? (
         <InfoCard className="!p-3.5">
           <div className="flex items-start justify-between gap-3">
@@ -724,7 +722,7 @@ export function CATIISummary({
           )}
         </div>
       )}
-    </InspectorSection>
+    </AccordionSection>
   )
 }
 
@@ -781,6 +779,7 @@ export function RevisionTimeline({
     <AccordionSection
       icon={History}
       title={`Revision History (${count})`}
+      defaultOpen={false}
       resetKey={jobKey}
       className="pb-2"
     >

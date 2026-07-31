@@ -8,11 +8,9 @@ import {
   revisionDueToneClass,
 } from "@/shared/utils/utils"
 import {
-  drawingSecondaryContext,
-  registerRevisionBadge,
+  registerWorkTypeLabel,
   siteDisplay,
 } from "./jobs-register-helpers"
-import { RevisionBadge } from "./revision-badge"
 import { ClientSiteCell } from "./client-site-cell"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { REGISTER_ROW_H } from "./jobs-register-types"
@@ -31,7 +29,7 @@ import {
 } from "@/shared/ui/dropdown-menu"
 
 export const REGISTER_GRID =
-  "grid grid-cols-[minmax(8rem,1.15fr)_minmax(10rem,1.35fr)_minmax(7.5rem,1fr)_minmax(6.5rem,0.9fr)_minmax(5.75rem,0.8fr)_2.25rem]"
+  "grid grid-cols-[minmax(8rem,1.15fr)_minmax(10rem,1.35fr)_minmax(7.5rem,1fr)_minmax(6.5rem,0.9fr)_minmax(7.5rem,0.85fr)_2.25rem]"
 
 interface JobsRegisterRowProps {
   project: JobsRegisterProject
@@ -62,15 +60,15 @@ function RegisterDueCell({
     due.severity === "none" ? "No Due Date" : `Due ${due.shortDateLabel}`
   const relativeLine =
     due.severity === "none"
-      ? null
+      ? "—"
       : due.severity === "complete"
-        ? null
+        ? "Completed"
         : due.daysLabel
 
   return (
     <span
       className={cn(
-        "inline-flex max-w-full flex-col items-start gap-0.5 rounded-md border px-2 py-1",
+        "inline-flex h-[2.75rem] w-[7.5rem] min-w-[7.5rem] max-w-[7.5rem] flex-col items-start justify-center gap-0.5 rounded-md border px-2.5 py-1",
         "leading-tight tabular-nums",
         tone.text,
         tone.tint,
@@ -82,11 +80,9 @@ function RegisterDueCell({
         {showIcon ? (
           <AlertTriangle className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
         ) : null}
-        <span className="min-w-0 truncate text-[12px] font-bold">{absoluteLine}</span>
+        <span className="min-w-0 truncate text-[10px] font-medium opacity-90">{absoluteLine}</span>
       </span>
-      {relativeLine ? (
-        <span className="truncate text-[10px] font-semibold opacity-90">{relativeLine}</span>
-      ) : null}
+      <span className="line-clamp-2 min-w-0 text-[12px] font-bold leading-tight">{relativeLine}</span>
     </span>
   )
 }
@@ -109,8 +105,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
   const patchUrl = workItemsModel && project.kind === "work_item"
     ? `/api/work-items/${project.detailId}`
     : undefined
-  const revBadge = registerRevisionBadge(project)
-  const secondary = drawingSecondaryContext(project)
+  const workType = registerWorkTypeLabel(project)
   const stage = getEngineeringStageFromDrawingStatus(project.currentStatus, {
     closed: project.currentWorkType === "none",
   })
@@ -156,17 +151,12 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       )}
     >
       <div role="cell" className="min-w-0 px-3 py-1.5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <p className="min-w-0 truncate text-[15px] font-bold tabular-nums tracking-tight text-t1">
-            {project.drawingNumber}
-          </p>
-          {revBadge ? <RevisionBadge>{revBadge}</RevisionBadge> : null}
-        </div>
-          {secondary ? (
-          <p className="mt-0.5 truncate text-[11px] font-normal text-t3">
-            {secondary}
-          </p>
-        ) : null}
+        <p className="min-w-0 truncate text-[15px] font-bold tabular-nums tracking-tight text-t1">
+          {project.drawingNumber}
+        </p>
+        <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-wide text-t2">
+          {workType}
+        </p>
       </div>
 
       <div role="cell" className="min-w-0 px-3 py-1.5">
@@ -201,9 +191,9 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
             <StagePipeline stageId={stage.id} className="pl-0.5" />
           </div>
         ) : (
-          <div className="min-w-0">
+          <div className="flex min-w-0 flex-col gap-1">
             <DrawingStatusCompleteLabel />
-            <StagePipeline stageId="complete" className="mt-1 pl-0.5" />
+            <StagePipeline stageId="complete" className="pl-0.5" />
           </div>
         )}
       </div>

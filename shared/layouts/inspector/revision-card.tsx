@@ -7,6 +7,7 @@ import { inspectorType } from "./tokens"
 
 /**
  * Primary engineer workspace card — answers “What does the engineer need to do?”
+ * Kept dense: amendment body is the visual focus.
  */
 export function RevisionCard({
   revisionLabel,
@@ -34,11 +35,11 @@ export function RevisionCard({
   return (
     <InfoCard
       title="Current Revision"
-      titleClassName="text-[11px] font-bold uppercase tracking-[0.16em] text-t1"
-      className={cn("!px-4 !py-4 min-h-0", className)}
+      titleClassName="mb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-t1"
+      className={cn("!px-3.5 !py-3 min-h-0", className)}
     >
-      <div className="flex flex-wrap items-baseline gap-2 pt-1">
-        <p className="text-lg font-bold tracking-tight text-t1 tabular-nums">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <p className="text-base font-bold tracking-tight text-t1 tabular-nums">
           {revisionLabel}
         </p>
         {amendment ? (
@@ -47,12 +48,12 @@ export function RevisionCard({
           </span>
         ) : null}
       </div>
-      <p className={cn(inspectorType.cardEyebrow, "mt-4 mb-2")}>{instructionTitle}</p>
+      <p className={cn(inspectorType.cardEyebrow, "mt-2.5 mb-1 text-[10px]")}>{instructionTitle}</p>
       <p
         className={cn(
           body
-            ? "text-[15px] font-semibold leading-relaxed whitespace-pre-wrap text-t1"
-            : "text-sm font-medium leading-relaxed text-t2",
+            ? "text-[15px] font-semibold leading-snug whitespace-pre-wrap text-t1"
+            : "text-sm font-medium leading-snug text-t2",
         )}
       >
         {body || emptyInstructions || "No instructions have been entered."}
@@ -71,8 +72,8 @@ export function RevisionCardShell({
   return (
     <InfoCard
       title="Current Revision"
-      titleClassName="text-[11px] font-bold uppercase tracking-[0.16em] text-t1"
-      className={cn("!px-4 !py-4", className)}
+      titleClassName="mb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-t1"
+      className={cn("!px-3.5 !py-3", className)}
     >
       {children}
     </InfoCard>

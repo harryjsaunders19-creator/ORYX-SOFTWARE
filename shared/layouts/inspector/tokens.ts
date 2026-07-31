@@ -17,9 +17,9 @@ export const inspectorTokens = {
   /** Accordion / section rule top spacing. */
   accordion: "pt-6",
   /** Sticky header chrome. */
-  headerPad: "px-5 pt-5 pb-5",
-  /** Scrollable body chrome. */
-  bodyPad: "px-5 py-6",
+  headerPad: "px-7 pt-5 pb-5",
+  /** Scrollable body chrome (+8px horizontal vs list edge). */
+  bodyPad: "px-7 py-5",
 } as const
 
 export const inspectorType = {

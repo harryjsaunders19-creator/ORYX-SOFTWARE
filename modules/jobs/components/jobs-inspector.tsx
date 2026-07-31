@@ -657,41 +657,39 @@ export function JobsInspector({
         }
       >
         {isDrawer ? (
-          <div className="flex flex-col gap-2">
+          <ActionToolbar className="gap-2" columns={3}>
             <button
               type="button"
-              className={cn(primaryActionBtn, "h-11")}
+              className={cn(primaryActionBtn, "h-10 min-h-10")}
               onClick={openAddRevision}
               disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
             >
-              <Plus className="h-4 w-4" />
-              Add Revision
+              <Plus className="h-4 w-4 shrink-0" />
+              <span className="truncate">Add Revision</span>
             </button>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                className={cn(primaryActionBtn, "h-11")}
-                onClick={openQuoteAction}
-              >
-                <Link2 className="h-4 w-4 shrink-0" />
-                <span className="truncate">{primaryQuote ? "View Quote" : "Attach Quote"}</span>
-              </button>
-              <button
-                type="button"
-                className={cn(secondaryActionBtn, "h-11")}
-                onClick={() => void handleCat2()}
-                disabled={cat2Busy || !canExportCat2}
-                title={
-                  canExportCat2
-                    ? `Create CATII Check for ${activeCat2Label}`
-                    : "CATII Check is available when original or a revision is complete"
-                }
-              >
-                <ShieldCheck className="h-4 w-4 shrink-0" />
-                <span className="truncate">{cat2Busy ? "Creating…" : "CATII Check"}</span>
-              </button>
-            </div>
-          </div>
+            <button
+              type="button"
+              className={cn(primaryActionBtn, "h-10 min-h-10")}
+              onClick={openQuoteAction}
+            >
+              <Link2 className="h-4 w-4 shrink-0" />
+              <span className="truncate">{primaryQuote ? "View Quote" : "Attach Quote"}</span>
+            </button>
+            <button
+              type="button"
+              className={cn(secondaryActionBtn, "h-10 min-h-10")}
+              onClick={() => void handleCat2()}
+              disabled={cat2Busy || !canExportCat2}
+              title={
+                canExportCat2
+                  ? `Create CATII Check for ${activeCat2Label}`
+                  : "CATII Check is available when original or a revision is complete"
+              }
+            >
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              <span className="truncate">{cat2Busy ? "Creating…" : "CATII Check"}</span>
+            </button>
+          </ActionToolbar>
         ) : (
           <ActionToolbar>
             <button
@@ -732,7 +730,7 @@ export function JobsInspector({
       <div
         key={project.id}
         className={cn(
-          "min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5",
+          "min-h-0 flex-1 space-y-5 overflow-y-auto px-7 py-5",
           isDrawer && "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >

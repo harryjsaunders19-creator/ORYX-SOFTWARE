@@ -140,12 +140,13 @@ export function DesignerAssignmentSelector({
       onClick={e => e.stopPropagation()}
       onKeyDown={e => e.stopPropagation()}
       className={cn(
-        "group/designer inline-flex max-w-full items-center gap-2 rounded-md border border-bd bg-sr text-left outline-none",
-        "transition-colors hover:bg-surface-low",
-        "focus-visible:ring-2 focus-visible:ring-ac",
-        "data-[state=open]:border-ac data-[state=open]:bg-surface-low",
+        "group/designer inline-flex max-w-full items-center gap-2 rounded-md border text-left outline-none",
+        "transition-colors focus-visible:ring-2 focus-visible:ring-ac",
+        "data-[state=open]:bg-surface-low",
         compact ? "h-8 px-2 text-sm" : "h-9 min-w-[10.5rem] px-2.5 text-sm",
-        display ? "font-semibold text-t1" : "font-medium text-t2",
+        display
+          ? "border-ac2/35 bg-ac2-bg/60 font-semibold text-t1 hover:bg-ac2-bg data-[state=open]:border-ac2"
+          : "border-bd bg-sr font-medium text-t2 hover:bg-surface-low data-[state=open]:border-ac",
         (disabled || busy) && "cursor-not-allowed opacity-60",
         !labeled && className,
       )}
@@ -155,8 +156,9 @@ export function DesignerAssignmentSelector({
     >
       <User
         className={cn(
-          "shrink-0 text-t3",
+          "shrink-0",
           compact ? "h-3.5 w-3.5" : "h-4 w-4",
+          display ? "text-ac2" : "text-t3",
         )}
         aria-hidden
       />
@@ -165,8 +167,9 @@ export function DesignerAssignmentSelector({
       </span>
       <ChevronDown
         className={cn(
-          "shrink-0 text-t3 transition-transform",
+          "shrink-0 transition-transform",
           compact ? "h-3.5 w-3.5" : "h-4 w-4",
+          display ? "text-ac2/80" : "text-t3",
           open && "rotate-180",
         )}
         aria-hidden

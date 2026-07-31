@@ -10,12 +10,15 @@ import {
 } from "@/modules/jobs/lib/engineering-workflow"
 
 /** Request → Design → Check → Issue (Complete maps past Issue). */
-const PIPELINE_STAGES: readonly EngineeringStageId[] = [
-  "request",
-  "design",
-  "check",
-  "issue",
-]
+const PIPELINE_STAGES = ["request", "design", "check", "issue"] as const
+
+/** Subtle never-wrap labels under the pipeline (Issue → Issued for clarity). */
+const PIPELINE_LABELS: Record<(typeof PIPELINE_STAGES)[number], string> = {
+  request: "Request",
+  design: "Design",
+  check: "Check",
+  issue: "Issued",
+}
 
 type Props = {
   drawingStatus: string | null | undefined
@@ -39,57 +42,118 @@ function stagePipelineIndex(stageId: EngineeringStageId): number {
 }
 
 /**
- * Ultra-thin stage pipeline: Request → Design → Check → Issue.
- * Suitable for register rows and inspector metadata.
+ * Stage pipeline: Request → Design → Check → Issued.
+ * Use `labeled` in the inspector for new-user context; omit in dense register rows.
  */
 export function StagePipeline({
   stageId,
   className,
+  labeled = false,
 }: {
   stageId: EngineeringStageId
   className?: string
+  /** Show Request / Design / Check / Issued under the dots. */
+  labeled?: boolean
 }) {
   const activeIdx = stagePipelineIndex(stageId)
-  const activeColour = ENGINEERING_STAGE_COLOUR[
-    stageId === "complete"
-      ? "complete"
-      : (PIPELINE_STAGES[Math.min(activeIdx, PIPELINE_STAGES.length - 1)] ?? "request")
-  ]
 
-  return (
-    <ol
-      className={cn("flex items-center gap-0.5", className)}
-      aria-label={`Stage pipeline at ${stageId}`}
-    >
-      {PIPELINE_STAGES.map((id, index) => {
-        const done = index < activeIdx || stageId === "complete"
-        const active = index === activeIdx && stageId !== "complete"
-        return (
-          <li key={id} className="flex items-center gap-0.5">
-            {index > 0 ? (
+  if (!labeled) {
+    const activeColour = ENGINEERING_STAGE_COLOUR[
+      stageId === "complete"
+        ? "complete"
+        : (PIPELINE_STAGES[Math.min(activeIdx, PIPELINE_STAGES.length - 1)] ?? "request")
+    ]
+    return (
+      <ol
+        className={cn("flex items-center gap-0.5", className)}
+        aria-label={`Stage pipeline at ${stageId}`}
+      >
+        {PIPELINE_STAGES.map((id, index) => {
+          const done = index < activeIdx || stageId === "complete"
+          const active = index === activeIdx && stageId !== "complete"
+          return (
+            <li key={id} className="flex items-center gap-0.5">
+              {index > 0 ? (
+                <span
+                  className={cn(
+                    "h-px w-2.5",
+                    done || active ? activeColour.dot : "bg-bd",
+                    (done || active) && "opacity-50",
+                  )}
+                  aria-hidden
+                />
+              ) : null}
               <span
                 className={cn(
-                  "h-px w-2.5",
-                  done || active ? activeColour.dot : "bg-bd",
-                  (done || active) && "opacity-50",
+                  "rounded-full",
+                  active ? "h-2 w-2" : "h-1.5 w-1.5",
+                  active || done ? "bg-ac2" : "bg-bd",
+                  active && "outline outline-2 outline-offset-1 outline-ac2/35",
                 )}
+                title={PIPELINE_LABELS[id]}
                 aria-hidden
               />
-            ) : null}
+            </li>
+          )
+        })}
+      </ol>
+    )
+  }
+
+  return (
+    <div
+      className={cn("w-full max-w-[17.5rem]", className)}
+      aria-label={`Stage pipeline at ${stageId}`}
+    >
+      <div className="flex items-center px-0.5">
+        {PIPELINE_STAGES.map((id, index) => {
+          const done = index < activeIdx || stageId === "complete"
+          const active = index === activeIdx && stageId !== "complete"
+          return (
+            <div key={id} className="flex min-w-0 flex-1 items-center">
+              {index > 0 ? (
+                <span
+                  className={cn(
+                    "h-px min-w-[0.5rem] flex-1",
+                    done || active ? "bg-ac2/45" : "bg-bd",
+                  )}
+                  aria-hidden
+                />
+              ) : null}
+              <span
+                className={cn(
+                  "mx-auto shrink-0 rounded-full",
+                  active ? "h-2.5 w-2.5" : "h-2 w-2",
+                  active || done ? "bg-ac2" : "bg-bd",
+                  active && "ring-2 ring-ac2/30 ring-offset-1 ring-offset-s2",
+                )}
+                title={PIPELINE_LABELS[id]}
+                aria-hidden
+              />
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-1 flex">
+        {PIPELINE_STAGES.map((id, index) => {
+          const active =
+            (index === activeIdx && stageId !== "complete")
+            || (stageId === "complete" && id === "issue")
+          const done = index < activeIdx
+          return (
             <span
+              key={id}
               className={cn(
-                "rounded-full",
-                active ? "h-2 w-2" : "h-1.5 w-1.5",
-                active || done ? activeColour.dot : "bg-bd",
-                active && "outline outline-2 outline-offset-1 outline-bd/80",
+                "min-w-0 flex-1 text-center text-[9px] font-medium leading-none tracking-wide whitespace-nowrap",
+                active ? "font-semibold text-ac2" : done ? "text-t2" : "text-t3",
               )}
-              title={ENGINEERING_STAGES.find(s => s.id === id)?.label}
-              aria-hidden
-            />
-          </li>
-        )
-      })}
-    </ol>
+            >
+              {PIPELINE_LABELS[id]}
+            </span>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -158,7 +222,7 @@ export function EngineeringWorkflowIndicator({
             </span>
           </p>
         </div>
-        <StagePipeline stageId={stage.id} />
+        <StagePipeline stageId={stage.id} labeled />
       </div>
 
       <ol className="mt-2 flex flex-wrap items-center gap-x-1 gap-y-1" aria-hidden>
@@ -181,7 +245,7 @@ export function EngineeringWorkflowIndicator({
                     : "text-t3",
                 )}
               >
-                {s.shortLabel}
+                {PIPELINE_LABELS[id] ?? s.shortLabel}
               </span>
             </li>
           )

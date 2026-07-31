@@ -63,11 +63,11 @@ export function ClientSiteCell({
   const siteTitle = hasSite ? site : undefined
 
   const clientClass = cn(
-    "font-semibold text-t1 transition-colors",
+    "font-bold text-t1 transition-colors",
     variant === "register" && "truncate text-[15px] leading-snug group-hover:text-t1",
     variant === "card" && "text-[15px] leading-snug [overflow-wrap:anywhere]",
-    variant === "header" && "text-base font-semibold leading-snug [overflow-wrap:anywhere]",
-    variant === "compact" && "truncate text-sm leading-snug",
+    variant === "header" && "text-base font-bold leading-snug [overflow-wrap:anywhere]",
+    variant === "compact" && "truncate text-sm leading-snug font-semibold",
     selected && "text-t1",
   )
 
