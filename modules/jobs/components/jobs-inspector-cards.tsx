@@ -28,6 +28,16 @@ export const fieldLabel = "mb-1 text-[11px] font-medium text-t3"
 export const fieldValue = "text-sm text-t1"
 export const fieldMuted = "text-sm text-t3"
 
+/** White (light) / preserved dark surface for key cards on the grey inspector. */
+export const inspectorContentCard =
+  "rounded-lg border border-inspector-card-bd bg-inspector-card shadow-inspector-card"
+
+/** Stronger section rules between accordion blocks on the inspector. */
+export const inspectorSectionRule = "border-t border-inspector-divider"
+
+/** Subtle rules between metadata groups (Status / Due / dates). */
+export const inspectorMetaRule = "border-t border-inspector-divider"
+
 const sectionIconClass = "h-3.5 w-3.5 shrink-0 text-t3"
 
 function SectionTitle({
@@ -468,7 +478,7 @@ export function CurrentRevisionSection({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="min-h-[7.5rem] rounded-lg border border-bd/70 bg-s1 px-4 py-4">
+          <div className={cn(inspectorContentCard, "min-h-[7.5rem] px-4 py-4")}>
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
               {briefLabel}
             </p>
@@ -509,7 +519,7 @@ export function CurrentRevisionSection({
               />
             </div>
 
-            <div className="border-t border-bd/50 pt-3">
+            <div className={cn(inspectorMetaRule, "pt-3")}>
               <EditableTargetDue
                 workItemId={currentWork.id!}
                 patchUrl={patchUrl}
@@ -519,7 +529,7 @@ export function CurrentRevisionSection({
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 border-t border-bd/40 pt-3 sm:grid-cols-2">
+            <div className={cn("grid grid-cols-1 gap-3 pt-3 sm:grid-cols-2", inspectorMetaRule)}>
               <div>
                 <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
                 <p className="text-sm text-t3">
@@ -573,7 +583,7 @@ export function ProjectDetailsSection({
   }, [jobKey])
 
   return (
-    <section className="border-t border-bd/60 pt-4">
+    <section className={cn(inspectorSectionRule, "pt-4")}>
       <button
         type="button"
         className="mb-0 flex w-full items-center justify-between gap-2 text-left"
@@ -600,7 +610,7 @@ export function ProjectDetailsSection({
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="space-y-3 pt-3">
+          <div className={cn(inspectorContentCard, "mt-3 space-y-3 px-3.5 py-3")}>
             <Meta label="Client" value={data.client} />
             <Meta label="Site" value={data.siteName} />
             <Meta label="Address" value={data.siteAddress} />
@@ -666,7 +676,7 @@ export function CATIISummary({
     : null
 
   return (
-    <section className="border-t border-bd/60 pt-4">
+    <section className={cn(inspectorSectionRule, "pt-4")}>
       <SectionTitle icon={ShieldCheck}>CATII Check</SectionTitle>
       {activeCheck ? (
         <div className="flex items-start justify-between gap-3">
@@ -772,7 +782,7 @@ export function RevisionTimeline({
   }
 
   return (
-    <section className="border-t border-bd/60 pt-4 pb-2">
+    <section className={cn(inspectorSectionRule, "pt-4 pb-2")}>
       <button
         type="button"
         className="mb-0 flex w-full items-center justify-between gap-2 text-left"
@@ -799,9 +809,9 @@ export function RevisionTimeline({
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="pt-3">
+          <div className={cn(inspectorContentCard, "mt-3 overflow-hidden")}>
             {revisions.length === 0 ? (
-              <p className={fieldMuted}>Original drawing only</p>
+              <p className={cn(fieldMuted, "px-3.5 py-3")}>Original drawing only</p>
             ) : (
               <ol className="space-y-0">
                 {revisions.map(rev => {
@@ -813,11 +823,11 @@ export function RevisionTimeline({
                   })
 
                   return (
-                    <li key={rev.id} className="border-b border-bd/40 last:border-b-0">
+                    <li key={rev.id} className="border-b border-inspector-divider last:border-b-0">
                       <button
                         type="button"
                         className={cn(
-                          "flex w-full items-center justify-between gap-3 py-2.5 text-left transition-colors",
+                          "flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors",
                           selected ? "bg-surface-low/80" : "hover:bg-surface-low/50",
                         )}
                         onClick={() => {
@@ -844,7 +854,7 @@ export function RevisionTimeline({
                         )}
                       >
                         <div className="min-h-0 overflow-hidden">
-                          <div className="space-y-1.5 pb-3 pl-0.5 text-xs text-t3">
+                          <div className="space-y-1.5 border-t border-inspector-divider/70 px-3.5 pb-3 pt-2 text-xs text-t3">
                             <p>
                               <span className={colour.text}>{getDrawingStatusLabel(rev.status)}</span>
                               {" · "}
