@@ -409,7 +409,7 @@ export function AuthLayout({
   const year = new Date().getFullYear()
 
   return (
-    <div className="flex min-h-screen flex-col bg-pg text-t1">
+    <div className="flex min-h-screen flex-col bg-s0 text-t1">
       <main className="flex flex-grow flex-col items-center justify-center px-4 py-8 md:px-10">
         <div className="mb-8 flex flex-col items-center">
           <OryxLogo variant="login" className="mb-3 bg-transparent" priority />
@@ -423,7 +423,12 @@ export function AuthLayout({
           </span>
         </div>
 
-        <div className="w-full max-w-[440px] rounded border border-bd bg-sr p-6 shadow-sm md:p-8">
+        <div
+          className={cn(
+            "w-full max-w-[440px] rounded-[18px] border border-jobs-panel-bd bg-jobs-panel p-6 md:p-8",
+            "shadow-jobs-panel",
+          )}
+        >
           {children}
         </div>
 
@@ -437,7 +442,7 @@ export function AuthLayout({
         ) : null}
       </main>
 
-      <footer className="mt-auto flex w-full flex-col items-center justify-between gap-4 border-t border-bd bg-pg px-6 py-6 md:flex-row md:px-10">
+      <footer className="mt-auto flex w-full flex-col items-center justify-between gap-4 border-t border-bd bg-s0 px-6 py-6 md:flex-row md:px-10">
         <div className="flex flex-col items-center gap-2 md:flex-row md:gap-4">
           <span className={cn(Typography.Helper, "font-bold text-t1")}>ORYX OS</span>
           <span className={cn(Typography.Helper, "text-center text-t3 md:text-left")}>

@@ -81,7 +81,7 @@ export default function LoginPage() {
 
   if (sessionLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-pg">
+      <div className="flex min-h-screen items-center justify-center bg-s0">
         <div className="skeleton h-10 w-10 rounded-full" aria-label="Loading" />
       </div>
     )
@@ -108,7 +108,7 @@ export default function LoginPage() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="name@company.com"
-            className="rounded bg-pg focus:border-t1 focus:ring-0"
+            className="rounded-xl border-bd bg-s0 focus:border-t1 focus:ring-0"
           />
         </div>
 
@@ -140,7 +140,7 @@ export default function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="rounded bg-pg pr-10 focus:border-t1 focus:ring-0"
+              className="rounded-xl border-bd bg-s0 pr-10 focus:border-t1 focus:ring-0"
             />
             <button
               type="button"
@@ -159,14 +159,14 @@ export default function LoginPage() {
 
         {error ? <FormAlert>{error}</FormAlert> : null}
         {info && !error ? (
-          <p className={cn(Typography.Small, "rounded border border-bd bg-pg p-3 text-t3")}>{info}</p>
+          <p className={cn(Typography.Small, "rounded-xl border border-bd bg-s0 p-3 text-t3")}>{info}</p>
         ) : null}
 
         <div className="pt-1">
           <Button
             type="submit"
             variant="primary"
-            className="h-11 w-full rounded uppercase tracking-widest"
+            className="h-11 w-full rounded-xl uppercase tracking-widest"
             loading={loading}
             disabled={loading}
           >
@@ -181,7 +181,7 @@ export default function LoginPage() {
         <Button
           type="button"
           variant="outline"
-          className="h-11 w-full rounded uppercase tracking-widest"
+          className="h-11 w-full rounded-xl uppercase tracking-widest"
           onClick={() => {
             setError("")
             setInfo("Request system access from your ORYX administrator.")
