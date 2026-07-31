@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
-import { ChevronDown, User } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 import { SelectContent, SelectItem } from "@/components/ui/select"
 import { useToast } from "@/shared/ui/toast"
 import { cn } from "@/shared/utils"
@@ -29,11 +29,11 @@ export function designerAssignmentTitle(
       const normalized = label.toUpperCase().startsWith("REV")
         ? label
         : `Rev ${label}`
-      return `Change designer for ${normalized}`
+      return `Assign designer to ${normalized}`
     }
-    return "Change designer for revision"
+    return "Assign designer to revision"
   }
-  return "Change designer for original drawing"
+  return "Assign designer to original design"
 }
 
 export type DesignerAssignmentSelectorProps = {
@@ -46,23 +46,13 @@ export type DesignerAssignmentSelectorProps = {
   patchUrl?: string
   disabled?: boolean
   compact?: boolean
-  /**
-   * When true, render a static "Designer" label above the clickable value
-   * (inspector pattern). Parent should not duplicate the label.
-   */
-  labeled?: boolean
-  /**
-   * Empty-state copy when no engineer is assigned.
-   * Defaults to "Assign designer".
-   */
-  unassignedLabel?: string
   className?: string
   onDesignerChanged?: (next: string) => void
 }
 
 /**
  * Assigns designer to the current work item only (original or active revision).
- * Rendered as an outlined editable control (not plain text).
+ * Never silently writes the parent when the target is a revision.
  */
 export function DesignerAssignmentSelector({
   workItemType,
@@ -73,8 +63,6 @@ export function DesignerAssignmentSelector({
   patchUrl,
   disabled = false,
   compact = false,
-  labeled = false,
-  unassignedLabel = "Assign designer",
   className,
   onDesignerChanged,
 }: DesignerAssignmentSelectorProps) {
@@ -82,7 +70,6 @@ export function DesignerAssignmentSelector({
   const [busy, setBusy] = useState(false)
   const [optimistic, setOptimistic] = useState<string | null>(null)
   const [filter, setFilter] = useState("")
-  const [open, setOpen] = useState(false)
   const title = designerAssignmentTitle(workItemType, revisionLabel)
   const display = optimistic ?? currentDesigner
 
@@ -107,11 +94,11 @@ export function DesignerAssignmentSelector({
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
-        toast(body.error ?? "Failed to assign design engineer", "error")
+        toast(body.error ?? "Failed to assign designer", "error")
         setOptimistic(previous)
         return
       }
-      toast(next ? `Designer → ${next}` : "Designer cleared", "success")
+      toast(next ? `Designer → ${next}` : "Designer unassigned", "success")
       onDesignerChanged?.(next)
     } catch {
       toast("Network error", "error")
@@ -133,81 +120,60 @@ export function DesignerAssignmentSelector({
 
   const value = display ? display : UNASSIGNED
   const showSearch = designers.length > 8
-  const emptyCopy = unassignedLabel
-
-  const trigger = (
-    <SelectPrimitive.Trigger
-      onClick={e => e.stopPropagation()}
-      onKeyDown={e => e.stopPropagation()}
-      className={cn(
-        "group/designer inline-flex max-w-full items-center gap-2 rounded-md border text-left outline-none",
-        "transition-colors focus-visible:ring-2 focus-visible:ring-ac",
-        "data-[state=open]:bg-surface-low",
-        compact ? "h-8 px-2 text-sm" : "h-9 min-w-[10.5rem] px-2.5 text-sm",
-        display
-          ? "border-ac2/35 bg-ac2-bg/60 font-semibold text-t1 hover:bg-ac2-bg data-[state=open]:border-ac2"
-          : "border-bd bg-sr font-medium text-t2 hover:bg-surface-low data-[state=open]:border-ac",
-        (disabled || busy) && "cursor-not-allowed opacity-60",
-        !labeled && className,
-      )}
-      style={{ cursor: disabled || busy ? "not-allowed" : "pointer" }}
-      aria-label={title}
-      title={title}
-    >
-      <User
-        className={cn(
-          "shrink-0",
-          compact ? "h-3.5 w-3.5" : "h-4 w-4",
-          display ? "text-ac2" : "text-t3",
-        )}
-        aria-hidden
-      />
-      <span className="min-w-0 flex-1 truncate">
-        {display || emptyCopy}
-      </span>
-      <ChevronDown
-        className={cn(
-          "shrink-0 transition-transform",
-          compact ? "h-3.5 w-3.5" : "h-4 w-4",
-          display ? "text-ac2/80" : "text-t3",
-          open && "rotate-180",
-        )}
-        aria-hidden
-      />
-      {busy && (
-        <span className="sr-only" aria-live="polite">Saving…</span>
-      )}
-    </SelectPrimitive.Trigger>
-  )
 
   return (
     <SelectPrimitive.Root
       value={value}
       onValueChange={v => void apply(v === UNASSIGNED ? "" : v)}
       disabled={disabled || busy}
-      open={open}
-      onOpenChange={next => {
-        setOpen(next)
-        if (!next) setFilter("")
+      onOpenChange={open => {
+        if (!open) setFilter("")
       }}
     >
-      {labeled ? (
-        <div className={cn("min-w-0", className)}>
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-t3">
-            Designer
-          </p>
-          {trigger}
-        </div>
-      ) : (
-        trigger
-      )}
+      <SelectPrimitive.Trigger
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        className={cn(
+          "inline-flex max-w-full items-center gap-1.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-ac",
+          (disabled || busy) && "opacity-60 cursor-not-allowed",
+          className,
+        )}
+        style={{ border: "none", background: "transparent", padding: 0, cursor: disabled || busy ? "not-allowed" : "pointer" }}
+        aria-label={title}
+        title={title}
+      >
+        {display ? (
+          <>
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center justify-center rounded bg-surface-low text-[10px] font-bold text-t2",
+                compact ? "h-5 w-5" : "h-6 w-6",
+              )}
+              aria-hidden
+            >
+              {designerInitials(display)}
+            </span>
+            <span className={cn("truncate text-t1", compact ? "text-xs" : "text-sm")}>
+              {display}
+            </span>
+          </>
+        ) : (
+          <span className={cn("text-t3", compact ? "text-xs" : "text-sm")}>
+            Assign designer
+          </span>
+        )}
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-t4" />
+        {busy && (
+          <span className="text-[10px] text-t4" aria-live="polite">Saving…</span>
+        )}
+      </SelectPrimitive.Trigger>
       <SelectContent
         align="start"
         className="min-w-[220px]"
         onClick={e => e.stopPropagation()}
       >
         <div className="border-b border-bd px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-t3">
-          Designer
+          {title}
         </div>
         {showSearch && (
           <div className="p-2 border-b border-bd" onKeyDown={e => e.stopPropagation()}>

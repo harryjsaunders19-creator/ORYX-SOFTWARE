@@ -2,7 +2,6 @@
 
 import { useRef, useCallback, memo } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
-import { FolderSearch } from "lucide-react"
 import { cn } from "@/shared/utils/utils"
 import { JobsRegisterRow, REGISTER_GRID } from "./jobs-register-row"
 import type { JobsRegisterProject } from "./jobs-register-types"
@@ -15,7 +14,6 @@ interface JobsRegisterTableProps {
   onOpenWorkspace: (id: string) => void
   workItemsModel: boolean
   designers: string[]
-  highlightQuery?: string
   onStatusChanged?: (projectId: string, nextStatus: string) => void
   onDesignerChanged?: (projectId: string, nextDesigner: string) => void
   loading?: boolean
@@ -23,11 +21,11 @@ interface JobsRegisterTableProps {
 }
 
 const HEADERS = [
-  "Drawing",
+  "Drawing Number",
   "Client / Site",
-  "Status",
+  "Current Work",
   "Designer",
-  "Due",
+  "Value",
   "",
 ] as const
 
@@ -38,7 +36,6 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   onOpenWorkspace,
   workItemsModel,
   designers,
-  highlightQuery,
   onStatusChanged,
   onDesignerChanged,
   loading,
@@ -57,21 +54,15 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   const onOpenStable = useCallback((id: string) => onOpenWorkspace(id), [onOpenWorkspace])
 
   return (
-    <div className={cn("mx-5 mb-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-bd bg-s1", className)}>
-      <div
-        role="row"
-        className={cn(
-          REGISTER_GRID,
-          "sticky top-0 z-20 shrink-0 items-center border-b border-bd bg-s1",
-          "shadow-[0_1px_0_0_var(--color-bd)]",
-        )}
-      >
+    <div className={cn("mx-5 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-bd bg-sr", className)}>
+      <div role="row" className={cn(REGISTER_GRID, "sticky top-0 z-10 items-center border-b border-bd bg-sr")}>
         {HEADERS.map((label, i) => (
           <div
             key={label || `overflow-${i}`}
             role="columnheader"
             className={cn(
-              "px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-t3",
+              "px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-t3",
+              label === "Value" && "text-right",
             )}
           >
             {label}
@@ -88,18 +79,12 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
         {loading && projects.length === 0 ? (
           <div className="space-y-2 p-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-12 skeleton rounded-md" />
+              <div key={i} className="h-14 skeleton rounded-md" />
             ))}
           </div>
         ) : projects.length === 0 ? (
-          <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2.5 px-6 py-12 text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-bd bg-s0">
-              <FolderSearch className="h-5 w-5 text-t3" aria-hidden />
-            </div>
-            <p className="text-sm font-semibold text-t1">No projects match these filters</p>
-            <p className="max-w-xs text-xs leading-relaxed text-t2">
-              Try clearing search, resetting client/site filters, or switching the scope tabs above.
-            </p>
+          <div className="flex h-40 items-center justify-center text-sm text-t3">
+            No projects match these filters.
           </div>
         ) : (
           <div
@@ -115,10 +100,8 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
                   key={project.id}
                   project={project}
                   selected={project.id === selectedId}
-                  rowIndex={item.index}
                   workItemsModel={workItemsModel}
                   designers={designers}
-                  highlightQuery={highlightQuery}
                   onSelect={onSelectStable}
                   onOpenWorkspace={onOpenStable}
                   onStatusChanged={onStatusChanged}

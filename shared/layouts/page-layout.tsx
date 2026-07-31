@@ -8,28 +8,8 @@ import { Button } from "@/shared/ui/button"
 import { Typography } from "@/shared/design/typography"
 import { OryxLogo } from "@/shared/branding/oryx-logo"
 
-/** Surface hierarchy — prefer these across all Oryx OS modules. */
-export const surfaceApp = "bg-s0"
-/** Workspace: lists, tables, main content containers. */
-export const surfaceWorkspace = "bg-s1"
-/**
- * Outer Inspector chrome (Surface 2) — prefer `InspectorShell` from
- * `@/shared/layouts/inspector-shell` for full panels. Class string kept
- * for lightweight reuse of the same tokens.
- */
-export const surfaceInspector =
-  "bg-s2 shadow-inspector border-2 border-inspector-bd rounded-xl"
-
-/** High-priority information card — prefer `@/shared/layouts/inspector`. */
-export {
-  InfoCard,
-  InfoCard as InformationCard,
-  infoCardClassName,
-  infoCardClassName as informationCardClassName,
-} from "@/shared/layouts/inspector"
-
-/** Stitch surface — bordered workspace card (Surface 1). */
-export const surfaceCard = "oryx-surface-card bg-s1 border border-bd rounded-xl"
+/** Stitch surface — bordered card, minimal shadow. */
+export const surfaceCard = "oryx-surface-card bg-sr border border-bd rounded-xl"
 
 /** Standard page wrapper — Stitch canvas padding below top bar. */
 export function PageShell({ children, className, wide }: {
@@ -110,7 +90,7 @@ export function DataPanel({ children, className, noPadding }: {
 }) {
   return (
     <div className={cn(
-      "oryx-surface-card bg-s1 border border-bd rounded-xl overflow-hidden",
+      "oryx-surface-card bg-sr border border-bd rounded-xl overflow-hidden",
       !noPadding && "p-0",
       className,
     )}>
@@ -125,11 +105,11 @@ export function PanelHeader({ title, count, action }: {
   action?: React.ReactNode
 }) {
   return (
-    <div className="px-4 py-3 border-b border-bd flex items-center justify-between shrink-0 bg-s1">
+    <div className="px-4 py-3 border-b border-bd flex items-center justify-between shrink-0 bg-sr">
       <div className="flex items-center gap-2 min-w-0">
         <p className={cn(Typography.CardTitle, "text-t1")}>{title}</p>
         {count != null && count > 0 && (
-          <span className={cn(Typography.Badge, "rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center bg-s0 text-t2 shrink-0 tabular-nums")}>
+          <span className={cn(Typography.Badge, "rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center bg-pg text-t2 shrink-0 tabular-nums")}>
             {count}
           </span>
         )}
@@ -198,7 +178,7 @@ export function KpiTile({ label, value, sub, valueClassName, className }: {
 }) {
   return (
     <div className={cn(
-      "oryx-surface-card rounded-xl border border-bd bg-s1 p-5 transition-colors duration-150 hover:border-bds",
+      "oryx-surface-card rounded-xl border border-bd bg-sr p-5 transition-colors duration-150 hover:border-bds",
       className,
     )}>
       <p className={cn(Typography.Stat, "mb-2", valueClassName ?? "text-t1")}>{value}</p>
@@ -208,7 +188,7 @@ export function KpiTile({ label, value, sub, valueClassName, className }: {
   )
 }
 
-/** Titled content section card — not the outer InspectorShell. */
+/** Titled content panel — job detail sections, analytics blocks, etc. */
 export function DetailPanel({ title, children, className, headerAction }: {
   title: string
   children: React.ReactNode
@@ -302,7 +282,7 @@ export function TablePagination({
       className={cn(
         Typography.Helper,
         "flex items-center justify-between gap-3 text-t3",
-        variant === "card" && "px-4 py-3 mt-3 border border-bd rounded-xl bg-s1 shadow-card",
+        variant === "card" && "px-4 py-3 mt-3 border border-bd rounded-xl bg-sr shadow-card",
         variant === "inset" && "px-4 py-3 border-t border-bd",
         variant === "bare" && "mt-4 px-1",
         className,
@@ -429,7 +409,7 @@ export function AuthLayout({
   const year = new Date().getFullYear()
 
   return (
-    <div className="flex min-h-screen flex-col bg-s0 text-t1">
+    <div className="flex min-h-screen flex-col bg-pg text-t1">
       <main className="flex flex-grow flex-col items-center justify-center px-4 py-8 md:px-10">
         <div className="mb-8 flex flex-col items-center">
           <OryxLogo variant="login" className="mb-3 bg-transparent" priority />
@@ -443,7 +423,7 @@ export function AuthLayout({
           </span>
         </div>
 
-        <div className="w-full max-w-[440px] rounded border border-bd bg-s1 p-6 shadow-sm md:p-8">
+        <div className="w-full max-w-[440px] rounded border border-bd bg-sr p-6 shadow-sm md:p-8">
           {children}
         </div>
 
@@ -457,7 +437,7 @@ export function AuthLayout({
         ) : null}
       </main>
 
-      <footer className="mt-auto flex w-full flex-col items-center justify-between gap-4 border-t border-bd bg-s0 px-6 py-6 md:flex-row md:px-10">
+      <footer className="mt-auto flex w-full flex-col items-center justify-between gap-4 border-t border-bd bg-pg px-6 py-6 md:flex-row md:px-10">
         <div className="flex flex-col items-center gap-2 md:flex-row md:gap-4">
           <span className={cn(Typography.Helper, "font-bold text-t1")}>ORYX OS</span>
           <span className={cn(Typography.Helper, "text-center text-t3 md:text-left")}>

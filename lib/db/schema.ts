@@ -297,50 +297,6 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_clientcontact_client ON ClientContact(clientId);
 
-  -- Physical location under a Client. One Site has many Jobs.
-  CREATE TABLE IF NOT EXISTS Site (
-    id                  TEXT PRIMARY KEY,
-    clientId            TEXT NOT NULL REFERENCES Client(id) ON DELETE CASCADE,
-    name                TEXT NOT NULL,
-    nameLower           TEXT NOT NULL,
-    addressLine1        TEXT,
-    addressLine2        TEXT,
-    city                TEXT,
-    county              TEXT,
-    postcode            TEXT,
-    postcodeNormalized  TEXT,
-    country             TEXT,
-    siteReference       TEXT,
-    primaryContactId    TEXT REFERENCES ClientContact(id) ON DELETE SET NULL,
-    notes               TEXT,
-    isActive            INTEGER NOT NULL DEFAULT 1,
-    archivedAt          TEXT,
-    archivedBy          TEXT,
-    createdAt           TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    updatedAt           TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_site_client ON Site(clientId);
-  CREATE INDEX IF NOT EXISTS idx_site_name ON Site(clientId, nameLower);
-  CREATE INDEX IF NOT EXISTS idx_site_postcode ON Site(clientId, postcodeNormalized);
-  CREATE INDEX IF NOT EXISTS idx_site_active ON Site(isActive);
-
-  CREATE TABLE IF NOT EXISTS SiteAuditEvent (
-    id                TEXT PRIMARY KEY,
-    siteId            TEXT NOT NULL REFERENCES Site(id) ON DELETE CASCADE,
-    action            TEXT NOT NULL,
-    summary           TEXT NOT NULL,
-    jobId             TEXT,
-    drawingNumber     TEXT,
-    fromSiteId        TEXT,
-    performedBy       TEXT NOT NULL DEFAULT 'System',
-    performedByName   TEXT NOT NULL DEFAULT 'System',
-    performedAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    meta              TEXT
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_siteaudit_site ON SiteAuditEvent(siteId, performedAt);
-
   CREATE TABLE IF NOT EXISTS Quote (
     id            TEXT PRIMARY KEY,
     quoteNumber   TEXT UNIQUE NOT NULL,
@@ -811,17 +767,7 @@ try {
   add("billable",         "INTEGER NOT NULL DEFAULT 1")
   // Multi-select job tags — JSON array of JOB_TAGS values (see lib/constants.ts).
   add("tags",             "TEXT NOT NULL DEFAULT '[]'")
-  // FK to Site — nullable during migration; legacy siteName/siteAddress retained.
-  add("siteId",           "TEXT REFERENCES Site(id) ON DELETE SET NULL")
-  // ONE_OFF (default) | MANAGED_SITE — explicit mode; siteId null for one-off.
-  add("locationMode",     "TEXT NOT NULL DEFAULT 'ONE_OFF'")
-  add("locationName",     "TEXT")
-  add("postcode",         "TEXT")
   db.exec(`UPDATE Job SET siteAddress = address WHERE (siteAddress IS NULL OR TRIM(siteAddress) = '') AND address IS NOT NULL AND TRIM(address) != ''`)
-  db.exec(`UPDATE Job SET locationName = siteName WHERE (locationName IS NULL OR TRIM(locationName) = '') AND siteName IS NOT NULL AND TRIM(siteName) != ''`)
-  db.exec(`UPDATE Job SET locationMode = 'MANAGED_SITE' WHERE siteId IS NOT NULL AND (locationMode IS NULL OR locationMode = 'ONE_OFF')`)
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_location_mode ON Job(locationMode)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_postcode ON Job(postcode)")
   db.exec(`UPDATE Job SET locationStatus = 'mapped', locationSource = 'geocoded' WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND locationStatus IS NULL`)
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_location_status ON Job(locationStatus) WHERE status = 'ISSUED' AND archivedAt IS NULL")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_geocode ON Job(latitude, longitude)")
@@ -831,7 +777,6 @@ try {
     WHERE status = 'ISSUED' AND latitude IS NOT NULL AND longitude IS NOT NULL`)
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_deadline ON Job(requiredByDate)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_clientid ON Job(clientId)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_job_siteid ON Job(siteId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_itemtype ON Job(itemType)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_parent   ON Job(parentJobId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_job_invoice ON Job(invoiceId)")
@@ -852,7 +797,6 @@ try {
       drawingNumber           TEXT UNIQUE NOT NULL,
       clientId                TEXT REFERENCES Client(id) ON DELETE SET NULL,
       clientCompany           TEXT NOT NULL,
-      siteId                  TEXT REFERENCES Site(id) ON DELETE SET NULL,
       siteName                TEXT,
       siteAddress             TEXT,
       address                 TEXT NOT NULL,
@@ -877,7 +821,6 @@ try {
     );
 
     CREATE INDEX IF NOT EXISTS idx_parentjob_clientid ON ParentJob(clientId);
-    CREATE INDEX IF NOT EXISTS idx_parentjob_siteid ON ParentJob(siteId);
     CREATE INDEX IF NOT EXISTS idx_parentjob_client ON ParentJob(clientCompany);
     CREATE INDEX IF NOT EXISTS idx_parentjob_archived ON ParentJob(archivedAt);
     CREATE INDEX IF NOT EXISTS idx_parentjob_created ON ParentJob(createdAt);
@@ -951,70 +894,11 @@ try {
   addCol("Quote", "parentJobId", "TEXT REFERENCES ParentJob(id) ON DELETE SET NULL")
   addCol("CalendarEvent", "workItemId", "TEXT REFERENCES WorkItem(id) ON DELETE SET NULL")
   addCol("ParentJob", "tags", "TEXT NOT NULL DEFAULT '[]'")
-  addCol("ParentJob", "siteId", "TEXT REFERENCES Site(id) ON DELETE SET NULL")
-  addCol("ParentJob", "locationMode", "TEXT NOT NULL DEFAULT 'ONE_OFF'")
-  addCol("ParentJob", "locationName", "TEXT")
-  addCol("ParentJob", "postcode", "TEXT")
-  addCol("Quote", "siteId", "TEXT REFERENCES Site(id) ON DELETE SET NULL")
 
   db.exec("CREATE INDEX IF NOT EXISTS idx_history_workitem ON StatusHistory(workItemId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_handoff_workitem ON BillingHandoff(sourceWorkItemId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_quote_parentjob ON Quote(parentJobId)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_quote_site ON Quote(siteId)")
   db.exec("CREATE INDEX IF NOT EXISTS idx_calendar_workitem ON CalendarEvent(workItemId)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_parentjob_siteid ON ParentJob(siteId)")
-  db.exec(`UPDATE ParentJob SET locationName = siteName WHERE (locationName IS NULL OR TRIM(locationName) = '') AND siteName IS NOT NULL AND TRIM(siteName) != ''`)
-  db.exec(`UPDATE ParentJob SET locationMode = 'MANAGED_SITE' WHERE siteId IS NOT NULL AND (locationMode IS NULL OR locationMode = 'ONE_OFF')`)
-  db.exec("CREATE INDEX IF NOT EXISTS idx_parentjob_location_mode ON ParentJob(locationMode)")
-  db.exec("CREATE INDEX IF NOT EXISTS idx_parentjob_postcode ON ParentJob(postcode)")
-})()
-
-// 2e. Ensure Site tables exist on DBs created before Site was in CREATE TABLE block
-;(function ensureSiteSchema() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS Site (
-      id                  TEXT PRIMARY KEY,
-      clientId            TEXT NOT NULL REFERENCES Client(id) ON DELETE CASCADE,
-      name                TEXT NOT NULL,
-      nameLower           TEXT NOT NULL,
-      addressLine1        TEXT,
-      addressLine2        TEXT,
-      city                TEXT,
-      county              TEXT,
-      postcode            TEXT,
-      postcodeNormalized  TEXT,
-      country             TEXT,
-      siteReference       TEXT,
-      primaryContactId    TEXT REFERENCES ClientContact(id) ON DELETE SET NULL,
-      notes               TEXT,
-      isActive            INTEGER NOT NULL DEFAULT 1,
-      archivedAt          TEXT,
-      archivedBy          TEXT,
-      createdAt           TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-      updatedAt           TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_site_client ON Site(clientId);
-    CREATE INDEX IF NOT EXISTS idx_site_name ON Site(clientId, nameLower);
-    CREATE INDEX IF NOT EXISTS idx_site_postcode ON Site(clientId, postcodeNormalized);
-    CREATE INDEX IF NOT EXISTS idx_site_active ON Site(isActive);
-
-    CREATE TABLE IF NOT EXISTS SiteAuditEvent (
-      id                TEXT PRIMARY KEY,
-      siteId            TEXT NOT NULL REFERENCES Site(id) ON DELETE CASCADE,
-      action            TEXT NOT NULL,
-      summary           TEXT NOT NULL,
-      jobId             TEXT,
-      drawingNumber     TEXT,
-      fromSiteId        TEXT,
-      performedBy       TEXT NOT NULL DEFAULT 'System',
-      performedByName   TEXT NOT NULL DEFAULT 'System',
-      performedAt       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-      meta              TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_siteaudit_site ON SiteAuditEvent(siteId, performedAt);
-  `)
-  // Legacy Job → Site backfill is opt-in via `node scripts/migrate-sites.mjs`
-  // (idempotent; see modules/sites/lib/migrate-sites.ts).
 })()
 
 // 2d. Job documents (attachments on job / revision families)

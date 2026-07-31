@@ -54,8 +54,6 @@ export function buildRevisionHistoryChain(opts: {
       issuedBy: issued?.changedBy ?? null,
       issuedAt: issued?.changedAt ?? null,
       billable: member.billable ?? !member.parentJobId,
-      requiredByDate: member.requiredByDate ?? null,
-      quoteValue: member.quoteValue ?? null,
     }
   })
 

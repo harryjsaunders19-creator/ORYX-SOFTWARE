@@ -1,73 +1,74 @@
 import { cn } from "@/shared/utils"
-import {
-  getDrawingStatusBadgeClass,
-  getDrawingStatusColour,
-} from "@/modules/jobs/lib/drawing-status-colours"
-import { DrawingStatusBadge } from "@/modules/jobs/components/drawing-status-badge"
-
-/**
- * Compact badge classes — coloured text + light tint.
- * Prefer DrawingStatusBadge / getDrawingStatusColour for new Jobs UI.
- */
-export const JOB_BADGE_CLASSES: Record<string, string> = {
-  NEW_REQUEST: getDrawingStatusBadgeClass("NEW_REQUEST"),
-  IN_DESIGN: getDrawingStatusBadgeClass("IN_DESIGN"),
-  CHECKING: getDrawingStatusBadgeClass("CHECKING"),
-  READY_TO_SEND: getDrawingStatusBadgeClass("READY_TO_SEND"),
-  ISSUED: getDrawingStatusBadgeClass("ISSUED"),
-}
-
-/**
- * @deprecated Full-row status backgrounds are removed — use Drawing Status
- * text/dot colouring instead. Kept as empty map so legacy className joins
- * remain harmless.
- */
-export const JOB_ROW_BG: Record<string, string> = {
-  NEW_REQUEST: "",
-  IN_DESIGN: "",
-  CHECKING: "",
-  READY_TO_SEND: "",
-  ISSUED: "",
-}
-
-/**
- * @deprecated Prefer selection/hover borders only; status colour lives on
- * Drawing Status text, not the row edge.
- */
-export const JOB_ROW_BORDER: Record<string, string> = {
-  NEW_REQUEST: "",
-  IN_DESIGN: "",
-  CHECKING: "",
-  READY_TO_SEND: "",
-  ISSUED: "",
-}
-
-export const STATUS_DOT: Record<string, string> = {
-  NEW_REQUEST: getDrawingStatusColour("NEW_REQUEST").dot,
-  IN_DESIGN: getDrawingStatusColour("IN_DESIGN").dot,
-  CHECKING: getDrawingStatusColour("CHECKING").dot,
-  READY_TO_SEND: getDrawingStatusColour("READY_TO_SEND").dot,
-  ISSUED: getDrawingStatusColour("ISSUED").dot,
-}
+import { getJobStatus } from "@/lib/constants"
+import { Typography } from "@/shared/design/typography"
 
 /**
  * Status colour communicates workflow meaning only (ISO / ops scanning).
- * Uses the shared Drawing Status colour map — text + dot + light tint.
+ * Chrome stays restrained — no decorative shadows or oversized pills.
  */
-export function StatusBadge({ status, size = "md", className }: {
-  status: string
-  size?: "md" | "lg"
-  className?: string
-}) {
-  return <DrawingStatusBadge status={status} size={size} className={className} />
+export const JOB_BADGE_CLASSES: Record<string, string> = {
+  NEW_REQUEST:   "bg-gy-bg text-gy-tx border border-gy-bd",
+  IN_DESIGN:     "bg-yl-bg text-yl-tx border border-yl-bd",
+  CHECKING:      "bg-wn-bg text-wn-tx border border-wn-bd",
+  READY_TO_SEND: "bg-rs-bg text-rs-tx border border-rs-bd",
+  ISSUED:        "bg-ok-bg text-ok-tx border border-ok-bd",
 }
 
-/** Class string for non-React consumers. */
-export function statusBadgeClassNames(status: string): string {
-  const colour = getDrawingStatusColour(status)
-  return cn(
-    "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 whitespace-nowrap font-medium",
-    getDrawingStatusBadgeClass(status),
-    colour.text,
+export const JOB_ROW_BG: Record<string, string> = {
+  NEW_REQUEST:   "bg-gy-row",
+  IN_DESIGN:     "bg-yl-row",
+  CHECKING:      "bg-wn-row",
+  READY_TO_SEND: "bg-rs-row",
+  ISSUED:        "bg-ok-row",
+}
+
+export const JOB_ROW_BORDER: Record<string, string> = {
+  NEW_REQUEST:   "border-l-[3px] border-l-gy-bd",
+  IN_DESIGN:     "border-l-[3px] border-l-yl",
+  CHECKING:      "border-l-[3px] border-l-wn-ic",
+  READY_TO_SEND: "border-l-[3px] border-l-rs-ic",
+  ISSUED:        "border-l-[3px] border-l-ok-ic",
+}
+
+export const STATUS_DOT: Record<string, string> = {
+  NEW_REQUEST:   "bg-gy",
+  IN_DESIGN:     "bg-yl",
+  CHECKING:      "bg-wn-ic",
+  READY_TO_SEND: "bg-rs-ic",
+  ISSUED:        "bg-ok-ic",
+}
+
+const pill = cn(
+  "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 whitespace-nowrap border",
+  Typography.Badge,
+)
+
+const pillLg = cn(
+  "inline-flex items-center gap-2 rounded-md px-2.5 py-1 whitespace-nowrap border",
+  Typography.Badge,
+)
+
+export function StatusBadge({ status, size = "md" }: { status: string; size?: "md" | "lg" }) {
+  const s = getJobStatus(status)
+  const cls = JOB_BADGE_CLASSES[status] ?? JOB_BADGE_CLASSES.NEW_REQUEST
+  const dot = STATUS_DOT[status] ?? STATUS_DOT.NEW_REQUEST
+  const dotCls = cn(
+    "rounded-full shrink-0",
+    size === "lg" ? "h-2 w-2" : "h-1.5 w-1.5",
+    dot,
+  )
+  if (size === "lg") {
+    return (
+      <span className={cn(pillLg, cls)}>
+        <span className={dotCls} aria-hidden />
+        {s.label}
+      </span>
+    )
+  }
+  return (
+    <span className={cn(pill, cls)}>
+      <span className={dotCls} aria-hidden />
+      {s.label}
+    </span>
   )
 }

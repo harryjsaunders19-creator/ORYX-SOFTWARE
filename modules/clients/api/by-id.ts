@@ -41,7 +41,6 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
             drawingNumber: p.drawingNumber,
             itemType: "DESIGN",
             address: p.address,
-            siteId: p.siteId ?? null,
             siteName: p.siteName,
             siteAddress: p.siteAddress,
             typeOfWorks: p.typeOfWorks,

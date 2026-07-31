@@ -20,17 +20,8 @@ import type { JobRow, CreateJobData, UpdateJobData } from "../job-types"
 
 function normalizeJobRow(row: JobRow | null): JobRow | null {
   if (!row) return null
-  const siteId = row.siteId ?? null
-  const locationName = row.locationName ?? row.siteName ?? null
-  const locationMode: JobRow["locationMode"] =
-    siteId ? "MANAGED_SITE" : (row.locationMode === "MANAGED_SITE" ? "MANAGED_SITE" : "ONE_OFF")
   return {
     ...row,
-    siteId,
-    locationMode,
-    locationName,
-    postcode: row.postcode ?? null,
-    siteName: row.siteName ?? locationName,
     tags: parseJobTags((row as JobRow & { tags?: unknown }).tags),
     billable: row.billable == null ? true : Boolean(row.billable),
   }
@@ -131,17 +122,13 @@ export const jobDb = {
     const tagsJson = serializeJobTags(data.tags)
     db.transaction(() => {
       db.prepare(`
-        INSERT INTO Job (id,drawingNumber,itemType,address,locationMode,siteId,locationName,postcode,siteName,siteAddress,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
+        INSERT INTO Job (id,drawingNumber,itemType,address,siteName,siteAddress,typeOfWorks,customTypeDescription,clientCompany,clientId,requestedBy,
           status,designer,dateCompleted,notes,designStandards,tags,quoteValue,quoteReference,quoteDate,commercialNotes,
           variationFees,additionalCharges,
           parentJobId,revisionLetter,billable,requestedDate,requiredByDate,dateCreated,createdAt,updatedAt)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `).run(data.id, data.drawingNumber, data.itemType ?? "DESIGN", data.address,
-             data.locationMode ?? (data.siteId ? "MANAGED_SITE" : "ONE_OFF"),
-             data.siteId ?? null,
-             data.locationName ?? data.siteName ?? null,
-             data.postcode ?? null,
-             data.siteName ?? data.locationName ?? null, data.siteAddress ?? null,
+             data.siteName ?? null, data.siteAddress ?? null,
              data.typeOfWorks,
              data.customTypeDescription ?? null,
              data.clientCompany, data.clientId ?? null, data.requestedBy, data.status, data.designer ?? "",
@@ -182,7 +169,7 @@ export const jobDb = {
       patch.dateCompleted = nowIso().slice(0, 10)
     }
     const allowedColumns = new Set([
-      "address", "locationMode", "siteId", "locationName", "postcode", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
+      "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
       "requestedBy", "status", "designer", "dateCompleted", "notes", "designStandards", "tags", "quoteValue",
       "quoteReference", "quoteDate", "commercialNotes", "variationFees", "additionalCharges",
       "requestedDate", "requiredByDate", "billable",

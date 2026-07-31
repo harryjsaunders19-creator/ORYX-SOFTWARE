@@ -6,7 +6,7 @@ import { canAddRevisionFrom, buildRevisionFamilyIndex } from "@/lib/revision-cha
 import { revisionFamilyService } from "../services/revision-family-service"
 import { createId } from "@paralleldrive/cuid2"
 import { requireModuleAccess, actorName } from "@/shared/auth/auth"
-import { resolveRequiredByDate } from "@/shared/utils/utils"
+import { defaultRequiredByDate } from "@/shared/utils/utils"
 import { apiInternalError } from "@/shared/api-errors"
 import { isWorkItemsModelEnabled } from "@/shared/supabase/feature-flags"
 import { parentJobService, workItemService } from "../services/parent-work-item-service"
@@ -20,7 +20,6 @@ const createRevisionBodySchema = z.object({
   designer: z.string().optional(),
   billable: z.union([z.boolean(), z.string()]).optional(),
   quoteValue: z.union([z.number(), z.string(), z.null()]).optional(),
-  requiredByDate: z.union([z.string(), z.null()]).optional(),
   priority: z.string().nullable().optional(),
   letter: z.string().optional(),
 }).passthrough()
@@ -59,8 +58,6 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         issuedBy: null,
         issuedAt: w.completedAt,
         billable: w.billable,
-        requiredByDate: w.requiredByDate ?? null,
-        quoteValue: w.quoteValue ?? null,
       }))
 
       return NextResponse.json({
@@ -133,9 +130,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           billable: body.billable === true || body.billable === "true",
           designer: designerResolved.designer,
           priority: typeof body.priority === "string" ? body.priority : null,
-          requiredByDate: resolveRequiredByDate(
-            typeof body.requiredByDate === "string" ? body.requiredByDate : null,
-          ),
           notes: reason,
           changedBy: actorName(auth.user),
         })
@@ -240,9 +234,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       revisionLetter: letter,
       billable:       revBillable,
       quoteValue:     revQuoteValue,
-      requiredByDate: resolveRequiredByDate(
-        typeof body.requiredByDate === "string" ? body.requiredByDate : null,
-      ),
+      requiredByDate: defaultRequiredByDate(),
       changedBy,
     })
 

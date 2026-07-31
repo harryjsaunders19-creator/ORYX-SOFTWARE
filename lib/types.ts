@@ -3,13 +3,6 @@ export interface Job {
   drawingNumber:   string
   itemType:        string
   address:         string
-  /** ONE_OFF (default) | MANAGED_SITE — siteId set only for Managed Site. */
-  locationMode:    "ONE_OFF" | "MANAGED_SITE"
-  siteId:          string | null
-  /** Property or managed site display name. */
-  locationName:    string | null
-  postcode:        string | null
-  /** @deprecated Prefer locationName — kept in sync for register/search. */
   siteName:        string | null
   siteAddress:     string | null
   typeOfWorks:     string
@@ -65,8 +58,6 @@ export interface Job {
   linkedQuotes?:   LinkedQuoteSummary[]
   /** Convenience: the "current" linked quote (accepted > latest updated). */
   currentQuote?:   LinkedQuoteSummary | null
-  /** Other jobs sharing the same site (inspector / register metadata). */
-  otherJobsAtSiteCount?: number
   createdAt:       string
   updatedAt:       string
 }
@@ -298,15 +289,9 @@ export interface StatusHistoryEntry {
 
 export interface JobFormData {
   itemType:        string
-  /** ONE_OFF (default) | MANAGED_SITE */
-  locationMode:    "ONE_OFF" | "MANAGED_SITE"
-  siteId:          string
-  locationName:    string
-  address:         string
-  postcode:        string
-  /** Mirrors locationName for API compatibility. */
   siteName:        string
   siteAddress:     string
+  address:         string
   typeOfWorks:     string
   customTypeDescription: string
   clientCompany:   string
@@ -326,8 +311,6 @@ export interface JobFormData {
   additionalCharges: string
   requiredByDate:  string
   proceedDespiteHold?: boolean
-  /** Soft-warn duplicate flow — allow save despite similar locations. */
-  continueDespiteDuplicate?: boolean
 }
 
 export interface JobsResponse {

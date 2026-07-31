@@ -10,7 +10,6 @@ export interface ActiveWorkItemListRow {
   workType: "ORIGINAL" | "REVISION"
   revisionLetter: string | null
   clientCompany: string
-  siteId: string | null
   siteName: string | null
   address: string
   designer: string
@@ -44,10 +43,6 @@ export interface CreateParentJobInput {
   id: string
   drawingNumber: string
   address: string
-  locationMode?: "ONE_OFF" | "MANAGED_SITE"
-  siteId?: string | null
-  locationName?: string | null
-  postcode?: string | null
   siteName?: string | null
   siteAddress?: string | null
   typeOfWorks: string

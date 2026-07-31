@@ -8,31 +8,21 @@ import { Button } from "@/shared/ui/button"
 import { Textarea } from "@/shared/ui/textarea"
 import { Input } from "@/shared/ui/input"
 import { Field } from "@/shared/ui/field"
-import { defaultRequiredByDate } from "@/shared/utils/utils"
 import type { Job } from "@/lib/types"
-
-export type AddRevisionSubmitData = {
-  notes: string
-  billable: boolean
-  quoteValue: number
-  requiredByDate: string
-}
 
 export interface AddRevisionModalProps {
   job: Job | null
   onClose: () => void
-  onSubmit: (job: Job, data: AddRevisionSubmitData) => Promise<void>
+  onSubmit: (job: Job, data: { notes: string; billable: boolean; quoteValue: number }) => Promise<void>
 }
 
 export function AddRevisionModal({ job, onClose, onSubmit }: AddRevisionModalProps) {
   const [notes, setNotes] = useState("")
   const [chargeable, setChargeable] = useState(true)
   const [fee, setFee] = useState("")
-  const [targetDue, setTargetDue] = useState(defaultRequiredByDate())
   const [saving, setSaving] = useState(false)
   const [notesError, setNotesError] = useState<string | null>(null)
   const [feeError, setFeeError] = useState<string | null>(null)
-  const [dueError, setDueError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
     const trimmed = notes.trim()
@@ -63,28 +53,14 @@ export function AddRevisionModal({ job, onClose, onSubmit }: AddRevisionModalPro
       setFeeError(null)
     }
 
-    const due = targetDue.trim()
-    if (!due) {
-      setDueError("Enter a target due date.")
-      valid = false
-    } else {
-      setDueError(null)
-    }
-
     if (!valid || !job) return
 
     setSaving(true)
     try {
-      await onSubmit(job, {
-        notes: trimmed,
-        billable: chargeable,
-        quoteValue,
-        requiredByDate: due,
-      })
+      await onSubmit(job, { notes: trimmed, billable: chargeable, quoteValue })
       setNotes("")
       setFee("")
       setChargeable(true)
-      setTargetDue(defaultRequiredByDate())
     } finally {
       setSaving(false)
     }
@@ -113,7 +89,7 @@ export function AddRevisionModal({ job, onClose, onSubmit }: AddRevisionModalPro
         </DialogHeader>
         <DialogBody>
           <div className="space-y-4">
-            <Field label="Amendment Reason" error={notesError}>
+            <Field label="Amendments Required" error={notesError}>
               <Textarea
                 value={notes}
                 onChange={e => { setNotes(e.target.value); if (notesError) setNotesError(null) }}
@@ -123,7 +99,7 @@ export function AddRevisionModal({ job, onClose, onSubmit }: AddRevisionModalPro
               />
             </Field>
 
-            <Field label="Billable?">
+            <Field label="Is there a cost involved?">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -151,7 +127,7 @@ export function AddRevisionModal({ job, onClose, onSubmit }: AddRevisionModalPro
             </Field>
 
             {chargeable ? (
-              <Field label="Revision Cost" error={feeError}>
+              <Field label="Revision fee" error={feeError}>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-t3 pointer-events-none">£</span>
                   <Input
@@ -169,17 +145,6 @@ export function AddRevisionModal({ job, onClose, onSubmit }: AddRevisionModalPro
                 This revision will be recorded with a fee of £0.00.
               </p>
             )}
-
-            <Field label="Target Due Date" error={dueError}>
-              <Input
-                type="date"
-                value={targetDue}
-                onChange={e => {
-                  setTargetDue(e.target.value)
-                  if (dueError) setDueError(null)
-                }}
-              />
-            </Field>
           </div>
         </DialogBody>
         <DialogFooter>

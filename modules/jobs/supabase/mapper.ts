@@ -49,10 +49,6 @@ export interface SupabaseJobRow {
   geocoded_address: string | null
   site_name: string | null
   site_address: string | null
-  site_id: string | null
-  location_mode: string | null
-  location_name: string | null
-  postcode: string | null
   location_status: string | null
   location_source: string | null
   list_sort_key: string | null
@@ -105,13 +101,7 @@ export function toJobRow(row: SupabaseJobRow): JobRow {
     longitude: row.longitude != null ? Number(row.longitude) : null,
     geocodedAt: row.geocoded_at ?? null,
     geocodedAddress: row.geocoded_address ?? null,
-    siteId: row.site_id ?? null,
-    locationMode: row.site_id
-      ? "MANAGED_SITE"
-      : (row.location_mode === "MANAGED_SITE" ? "MANAGED_SITE" : "ONE_OFF"),
-    locationName: row.location_name ?? row.site_name ?? null,
-    postcode: row.postcode ?? null,
-    siteName: row.site_name ?? row.location_name ?? null,
+    siteName: row.site_name ?? null,
     siteAddress: row.site_address ?? null,
     locationStatus: row.location_status ?? null,
     locationSource: row.location_source ?? null,
@@ -159,12 +149,8 @@ export function toSupabaseRow(job: JobRow): SupabaseJobRow & { list_sort_key: st
     longitude: job.longitude,
     geocoded_at: job.geocodedAt,
     geocoded_address: job.geocodedAddress,
-    site_id: job.siteId ?? null,
-    site_name: job.siteName ?? job.locationName,
+    site_name: job.siteName,
     site_address: job.siteAddress,
-    location_mode: job.locationMode ?? (job.siteId ? "MANAGED_SITE" : "ONE_OFF"),
-    location_name: job.locationName ?? job.siteName,
-    postcode: job.postcode ?? null,
     location_status: job.locationStatus,
     location_source: job.locationSource,
     list_sort_key: computeJobListSortKey(job.drawingNumber, job.parentJobId, job.revisionLetter),

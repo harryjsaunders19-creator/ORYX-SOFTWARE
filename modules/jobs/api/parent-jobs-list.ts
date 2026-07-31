@@ -10,7 +10,6 @@ import { isValidWorksType, OTHER_WORKS_TYPE, sanitizeJobTags } from "@/lib/const
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { clientService } from "@/modules/clients"
-import { siteService, formatSiteAddress } from "@/modules/sites"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
@@ -26,11 +25,6 @@ function modelDisabled() {
 }
 
 const createParentJobBodySchema = z.object({
-  locationMode: z.enum(["ONE_OFF", "MANAGED_SITE"]).optional(),
-  locationType: z.enum(["SINGLE_PROPERTY", "MANAGED_SITE", "ONE_OFF"]).optional(),
-  siteId: z.string().optional(),
-  locationName: z.string().optional(),
-  postcode: z.string().optional(),
   siteName: z.string().optional(),
   siteAddress: z.string().optional(),
   address: z.string().optional(),
@@ -100,20 +94,25 @@ export async function POST(req: NextRequest) {
     }
     const body = parsedBody.data
 
-    const rawMode = body.locationMode
-      ?? (body.locationType === "MANAGED_SITE" ? "MANAGED_SITE"
-        : body.locationType === "SINGLE_PROPERTY" || body.locationType === "ONE_OFF" ? "ONE_OFF"
-          : undefined)
-    let locationMode: "ONE_OFF" | "MANAGED_SITE" =
-      rawMode === "MANAGED_SITE" ? "MANAGED_SITE" : "ONE_OFF"
-    let siteId: string | null = typeof body.siteId === "string" && body.siteId.trim()
-      ? body.siteId.trim()
-      : null
-    let locationName = typeof body.locationName === "string"
-      ? body.locationName.trim()
-      : typeof body.siteName === "string" ? body.siteName.trim() : ""
-    let siteAddress = typeof body.siteAddress === "string" ? body.siteAddress.trim() : ""
-    let postcode = typeof body.postcode === "string" ? body.postcode.trim() : ""
+    const siteName = typeof body.siteName === "string" ? body.siteName.trim() : ""
+    const siteAddress = typeof body.siteAddress === "string" ? body.siteAddress.trim() : ""
+    const address = typeof body.address === "string" && body.address.trim()
+      ? body.address.trim()
+      : composeJobAddress(siteName || null, siteAddress || null)
+
+    if (!address) {
+      return NextResponse.json({ error: "Site / address is required" }, { status: 400 })
+    }
+
+    const typeOfWorks = typeof body.typeOfWorks === "string" ? body.typeOfWorks.trim() : ""
+    const customTypeDescription: string | null =
+      typeof body.customTypeDescription === "string" ? body.customTypeDescription.trim() || null : null
+    if (!typeOfWorks || !isValidWorksType(typeOfWorks)) {
+      return NextResponse.json({ error: "Type of works is required" }, { status: 400 })
+    }
+    if (typeOfWorks === OTHER_WORKS_TYPE && !customTypeDescription) {
+      return NextResponse.json({ error: "Describe Other type of works" }, { status: 400 })
+    }
 
     const clientCompany = typeof body.clientCompany === "string" ? body.clientCompany.trim() : ""
     const requestedBy = typeof body.requestedBy === "string" ? body.requestedBy.trim() : ""
@@ -128,49 +127,6 @@ export async function POST(req: NextRequest) {
     } else if (clientCompany) {
       const matched = await clientService.findByName(clientCompany)
       clientId = matched?.id ?? null
-    }
-
-    if (locationMode === "MANAGED_SITE") {
-      if (!siteId) {
-        return NextResponse.json({ error: "Select or create a managed site", field: "siteId" }, { status: 422 })
-      }
-      if (!clientId) {
-        return NextResponse.json({ error: "Client is required when selecting a managed site", field: "clientId" }, { status: 422 })
-      }
-      const site = await siteService.assertSiteBelongsToClient(siteId, clientId)
-      if (!site) {
-        return NextResponse.json({ error: "Managed site not found for this client", field: "siteId" }, { status: 422 })
-      }
-      locationName = site.name
-      siteAddress = formatSiteAddress(site) || site.name
-      postcode = site.postcode || postcode
-    } else {
-      siteId = null
-      locationMode = "ONE_OFF"
-      if (!siteAddress && !(typeof body.address === "string" && body.address.trim())) {
-        return NextResponse.json({ error: "Location address is required", field: "address" }, { status: 422 })
-      }
-    }
-
-    const address = typeof body.address === "string" && body.address.trim()
-      ? body.address.trim()
-      : composeJobAddress(locationName || null, siteAddress || null)
-
-    if (!address) {
-      return NextResponse.json({
-        error: locationMode === "MANAGED_SITE" ? "Managed site address is required" : "Location address is required",
-        field: locationMode === "MANAGED_SITE" ? "siteId" : "address",
-      }, { status: 400 })
-    }
-
-    const typeOfWorks = typeof body.typeOfWorks === "string" ? body.typeOfWorks.trim() : ""
-    const customTypeDescription: string | null =
-      typeof body.customTypeDescription === "string" ? body.customTypeDescription.trim() || null : null
-    if (!typeOfWorks || !isValidWorksType(typeOfWorks)) {
-      return NextResponse.json({ error: "Type of works is required" }, { status: 400 })
-    }
-    if (typeOfWorks === OTHER_WORKS_TYPE && !customTypeDescription) {
-      return NextResponse.json({ error: "Describe Other type of works" }, { status: 400 })
     }
 
     if (clientId && body.proceedDespiteHold !== true) {
@@ -214,12 +170,8 @@ export async function POST(req: NextRequest) {
     const dashboard = await parentJobService.createWithOriginal({
       id,
       drawingNumber,
-      address: address || siteAddress || locationName,
-      locationMode,
-      siteId,
-      locationName: locationName || null,
-      postcode: postcode || null,
-      siteName: locationName || null,
+      address,
+      siteName: siteName || null,
       siteAddress: siteAddress || null,
       typeOfWorks,
       customTypeDescription,
@@ -239,16 +191,6 @@ export async function POST(req: NextRequest) {
       requiredByDate: resolveRequiredByDate(body.requiredByDate) ?? null,
       changedBy: actorName(auth.user),
     })
-
-    if (siteId) {
-      await siteService.logJobLinked({
-        siteId,
-        jobId: id,
-        drawingNumber,
-        performedBy: auth.user.id,
-        performedByName: actorName(auth.user),
-      })
-    }
 
     return NextResponse.json(dashboard, { status: 201 })
   } catch (err) {

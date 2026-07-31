@@ -96,7 +96,6 @@ function toListRow(item: DesignWorkItemRow, parent: ParentJobRow): ActiveWorkIte
     workType: item.workType,
     revisionLetter: item.revisionLetter,
     clientCompany: parent.clientCompany,
-    siteId: parent.siteId ?? null,
     siteName: parent.siteName,
     address: parent.address,
     designer: item.designer,
@@ -275,24 +274,18 @@ export const parentJobService = {
   async createWithOriginal(input: CreateParentJobInput): Promise<ParentJobDashboard> {
     const now = nowIso()
     const changedBy = input.changedBy ?? "System"
-    const locationName = (input.locationName ?? input.siteName)?.trim() || null
+    const siteName = input.siteName?.trim() ?? null
     const siteAddress = input.siteAddress?.trim() ?? null
     const address = input.address?.trim()
       ? input.address.trim()
-      : composeJobAddress(locationName, siteAddress)
-    const siteId = input.siteId?.trim() || null
-    const locationMode = siteId ? "MANAGED_SITE" as const : "ONE_OFF" as const
+      : composeJobAddress(siteName, siteAddress)
 
     const parent: ParentJobRow = {
       id: input.id,
       drawingNumber: input.drawingNumber,
       clientId: input.clientId ?? null,
       clientCompany: input.clientCompany,
-      locationMode,
-      siteId,
-      locationName,
-      postcode: input.postcode?.trim() || null,
-      siteName: locationName,
+      siteName,
       siteAddress,
       address,
       typeOfWorks: input.typeOfWorks,

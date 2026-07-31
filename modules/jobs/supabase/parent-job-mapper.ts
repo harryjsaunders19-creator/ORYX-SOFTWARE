@@ -6,12 +6,8 @@ export interface SupabaseParentJobRow {
   drawing_number: string
   client_id: string | null
   client_company: string
-  site_id: string | null
   site_name: string | null
   site_address: string | null
-  location_mode: string | null
-  location_name: string | null
-  postcode: string | null
   address: string
   type_of_works: string
   custom_type_description: string | null
@@ -40,13 +36,7 @@ export function toParentJobRow(row: SupabaseParentJobRow): ParentJobRow {
     drawingNumber: row.drawing_number,
     clientId: row.client_id,
     clientCompany: row.client_company,
-    locationMode: row.site_id
-      ? "MANAGED_SITE"
-      : (row.location_mode === "MANAGED_SITE" ? "MANAGED_SITE" : "ONE_OFF"),
-    siteId: row.site_id ?? null,
-    locationName: row.location_name ?? row.site_name ?? null,
-    postcode: row.postcode ?? null,
-    siteName: row.site_name ?? row.location_name ?? null,
+    siteName: row.site_name,
     siteAddress: row.site_address,
     address: row.address,
     typeOfWorks: row.type_of_works,
@@ -77,12 +67,8 @@ export function toSupabaseParentJob(row: ParentJobRow): SupabaseParentJobRow {
     drawing_number: row.drawingNumber,
     client_id: row.clientId,
     client_company: row.clientCompany,
-    site_id: row.siteId ?? null,
-    site_name: row.siteName ?? row.locationName,
+    site_name: row.siteName,
     site_address: row.siteAddress,
-    location_mode: row.locationMode ?? (row.siteId ? "MANAGED_SITE" : "ONE_OFF"),
-    location_name: row.locationName ?? row.siteName,
-    postcode: row.postcode ?? null,
     address: row.address,
     type_of_works: row.typeOfWorks,
     custom_type_description: row.customTypeDescription,

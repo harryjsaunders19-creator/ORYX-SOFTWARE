@@ -14,9 +14,6 @@ import {
 import { ClientCombobox } from "@/components/client-combobox"
 import { DesignerCombobox } from "@/components/designer-combobox"
 import { QuickCreateClientModal } from "@/components/quick-create-client-modal"
-import { CreateSiteDialog, formatSiteAddress, LocationSearch } from "@/modules/sites/client"
-import type { SiteSummary } from "@/modules/sites/client"
-import type { LocationSelection } from "@/modules/sites/components/location-search"
 import { HoldWarningDialog } from "@/shared/ui/hold-warning-dialog"
 import { cn } from "@/shared/utils"
 import type { Job, JobFormData } from "@/lib/types"
@@ -41,13 +38,9 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const [form, setForm] = useState<JobFormData>(() =>
     job ? {
       itemType: job.itemType ?? "DESIGN",
-      locationMode: job.siteId || job.locationMode === "MANAGED_SITE" ? "MANAGED_SITE" : "ONE_OFF",
-      siteId: job.siteId ?? "",
-      locationName: job.locationName ?? job.siteName ?? "",
-      address: job.address,
-      postcode: job.postcode ?? "",
-      siteName: job.siteName ?? job.locationName ?? "",
+      siteName: job.siteName ?? "",
       siteAddress: job.siteAddress ?? job.address ?? "",
+      address: job.address,
       typeOfWorks: job.typeOfWorks,
       customTypeDescription: job.customTypeDescription ?? "",
       clientCompany: job.clientCompany,
@@ -71,53 +64,11 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [saving, setSaving] = useState(false)
   const [quickCreateName, setQuickCreateName] = useState("")
-  const [createSiteOpen, setCreateSiteOpen] = useState(false)
-  const [promoteOpen, setPromoteOpen] = useState<{
-    locationName: string
-    address: string
-    postcode: string
-    jobIds: string[]
-  } | null>(null)
   const [holdWarning, setHoldWarning] = useState<{ reason: string; pendingSubmit: JobFormData } | null>(null)
   const [customTypes, setCustomTypes] = useState<string[]>([])
   const [addingType, setAddingType] = useState(false)
   const [newTypeLabel, setNewTypeLabel] = useState("")
   const [showMoreTypes, setShowMoreTypes] = useState(false)
-
-  const applyLocation = (loc: LocationSelection) => {
-    setForm(f => ({
-      ...f,
-      locationMode: loc.locationMode,
-      siteId: loc.siteId,
-      locationName: loc.locationName,
-      address: loc.address || composeJobAddress(loc.locationName, loc.address),
-      postcode: loc.postcode,
-      siteName: loc.locationName,
-      siteAddress: loc.address,
-    }))
-    setErrors(prev => ({ ...prev, address: undefined, siteId: undefined }))
-  }
-
-  const applySite = (site: SiteSummary | null) => {
-    if (!site) {
-      applyLocation({
-        locationMode: "ONE_OFF",
-        siteId: "",
-        locationName: "",
-        address: "",
-        postcode: "",
-      })
-      return
-    }
-    const addr = formatSiteAddress(site)
-    applyLocation({
-      locationMode: "MANAGED_SITE",
-      siteId: site.id,
-      locationName: site.name,
-      address: addr || site.name,
-      postcode: site.postcode ?? "",
-    })
-  }
 
   useEffect(() => {
     const saved = readCustomWorksTypes()
@@ -230,15 +181,9 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
 
     setSaving(true)
     try {
-      const isManaged = form.locationMode === "MANAGED_SITE"
       await onSubmit({
         ...form,
-        locationMode: isManaged ? "MANAGED_SITE" : "ONE_OFF",
-        siteId: isManaged ? form.siteId : "",
-        locationName: form.locationName || form.siteName,
-        siteName: form.locationName || form.siteName,
-        siteAddress: form.address || form.siteAddress,
-        address: form.address || composeJobAddress(form.locationName || form.siteName, form.siteAddress, form.address),
+        address: composeJobAddress(form.siteName, form.siteAddress, form.address),
         // Create workflow never sets completion date — status change owns that.
         dateCompleted: job ? form.dateCompleted : "",
       })
@@ -249,19 +194,13 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
 
   const proceedDespiteHold = async () => {
     if (!holdWarning) return
-    const pending = holdWarning.pendingSubmit
     setHoldWarning(null)
     setSaving(true)
     try {
-      const isManaged = pending.locationMode === "MANAGED_SITE"
+      const pending = holdWarning.pendingSubmit
       await onSubmit({
         ...pending,
-        locationMode: isManaged ? "MANAGED_SITE" : "ONE_OFF",
-        siteId: isManaged ? pending.siteId : "",
-        locationName: pending.locationName || pending.siteName,
-        siteName: pending.locationName || pending.siteName,
-        siteAddress: pending.address || pending.siteAddress,
-        address: pending.address || composeJobAddress(pending.locationName || pending.siteName, pending.siteAddress, pending.address),
+        address: composeJobAddress(pending.siteName, pending.siteAddress, pending.address),
         dateCompleted: job ? pending.dateCompleted : "",
         proceedDespiteHold: true,
       })
@@ -317,83 +256,40 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
         </>
       )}
 
-      {/* 2 · Client → Location → Description of Works */}
+      {/* 2 · Project information */}
       <Section
         step={job ? 1 : 2}
-        title="Client & Location"
-        question="Who is the client, and where is the work taking place?"
+        title="Project information"
+        question={
+          needsTypeOfWorks
+            ? "Where is the work and what type of scaffold is involved?"
+            : "Where is the work taking place?"
+        }
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Client" required error={errors.clientCompany}>
-              <ClientCombobox
-                value={form.clientId}
-                name={form.clientCompany}
-                onChange={(clientId, clientName, onHold, _holdReason, contactName) => {
-                  setForm(f => ({
-                    ...f,
-                    clientId,
-                    clientCompany: clientName,
-                    // Clear location when client changes — sites are client-scoped.
-                    siteId: "",
-                    locationMode: "ONE_OFF",
-                    locationName: "",
-                    siteName: "",
-                    siteAddress: "",
-                    address: "",
-                    postcode: "",
-                    requestedBy: !f.requestedBy.trim() && contactName ? contactName : f.requestedBy,
-                  }))
-                  setErrors(prev => ({ ...prev, clientCompany: undefined, address: undefined }))
-                  if (!onHold) setHoldWarning(null)
-                }}
-                onCreateNew={name => setQuickCreateName(name)}
-              />
-              {errors.clientCompany && <p className="text-xs text-dn mt-0.5">{errors.clientCompany}</p>}
-            </Field>
-            <Field label="Requested by" required error={errors.requestedBy} hint="Defaults to the client contact when available">
+            <Field label="Site name" hint="Building or site description">
               <Input
                 className={controlClass}
                 style={controlStyle}
-                value={form.requestedBy}
-                onChange={setF("requestedBy")}
-                placeholder="e.g. James Carter"
+                value={form.siteName}
+                onChange={setF("siteName")}
+                placeholder="e.g. Selfridges Oxford Street"
+                autoComplete="off"
+                autoFocus={!job}
+              />
+            </Field>
+            <Field label="Site address" required error={errors.siteAddress} hint="Postal address for the site">
+              <Input
+                className={controlClass}
+                style={controlStyle}
+                value={form.siteAddress}
+                onChange={setF("siteAddress")}
+                placeholder="400 Oxford Street, London, W1A 1AB"
                 autoComplete="off"
               />
             </Field>
           </div>
-
-          <Field
-            label="Location"
-            required
-            error={errors.address}
-            hint="Search an existing site or address — or type a new one for a one-off job"
-          >
-            <LocationSearch
-              clientId={form.clientId}
-              value={{
-                locationMode: form.locationMode,
-                siteId: form.siteId,
-                locationName: form.locationName || form.siteName,
-                address: form.address || form.siteAddress,
-                postcode: form.postcode,
-              }}
-              onChange={applyLocation}
-              onCreateManagedSite={() => {
-                if (!form.clientId) return
-                setCreateSiteOpen(true)
-              }}
-              onPromoteSuggestion={hit => {
-                setPromoteOpen({
-                  locationName: hit.locationName,
-                  address: hit.address,
-                  postcode: hit.postcode ?? "",
-                  jobIds: hit.sampleJobIds,
-                })
-              }}
-              error={errors.address}
-            />
-          </Field>
 
           {needsTypeOfWorks && (
             <JobFormWorksType
@@ -417,19 +313,44 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
               onCustomTypeDescriptionChange={setF("customTypeDescription")}
             />
           )}
+        </div>
+      </Section>
 
-          <Field label="Description of Works" hint="Job-specific scope for this design commission">
-            <Textarea
-              value={form.notes}
-              onChange={setF("notes")}
-              placeholder={
-                isSiteVisit
-                  ? "Visit purpose, contacts on site, access notes…"
-                  : isCatIii
-                    ? "Check brief, drawing references, standards to apply…"
-                    : "e.g. Bridged access scaffold over the station entrance"
-              }
-              rows={3}
+      <Divider />
+
+      {/* 3 · Client */}
+      <Section
+        step={job ? 2 : 3}
+        title="Client information"
+        question="Who is the client and who requested the work?"
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Client" required error={errors.clientCompany}>
+            <ClientCombobox
+              value={form.clientId}
+              name={form.clientCompany}
+              onChange={(clientId, clientName, onHold, _holdReason, contactName) => {
+                setForm(f => ({
+                  ...f,
+                  clientId,
+                  clientCompany: clientName,
+                  requestedBy: !f.requestedBy.trim() && contactName ? contactName : f.requestedBy,
+                }))
+                setErrors(prev => ({ ...prev, clientCompany: undefined }))
+                if (!onHold) setHoldWarning(null)
+              }}
+              onCreateNew={name => setQuickCreateName(name)}
+            />
+            {errors.clientCompany && <p className="text-xs text-dn mt-0.5">{errors.clientCompany}</p>}
+          </Field>
+          <Field label="Requested by" required error={errors.requestedBy} hint="Defaults to the client contact when available">
+            <Input
+              className={controlClass}
+              style={controlStyle}
+              value={form.requestedBy}
+              onChange={setF("requestedBy")}
+              placeholder="e.g. James Carter"
+              autoComplete="off"
             />
           </Field>
         </div>
@@ -437,9 +358,9 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
 
       <Divider />
 
-      {/* 3 · Assignment */}
+      {/* 4 · Assignment */}
       <Section
-        step={job ? 2 : 3}
+        step={job ? 3 : 4}
         title="Assignment & scheduling"
         question={isCatIii ? "Who is checking this, and when is it required?" : "Who is completing the work, and when is it required?"}
       >
@@ -481,13 +402,34 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
 
       <Divider />
 
-      {/* 4 · Additional */}
+      {/* 5 · Additional */}
       <Section
-        step={job ? 3 : 4}
+        step={job ? 4 : 5}
         title="Additional information"
-        question="Optional tags and commercial references."
+        question={
+          isSiteVisit
+            ? "Any notes or tags for the visit?"
+            : isCatIii
+              ? "Anything the checker should know?"
+              : "Anything else we need to know?"
+        }
       >
         <div className="space-y-4">
+          <Field label="Notes" hint={isCatIii ? "Scope of check, drawings to review…" : undefined}>
+            <Textarea
+              value={form.notes}
+              onChange={setF("notes")}
+              placeholder={
+                isSiteVisit
+                  ? "Visit purpose, contacts on site, access notes…"
+                  : isCatIii
+                    ? "Check brief, drawing references, standards to apply…"
+                    : "Additional requirements or context…"
+              }
+              rows={3}
+            />
+          </Field>
+
           <Field
             label="Tags"
             hint="Optional labels for search and filtering (scaffold type, site constraints)."
@@ -563,104 +505,11 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
         <QuickCreateClientModal
           initialName={quickCreateName}
           onCreated={client => {
-            setForm(f => ({
-              ...f,
-              clientId: client.id,
-              clientCompany: client.name,
-              siteId: "",
-              siteName: "",
-              siteAddress: "",
-              address: "",
-            }))
+            setForm(f => ({ ...f, clientId: client.id, clientCompany: client.name }))
             setQuickCreateName("")
           }}
           onClose={() => setQuickCreateName("")}
         />
-      )}
-
-      {createSiteOpen && form.clientId && (
-        <CreateSiteDialog
-          clientId={form.clientId}
-          clientName={form.clientCompany}
-          onCreated={site => {
-            applySite(site)
-            setCreateSiteOpen(false)
-          }}
-          onUseExisting={site => {
-            applySite(site)
-            setCreateSiteOpen(false)
-          }}
-          onClose={() => setCreateSiteOpen(false)}
-        />
-      )}
-
-      {promoteOpen && form.clientId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl border border-bd bg-sr p-5 shadow-xl">
-            <h3 className="text-base font-semibold text-t1">Create Managed Site?</h3>
-            <p className="mt-2 text-sm text-t2">
-              This location already contains multiple jobs. Creating a Managed Site keeps them
-              linked under one reusable location — without changing drawing numbers, revisions,
-              quotations or CATII checks.
-            </p>
-            <p className="mt-3 text-sm font-medium text-t1">
-              {promoteOpen.locationName || promoteOpen.address}
-            </p>
-            {promoteOpen.address && promoteOpen.locationName !== promoteOpen.address && (
-              <p className="text-xs text-t3">{promoteOpen.address}</p>
-            )}
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                className="rounded-lg border border-bd px-3 py-2 text-sm text-t2 hover:bg-pg"
-                onClick={() => setPromoteOpen(null)}
-              >
-                Continue as One-Off Job
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-ac px-3 py-2 text-sm font-medium text-white hover:bg-ach"
-                onClick={async () => {
-                  const payload = promoteOpen
-                  setPromoteOpen(null)
-                  try {
-                    const res = await fetch("/api/sites/promote", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        clientId: form.clientId,
-                        name: payload.locationName || payload.address,
-                        address: payload.address,
-                        postcode: payload.postcode || null,
-                        jobIds: [
-                          ...payload.jobIds,
-                          ...(job?.id ? [job.id] : []),
-                        ],
-                      }),
-                    })
-                    const body = await res.json() as {
-                      site?: SiteSummary
-                      error?: string
-                      detail?: string
-                    }
-                    if (!res.ok || !body.site) {
-                      setErrors(prev => ({
-                        ...prev,
-                        address: body.detail || body.error || "Failed to create managed site",
-                      }))
-                      return
-                    }
-                    applySite(body.site)
-                  } catch {
-                    setErrors(prev => ({ ...prev, address: "Network error" }))
-                  }
-                }}
-              >
-                Create Managed Site
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </form>
   )

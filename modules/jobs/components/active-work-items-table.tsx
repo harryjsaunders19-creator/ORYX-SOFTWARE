@@ -14,6 +14,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogDescription, DialogBody,
 } from "@/shared/ui/dialog"
+import { JOB_ROW_BG, JOB_ROW_BORDER } from "@/modules/jobs/components/badges/status-badge"
 import { WorkItemTypeBadge } from "@/modules/jobs/components/badges/work-item-type-badge"
 import { InlineStatusSelect } from "@/modules/jobs/components/inline-edit-selects"
 import dynamic from "next/dynamic"
@@ -242,7 +243,9 @@ export function ActiveWorkItemsTable({
                   <tr
                     key={`${row.kind}:${row.id}`}
                     className={cn(
-                      "border-b border-bd cursor-pointer hover:bg-surface-low transition-colors",
+                      "border-b border-bd cursor-pointer hover:bg-pg/80 transition-colors",
+                      JOB_ROW_BG[row.status] ?? "",
+                      JOB_ROW_BORDER[row.status] ?? "",
                     )}
                     onClick={() => router.push(`/jobs/${row.parentJobId}`)}
                   >

@@ -13,7 +13,9 @@ function isTypingTarget(el: EventTarget | null): boolean {
 export interface JobsRegisterKeyboardHandlers {
   onFocusSearch: () => void
   onNavigate: (dir: -1 | 1) => void
+  onOpenWorkspace: () => void
   onAddRevision: () => void
+  onGenerateInvoice: () => void
   onCloseInspector: () => void
   enabled?: boolean
 }
@@ -22,7 +24,9 @@ export interface JobsRegisterKeyboardHandlers {
 export function useJobsRegisterKeyboard({
   onFocusSearch,
   onNavigate,
+  onOpenWorkspace,
   onAddRevision,
+  onGenerateInvoice,
   onCloseInspector,
   enabled = true,
 }: JobsRegisterKeyboardHandlers) {
@@ -49,10 +53,19 @@ export function useJobsRegisterKeyboard({
           e.preventDefault()
           onNavigate(1)
           break
+        case "Enter":
+          e.preventDefault()
+          onOpenWorkspace()
+          break
         case "r":
         case "R":
           e.preventDefault()
           onAddRevision()
+          break
+        case "i":
+        case "I":
+          e.preventDefault()
+          onGenerateInvoice()
           break
         case "Escape":
           e.preventDefault()
@@ -69,7 +82,9 @@ export function useJobsRegisterKeyboard({
     enabled,
     onFocusSearch,
     onNavigate,
+    onOpenWorkspace,
     onAddRevision,
+    onGenerateInvoice,
     onCloseInspector,
   ])
 }

@@ -16,24 +16,18 @@ import { supabaseStatusHistoryRepo } from "../supabase/status-history-repository
 import { allocateDrawingNumberAsync } from "@/shared/supabase/sequence-service"
 
 function buildJobRow(data: CreateJobData, now: string): JobRow {
-  const locationName = (data.locationName ?? data.siteName)?.trim() || null
+  const siteName = data.siteName?.trim() ?? null
   const siteAddress = data.siteAddress?.trim() ?? null
   const address = data.address?.trim()
     ? data.address.trim()
-    : composeJobAddress(locationName, siteAddress)
-  const siteId = data.siteId?.trim() || null
-  const locationMode = siteId ? "MANAGED_SITE" as const : "ONE_OFF" as const
+    : composeJobAddress(siteName, siteAddress)
 
   return {
     id: data.id,
     drawingNumber: data.drawingNumber,
     itemType: data.itemType ?? "DESIGN",
     address,
-    locationMode,
-    siteId,
-    locationName,
-    postcode: data.postcode?.trim() || null,
-    siteName: locationName,
+    siteName,
     siteAddress,
     typeOfWorks: data.typeOfWorks,
     customTypeDescription: data.customTypeDescription ?? null,
@@ -182,37 +176,19 @@ export const jobSupabaseWrites = {
     const oldStatus = existing.status
     const now = nowIso()
 
-    const locationName = data.locationName !== undefined
-      ? (data.locationName?.trim() ?? null)
-      : data.siteName !== undefined
-        ? (data.siteName?.trim() ?? null)
-        : (existing.locationName ?? existing.siteName)
-    const siteName = locationName
+    const siteName = data.siteName !== undefined ? (data.siteName?.trim() ?? null) : existing.siteName
     const siteAddress = data.siteAddress !== undefined ? (data.siteAddress?.trim() ?? null) : existing.siteAddress
-    let siteId = data.siteId !== undefined ? (data.siteId?.trim() || null) : existing.siteId
-    let locationMode: "ONE_OFF" | "MANAGED_SITE" =
-      data.locationMode === "ONE_OFF"
-        ? "ONE_OFF"
-        : data.locationMode === "MANAGED_SITE" || siteId
-          ? "MANAGED_SITE"
-          : "ONE_OFF"
-    if (locationMode === "ONE_OFF") siteId = null
-    if (locationMode === "MANAGED_SITE" && !siteId) locationMode = "ONE_OFF"
-    const postcode = data.postcode !== undefined ? (data.postcode?.trim() || null) : existing.postcode
-
     let address = existing.address
     if (data.address !== undefined) {
       address = data.address
-    } else if (data.locationName !== undefined || data.siteName !== undefined || data.siteAddress !== undefined) {
+    } else if (data.siteName !== undefined || data.siteAddress !== undefined) {
       address = composeJobAddress(siteName, siteAddress, existing.address)
     }
 
     const locationChanged = (
       (data.address !== undefined && data.address.trim().toLowerCase() !== existing.address.trim().toLowerCase())
-      || (data.locationName !== undefined && (data.locationName?.trim() ?? "") !== (existing.locationName?.trim() ?? ""))
       || (data.siteName !== undefined && (data.siteName?.trim() ?? "") !== (existing.siteName?.trim() ?? ""))
       || (data.siteAddress !== undefined && (data.siteAddress?.trim() ?? "") !== (existing.siteAddress?.trim() ?? ""))
-      || (data.siteId !== undefined && data.siteId !== existing.siteId)
     )
 
     // Stamp completion when moving to ISSUED (parity with work-items) so
@@ -225,10 +201,6 @@ export const jobSupabaseWrites = {
     const updated: JobRow = {
       ...existing,
       address,
-      locationMode,
-      siteId,
-      locationName,
-      postcode,
       siteName,
       siteAddress,
       typeOfWorks: data.typeOfWorks ?? existing.typeOfWorks,

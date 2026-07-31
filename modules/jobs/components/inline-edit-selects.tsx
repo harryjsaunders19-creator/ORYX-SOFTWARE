@@ -2,7 +2,7 @@
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { ChevronDown } from "lucide-react"
 import { SelectContent, SelectItem } from "@/components/ui/select"
-import { DrawingStatusBadge } from "@/modules/jobs/components/drawing-status-badge"
+import { StatusBadge } from "@/modules/jobs/components/badges/status-badge"
 import { JOB_STATUSES } from "@/lib/constants"
 import { cn } from "@/shared/utils"
 
@@ -22,16 +22,14 @@ export function InlineStatusSelect({ status, onChange, size = "md" }: { status: 
           size === "lg" && "hover:brightness-[0.97] active:scale-[0.98] transition-all",
         )}
         style={{ border: "none", background: "transparent", padding: 0, cursor: "pointer" }}
-        aria-label="Change drawing status"
+        aria-label="Change status"
       >
-        <DrawingStatusBadge status={status} size={size} />
+        <StatusBadge status={status} size={size} />
         <ChevronDown className="h-3.5 w-3.5 text-t4 opacity-0 group-hover:opacity-100 transition-opacity" />
       </SelectPrimitive.Trigger>
       <SelectContent align="start">
         {JOB_STATUSES.map(s => (
-          <SelectItem key={s.value} value={s.value}>
-            <DrawingStatusBadge status={s.value} />
-          </SelectItem>
+          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
         ))}
       </SelectContent>
     </SelectPrimitive.Root>

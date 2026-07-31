@@ -132,7 +132,7 @@ export default function JobDetailPage({
 
   const handleRevisionSubmit = async (
     jobForRevision: Job,
-    data: { notes: string; billable: boolean; quoteValue: number; requiredByDate: string },
+    data: { notes: string; billable: boolean; quoteValue: number },
   ) => {
     const parentId = jobForRevision.parentJobId ?? jobForRevision.id
     const res = await fetch(`/api/jobs/${parentId}/revisions`, {
