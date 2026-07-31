@@ -69,9 +69,9 @@ export function shortStatusLabel(status: string | null | undefined): string {
 }
 
 export function revisionBadgeLabel(letter: string | null | undefined): string {
-  if (typeof letter !== "string" || !letter.trim()) return "Rev 0"
+  if (typeof letter !== "string" || !letter.trim()) return "REV 0"
   const normalized = letter.trim().toUpperCase()
-  return normalized.startsWith("REV") ? normalized : `Rev ${normalized}`
+  return normalized.startsWith("REV") ? normalized : `REV ${normalized}`
 }
 
 /** Map classic job list row (original) → register project. */
