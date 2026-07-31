@@ -2,7 +2,7 @@
 
 import { memo } from "react"
 import { MoreHorizontal } from "lucide-react"
-import { cn, formatGBP } from "@/shared/utils/utils"
+import { cn, getRevisionDueInfo, revisionDueToneClass } from "@/shared/utils/utils"
 import { drawingNumberContext, siteDisplay } from "./jobs-register-helpers"
 import { ClientSiteCell } from "./client-site-cell"
 import type { JobsRegisterProject } from "./jobs-register-types"
@@ -19,7 +19,7 @@ import {
 } from "@/shared/ui/dropdown-menu"
 
 export const REGISTER_GRID =
-  "grid grid-cols-[minmax(8rem,1.1fr)_minmax(12rem,1.55fr)_minmax(7rem,0.95fr)_minmax(6.5rem,0.85fr)_5.5rem_2.25rem]"
+  "grid grid-cols-[minmax(8rem,1.15fr)_minmax(10rem,1.4fr)_minmax(7rem,0.95fr)_minmax(6rem,0.8fr)_minmax(5.5rem,0.75fr)_2.25rem]"
 
 interface JobsRegisterRowProps {
   project: JobsRegisterProject
@@ -32,6 +32,29 @@ interface JobsRegisterRowProps {
   onOpenWorkspace: (id: string) => void
   onStatusChanged?: (projectId: string, nextStatus: string) => void
   onDesignerChanged?: (projectId: string, nextDesigner: string) => void
+}
+
+function RegisterDueCell({
+  requiredByDate,
+  completed,
+}: {
+  requiredByDate: string | null
+  completed: boolean
+}) {
+  const due = getRevisionDueInfo(requiredByDate, { completed })
+  const tone = revisionDueToneClass(due.severity)
+  return (
+    <div className="min-w-0 leading-tight">
+      <p className={cn("truncate text-xs font-semibold", tone.text)}>
+        {due.registerPrimary}
+      </p>
+      {due.registerSecondary ? (
+        <p className={cn("mt-0.5 truncate text-[11px] font-medium", tone.text)}>
+          {due.registerSecondary}
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 export const JobsRegisterRow = memo(function JobsRegisterRow({
@@ -84,7 +107,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
     >
       <div role="cell" className="min-w-0 px-3 py-2.5">
         <p className="truncate text-sm font-bold text-t1">{project.drawingNumber}</p>
-        <p className={cn("mt-0.5 truncate text-xs", selected ? "text-t2" : "text-t3")}>
+        <p className={cn("mt-0.5 truncate text-xs font-medium uppercase tracking-wide", selected ? "text-t2" : "text-t3")}>
           {contextLine}
         </p>
       </div>
@@ -164,13 +187,16 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
           />
         ) : (
           <p className="truncate text-xs text-t3">
-            {project.designer || "—"}
+            {project.designer || "Unassigned"}
           </p>
         )}
       </div>
 
-      <div role="cell" className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-t1">
-        {formatGBP(project.value)}
+      <div role="cell" className="min-w-0 px-3 py-2.5">
+        <RegisterDueCell
+          requiredByDate={project.requiredByDate}
+          completed={project.currentWorkType === "none"}
+        />
       </div>
 
       <div

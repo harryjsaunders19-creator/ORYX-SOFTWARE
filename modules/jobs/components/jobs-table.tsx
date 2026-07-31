@@ -367,7 +367,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
   // Called when the user confirms the revision modal form.
   const handleRevisionSubmit = useCallback(async (
     job: Job,
-    data: { notes: string; billable: boolean; quoteValue: number },
+    data: { notes: string; billable: boolean; quoteValue: number; requiredByDate: string },
   ) => {
     const parentId = job.parentJobId ?? job.id
     setCreatingRevisionFor(job.id)

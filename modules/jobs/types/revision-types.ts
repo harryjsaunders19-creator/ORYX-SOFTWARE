@@ -17,6 +17,9 @@ export interface RevisionHistoryEntry {
   issuedBy: string | null
   issuedAt: string | null
   billable: boolean
+  /** Target due date for this revision (YYYY-MM-DD). */
+  requiredByDate: string | null
+  quoteValue?: number | null
 }
 
 export interface RevisionFamilyResponse {

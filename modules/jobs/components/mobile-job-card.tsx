@@ -1,7 +1,7 @@
 "use client"
 
 import { memo } from "react"
-import { formatGBP, cn } from "@/shared/utils/utils"
+import { cn, getRevisionDueInfo, revisionDueToneClass } from "@/shared/utils/utils"
 import { siteDisplay } from "./jobs-register-helpers"
 import { ClientSiteCell } from "./client-site-cell"
 import type { JobsRegisterProject } from "./jobs-register-types"
@@ -37,18 +37,16 @@ export const MobileJobCard = memo(function MobileJobCard({
     ? `/api/work-items/${project.detailId}`
     : undefined
   const workType = project.currentWorkType === "revision" ? "revision" : "original"
-  const revisionMeta =
-    project.revisionCount <= 0
-      ? "No revisions"
-      : project.revisionCount === 1
-        ? "1 revision"
-        : `${project.revisionCount} revisions`
   const revBadge =
     project.currentWorkType === "revision" && project.currentRevisionLetter
       ? `Rev ${project.currentRevisionLetter}`
       : project.currentWorkType === "original"
         ? "Original"
         : null
+  const due = getRevisionDueInfo(project.requiredByDate, {
+    completed: project.currentWorkType === "none",
+  })
+  const dueTone = revisionDueToneClass(due.severity)
 
   return (
     <article
@@ -137,7 +135,7 @@ export const MobileJobCard = memo(function MobileJobCard({
           onClick={e => e.stopPropagation()}
           onKeyDown={e => e.stopPropagation()}
         >
-          <p className="mb-1 text-xs text-t3">Design Engineer</p>
+          <p className="mb-1 text-xs text-t3">Designer</p>
           {canEdit ? (
             <DesignerAssignmentSelector
               workItemType={workType}
@@ -156,14 +154,10 @@ export const MobileJobCard = memo(function MobileJobCard({
           )}
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-xs text-t3">
-            {revBadge && project.currentWorkType === "revision"
-              ? `${revBadge} · ${revisionMeta}`
-              : revisionMeta}
-          </p>
-          <p className="mt-1 text-sm font-semibold tabular-nums text-t1">
-            {project.value == null ? "£—" : formatGBP(project.value)}
-          </p>
+          <p className={cn("text-xs font-semibold", dueTone.text)}>{due.registerPrimary}</p>
+          {due.registerSecondary ? (
+            <p className={cn("mt-0.5 text-xs font-medium", dueTone.text)}>{due.registerSecondary}</p>
+          ) : null}
         </div>
       </div>
     </article>

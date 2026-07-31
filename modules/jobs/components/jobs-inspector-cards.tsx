@@ -1,18 +1,18 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import {
   Building2,
+  ChevronDown,
   History,
   PencilRuler,
   ShieldCheck,
 } from "lucide-react"
-import { cn } from "@/shared/utils/utils"
+import { cn, getRevisionDueInfo, revisionDueToneClass } from "@/shared/utils/utils"
 import { missingLabel } from "./jobs-register-helpers"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import {
-  getDrawingStatusBadgeClass,
   getDrawingStatusColour,
   getDrawingStatusLabel,
   OVERDUE_STATUS_COLOUR,
@@ -51,6 +51,17 @@ function SectionTitle({
 
 export function safeDateLabel(value: string | null | undefined): string {
   if (!value) return ""
+  const raw = value.slice(0, 10)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [y, m, d] = raw.split("-").map(Number)
+    const date = new Date(y!, (m ?? 1) - 1, d ?? 1)
+    if (Number.isNaN(date.getTime())) return ""
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
+  }
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return ""
   return d.toLocaleDateString("en-GB", {
@@ -226,7 +237,7 @@ export function InspectorHeader({
 }
 
 /** Focal engineering section for the active original or revision. */
-export function CurrentDrawingSection({
+export function CurrentRevisionSection({
   currentWork,
   revLabel,
   designer,
@@ -235,6 +246,7 @@ export function CurrentDrawingSection({
   descriptionOfWorks,
   revisionReason,
   revisionDate,
+  requiredByDate,
   patchUrl,
   onChanged,
 }: {
@@ -246,6 +258,7 @@ export function CurrentDrawingSection({
   descriptionOfWorks: string | null
   revisionReason: string | null
   revisionDate: string | null
+  requiredByDate?: string | null
   patchUrl?: string
   onChanged: () => void
 }) {
@@ -264,10 +277,17 @@ export function CurrentDrawingSection({
     currentWork.status === "ISSUED"
       ? (safeDateLabel(lastCompleted) || "Issued")
       : "Pending"
+  const completed = currentWork.status === "ISSUED" || currentWork.type === "none"
+  const due = getRevisionDueInfo(
+    requiredByDate ?? currentWork.dueDate,
+    { completed },
+  )
+  const dueTone = revisionDueToneClass(due.severity)
+  const showDue = Boolean(requiredByDate ?? currentWork.dueDate) || !completed
 
   return (
     <section className="pt-1">
-      <SectionTitle icon={PencilRuler}>Current Drawing</SectionTitle>
+      <SectionTitle icon={PencilRuler}>Current Revision</SectionTitle>
 
       {!active ? (
         <div className="space-y-2">
@@ -303,27 +323,46 @@ export function CurrentDrawingSection({
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <div>
-              <p className={fieldLabel}>Designer</p>
-              <DesignerAssignmentSelector
-                workItemType={isRevision ? "revision" : "original"}
-                workItemId={currentWork.id!}
-                currentDesigner={designer}
-                revisionLabel={isRevision ? currentWork.revisionLabel : null}
-                designers={designers}
-                patchUrl={patchUrl}
-                compact
-                onDesignerChanged={onChanged}
-              />
-            </div>
+            <DesignerAssignmentSelector
+              workItemType={isRevision ? "revision" : "original"}
+              workItemId={currentWork.id!}
+              currentDesigner={designer}
+              revisionLabel={isRevision ? currentWork.revisionLabel : null}
+              designers={designers}
+              patchUrl={patchUrl}
+              labeled
+              onDesignerChanged={onChanged}
+            />
             <div>
               <p className={fieldLabel}>Checker</p>
-              <p className={fieldMuted}>Not assigned</p>
+              <p className={fieldMuted}>Not Assigned</p>
             </div>
-            {revisionDate ? (
+            <div>
+              <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
+              <p className="text-sm font-semibold text-t1">
+                {safeDateLabel(revisionDate) || "—"}
+              </p>
+            </div>
+            {showDue ? (
               <div>
-                <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
-                <p className="text-sm font-semibold text-t1">{safeDateLabel(revisionDate)}</p>
+                <p className={fieldLabel}>Target Due</p>
+                <p className={cn("text-sm font-semibold", dueTone.text)}>
+                  {due.severity === "none" ? "No Due Date" : due.dateLabel}
+                </p>
+              </div>
+            ) : null}
+            {showDue ? (
+              <div>
+                <p className={fieldLabel}>Days Remaining</p>
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold",
+                    dueTone.text,
+                    dueTone.tint,
+                  )}
+                >
+                  {due.daysLabel}
+                </span>
               </div>
             ) : null}
             <div>
@@ -336,6 +375,9 @@ export function CurrentDrawingSection({
     </section>
   )
 }
+
+/** @deprecated Use CurrentRevisionSection */
+export const CurrentDrawingSection = CurrentRevisionSection
 
 export type ProjectDetailsData = {
   client: string
@@ -386,7 +428,6 @@ export function ProjectDetailsSection({ data }: { data: ProjectDetailsData }) {
           </div>
         ) : null}
         <Meta label="Designer" value={data.designer} />
-        <Meta label="Checker" value={data.checker} />
         {isManagedSite && data.otherJobsAtSiteCount > 0 && (
           <div>
             <p className={fieldLabel}>Other Jobs At This Location</p>
@@ -511,81 +552,147 @@ export type HistoryRevision = {
   quoteNumber: string | null
   hasCat2: boolean
   isCurrent: boolean
+  requiredByDate?: string | null
 }
 
-export function RevisionTimeline({ revisions }: { revisions: HistoryRevision[] }) {
+export function RevisionTimeline({
+  revisions,
+  jobKey,
+  onSelectRevision,
+}: {
+  revisions: HistoryRevision[]
+  /** Resets expanded/collapsed + selection when the open job changes. */
+  jobKey?: string
+  onSelectRevision?: (revision: HistoryRevision) => void
+}) {
   const revOnly = revisions.filter(r => r.letter)
   const count = revOnly.length || revisions.length
+  const [expanded, setExpanded] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setExpanded(false)
+    setSelectedId(null)
+  }, [jobKey])
+
+  const statusCaption = (rev: HistoryRevision) => {
+    if (rev.isCurrent) return "Current"
+    if (rev.status === "ISSUED") return "Completed"
+    if (!rev.isCurrent && rev.status !== "ISSUED") {
+      const newer = revisions.some(r =>
+        r.letter
+        && rev.letter
+        && r.letter > rev.letter
+        && (r.isCurrent || r.status === "ISSUED"),
+      )
+      if (newer) return "Superseded"
+    }
+    return getDrawingStatusLabel(rev.status)
+  }
 
   return (
     <section className="border-t border-bd/60 pt-4 pb-2">
-      <SectionTitle
-        icon={History}
-        trailing={
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-t4">
-            {count} registered
-          </span>
-        }
+      <button
+        type="button"
+        className="mb-0 flex w-full items-center justify-between gap-2 text-left"
+        aria-expanded={expanded}
+        onClick={() => setExpanded(v => !v)}
       >
-        Revision History
-      </SectionTitle>
+        <h4 className={cn(sectionHeading, "mb-0 flex items-center gap-2")}>
+          <History className={sectionIconClass} aria-hidden />
+          Revision History ({count})
+        </h4>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-t3 transition-transform duration-200",
+            expanded && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </button>
 
-      {revisions.length === 0 ? (
-        <p className={fieldMuted}>Original drawing only</p>
-      ) : (
-        <ol className="relative space-y-0 before:absolute before:bottom-3 before:left-[11px] before:top-3 before:w-px before:bg-bd">
-          {revisions.map(rev => {
-            const title = rev.letter ? `Rev ${rev.letter}` : "Original"
-            const marker = rev.letter?.trim().slice(0, 1).toUpperCase() || "O"
-            const colour = getDrawingStatusColour(rev.status)
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-200 ease-out",
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="pt-3">
+            {revisions.length === 0 ? (
+              <p className={fieldMuted}>Original drawing only</p>
+            ) : (
+              <ol className="space-y-0">
+                {revisions.map(rev => {
+                  const title = rev.letter ? `REV ${rev.letter}` : "Original"
+                  const colour = getDrawingStatusColour(rev.status)
+                  const selected = selectedId === rev.id
+                  const due = getRevisionDueInfo(rev.requiredByDate ?? null, {
+                    completed: rev.status === "ISSUED",
+                  })
 
-            return (
-              <li key={rev.id} className="relative pb-4 pl-9 last:pb-0">
-                <span
-                  className={cn(
-                    "absolute left-0 top-0 flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-sr text-[10px] font-bold",
-                    rev.isCurrent
-                      ? "bg-rs-ic text-white"
-                      : "bg-surface-low text-t3 ring-1 ring-bd",
-                  )}
-                  aria-hidden
-                >
-                  {marker}
-                </span>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className={cn("text-sm font-semibold", rev.isCurrent ? "text-t1" : "text-t2")}>
-                      {title}
-                    </p>
-                    {rev.isCurrent && (
-                      <span className="rounded bg-rs-ic px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
-                        Active
-                      </span>
-                    )}
-                    {!rev.isCurrent && rev.status === "ISSUED" && (
-                      <span className={cn("rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide", getDrawingStatusBadgeClass("ISSUED"))}>
-                        Complete
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-xs text-t3">
-                    <span className={colour.text}>{getDrawingStatusLabel(rev.status)}</span>
-                    {" · "}
-                    {missingLabel(rev.designer, "Unassigned")}
-                    {" · "}
-                    {safeDateLabel(rev.createdAt)}
-                  </p>
-                  {rev.reason?.trim() && (
-                    <p className={cn("mt-1.5 text-sm leading-snug", rev.isCurrent ? "text-t2" : "text-t3")}>
-                      {rev.reason.trim()}
-                    </p>
-                  )}
-                </div>
-              </li>
-            )
-          })}
-        </ol>
-      )}
+                  return (
+                    <li key={rev.id} className="border-b border-bd/40 last:border-b-0">
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex w-full items-center justify-between gap-3 py-2.5 text-left transition-colors",
+                          selected ? "bg-surface-low/80" : "hover:bg-surface-low/50",
+                        )}
+                        onClick={() => {
+                          setSelectedId(prev => (prev === rev.id ? null : rev.id))
+                          onSelectRevision?.(rev)
+                        }}
+                      >
+                        <span className={cn("text-sm font-semibold", rev.isCurrent ? "text-t1" : "text-t2")}>
+                          {title}
+                        </span>
+                        <span
+                          className={cn(
+                            "text-xs font-medium",
+                            rev.isCurrent ? "text-rs-tx" : colour.text,
+                          )}
+                        >
+                          {statusCaption(rev)}
+                        </span>
+                      </button>
+                      <div
+                        className={cn(
+                          "grid transition-[grid-template-rows] duration-200 ease-out",
+                          selected ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                        )}
+                      >
+                        <div className="min-h-0 overflow-hidden">
+                          <div className="space-y-1.5 pb-3 pl-0.5 text-xs text-t3">
+                            <p>
+                              <span className={colour.text}>{getDrawingStatusLabel(rev.status)}</span>
+                              {" · "}
+                              {missingLabel(rev.designer, "Unassigned")}
+                              {" · "}
+                              {safeDateLabel(rev.createdAt) || "—"}
+                            </p>
+                            {rev.requiredByDate ? (
+                              <p className={revisionDueToneClass(due.severity).text}>
+                                Target due {due.dateLabel}
+                                {due.severity !== "complete" && due.severity !== "none"
+                                  ? ` · ${due.daysLabel}`
+                                  : ""}
+                              </p>
+                            ) : null}
+                            {rev.reason?.trim() ? (
+                              <p className="text-sm leading-snug text-t2">{rev.reason.trim()}</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ol>
+            )}
+          </div>
+        </div>
+      </div>
     </section>
   )
 }

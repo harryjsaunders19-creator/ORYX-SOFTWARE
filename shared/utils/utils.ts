@@ -124,6 +124,117 @@ export function getJobDeadlineInfo(job: {
   return getDeadlineInfo(job.requiredByDate)
 }
 
+/**
+ * Revision Target Due colour bands (Jobs inspector / register):
+ * green >5 days · amber 3–5 · orange 0–2 · red overdue · grey completed.
+ */
+export type RevisionDueSeverity =
+  | "none"
+  | "ok"
+  | "amber"
+  | "orange"
+  | "overdue"
+  | "complete"
+
+export type RevisionDueInfo = {
+  daysRemaining: number | null
+  severity: RevisionDueSeverity
+  /** Absolute date e.g. "04 Aug 2026" */
+  dateLabel: string
+  /** Short date e.g. "04 Aug" */
+  shortDateLabel: string
+  /** Days remaining line e.g. "4 Days" / "Overdue" */
+  daysLabel: string
+  /** Compact register primary line */
+  registerPrimary: string
+  /** Compact register secondary line (overdue days only) */
+  registerSecondary: string | null
+}
+
+export function getRevisionDueInfo(
+  requiredByDate: string | null | undefined,
+  opts?: { completed?: boolean },
+): RevisionDueInfo {
+  if (opts?.completed) {
+    return {
+      daysRemaining: null,
+      severity: "complete",
+      dateLabel: requiredByDate ? formatDisplayDate(requiredByDate, "dd MMM yyyy") : "—",
+      shortDateLabel: requiredByDate ? formatDisplayDate(requiredByDate, "dd MMM") : "—",
+      daysLabel: "Completed",
+      registerPrimary: requiredByDate ? formatDisplayDate(requiredByDate, "dd MMM") : "No Due Date",
+      registerSecondary: null,
+    }
+  }
+
+  if (!requiredByDate) {
+    return {
+      daysRemaining: null,
+      severity: "none",
+      dateLabel: "—",
+      shortDateLabel: "—",
+      daysLabel: "No due date",
+      registerPrimary: "No Due Date",
+      registerSecondary: null,
+    }
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const deadline = parseLocalDate(requiredByDate.slice(0, 10))
+  const days = Math.floor((deadline.getTime() - today.getTime()) / 86_400_000)
+  const dateLabel = formatDisplayDate(requiredByDate, "dd MMM yyyy")
+  const shortDateLabel = formatDisplayDate(requiredByDate, "dd MMM")
+
+  if (days < 0) {
+    const overdueDays = Math.abs(days)
+    return {
+      daysRemaining: days,
+      severity: "overdue",
+      dateLabel,
+      shortDateLabel,
+      daysLabel: `${overdueDays} Day${overdueDays === 1 ? "" : "s"} overdue`,
+      registerPrimary: "OVERDUE",
+      registerSecondary: `${overdueDays} Day${overdueDays === 1 ? "" : "s"}`,
+    }
+  }
+
+  let severity: RevisionDueSeverity = "ok"
+  if (days <= 2) severity = "orange"
+  else if (days <= 5) severity = "amber"
+
+  return {
+    daysRemaining: days,
+    severity,
+    dateLabel,
+    shortDateLabel,
+    daysLabel: days === 0 ? "Due today" : `${days} Day${days === 1 ? "" : "s"}`,
+    registerPrimary: `Due: ${shortDateLabel}`,
+    registerSecondary: null,
+  }
+}
+
+/** Text/background classes for revision due colour bands. */
+export function revisionDueToneClass(severity: RevisionDueSeverity): {
+  text: string
+  tint: string
+} {
+  switch (severity) {
+    case "ok":
+      return { text: "text-ok-tx", tint: "bg-ok-bg" }
+    case "amber":
+      return { text: "text-yl-tx", tint: "bg-yl-bg" }
+    case "orange":
+      return { text: "text-wn-tx", tint: "bg-wn-bg" }
+    case "overdue":
+      return { text: "text-dn-tx", tint: "bg-dn-bg" }
+    case "complete":
+      return { text: "text-t3", tint: "bg-gy-bg" }
+    default:
+      return { text: "text-t3", tint: "bg-transparent" }
+  }
+}
+
 /** Sum of quote value plus tracked variation and additional charges. */
 export function totalJobCommercialValue(job: {
   quoteValue?: number | null

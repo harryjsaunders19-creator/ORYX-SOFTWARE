@@ -7,7 +7,7 @@ import {
 import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
-import { cn } from "@/shared/utils/utils"
+import { cn, defaultRequiredByDate } from "@/shared/utils/utils"
 import type { Job, LinkedQuoteSummary, Quote } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { JobsRegisterProject } from "./jobs-register-types"
@@ -38,7 +38,7 @@ import {
 import {
   InspectorHeader,
   StatusChip,
-  CurrentDrawingSection,
+  CurrentRevisionSection,
   ProjectDetailsSection,
   CATIISummary,
   RevisionTimeline,
@@ -92,6 +92,7 @@ interface RevisionsResponse {
     title?: string
     requestedBy?: string | null
     requestedDate?: string | null
+    requiredByDate?: string | null
   }[]
 }
 
@@ -138,6 +139,8 @@ export function JobsInspector({
   const [wiRevOpen, setWiRevOpen] = useState(false)
   const [wiRevReason, setWiRevReason] = useState("")
   const [wiRevBillable, setWiRevBillable] = useState(true)
+  const [wiRevCost, setWiRevCost] = useState("")
+  const [wiRevDue, setWiRevDue] = useState(defaultRequiredByDate())
   const [wiRevSaving, setWiRevSaving] = useState(false)
   const [attachQuoteOpen, setAttachQuoteOpen] = useState(false)
   const [cat2Busy, setCat2Busy] = useState(false)
@@ -207,6 +210,7 @@ export function JobsInspector({
             quoteNumber: quote?.quoteNumber ?? wi.quoteReference ?? null,
             hasCat2,
             isCurrent: wi.id === currentId,
+            requiredByDate: wi.requiredByDate ?? null,
             requestedBy: parent?.requestedBy ?? null,
             requestedDate: wi.requestedDate,
             legacyJobId: wi.legacyJobId,
@@ -239,6 +243,7 @@ export function JobsInspector({
         quoteNumber: quote?.quoteNumber ?? null,
         hasCat2,
         isCurrent: r.isCurrent ?? idx === 0,
+        requiredByDate: r.requiredByDate ?? null,
         requestedBy: r.requestedBy ?? jobDetail?.requestedBy ?? null,
         requestedDate: r.requestedDate ?? null,
         legacyJobId: r.id,
@@ -278,7 +283,7 @@ export function JobsInspector({
         revisionLetter: r.letter,
         status: r.status,
         designer: r.designer,
-        requiredByDate: null,
+        requiredByDate: r.requiredByDate ?? null,
       }))
     return getCurrentWorkItem(
       {
@@ -342,10 +347,7 @@ export function JobsInspector({
         ?? jobDetail?.dateCreated
         ?? parent?.createdAt
         ?? null,
-      designDue:
-        originalWorkItem?.requiredByDate
-        ?? project.requiredByDate
-        ?? null,
+      designDue: null,
       designer: projectDesigner?.trim() || null,
       checker: null as string | null,
       otherJobsAtSiteCount: otherJobs,
@@ -360,7 +362,6 @@ export function JobsInspector({
     parent,
     jobDetail,
     project.designer,
-    project.requiredByDate,
     client,
     siteId,
     siteName,
@@ -479,6 +480,19 @@ export function JobsInspector({
       toast("Enter a reason for the revision (at least 3 characters)", "error")
       return
     }
+    if (!wiRevDue.trim()) {
+      toast("Enter a target due date", "error")
+      return
+    }
+    let quoteValue: number | null = null
+    if (wiRevBillable) {
+      const parsed = parseFloat(wiRevCost)
+      if (wiRevCost.trim() && !Number.isNaN(parsed)) {
+        quoteValue = Math.round(parsed * 100) / 100
+      }
+    } else {
+      quoteValue = 0
+    }
     setWiRevSaving(true)
     try {
       const res = await fetch(`/api/parent-jobs/${project.id}/work-items`, {
@@ -488,6 +502,8 @@ export function JobsInspector({
           description: reason,
           notes: reason,
           billable: wiRevBillable,
+          quoteValue,
+          requiredByDate: wiRevDue,
         }),
       })
       if (!res.ok) {
@@ -499,6 +515,8 @@ export function JobsInspector({
       setWiRevOpen(false)
       setWiRevReason("")
       setWiRevBillable(true)
+      setWiRevCost("")
+      setWiRevDue(defaultRequiredByDate())
       await refreshAll()
     } catch {
       toast("Network error", "error")
@@ -561,6 +579,8 @@ export function JobsInspector({
         toast("Cannot add a revision until the current work is complete", "error")
         return
       }
+      setWiRevDue(defaultRequiredByDate())
+      setWiRevCost("")
       setWiRevOpen(true)
       return
     }
@@ -725,7 +745,7 @@ export function JobsInspector({
           </div>
         ) : (
           <>
-            <CurrentDrawingSection
+            <CurrentRevisionSection
               currentWork={currentWork}
               revLabel={revLabel}
               designer={drawingDesigner}
@@ -738,6 +758,11 @@ export function JobsInspector({
                 ?? originalWorkItem?.dateCreated
                 ?? jobDetail?.dateCreated
                 ?? parent?.createdAt
+                ?? null
+              }
+              requiredByDate={
+                activeRevision?.requiredByDate
+                ?? currentWork.dueDate
                 ?? null
               }
               patchUrl={currentWorkPatchUrl}
@@ -758,7 +783,7 @@ export function JobsInspector({
               }}
             />
 
-            <RevisionTimeline revisions={revisions} />
+            <RevisionTimeline revisions={revisions} jobKey={project.id} />
           </>
         )}
       </div>
@@ -847,7 +872,7 @@ export function JobsInspector({
             <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-t3" htmlFor="wi-rev-reason">
-                  Reason for Revision
+                  Amendment Reason
                 </label>
                 <textarea
                   id="wi-rev-reason"
@@ -863,8 +888,38 @@ export function JobsInspector({
                   checked={wiRevBillable}
                   onChange={e => setWiRevBillable(e.target.checked)}
                 />
-                Chargeable revision
+                Billable?
               </label>
+              {wiRevBillable ? (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-t3" htmlFor="wi-rev-cost">
+                    Revision Cost
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-t3">£</span>
+                    <input
+                      id="wi-rev-cost"
+                      className="w-full rounded border border-bd bg-sr py-2 pl-7 pr-3 text-sm text-t1"
+                      value={wiRevCost}
+                      onChange={e => setWiRevCost(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              ) : null}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-t3" htmlFor="wi-rev-due">
+                  Target Due Date
+                </label>
+                <input
+                  id="wi-rev-due"
+                  type="date"
+                  className="w-full rounded border border-bd bg-sr px-3 py-2 text-sm text-t1"
+                  value={wiRevDue}
+                  onChange={e => setWiRevDue(e.target.value)}
+                />
+              </div>
             </div>
           </DialogBody>
           <DialogFooter>

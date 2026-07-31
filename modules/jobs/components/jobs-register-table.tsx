@@ -24,9 +24,9 @@ interface JobsRegisterTableProps {
 const HEADERS = [
   "Drawing Number",
   "Client / Site",
-  "Drawing Status",
-  "Design Engineer",
-  "Value",
+  "Status",
+  "Designer",
+  "Due",
   "",
 ] as const
 
@@ -64,7 +64,6 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
             role="columnheader"
             className={cn(
               "px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-t3",
-              label === "Value" && "text-right",
             )}
           >
             {label}

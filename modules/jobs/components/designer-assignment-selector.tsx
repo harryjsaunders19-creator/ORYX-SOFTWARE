@@ -46,6 +46,13 @@ export type DesignerAssignmentSelectorProps = {
   patchUrl?: string
   disabled?: boolean
   compact?: boolean
+  /**
+   * When true, render a static "Designer" label above the clickable value
+   * (inspector pattern). Parent should not duplicate the label.
+   */
+  labeled?: boolean
+  /** Empty-state copy when no engineer is assigned. */
+  unassignedLabel?: string
   className?: string
   onDesignerChanged?: (next: string) => void
 }
@@ -63,6 +70,8 @@ export function DesignerAssignmentSelector({
   patchUrl,
   disabled = false,
   compact = false,
+  labeled = false,
+  unassignedLabel = "Unassigned",
   className,
   onDesignerChanged,
 }: DesignerAssignmentSelectorProps) {
@@ -121,29 +130,22 @@ export function DesignerAssignmentSelector({
   const value = display ? display : UNASSIGNED
   const showSearch = designers.length > 8
 
-  return (
-    <SelectPrimitive.Root
-      value={value}
-      onValueChange={v => void apply(v === UNASSIGNED ? "" : v)}
-      disabled={disabled || busy}
-      onOpenChange={open => {
-        if (!open) setFilter("")
-      }}
+  const trigger = (
+    <SelectPrimitive.Trigger
+      onClick={e => e.stopPropagation()}
+      onKeyDown={e => e.stopPropagation()}
+      className={cn(
+        "inline-flex max-w-full items-center gap-1.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-ac",
+        (disabled || busy) && "opacity-60 cursor-not-allowed",
+        !labeled && className,
+      )}
+      style={{ border: "none", background: "transparent", padding: 0, cursor: disabled || busy ? "not-allowed" : "pointer" }}
+      aria-label={title}
+      title={title}
     >
-      <SelectPrimitive.Trigger
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
-        className={cn(
-          "inline-flex max-w-full items-center gap-1.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-ac",
-          (disabled || busy) && "opacity-60 cursor-not-allowed",
-          className,
-        )}
-        style={{ border: "none", background: "transparent", padding: 0, cursor: disabled || busy ? "not-allowed" : "pointer" }}
-        aria-label={title}
-        title={title}
-      >
-        {display ? (
-          <>
+      {display ? (
+        <>
+          {!labeled && (
             <span
               className={cn(
                 "inline-flex shrink-0 items-center justify-center rounded bg-surface-low text-[10px] font-bold text-t2",
@@ -153,20 +155,42 @@ export function DesignerAssignmentSelector({
             >
               {designerInitials(display)}
             </span>
-            <span className={cn("truncate text-t1", compact ? "text-xs" : "text-sm")}>
-              {display}
-            </span>
-          </>
-        ) : (
-          <span className={cn("text-t3", compact ? "text-xs" : "text-sm")}>
-            Assign design engineer
+          )}
+          <span className={cn("truncate text-t1", compact || labeled ? "text-sm font-semibold" : "text-sm")}>
+            {display}
           </span>
-        )}
+        </>
+      ) : (
+        <span className={cn("truncate text-t3", compact || labeled ? "text-sm" : "text-sm")}>
+          {unassignedLabel}
+        </span>
+      )}
+      {!disabled && (
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-t4" />
-        {busy && (
-          <span className="text-[10px] text-t4" aria-live="polite">Saving…</span>
-        )}
-      </SelectPrimitive.Trigger>
+      )}
+      {busy && (
+        <span className="text-[10px] text-t4" aria-live="polite">Saving…</span>
+      )}
+    </SelectPrimitive.Trigger>
+  )
+
+  return (
+    <SelectPrimitive.Root
+      value={value}
+      onValueChange={v => void apply(v === UNASSIGNED ? "" : v)}
+      disabled={disabled || busy}
+      onOpenChange={open => {
+        if (!open) setFilter("")
+      }}
+    >
+      {labeled ? (
+        <div className={cn("min-w-0", className)}>
+          <p className="mb-1 text-[11px] font-medium text-t3">Designer</p>
+          {trigger}
+        </div>
+      ) : (
+        trigger
+      )}
       <SelectContent
         align="start"
         className="min-w-[220px]"
@@ -186,7 +210,7 @@ export function DesignerAssignmentSelector({
             />
           </div>
         )}
-        <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+        <SelectItem value={UNASSIGNED}>{unassignedLabel}</SelectItem>
         {options.map(d => (
           <SelectItem key={d} value={d}>
             {d}
