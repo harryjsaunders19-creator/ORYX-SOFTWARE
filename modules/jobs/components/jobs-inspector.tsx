@@ -7,7 +7,7 @@ import {
 import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
-import { cn, defaultRequiredByDate } from "@/shared/utils/utils"
+import { cn, defaultRequiredByDate, getRevisionDueInfo } from "@/shared/utils/utils"
 import type { Job, LinkedQuoteSummary, Quote } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
 import type { JobsRegisterProject } from "./jobs-register-types"
@@ -35,9 +35,11 @@ import {
   getCurrentWorkItem,
   type CurrentWorkRevisionLike,
 } from "@/modules/jobs/lib/current-work"
+import { getEngineeringStageFromDrawingStatus } from "@/modules/jobs/lib/engineering-workflow"
 import {
   InspectorHeader,
   StatusChip,
+  RevisionSummaryStrip,
   CurrentRevisionSection,
   ProjectDetailsSection,
   CATIISummary,
@@ -561,16 +563,47 @@ export function JobsInspector({
 
   const statusChips = currentWork.type === "revision" ? (
     <>
-      <StatusChip prefix="Project" status={originalStatus} />
       <StatusChip
         prefix={activeRevision?.letter ? `Rev ${activeRevision.letter}` : "Rev"}
         status={currentWork.status}
+        tone="primary"
       />
+      <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
     </>
   ) : currentWork.type === "original" ? (
-    <StatusChip prefix="Original" status={currentWork.status} />
+    <StatusChip prefix="Original" status={currentWork.status} tone="primary" />
   ) : (
-    <StatusChip prefix="Project" status={originalStatus} />
+    <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
+  )
+
+  const summaryStage = getEngineeringStageFromDrawingStatus(
+    currentWork.type === "none" ? originalStatus : currentWork.status,
+    { closed: currentWork.type === "none" },
+  )
+  const summaryDue = getRevisionDueInfo(
+    activeRevision?.requiredByDate ?? currentWork.dueDate ?? project.requiredByDate,
+    { completed: currentWork.type === "none" || currentWork.status === "ISSUED" },
+  )
+  const summaryRevision =
+    currentWork.type === "revision"
+      ? (currentWork.revisionLabel ?? revLabel)
+      : currentWork.type === "original"
+        ? "Original"
+        : "Complete"
+  const summaryStrip = (
+    <RevisionSummaryStrip
+      revision={summaryRevision}
+      stage={summaryStage.label}
+      designer={drawingDesigner}
+      duePrimary={
+        summaryDue.severity === "none"
+          ? "No Due Date"
+          : summaryDue.severity === "overdue"
+            ? `OVERDUE · ${summaryDue.shortDateLabel}`
+            : `Due ${summaryDue.shortDateLabel}`
+      }
+      dueSeverity={summaryDue.severity}
+    />
   )
 
   const openAddRevision = () => {
@@ -632,6 +665,7 @@ export function JobsInspector({
         client={client}
         site={site}
         statusChips={statusChips}
+        summaryStrip={summaryStrip}
         dense={isDrawer}
         leadingSlot={
           isDrawer && onCollapse ? (
@@ -769,7 +803,7 @@ export function JobsInspector({
               onChanged={() => { void refreshAll() }}
             />
 
-            <ProjectDetailsSection data={projectDetails} />
+            <ProjectDetailsSection data={projectDetails} jobKey={project.id} />
 
             <CATIISummary
               activeLabel={activeCat2Label}

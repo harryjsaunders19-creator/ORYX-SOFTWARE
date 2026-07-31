@@ -193,7 +193,7 @@ export function getRevisionDueInfo(
       severity: "overdue",
       dateLabel,
       shortDateLabel,
-      daysLabel: `${overdueDays} Day${overdueDays === 1 ? "" : "s"} overdue`,
+      daysLabel: `${overdueDays} Day${overdueDays === 1 ? "" : "s"} Overdue`,
       registerPrimary: "OVERDUE",
       registerSecondary: `${overdueDays} Day${overdueDays === 1 ? "" : "s"}`,
     }
@@ -203,12 +203,17 @@ export function getRevisionDueInfo(
   if (days <= 2) severity = "orange"
   else if (days <= 5) severity = "amber"
 
+  const daysLabel =
+    days === 0
+      ? "Due Today"
+      : `${days} Day${days === 1 ? "" : "s"} Remaining`
+
   return {
     daysRemaining: days,
     severity,
     dateLabel,
     shortDateLabel,
-    daysLabel: days === 0 ? "Due today" : `${days} Day${days === 1 ? "" : "s"}`,
+    daysLabel,
     registerPrimary: `Due: ${shortDateLabel}`,
     registerSecondary: null,
   }

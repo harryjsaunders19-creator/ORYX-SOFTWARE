@@ -15,7 +15,6 @@ import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import {
   getDrawingStatusColour,
   getDrawingStatusLabel,
-  OVERDUE_STATUS_COLOUR,
 } from "@/modules/jobs/lib/drawing-status-colours"
 import type { getCurrentWorkItem } from "@/modules/jobs/lib/current-work"
 import type { LinkedQuoteSummary } from "@/lib/types"
@@ -107,31 +106,8 @@ function Meta({
     <div>
       <p className={fieldLabel}>{label}</p>
       <p className={cn(trimmed ? fieldValue : fieldMuted, "whitespace-pre-wrap")}>
-        {trimmed || "Not recorded"}
+        {trimmed || "—"}
       </p>
-    </div>
-  )
-}
-
-function ExpandableText({ text, empty }: { text: string | null; empty: string }) {
-  const [open, setOpen] = useState(false)
-  const value = text?.trim()
-  if (!value) return <p className={fieldMuted}>{empty}</p>
-  const long = value.length > 220 || value.split("\n").length > 4
-  return (
-    <div>
-      <p className={cn(fieldValue, "whitespace-pre-wrap leading-relaxed", !open && long && "line-clamp-4")}>
-        {value}
-      </p>
-      {long && (
-        <button
-          type="button"
-          className="mt-1.5 text-xs font-medium text-ac2 hover:underline"
-          onClick={() => setOpen(v => !v)}
-        >
-          {open ? "Show less" : "Show more"}
-        </button>
-      )}
     </div>
   )
 }
@@ -141,24 +117,40 @@ export function StatusChip({
   prefix,
   status,
   emptyLabel,
+  tone = "primary",
 }: {
   prefix: string
   status?: string | null
   emptyLabel?: string
+  /** Primary = revision/current work; secondary = parent/project context. */
+  tone?: "primary" | "secondary"
 }) {
   if (!status) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md border border-bd bg-surface-low px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-t3">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-t3",
+          tone === "primary" ? "border border-bd bg-surface-low" : "border border-transparent bg-transparent text-t4",
+        )}
+      >
         <span className="h-1.5 w-1.5 rounded-full bg-t4" aria-hidden />
-        {prefix}: {emptyLabel ?? "None"}
+        {prefix}: {emptyLabel ?? "—"}
       </span>
     )
   }
   const colour = getDrawingStatusColour(status)
+  if (tone === "secondary") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-t3">
+        <span className="h-1.5 w-1.5 rounded-full bg-t4" aria-hidden />
+        {prefix}: {getDrawingStatusLabel(status)}
+      </span>
+    )
+  }
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border border-bd/80 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide",
+        "inline-flex items-center gap-1.5 rounded-md border border-bd/80 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide",
         colour.text,
         colour.tint,
       )}
@@ -169,12 +161,42 @@ export function StatusChip({
   )
 }
 
+/** Compact one-line state strip under the drawing title. */
+export function RevisionSummaryStrip({
+  revision,
+  stage,
+  designer,
+  duePrimary,
+  dueSeverity,
+}: {
+  revision: string
+  stage: string
+  designer: string
+  duePrimary: string
+  dueSeverity: ReturnType<typeof getRevisionDueInfo>["severity"]
+}) {
+  const dueTone = revisionDueToneClass(dueSeverity)
+  const designerLabel = designer.trim() || "—"
+  return (
+    <p className="mt-2 truncate text-xs leading-snug text-t3">
+      <span className="font-semibold uppercase tracking-wide text-t2">{revision}</span>
+      <span className="mx-1.5 text-t4" aria-hidden>·</span>
+      <span>{stage}</span>
+      <span className="mx-1.5 text-t4" aria-hidden>·</span>
+      <span className={designer.trim() ? "text-t2" : "text-t4"}>{designerLabel}</span>
+      <span className="mx-1.5 text-t4" aria-hidden>·</span>
+      <span className={cn("font-semibold", dueTone.text)}>{duePrimary}</span>
+    </p>
+  )
+}
+
 export function InspectorHeader({
   drawingNumber,
   revisionBadge,
   client,
   site,
   statusChips,
+  summaryStrip,
   moreSlot,
   collapseSlot,
   leadingSlot,
@@ -186,6 +208,7 @@ export function InspectorHeader({
   client: string
   site: string
   statusChips: ReactNode
+  summaryStrip?: ReactNode
   moreSlot?: ReactNode
   collapseSlot?: ReactNode
   leadingSlot?: ReactNode
@@ -222,6 +245,7 @@ export function InspectorHeader({
               variant="header"
               showSiteIcon={false}
             />
+            {summaryStrip}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -230,8 +254,8 @@ export function InspectorHeader({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">{statusChips}</div>
-      <div className="mt-3.5">{children}</div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">{statusChips}</div>
+      <div className="mt-3">{children}</div>
     </div>
   )
 }
@@ -269,10 +293,10 @@ export function CurrentRevisionSection({
       ? (currentWork.revisionLabel ?? revLabel)
       : currentWork.type === "original"
         ? "Original"
-        : "No active drawing"
-  const briefLabel = isRevision ? "Reason" : "Description of Works"
+        : "—"
+  const briefLabel = isRevision ? "Amendment Reason" : "Description of Works"
   const briefText = isRevision ? revisionReason : descriptionOfWorks
-  const briefEmpty = isRevision ? "No reason recorded" : "No description recorded"
+  const briefEmpty = isRevision ? "No amendment reason recorded" : "No description recorded"
   const issuedLabel =
     currentWork.status === "ISSUED"
       ? (safeDateLabel(lastCompleted) || "Issued")
@@ -283,7 +307,6 @@ export function CurrentRevisionSection({
     { completed },
   )
   const dueTone = revisionDueToneClass(due.severity)
-  const showDue = Boolean(requiredByDate ?? currentWork.dueDate) || !completed
 
   return (
     <section className="pt-1">
@@ -293,15 +316,15 @@ export function CurrentRevisionSection({
         <div className="space-y-2">
           <p className="text-sm font-semibold text-t1">No active drawing work</p>
           <p className="text-sm text-t3">
-            Last completed {safeDateLabel(lastCompleted) || "Not recorded"}
+            Last completed {safeDateLabel(lastCompleted) || "—"}
           </p>
         </div>
       ) : (
-        <div className="space-y-3.5">
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <p className={fieldLabel}>Revision</p>
-              <p className="text-base font-semibold text-t1">{drawingLabel}</p>
+              <p className="text-sm font-semibold text-t1">{drawingLabel}</p>
             </div>
             <div>
               <p className={fieldLabel}>Status</p>
@@ -315,14 +338,7 @@ export function CurrentRevisionSection({
                 onStatusChanged={onChanged}
               />
             </div>
-          </div>
 
-          <div className="relative rounded-md border-l-[3px] border-l-ac2/80 bg-surface-low/60 py-3 pl-3.5 pr-3">
-            <p className={fieldLabel}>{briefLabel}</p>
-            <ExpandableText text={briefText} empty={briefEmpty} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <DesignerAssignmentSelector
               workItemType={isRevision ? "revision" : "original"}
               workItemId={currentWork.id!}
@@ -331,44 +347,60 @@ export function CurrentRevisionSection({
               designers={designers}
               patchUrl={patchUrl}
               labeled
+              unassignedLabel="—"
               onDesignerChanged={onChanged}
             />
             <div>
               <p className={fieldLabel}>Checker</p>
-              <p className={fieldMuted}>Not Assigned</p>
+              <p className={fieldMuted}>—</p>
             </div>
+
             <div>
               <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
               <p className="text-sm font-semibold text-t1">
                 {safeDateLabel(revisionDate) || "—"}
               </p>
             </div>
-            {showDue ? (
-              <div>
-                <p className={fieldLabel}>Target Due</p>
-                <p className={cn("text-sm font-semibold", dueTone.text)}>
-                  {due.severity === "none" ? "No Due Date" : due.dateLabel}
-                </p>
+
+            <div className="sm:col-span-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <p className={fieldLabel}>Target Due</p>
+                  <p className={cn("text-sm font-semibold", dueTone.text)}>
+                    {due.severity === "none" ? "No Due Date" : due.dateLabel}
+                  </p>
+                </div>
+                <div>
+                  <p className={fieldLabel}>Days Remaining</p>
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold",
+                      dueTone.text,
+                      dueTone.tint,
+                    )}
+                  >
+                    {due.severity === "none" ? "—" : due.daysLabel}
+                  </span>
+                </div>
               </div>
-            ) : null}
-            {showDue ? (
-              <div>
-                <p className={fieldLabel}>Days Remaining</p>
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold",
-                    dueTone.text,
-                    dueTone.tint,
-                  )}
-                >
-                  {due.daysLabel}
-                </span>
-              </div>
-            ) : null}
+            </div>
+
             <div>
               <p className={fieldLabel}>Issued</p>
               <p className="text-sm font-semibold text-t1">{issuedLabel}</p>
             </div>
+          </div>
+
+          <div className="rounded-md border border-bd/60 bg-surface-low/40 px-3 py-2">
+            <p className={fieldLabel}>{briefLabel}</p>
+            <p
+              className={cn(
+                "text-sm leading-snug whitespace-pre-wrap",
+                briefText?.trim() ? "text-t2" : "text-t3",
+              )}
+            >
+              {briefText?.trim() || briefEmpty}
+            </p>
           </div>
         </div>
       )}
@@ -395,58 +427,77 @@ export type ProjectDetailsData = {
   onViewSiteJobs?: () => void
 }
 
-export function ProjectDetailsSection({ data }: { data: ProjectDetailsData }) {
+export function ProjectDetailsSection({
+  data,
+  jobKey,
+}: {
+  data: ProjectDetailsData
+  /** Resets expanded/collapsed when the open job changes. */
+  jobKey?: string
+}) {
   const isManagedSite = Boolean(data.siteId)
-  const due = dueLabel(data.designDue)
-  const overdue = due.startsWith("Overdue")
-  const isUrgent = overdue || due.startsWith("Today") || due.startsWith("Tomorrow")
-  const showDue = Boolean(data.designDue?.trim())
+  const [expanded, setExpanded] = useState(false)
+
+  useEffect(() => {
+    setExpanded(false)
+  }, [jobKey])
 
   return (
     <section className="border-t border-bd/60 pt-4">
-      <SectionTitle icon={Building2}>Project Details</SectionTitle>
-      <div className="space-y-3">
-        <Meta label="Client" value={data.client} />
-        <Meta label="Location" value={data.siteName} />
-        <Meta label="Address" value={data.siteAddress} />
-        <Meta label="Description of Works" value={data.descriptionOfWorks} />
-        <Meta label="Requested By" value={data.requestedBy} />
-        <Meta label="Date Requested" value={safeDateLabel(data.dateRequested) || null} />
-        {showDue ? (
-          <div>
-            <p className={fieldLabel}>Design Due</p>
-            <span
-              className={cn(
-                "inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold",
-                isUrgent || overdue
-                  ? cn(OVERDUE_STATUS_COLOUR.tint, OVERDUE_STATUS_COLOUR.text)
-                  : "text-t1",
-              )}
-            >
-              {due}
-            </span>
-          </div>
-        ) : null}
-        <Meta label="Designer" value={data.designer} />
-        {isManagedSite && data.otherJobsAtSiteCount > 0 && (
-          <div>
-            <p className={fieldLabel}>Other Jobs At This Location</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold text-t1">
-                {data.otherJobsAtSiteCount} Job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
-              </p>
-              {data.onViewSiteJobs && (
-                <button
-                  type="button"
-                  onClick={data.onViewSiteJobs}
-                  className="text-xs font-medium text-ac hover:text-ach"
-                >
-                  View Jobs
-                </button>
-              )}
-            </div>
-          </div>
+      <button
+        type="button"
+        className="mb-0 flex w-full items-center justify-between gap-2 text-left"
+        aria-expanded={expanded}
+        onClick={() => setExpanded(v => !v)}
+      >
+        <h4 className={cn(sectionHeading, "mb-0 flex items-center gap-2")}>
+          <Building2 className={sectionIconClass} aria-hidden />
+          Project Details
+        </h4>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-t3 transition-transform duration-200",
+            expanded && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </button>
+
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-200 ease-out",
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
         )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="space-y-3 pt-3">
+            <Meta label="Client" value={data.client} />
+            <Meta label="Site" value={data.siteName} />
+            <Meta label="Address" value={data.siteAddress} />
+            <Meta label="Description" value={data.descriptionOfWorks} />
+            <Meta label="Requested By" value={data.requestedBy} />
+            <Meta label="Requested Date" value={safeDateLabel(data.dateRequested) || null} />
+            {isManagedSite && data.otherJobsAtSiteCount > 0 && (
+              <div>
+                <p className={fieldLabel}>Other Jobs At This Location</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-t1">
+                    {data.otherJobsAtSiteCount} Job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
+                  </p>
+                  {data.onViewSiteJobs && (
+                    <button
+                      type="button"
+                      onClick={data.onViewSiteJobs}
+                      className="text-xs font-medium text-ac hover:text-ach"
+                    >
+                      View Jobs
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   )

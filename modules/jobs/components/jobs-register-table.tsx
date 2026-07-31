@@ -22,9 +22,9 @@ interface JobsRegisterTableProps {
 }
 
 const HEADERS = [
-  "Drawing Number",
+  "Drawing",
   "Client / Site",
-  "Status",
+  "Status / Stage",
   "Designer",
   "Due",
   "",

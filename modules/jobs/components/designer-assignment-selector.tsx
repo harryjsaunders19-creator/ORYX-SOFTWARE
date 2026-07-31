@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
-import { ChevronDown } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { SelectContent, SelectItem } from "@/components/ui/select"
 import { useToast } from "@/shared/ui/toast"
 import { cn } from "@/shared/utils"
@@ -29,11 +29,11 @@ export function designerAssignmentTitle(
       const normalized = label.toUpperCase().startsWith("REV")
         ? label
         : `Rev ${label}`
-      return `Assign design engineer to ${normalized}`
+      return `Change designer for ${normalized}`
     }
-    return "Assign design engineer to revision"
+    return "Change designer for revision"
   }
-  return "Assign design engineer to original drawing"
+  return "Change designer for original drawing"
 }
 
 export type DesignerAssignmentSelectorProps = {
@@ -51,7 +51,10 @@ export type DesignerAssignmentSelectorProps = {
    * (inspector pattern). Parent should not duplicate the label.
    */
   labeled?: boolean
-  /** Empty-state copy when no engineer is assigned. */
+  /**
+   * Empty-state copy when no engineer is assigned.
+   * Compact/list defaults to "—"; labeled/inspector defaults to "—".
+   */
   unassignedLabel?: string
   className?: string
   onDesignerChanged?: (next: string) => void
@@ -59,7 +62,7 @@ export type DesignerAssignmentSelectorProps = {
 
 /**
  * Assigns designer to the current work item only (original or active revision).
- * Never silently writes the parent when the target is a revision.
+ * Default appearance is informational; click opens the assignment menu.
  */
 export function DesignerAssignmentSelector({
   workItemType,
@@ -71,7 +74,7 @@ export function DesignerAssignmentSelector({
   disabled = false,
   compact = false,
   labeled = false,
-  unassignedLabel = "Unassigned",
+  unassignedLabel = "—",
   className,
   onDesignerChanged,
 }: DesignerAssignmentSelectorProps) {
@@ -79,6 +82,7 @@ export function DesignerAssignmentSelector({
   const [busy, setBusy] = useState(false)
   const [optimistic, setOptimistic] = useState<string | null>(null)
   const [filter, setFilter] = useState("")
+  const [open, setOpen] = useState(false)
   const title = designerAssignmentTitle(workItemType, revisionLabel)
   const display = optimistic ?? currentDesigner
 
@@ -107,7 +111,7 @@ export function DesignerAssignmentSelector({
         setOptimistic(previous)
         return
       }
-      toast(next ? `Design Engineer → ${next}` : "Design engineer unassigned", "success")
+      toast(next ? `Designer → ${next}` : "Designer cleared", "success")
       onDesignerChanged?.(next)
     } catch {
       toast("Network error", "error")
@@ -129,13 +133,14 @@ export function DesignerAssignmentSelector({
 
   const value = display ? display : UNASSIGNED
   const showSearch = designers.length > 8
+  const emptyCopy = unassignedLabel
 
   const trigger = (
     <SelectPrimitive.Trigger
       onClick={e => e.stopPropagation()}
       onKeyDown={e => e.stopPropagation()}
       className={cn(
-        "inline-flex max-w-full items-center gap-1.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-ac",
+        "group/designer inline-flex max-w-full items-center gap-1.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-ac",
         (disabled || busy) && "opacity-60 cursor-not-allowed",
         !labeled && className,
       )}
@@ -144,29 +149,27 @@ export function DesignerAssignmentSelector({
       title={title}
     >
       {display ? (
-        <>
-          {!labeled && (
-            <span
-              className={cn(
-                "inline-flex shrink-0 items-center justify-center rounded bg-surface-low text-[10px] font-bold text-t2",
-                compact ? "h-5 w-5" : "h-6 w-6",
-              )}
-              aria-hidden
-            >
-              {designerInitials(display)}
-            </span>
+        <span
+          className={cn(
+            "truncate text-t1",
+            labeled || compact ? "text-sm font-semibold" : "text-sm font-medium",
           )}
-          <span className={cn("truncate text-t1", compact || labeled ? "text-sm font-semibold" : "text-sm")}>
-            {display}
-          </span>
-        </>
+        >
+          {display}
+        </span>
       ) : (
-        <span className={cn("truncate text-t3", compact || labeled ? "text-sm" : "text-sm")}>
-          {unassignedLabel}
+        <span className={cn("truncate text-t3", labeled || compact ? "text-sm" : "text-sm")}>
+          {emptyCopy}
         </span>
       )}
       {!disabled && (
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-t4" />
+        <Pencil
+          className={cn(
+            "h-3 w-3 shrink-0 text-t4 opacity-0 transition-opacity group-hover/designer:opacity-100 group-focus-visible/designer:opacity-100",
+            open && "opacity-100",
+          )}
+          aria-hidden
+        />
       )}
       {busy && (
         <span className="text-[10px] text-t4" aria-live="polite">Saving…</span>
@@ -179,8 +182,10 @@ export function DesignerAssignmentSelector({
       value={value}
       onValueChange={v => void apply(v === UNASSIGNED ? "" : v)}
       disabled={disabled || busy}
-      onOpenChange={open => {
-        if (!open) setFilter("")
+      open={open}
+      onOpenChange={next => {
+        setOpen(next)
+        if (!next) setFilter("")
       }}
     >
       {labeled ? (
@@ -197,20 +202,20 @@ export function DesignerAssignmentSelector({
         onClick={e => e.stopPropagation()}
       >
         <div className="border-b border-bd px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-t3">
-          {title}
+          Designer
         </div>
         {showSearch && (
           <div className="p-2 border-b border-bd" onKeyDown={e => e.stopPropagation()}>
             <Input
               value={filter}
               onChange={e => setFilter(e.target.value)}
-              placeholder="Search design engineers…"
+              placeholder="Search designers…"
               className="h-8 text-sm"
-              aria-label="Search design engineers"
+              aria-label="Search designers"
             />
           </div>
         )}
-        <SelectItem value={UNASSIGNED}>{unassignedLabel}</SelectItem>
+        <SelectItem value={UNASSIGNED}>—</SelectItem>
         {options.map(d => (
           <SelectItem key={d} value={d}>
             {d}
@@ -218,7 +223,7 @@ export function DesignerAssignmentSelector({
           </SelectItem>
         ))}
         {options.length === 0 && (
-          <p className="px-2 py-2 text-xs text-t3">No matching design engineers</p>
+          <p className="px-2 py-2 text-xs text-t3">No matching designers</p>
         )}
       </SelectContent>
     </SelectPrimitive.Root>

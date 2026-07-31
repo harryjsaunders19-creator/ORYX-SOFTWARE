@@ -10,7 +10,9 @@ import { REGISTER_ROW_H } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { DrawingStatusCompleteLabel } from "./drawing-status-badge"
-import { EngineeringWorkflowIndicator } from "./engineering-workflow-indicator"
+import {
+  getEngineeringStageFromDrawingStatus,
+} from "@/modules/jobs/lib/engineering-workflow"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +21,7 @@ import {
 } from "@/shared/ui/dropdown-menu"
 
 export const REGISTER_GRID =
-  "grid grid-cols-[minmax(8rem,1.15fr)_minmax(10rem,1.4fr)_minmax(7rem,0.95fr)_minmax(6rem,0.8fr)_minmax(5.5rem,0.75fr)_2.25rem]"
+  "grid grid-cols-[minmax(8rem,1.15fr)_minmax(10rem,1.35fr)_minmax(7.5rem,1fr)_minmax(6.5rem,0.9fr)_minmax(5.75rem,0.8fr)_2.25rem]"
 
 interface JobsRegisterRowProps {
   project: JobsRegisterProject
@@ -44,13 +46,17 @@ function RegisterDueCell({
   const due = getRevisionDueInfo(requiredByDate, { completed })
   const tone = revisionDueToneClass(due.severity)
   return (
-    <div className="min-w-0 leading-tight">
-      <p className={cn("truncate text-xs font-semibold", tone.text)}>
+    <div className={cn("min-w-0 rounded-md px-1.5 py-1 leading-tight", tone.tint)}>
+      <p className={cn("truncate text-xs font-bold", tone.text)}>
         {due.registerPrimary}
       </p>
       {due.registerSecondary ? (
-        <p className={cn("mt-0.5 truncate text-[11px] font-medium", tone.text)}>
+        <p className={cn("mt-0.5 truncate text-[11px] font-semibold", tone.text)}>
           {due.registerSecondary}
+        </p>
+      ) : due.severity !== "none" && due.severity !== "complete" && due.daysRemaining != null ? (
+        <p className={cn("mt-0.5 truncate text-[10px] font-medium", tone.text)}>
+          {due.daysLabel}
         </p>
       ) : null}
     </div>
@@ -75,12 +81,9 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
     ? `/api/work-items/${project.detailId}`
     : undefined
   const contextLine = drawingNumberContext(project)
-  const workLabel =
-    project.currentWorkType === "revision"
-      ? project.currentWorkLabel
-      : project.currentWorkType === "original"
-        ? "Original"
-        : null
+  const stage = getEngineeringStageFromDrawingStatus(project.currentStatus, {
+    closed: project.currentWorkType === "none",
+  })
 
   return (
     <div
@@ -105,14 +108,14 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
           : "border-l-[3px] border-l-transparent hover:bg-surface-low",
       )}
     >
-      <div role="cell" className="min-w-0 px-3 py-2.5">
+      <div role="cell" className="min-w-0 px-3 py-2">
         <p className="truncate text-sm font-bold text-t1">{project.drawingNumber}</p>
-        <p className={cn("mt-0.5 truncate text-xs font-medium uppercase tracking-wide", selected ? "text-t2" : "text-t3")}>
+        <p className={cn("mt-0.5 truncate text-[11px] font-semibold uppercase tracking-wide", selected ? "text-t2" : "text-t3")}>
           {contextLine}
         </p>
       </div>
 
-      <div role="cell" className="min-w-0 px-3 py-2.5">
+      <div role="cell" className="min-w-0 px-3 py-2">
         <ClientSiteCell
           clientName={project.clientCompany}
           siteName={site}
@@ -124,15 +127,12 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
 
       <div
         role="cell"
-        className="min-w-0 px-3 py-2.5"
+        className="min-w-0 px-3 py-2"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
         {canEdit ? (
           <div className="flex min-w-0 flex-col gap-0.5">
-            {workLabel && (
-              <span className="truncate text-xs font-medium text-t2">{workLabel}</span>
-            )}
             <WorkItemStatusSelector
               workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
               workItemId={project.detailId}
@@ -144,34 +144,27 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
               size="md"
               onStatusChanged={next => onStatusChanged?.(project.id, next)}
             />
-            <EngineeringWorkflowIndicator
-              drawingStatus={project.currentStatus}
-              closed={false}
-              currentWorkType={project.currentWorkType}
-              revisionLetter={project.currentRevisionLetter}
-              currentWorkLabel={project.currentWorkLabel}
-              variant="inline"
-            />
+            <p className="truncate text-[11px] leading-snug text-t3">
+              Stage: <span className="font-semibold text-t2">{stage.label}</span>
+            </p>
           </div>
         ) : (
           <div className="min-w-0">
             <DrawingStatusCompleteLabel />
-            <EngineeringWorkflowIndicator
-              drawingStatus="ISSUED"
-              closed
-              currentWorkType="none"
-              variant="inline"
-            />
+            <p className="mt-0.5 truncate text-[11px] text-t3">
+              Stage: <span className="font-semibold text-t2">Complete</span>
+            </p>
           </div>
         )}
       </div>
 
       <div
         role="cell"
-        className="min-w-0 px-3 py-2.5"
+        className="min-w-0 px-3 py-2"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
+        <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-t4">Designer</p>
         {canEdit ? (
           <DesignerAssignmentSelector
             workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
@@ -183,16 +176,17 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
             designers={designers}
             patchUrl={patchUrl}
             compact
+            unassignedLabel="—"
             onDesignerChanged={next => onDesignerChanged?.(project.id, next)}
           />
         ) : (
-          <p className="truncate text-xs text-t3">
-            {project.designer || "Unassigned"}
+          <p className="truncate text-sm text-t3">
+            {project.designer?.trim() || "—"}
           </p>
         )}
       </div>
 
-      <div role="cell" className="min-w-0 px-3 py-2.5">
+      <div role="cell" className="min-w-0 px-2 py-2">
         <RegisterDueCell
           requiredByDate={project.requiredByDate}
           completed={project.currentWorkType === "none"}

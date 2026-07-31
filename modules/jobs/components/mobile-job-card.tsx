@@ -8,7 +8,7 @@ import type { JobsRegisterProject } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { DrawingStatusCompleteLabel } from "./drawing-status-badge"
-import { EngineeringWorkflowIndicator } from "./engineering-workflow-indicator"
+import { getEngineeringStageFromDrawingStatus } from "@/modules/jobs/lib/engineering-workflow"
 
 type Props = {
   project: JobsRegisterProject
@@ -43,6 +43,9 @@ export const MobileJobCard = memo(function MobileJobCard({
       : project.currentWorkType === "original"
         ? "Original"
         : null
+  const stage = getEngineeringStageFromDrawingStatus(project.currentStatus, {
+    closed: project.currentWorkType === "none",
+  })
   const due = getRevisionDueInfo(project.requiredByDate, {
     completed: project.currentWorkType === "none",
   })
@@ -95,38 +98,24 @@ export const MobileJobCard = memo(function MobileJobCard({
         onKeyDown={e => e.stopPropagation()}
       >
         {project.currentWorkType === "none" ? (
-          <>
-            <DrawingStatusCompleteLabel detail={project.currentWorkDetail || "No active work"} />
-            <EngineeringWorkflowIndicator
-              drawingStatus="ISSUED"
-              closed
-              currentWorkType="none"
-              variant="inline"
-            />
-          </>
+          <DrawingStatusCompleteLabel detail={project.currentWorkDetail || "No active work"} />
         ) : (
-          <>
-            <WorkItemStatusSelector
-              workItemType={workType}
-              workItemId={project.detailId}
-              currentStatus={project.currentStatus}
-              revisionLabel={
-                project.currentWorkType === "revision" ? project.currentWorkLabel : null
-              }
-              patchUrl={patchUrl}
-              size="lg"
-              disabled={!canEdit}
-              onStatusChanged={() => onStatusChanged?.()}
-            />
-            <EngineeringWorkflowIndicator
-              drawingStatus={project.currentStatus}
-              currentWorkType={project.currentWorkType}
-              revisionLetter={project.currentRevisionLetter}
-              currentWorkLabel={project.currentWorkLabel}
-              variant="inline"
-            />
-          </>
+          <WorkItemStatusSelector
+            workItemType={workType}
+            workItemId={project.detailId}
+            currentStatus={project.currentStatus}
+            revisionLabel={
+              project.currentWorkType === "revision" ? project.currentWorkLabel : null
+            }
+            patchUrl={patchUrl}
+            size="lg"
+            disabled={!canEdit}
+            onStatusChanged={() => onStatusChanged?.()}
+          />
         )}
+        <p className="mt-1 text-[11px] text-t3">
+          Stage: <span className="font-semibold text-t2">{stage.label}</span>
+        </p>
       </div>
 
       <div className="mt-3 flex items-end justify-between gap-3 border-t border-bd/60 pt-3">
@@ -135,7 +124,7 @@ export const MobileJobCard = memo(function MobileJobCard({
           onClick={e => e.stopPropagation()}
           onKeyDown={e => e.stopPropagation()}
         >
-          <p className="mb-1 text-xs text-t3">Designer</p>
+          <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-t4">Designer</p>
           {canEdit ? (
             <DesignerAssignmentSelector
               workItemType={workType}
@@ -147,16 +136,17 @@ export const MobileJobCard = memo(function MobileJobCard({
               designers={designers}
               patchUrl={patchUrl}
               compact
+              unassignedLabel="—"
               onDesignerChanged={() => onDesignerChanged?.()}
             />
           ) : (
-            <p className="text-sm text-t2">{project.designer?.trim() || "Unassigned"}</p>
+            <p className="text-sm text-t2">{project.designer?.trim() || "—"}</p>
           )}
         </div>
-        <div className="shrink-0 text-right">
-          <p className={cn("text-xs font-semibold", dueTone.text)}>{due.registerPrimary}</p>
+        <div className={cn("shrink-0 rounded-md px-2 py-1 text-right", dueTone.tint)}>
+          <p className={cn("text-xs font-bold", dueTone.text)}>{due.registerPrimary}</p>
           {due.registerSecondary ? (
-            <p className={cn("mt-0.5 text-xs font-medium", dueTone.text)}>{due.registerSecondary}</p>
+            <p className={cn("mt-0.5 text-[11px] font-semibold", dueTone.text)}>{due.registerSecondary}</p>
           ) : null}
         </div>
       </div>
