@@ -4,17 +4,12 @@ import { memo } from "react"
 import {
   cn,
   getRevisionDueInfo,
-  revisionDueToneClass,
 } from "@/shared/utils/utils"
 import { registerWorkTypeLabel, siteDisplay } from "./jobs-register-helpers"
-import { ClientSiteCell } from "./client-site-cell"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { DrawingStatusCompleteLabel } from "./drawing-status-badge"
-import { StagePipeline } from "./engineering-workflow-indicator"
-import { getEngineeringStageFromDrawingStatus } from "@/modules/jobs/lib/engineering-workflow"
-import { AlertTriangle } from "lucide-react"
 
 type Props = {
   project: JobsRegisterProject
@@ -32,11 +27,12 @@ export const MobileJobCard = memo(function MobileJobCard({
   selected,
   workItemsModel,
   designers,
-  highlightQuery,
+  highlightQuery: _highlightQuery,
   onSelect,
   onStatusChanged,
   onDesignerChanged,
 }: Props) {
+  void _highlightQuery
   const site = siteDisplay(project.siteName, project.address)
   const canEdit = project.currentWorkType !== "none" && Boolean(project.detailId)
   const patchUrl = workItemsModel && project.kind === "work_item"
@@ -44,22 +40,15 @@ export const MobileJobCard = memo(function MobileJobCard({
     : undefined
   const workItemType = project.currentWorkType === "revision" ? "revision" : "original"
   const workType = registerWorkTypeLabel(project)
-  const stage = getEngineeringStageFromDrawingStatus(project.currentStatus, {
-    closed: project.currentWorkType === "none",
-  })
   const due = getRevisionDueInfo(project.requiredByDate, {
     completed: project.currentWorkType === "none",
   })
-  const dueTone = revisionDueToneClass(due.severity)
-  const absoluteLine =
-    due.severity === "none" ? "No Due Date" : `Due ${due.shortDateLabel}`
-  const relativeLine =
+  const dueLine =
     due.severity === "none"
-      ? "—"
+      ? null
       : due.severity === "complete"
-        ? "Completed"
-        : due.daysLabel
-  const showDueIcon = due.severity === "overdue" || due.severity === "orange"
+        ? `Completed ${due.shortDateLabel}`
+        : `Due ${due.shortDateLabel}${due.daysLabel ? ` · ${due.daysLabel}` : ""}`
 
   return (
     <article
@@ -75,60 +64,54 @@ export const MobileJobCard = memo(function MobileJobCard({
         }
       }}
       className={cn(
-        "w-full min-w-0 rounded-xl border bg-s1 p-4 text-left outline-none",
+        "w-full min-w-0 rounded-xl border border-bd bg-s1 p-4 text-left outline-none",
         "shadow-[0px_4px_20px_rgba(0,0,0,0.04)]",
-        "transition-[background-color,box-shadow,border-color] duration-150 ease-out",
+        "transition-[border-color,box-shadow] duration-150 ease-out",
         "cursor-pointer focus-visible:ring-2 focus-visible:ring-ac",
         selected
-          ? "border-t1/20 bg-t1/[0.03] shadow-[inset_4px_0_0_0_var(--color-t1)]"
-          : cn(
-              "border-bd/80 hover:bg-surface-low",
-              due.severity === "overdue" && "shadow-[inset_3px_0_0_0_var(--color-dn)]",
-              due.severity === "orange" && "shadow-[inset_3px_0_0_0_color-mix(in_srgb,var(--color-wn-ic)_80%,transparent)]",
-            ),
+          ? "border-l-4 border-l-t1 border-bd"
+          : "border-l-4 border-l-transparent hover:border-bd",
       )}
     >
-      <h3 className="min-w-0 text-base font-bold leading-snug tracking-tight text-t1 tabular-nums [overflow-wrap:anywhere]">
-        {project.drawingNumber}
-      </h3>
-      <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-t2">
-        {workType}
-      </p>
-
-      <ClientSiteCell
-        className="mt-1.5"
-        clientName={project.clientCompany}
-        siteName={site}
-        highlightQuery={highlightQuery}
-        variant="card"
-        selected={selected}
-      />
-
-      <div
-        className="mt-3 min-h-11"
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
-      >
-        {project.currentWorkType === "none" ? (
-          <DrawingStatusCompleteLabel detail={project.currentWorkDetail || "No active work"} />
-        ) : (
-          <WorkItemStatusSelector
-            workItemType={workItemType}
-            workItemId={project.detailId}
-            currentStatus={project.currentStatus}
-            revisionLabel={
-              project.currentWorkType === "revision" ? project.currentWorkLabel : null
-            }
-            patchUrl={patchUrl}
-            size="lg"
-            disabled={!canEdit}
-            onStatusChanged={() => onStatusChanged?.()}
-          />
-        )}
-        <StagePipeline stageId={stage.id} className="mt-1" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="min-w-0 text-base font-bold leading-snug tracking-tight text-t1 tabular-nums [overflow-wrap:anywhere]">
+            {project.drawingNumber}
+          </h3>
+          <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-t3">
+            {workType}
+          </p>
+        </div>
+        <div
+          className="shrink-0"
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => e.stopPropagation()}
+        >
+          {project.currentWorkType === "none" ? (
+            <DrawingStatusCompleteLabel detail={project.currentWorkDetail || "No active work"} />
+          ) : (
+            <WorkItemStatusSelector
+              workItemType={workItemType}
+              workItemId={project.detailId}
+              currentStatus={project.currentStatus}
+              revisionLabel={
+                project.currentWorkType === "revision" ? project.currentWorkLabel : null
+              }
+              patchUrl={patchUrl}
+              size="md"
+              disabled={!canEdit}
+              onStatusChanged={() => onStatusChanged?.()}
+            />
+          )}
+        </div>
       </div>
 
-      <div className="mt-3 flex items-end justify-between gap-3 border-t border-bd/60 pt-3">
+      <p className="mt-3 truncate text-sm text-t1">
+        {project.clientCompany || "—"}
+      </p>
+      <p className="mt-0.5 truncate text-sm text-t3">{site}</p>
+
+      <div className="mt-3 flex items-end justify-between gap-3 border-t border-bd/50 pt-3">
         <div
           className="min-w-0 flex-1"
           onClick={e => e.stopPropagation()}
@@ -148,32 +131,20 @@ export const MobileJobCard = memo(function MobileJobCard({
               designers={designers}
               patchUrl={patchUrl}
               compact
-              unassignedLabel="Assign designer"
+              unassignedLabel="Unassigned"
               onDesignerChanged={() => onDesignerChanged?.()}
             />
           ) : (
-            <p className={cn("text-sm", project.designer?.trim() ? "text-t2" : "text-t2")}>
+            <p className="truncate text-sm text-t1">
               {project.designer?.trim() || "Unassigned"}
             </p>
           )}
         </div>
-        <div
-          className={cn(
-            "inline-flex h-[2.75rem] w-[7.5rem] min-w-[7.5rem] shrink-0 flex-col items-end justify-center gap-0.5 rounded-md border px-2.5 py-1 text-right",
-            dueTone.tint,
-            dueTone.border,
-          )}
-        >
-          <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium tabular-nums opacity-90", dueTone.text)}>
-            {showDueIcon ? (
-              <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
-            ) : null}
-            {absoluteLine}
-          </span>
-          <span className={cn("text-[12px] font-bold tabular-nums leading-tight", dueTone.text)}>
-            {relativeLine}
-          </span>
-        </div>
+        {dueLine ? (
+          <p className="shrink-0 text-right text-xs tabular-nums text-t3">
+            {dueLine}
+          </p>
+        ) : null}
       </div>
     </article>
   )

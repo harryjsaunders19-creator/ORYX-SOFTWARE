@@ -1,20 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
-import {
-  Building2,
-  Pencil,
-  ShieldCheck,
-} from "lucide-react"
+import { Pencil } from "lucide-react"
 import { cn, getRevisionDueInfo, revisionDueToneClass } from "@/shared/utils/utils"
 import {
-  AccordionSection,
   EmptyStateCard,
-  InfoCard,
   infoCardClassName,
   PropertyCell,
   PropertyGrid,
-  RevisionCard,
   inspectorType,
 } from "@/shared/layouts/inspector"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
@@ -428,7 +421,7 @@ function EditableTargetDue({
   )
 }
 
-/** Focal engineering section for the active original or revision. */
+/** Focal engineering controls for the active original or revision (no narrative card — that lives in Revision History). */
 export function CurrentRevisionSection({
   currentWork,
   revLabel,
@@ -459,14 +452,8 @@ export function CurrentRevisionSection({
 }) {
   const active = currentWork.type !== "none" && Boolean(currentWork.id)
   const isRevision = currentWork.type === "revision"
-  const briefLabel = isRevision ? "Amendment Required" : "Engineer Instructions"
-  const briefText = isRevision ? revisionReason : descriptionOfWorks
-  const briefEmpty = isRevision
-    ? "No amendment instructions have been entered."
-    : "No description has been entered."
-  const revisionDisplay = isRevision
-    ? (currentWork.revisionLabel ?? revLabel)
-    : "Original"
+  void descriptionOfWorks
+  void revisionReason
   const issuedLabel =
     currentWork.status === "ISSUED"
       ? (safeDateLabel(lastCompleted) || "Issued")
@@ -479,97 +466,90 @@ export function CurrentRevisionSection({
     closed: currentWork.type === "none",
   })
 
+  if (!active) {
+    return (
+      <EmptyStateCard
+        eyebrow="Current work"
+        title="No active drawing work"
+        description={
+          <>
+            <p className="font-medium text-t2">Latest completed</p>
+            <p>
+              {completedTitle ? (
+                <>
+                  <span className="font-semibold text-t1">{completedTitle}</span>
+                  {completedDate ? (
+                    <>
+                      <span className="mx-1.5 text-t4" aria-hidden>·</span>
+                      Completed {completedDate}
+                    </>
+                  ) : null}
+                </>
+              ) : completedDate ? (
+                <>Completed {completedDate}</>
+              ) : (
+                "No completed drawings yet"
+              )}
+            </p>
+          </>
+        }
+      >
+        Create a new revision using the button above.
+      </EmptyStateCard>
+    )
+  }
+
   return (
-    <section className="pt-2">
-      {!active ? (
-        <EmptyStateCard
-          eyebrow="Current Revision"
-          title="No active drawing work"
-          description={
-            <>
-              <p className="font-medium text-t2">Latest completed</p>
-              <p>
-                {completedTitle ? (
-                  <>
-                    <span className="font-semibold text-t1">{completedTitle}</span>
-                    {completedDate ? (
-                      <>
-                        <span className="mx-1.5 text-t4" aria-hidden>·</span>
-                        Completed {completedDate}
-                      </>
-                    ) : null}
-                  </>
-                ) : completedDate ? (
-                  <>Completed {completedDate}</>
-                ) : (
-                  "No completed drawings yet"
-                )}
-              </p>
-            </>
-          }
-        >
-          Create a new revision using the button above.
-        </EmptyStateCard>
-      ) : (
-        <div className="space-y-5">
-          <RevisionCard
-            revisionLabel={revisionDisplay}
-            instructionTitle={briefLabel}
-            instructions={briefText}
-            emptyInstructions={briefEmpty}
-          />
-
-          <PropertyGrid>
-            <PropertyCell label="Status" className="col-span-2">
-              <div className="flex w-full flex-col gap-1.5">
-                <WorkItemStatusSelector
-                  workItemType={isRevision ? "revision" : "original"}
-                  workItemId={currentWork.id!}
-                  currentStatus={currentWork.status}
-                  revisionLabel={isRevision ? currentWork.revisionLabel : null}
-                  patchUrl={patchUrl}
-                  size="md"
-                  onStatusChanged={onChanged}
-                />
-                <StagePipeline stageId={stage.id} labeled />
-              </div>
-            </PropertyCell>
-
-            <PropertyCell label={isRevision ? "Revision Date" : "Date Created"}>
-              <p className={cn(fieldMuted, "tabular-nums")}>
-                {safeDateLabel(revisionDate) || "—"}
-              </p>
-            </PropertyCell>
-
-            <PropertyCell label="Designer">
-              <DesignerAssignmentSelector
-                workItemType={isRevision ? "revision" : "original"}
-                workItemId={currentWork.id!}
-                currentDesigner={designer}
-                revisionLabel={isRevision ? (currentWork.revisionLabel ?? revLabel) : null}
-                designers={designers}
-                patchUrl={patchUrl}
-                unassignedLabel="Assign designer"
-                onDesignerChanged={onChanged}
-              />
-            </PropertyCell>
-
-            <PropertyCell label="Issued">
-              <p className={cn(fieldMuted, "font-medium", issuedLabel === "Pending" && "text-t2")}>
-                {issuedLabel}
-              </p>
-            </PropertyCell>
-
-            <EditableTargetDue
+    <section aria-label="Current work controls" className="space-y-3">
+      <PropertyGrid>
+        <PropertyCell label="Status" className="col-span-2">
+          <div className="flex w-full flex-col gap-1.5">
+            <WorkItemStatusSelector
+              workItemType={isRevision ? "revision" : "original"}
               workItemId={currentWork.id!}
+              currentStatus={currentWork.status}
+              revisionLabel={isRevision ? currentWork.revisionLabel : null}
               patchUrl={patchUrl}
-              requiredByDate={dueSource}
-              completed={completed}
-              onChanged={onChanged}
+              size="md"
+              onStatusChanged={onChanged}
             />
-          </PropertyGrid>
-        </div>
-      )}
+            <StagePipeline stageId={stage.id} labeled />
+          </div>
+        </PropertyCell>
+
+        <PropertyCell label={isRevision ? "Revision Date" : "Date Created"}>
+          <p className={cn(fieldMuted, "tabular-nums")}>
+            {safeDateLabel(revisionDate) || "—"}
+          </p>
+        </PropertyCell>
+
+        <PropertyCell label="Designer">
+          <DesignerAssignmentSelector
+            workItemType={isRevision ? "revision" : "original"}
+            workItemId={currentWork.id!}
+            currentDesigner={designer}
+            revisionLabel={isRevision ? (currentWork.revisionLabel ?? revLabel) : null}
+            designers={designers}
+            patchUrl={patchUrl}
+            unassignedLabel="Assign designer"
+            onDesignerChanged={onChanged}
+          />
+        </PropertyCell>
+
+        <PropertyCell label="Issued">
+          <p className={cn(fieldMuted, "font-medium", issuedLabel === "Pending" && "text-t2")}>
+            {issuedLabel}
+          </p>
+        </PropertyCell>
+
+        <EditableTargetDue
+          workItemId={currentWork.id!}
+          patchUrl={patchUrl}
+          requiredByDate={dueSource}
+          completed={completed}
+          onChanged={onChanged}
+        />
+      </PropertyGrid>
     </section>
   )
 }
@@ -601,17 +581,22 @@ export function ProjectDetailsSection({
   /** Resets expanded/collapsed when the open job changes. */
   jobKey?: string
 }) {
+  void jobKey
   const isManagedSite = Boolean(data.siteId)
 
   return (
-    <AccordionSection icon={Building2} title="Job Summary" defaultOpen resetKey={jobKey}>
-      <InfoCard className="!p-3.5 space-y-3">
+    <section aria-label="Job Summary">
+      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-wider text-t3">
+        Job Summary
+      </h3>
+      <div className="space-y-4 rounded-xl border border-bd bg-s1 p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
         <Meta label="Client" value={data.client} />
         <Meta label="Site" value={data.siteName} />
         <Meta label="Address" value={data.siteAddress} />
         <Meta label="Description" value={data.descriptionOfWorks} />
         <Meta label="Requested By" value={data.requestedBy} />
         <Meta label="Requested Date" value={safeDateLabel(data.dateRequested) || null} />
+        <Meta label="Design Due" value={safeDateLabel(data.designDue) || null} />
         {isManagedSite && data.otherJobsAtSiteCount > 0 && (
           <div>
             <p className={cn(fieldLabel, "mb-1")}>Other Jobs At This Location</p>
@@ -631,8 +616,8 @@ export function ProjectDetailsSection({
             </div>
           </div>
         )}
-      </InfoCard>
-    </AccordionSection>
+      </div>
+    </section>
   )
 }
 
@@ -669,9 +654,12 @@ export function CATIISummary({
     : null
 
   return (
-    <AccordionSection icon={ShieldCheck} title="Linked Records" defaultOpen>
+    <section aria-label="Linked Records">
+      <h3 className="mb-4 text-[11px] font-bold uppercase tracking-wider text-t3">
+        Linked Records
+      </h3>
       {activeCheck ? (
-        <InfoCard className="!p-3.5">
+        <div className="rounded-xl border border-bd bg-s1 p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
@@ -682,13 +670,13 @@ export function CATIISummary({
             </div>
             <button
               type="button"
-              className="shrink-0 text-xs font-medium text-ac2 hover:underline"
+              className="shrink-0 text-xs font-medium text-t1 underline-offset-2 hover:underline"
               onClick={() => onOpen(activeCheck.id)}
             >
               Open Check
             </button>
           </div>
-        </InfoCard>
+        </div>
       ) : (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-3">
@@ -696,7 +684,7 @@ export function CATIISummary({
             {canCreate && (
               <button
                 type="button"
-                className="text-xs font-medium text-ac2 hover:underline disabled:opacity-50"
+                className="text-xs font-medium text-t1 underline-offset-2 hover:underline disabled:opacity-50"
                 onClick={onCreate}
                 disabled={busy}
               >
@@ -711,7 +699,7 @@ export function CATIISummary({
               {" · "}
               <button
                 type="button"
-                className="font-medium text-ac2 hover:underline"
+                className="font-medium text-t1 underline-offset-2 hover:underline"
                 onClick={() => onOpen(previousCheck.id)}
               >
                 Open
@@ -720,7 +708,7 @@ export function CATIISummary({
           )}
         </div>
       )}
-    </AccordionSection>
+    </section>
   )
 }
 
@@ -748,18 +736,21 @@ function revisionTitle(rev: HistoryRevision, current = false): string {
 }
 
 /**
- * Stitch Final Revision History — current revision as a raised card,
- * prior revisions as a faded stacked list underneath.
+ * Stitch Final Revision History — current revision as a raised white card,
+ * prior revisions as a faded stacked list underneath. Current-work controls
+ * can be passed as children to keep one condensed revision block.
  */
 export function RevisionTimeline({
   revisions,
   jobKey,
   onSelectRevision,
+  children,
 }: {
   revisions: HistoryRevision[]
   /** Unused — kept for call-site compatibility when switching jobs. */
   jobKey?: string
   onSelectRevision?: (revision: HistoryRevision) => void
+  children?: ReactNode
 }) {
   void jobKey
   const current =
@@ -777,38 +768,47 @@ export function RevisionTimeline({
       </h3>
 
       {revisions.length === 0 || !current ? (
-        <p className={fieldMuted}>Original drawing only</p>
+        <div className="space-y-4">
+          <p className={fieldMuted}>Original drawing only</p>
+          {children}
+        </div>
       ) : (
         <div className="space-y-4">
-          <button
-            type="button"
-            className={cn(
-              "w-full rounded-xl border border-bd bg-s1 p-5 text-left shadow-[0px_4px_20px_rgba(0,0,0,0.04)]",
-              "space-y-3 transition-colors hover:bg-surface-low/40",
-              "outline-none focus-visible:ring-2 focus-visible:ring-ac",
-            )}
-            onClick={() => onSelectRevision?.(current)}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-bold text-t1">
-                {revisionTitle(current, true)}
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-t3 tabular-nums">
-                {safeDateLabel(current.createdAt) || "—"}
-              </span>
-            </div>
-            <div className="space-y-1 border-t border-bd pt-2">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-t3">
-                {current.letter ? "Reason for Revision" : "Description"}
-              </p>
-              <p className="text-sm leading-snug text-t1">
-                {current.reason?.trim()
-                  || (current.letter
-                    ? "No amendment instructions have been entered."
-                    : "No description has been entered.")}
-              </p>
-            </div>
-          </button>
+          <div className="space-y-4 rounded-xl border border-bd bg-s1 p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
+            <button
+              type="button"
+              className={cn(
+                "w-full space-y-3 text-left",
+                "outline-none focus-visible:ring-2 focus-visible:ring-ac rounded-md",
+              )}
+              onClick={() => onSelectRevision?.(current)}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-bold text-t1">
+                  {revisionTitle(current, true)}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-t3 tabular-nums">
+                  {safeDateLabel(current.createdAt) || "—"}
+                </span>
+              </div>
+              <div className="space-y-1 border-t border-bd pt-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-t3">
+                  {current.letter ? "Reason for Revision" : "Description"}
+                </p>
+                <p className="text-sm leading-snug text-t1">
+                  {current.reason?.trim()
+                    || (current.letter
+                      ? "No amendment instructions have been entered."
+                      : "No description has been entered.")}
+                </p>
+              </div>
+            </button>
+            {children ? (
+              <div className="border-t border-bd pt-4">
+                {children}
+              </div>
+            ) : null}
+          </div>
 
           {priors.length > 0 ? (
             <div className="space-y-3 px-2">

@@ -732,41 +732,65 @@ export function JobsInspector({
           </button>
         </div>
 
+        <ProjectDetailsSection data={projectDetails} jobKey={project.id} />
+
         {timelineLoading && revisions.length === 0 ? (
-          <div className="space-y-2" aria-busy="true">
+          <div className="space-y-5" aria-busy="true">
             <div className="h-14 skeleton rounded-lg" />
             <div className="h-14 skeleton rounded-lg" />
+            <CurrentRevisionSection
+              currentWork={currentWork}
+              revLabel={revLabel}
+              designer={drawingDesigner}
+              designers={designers}
+              lastCompleted={lastCompleted}
+              lastCompletedLabel={lastCompletedLabel}
+              descriptionOfWorks={descriptionOfWorks}
+              revisionReason={activeRevision?.reason ?? null}
+              revisionDate={
+                activeRevision?.createdAt
+                ?? originalWorkItem?.dateCreated
+                ?? jobDetail?.dateCreated
+                ?? parent?.createdAt
+                ?? null
+              }
+              requiredByDate={
+                activeRevision?.requiredByDate
+                ?? currentWork.dueDate
+                ?? null
+              }
+              patchUrl={currentWorkPatchUrl}
+              onChanged={() => { void refreshAll() }}
+            />
           </div>
         ) : (
-          <RevisionTimeline revisions={revisions} jobKey={project.id} />
+          <RevisionTimeline revisions={revisions} jobKey={project.id}>
+            <CurrentRevisionSection
+              currentWork={currentWork}
+              revLabel={revLabel}
+              designer={drawingDesigner}
+              designers={designers}
+              lastCompleted={lastCompleted}
+              lastCompletedLabel={lastCompletedLabel}
+              descriptionOfWorks={descriptionOfWorks}
+              revisionReason={activeRevision?.reason ?? null}
+              revisionDate={
+                activeRevision?.createdAt
+                ?? originalWorkItem?.dateCreated
+                ?? jobDetail?.dateCreated
+                ?? parent?.createdAt
+                ?? null
+              }
+              requiredByDate={
+                activeRevision?.requiredByDate
+                ?? currentWork.dueDate
+                ?? null
+              }
+              patchUrl={currentWorkPatchUrl}
+              onChanged={() => { void refreshAll() }}
+            />
+          </RevisionTimeline>
         )}
-
-        <CurrentRevisionSection
-          currentWork={currentWork}
-          revLabel={revLabel}
-          designer={drawingDesigner}
-          designers={designers}
-          lastCompleted={lastCompleted}
-          lastCompletedLabel={lastCompletedLabel}
-          descriptionOfWorks={descriptionOfWorks}
-          revisionReason={activeRevision?.reason ?? null}
-          revisionDate={
-            activeRevision?.createdAt
-            ?? originalWorkItem?.dateCreated
-            ?? jobDetail?.dateCreated
-            ?? parent?.createdAt
-            ?? null
-          }
-          requiredByDate={
-            activeRevision?.requiredByDate
-            ?? currentWork.dueDate
-            ?? null
-          }
-          patchUrl={currentWorkPatchUrl}
-          onChanged={() => { void refreshAll() }}
-        />
-
-        <ProjectDetailsSection data={projectDetails} jobKey={project.id} />
 
         {secondaryLoading && !activeCheck && !previousCheck ? (
           <div className="h-16 skeleton rounded-lg" aria-hidden />

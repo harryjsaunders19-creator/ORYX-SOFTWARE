@@ -91,10 +91,10 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
         "transition-[background-color,border-color,opacity] duration-150 ease-out",
         "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ac",
         selected
-          ? "border-l-4 border-l-t1 bg-t1/[0.04]"
+          ? "border-l-4 border-l-t1 bg-transparent"
           : cn(
               "border-l-4 border-l-transparent hover:bg-surface-low",
-              zebra && "bg-surface-low/40",
+              zebra && "bg-surface-low/30",
             ),
       )}
     >
