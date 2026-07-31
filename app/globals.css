@@ -243,29 +243,29 @@
  * styles) switch automatically — no per-component dark: classes needed.
  */
 html.dark {
-  --color-s0:     #0F1115;
+  --color-s0:     #0A0A0B;
   --color-s1:     #141517;
-  --color-s2:     #181C22;
-  --color-pg:     #0F1115;
+  --color-s2:     #242A34;
+  --color-pg:     #0A0A0B;
   --color-sr:     #141517;
-  --color-surface-low: #20252D;
+  --color-surface-low: #22262E;
   --color-outline: #3F3F46;
-  --color-bd:     #2B313B;
-  --color-bds:    #3A414C;
-  --color-inspector-bd: #2B313B;
+  --color-bd:     #2A2E36;
+  --color-bds:    #3F3F46;
+  --color-inspector-bd: #404854;
   /* Dark: keep inspector inner cards / dividers as already tuned */
-  --color-inspector-card: #20252D;
-  --color-inspector-card-bd: #323944;
-  --color-inspector-divider: #2A3038;
-  --color-t1:     #F5F7FA;
-  --color-t2:     #D6D9DF;
-  --color-t3:     #9AA3AF;
-  --color-t4:     #7E8794;
+  --color-inspector-card: #141517;
+  --color-inspector-card-bd: #2A2E36;
+  --color-inspector-divider: #2A2E36;
+  --color-t1:     #FAFAFA;
+  --color-t2:     #D4D4D8;
+  --color-t3:     #A1A1AA;
+  --color-t4:     #71717A;
   /* Monochrome accent — matches stitch-layout.dark (no purple) */
-  --color-ac:     #F5F7FA;
+  --color-ac:     #f4f4f5;
   --color-ach:    #ffffff;
   --color-ac-bg:  rgba(255, 255, 255, 0.08);
-  --color-on-ac:  #111111;
+  --color-on-ac:  #111827;
   --color-ac2:    #2DD4BF;
   --color-ac2h:   #5EEAD4;
   --color-ac2-bg: rgba(45, 212, 191, 0.12);
@@ -326,6 +326,7 @@ html.dark {
   --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.5), 0 4px 12px 0 rgb(0 0 0 / 0.3);
   --shadow-inspector: 0 8px 24px rgb(0 0 0 / 0.45);
   --shadow-inspector-card: none;
+
   --color-jobs-panel: #181C22;
   --color-jobs-panel-bd: #2B313B;
   --color-jobs-panel-card: #20252D;
@@ -575,6 +576,7 @@ html.dark {
     background-color: var(--color-bds);
   }
 
+
   /* Jobs floating detail panel entrance */
   @keyframes jobs-panel-in {
     from {
@@ -650,6 +652,7 @@ html.stitch-layout {
   --stitch-search-bg: #EEF0F3;
   --stitch-sidebar-w: 256px;
   --stitch-top-bar-h: 64px;
+
   --color-jobs-panel: #FFFFFF;
   --color-jobs-panel-bd: #E5E7EB;
   --color-jobs-panel-card: #FFFFFF;
@@ -664,38 +667,39 @@ html.stitch-layout {
 }
 
 html.stitch-layout.dark {
-  --color-s0: #0F1115;
+  --color-s0: #0A0A0B;
   --color-s1: #141517;
-  --color-s2: #181C22;
-  --color-pg: #0F1115;
+  --color-s2: #242A34;
+  --color-pg: #0A0A0B;
   --color-sr: #141517;
-  --color-surface-low: #20252D;
-  --color-bd: #2B313B;
-  --color-bds: #3A414C;
-  --color-inspector-bd: #2B313B;
-  --color-inspector-card: #20252D;
-  --color-inspector-card-bd: #323944;
-  --color-inspector-divider: #2A3038;
-  --color-t1: #F5F7FA;
-  --color-t2: #D6D9DF;
-  --color-t3: #9AA3AF;
-  --color-t4: #7E8794;
-  --color-ac: #F5F7FA;
+  --color-surface-low: #22262E;
+  --color-bd: #2A2E36;
+  --color-bds: #52525b;
+  --color-inspector-bd: #404854;
+  --color-inspector-card: #141517;
+  --color-inspector-card-bd: #2A2E36;
+  --color-inspector-divider: #2A2E36;
+  --color-t1: #f4f4f5;
+  --color-t2: #d4d4d8;
+  --color-t3: #a1a1aa;
+  --color-t4: #71717a;
+  --color-ac: #f4f4f5;
   --color-ach: #ffffff;
   --color-ac-bg: rgba(255, 255, 255, 0.08);
-  --color-on-ac: #111111;
-  --color-sel-bg: #20252D;
-  --color-sel-bd: #E5E7EB;
+  --color-on-ac: #111827;
+  --color-sel-bg: #252B36;
+  --color-sel-bd: #E4E4E7;
   /* Sidebar stays fixed in both themes — only the main canvas darkens */
   --color-sidebar: #2e3132;
   --color-nav-hover: rgba(255, 255, 255, 0.06);
   --color-nav-active: #373b3b;
   --stitch-sidebar-bg: #2e3132;
   --stitch-sidebar-active: #373b3b;
-  --stitch-canvas-bg: #0F1115;
+  --stitch-canvas-bg: #0A0A0B;
   --stitch-top-bar-bg: #141517;
-  --stitch-search-bg: #20252D;
-  --stitch-outline-variant: #2B313B;
+  --stitch-search-bg: #22262E;
+  --stitch-outline-variant: #3f3f46;
+
   --color-jobs-panel: #181C22;
   --color-jobs-panel-bd: #2B313B;
   --color-jobs-panel-card: #20252D;
