@@ -10,6 +10,10 @@ import {
   ShieldCheck,
 } from "lucide-react"
 import { cn, getRevisionDueInfo, revisionDueToneClass } from "@/shared/utils/utils"
+import {
+  InformationCard,
+  informationCardClassName,
+} from "@/shared/layouts/information-card"
 import { missingLabel } from "./jobs-register-helpers"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
@@ -24,21 +28,44 @@ import { useToast } from "@/shared/ui/toast"
 
 export const sectionHeading =
   "text-[13px] font-medium tracking-wide text-t2"
-export const fieldLabel = "mb-1 text-[11px] font-medium text-t3"
-export const fieldValue = "text-sm text-t1"
-export const fieldMuted = "text-sm text-t3"
+export const fieldLabel = "mb-0 text-[11px] font-medium leading-none text-t3"
+export const fieldValue = "text-sm leading-snug text-t1"
+export const fieldMuted = "text-sm leading-snug text-t3"
 
-/** White (light) / preserved dark surface for key cards on the grey inspector. */
-export const inspectorContentCard =
-  "rounded-[10px] border border-inspector-card-bd bg-inspector-card shadow-inspector-card"
+/** @deprecated Prefer `InformationCard` / `informationCardClassName`. */
+export const inspectorContentCard = informationCardClassName
 
 /** Section boundary — spacing-first, with a calm divider. */
 export const inspectorSectionRule = "border-t border-inspector-divider pt-5"
 
 const sectionIconClass = "h-4 w-4 shrink-0 text-t3"
+/** Reserves chevron column so static and accordion headers share alignment. */
+const sectionChevronSlot = "h-5 w-5 shrink-0"
+
+function InspectorSectionHeader({
+  icon: Icon,
+  children,
+  trailing,
+}: {
+  icon: typeof PencilRuler
+  children: ReactNode
+  trailing?: ReactNode
+}) {
+  return (
+    <div className="flex min-h-11 w-full items-center justify-between gap-3 py-1">
+      <h4 className={cn(sectionHeading, "mb-0 flex min-w-0 items-center gap-2")}>
+        <Icon className={sectionIconClass} aria-hidden />
+        <span className="min-w-0 truncate">{children}</span>
+      </h4>
+      <div className="flex shrink-0 items-center justify-center">
+        {trailing ?? <span className={sectionChevronSlot} aria-hidden />}
+      </div>
+    </div>
+  )
+}
 
 function AccordionHeader({
-  icon: Icon,
+  icon,
   expanded,
   onClick,
   children,
@@ -51,41 +78,48 @@ function AccordionHeader({
   return (
     <button
       type="button"
-      className="flex min-h-11 w-full items-center justify-between gap-3 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ac"
+      className="w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-ac"
       aria-expanded={expanded}
       onClick={onClick}
     >
-      <h4 className={cn(sectionHeading, "mb-0 flex items-center gap-2")}>
-        <Icon className={sectionIconClass} aria-hidden />
+      <InspectorSectionHeader
+        icon={icon}
+        trailing={
+          <ChevronDown
+            className={cn(
+              sectionChevronSlot,
+              "text-t2 transition-transform duration-200",
+              expanded && "rotate-180",
+            )}
+            aria-hidden
+          />
+        }
+      >
         {children}
-      </h4>
-      <ChevronDown
-        className={cn(
-          "h-5 w-5 shrink-0 text-t2 transition-transform duration-200",
-          expanded && "rotate-180",
-        )}
-        aria-hidden
-      />
+      </InspectorSectionHeader>
     </button>
   )
 }
 
-function SectionTitle({
-  icon: Icon,
+function PropertyCell({
+  label,
   children,
-  trailing,
 }: {
-  icon: typeof PencilRuler
+  label: string
   children: ReactNode
-  trailing?: ReactNode
 }) {
   return (
-    <div className="mb-3 flex min-h-11 items-center justify-between gap-2">
-      <h4 className={cn(sectionHeading, "mb-0 flex items-center gap-2")}>
-        <Icon className={sectionIconClass} aria-hidden />
-        {children}
-      </h4>
-      {trailing}
+    <div className="flex min-h-[3.5rem] flex-col gap-1.5">
+      <p className={fieldLabel}>{label}</p>
+      <div className="flex min-h-7 items-center">{children}</div>
+    </div>
+  )
+}
+
+function PropertyGrid({ children }: { children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-5 gap-y-3">
+      {children}
     </div>
   )
 }
@@ -146,7 +180,7 @@ function Meta({
   if (!trimmed && !important) return null
   return (
     <div>
-      <p className={fieldLabel}>{label}</p>
+      <p className={cn(fieldLabel, "mb-1")}>{label}</p>
       <p className={cn(trimmed ? fieldValue : fieldMuted, "whitespace-pre-wrap")}>
         {trimmed || "—"}
       </p>
@@ -209,29 +243,62 @@ export function StatusChip({
   )
 }
 
-/** Compact one-line state strip under the drawing title. */
+/** Compact state strip under the drawing title — spaced chips, not one run-on line. */
 export function RevisionSummaryStrip({
   revision,
   stage,
   designer,
   duePrimary,
   dueSeverity,
+  stageStatus,
 }: {
   revision: string
   stage: string
   designer: string
   duePrimary: string
   dueSeverity: ReturnType<typeof getRevisionDueInfo>["severity"]
+  /** Drawing status for colour-coding the stage chip. */
+  stageStatus?: string | null
 }) {
   const dueTone = revisionDueToneClass(dueSeverity)
+  const stageColour = stageStatus ? getDrawingStatusColour(stageStatus) : null
   const hasDesigner = Boolean(designer.trim())
   const designerLabel = hasDesigner ? designer.trim() : "Unassigned"
+  const emphasizeDue = dueSeverity === "overdue" || dueSeverity === "orange"
+
   return (
-    <div className="mt-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs leading-snug">
-      <span className="font-semibold uppercase tracking-wide text-t1">{revision}</span>
-      <span className="font-medium text-t2">{stage}</span>
-      <span className={hasDesigner ? "font-medium text-t2" : "text-t4"}>{designerLabel}</span>
-      <span className={cn("font-semibold", dueTone.text)}>{duePrimary}</span>
+    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+      <span className="inline-flex items-center rounded-md border border-inspector-card-bd bg-inspector-card px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-t1">
+        {revision}
+      </span>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium",
+          stageColour ? cn(stageColour.text, stageColour.tint) : "bg-surface-low text-t2",
+        )}
+      >
+        {stageColour ? (
+          <span className={cn("h-1.5 w-1.5 rounded-full", stageColour.dot)} aria-hidden />
+        ) : null}
+        {stage}
+      </span>
+      <span
+        className={cn(
+          "inline-flex items-center rounded-md px-2 py-1 text-[11px]",
+          hasDesigner ? "bg-surface-low font-medium text-t2" : "bg-transparent text-t4",
+        )}
+      >
+        {designerLabel}
+      </span>
+      <span
+        className={cn(
+          "inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold",
+          dueTone.text,
+          emphasizeDue ? dueTone.tint : "bg-transparent",
+        )}
+      >
+        {duePrimary}
+      </span>
     </div>
   )
 }
@@ -379,13 +446,12 @@ function EditableTargetDue({
 
   return (
     <>
-      <div>
-        <p className={fieldLabel}>Due Date</p>
+      <PropertyCell label="Due Date">
         {editing && !disabled ? (
           <input
             ref={inputRef}
             type="date"
-            className="mt-0.5 w-full max-w-[11rem] rounded border border-bd bg-sr px-2 py-1 text-sm text-t1 outline-none focus-visible:ring-2 focus-visible:ring-ac"
+            className="w-full max-w-[11rem] rounded border border-bd bg-sr px-2 py-1 text-sm text-t1 outline-none focus-visible:ring-2 focus-visible:ring-ac"
             defaultValue={value?.slice(0, 10) ?? ""}
             disabled={busy}
             autoFocus
@@ -435,20 +501,22 @@ function EditableTargetDue({
             {busy && <span className="text-[10px] text-t4">Saving…</span>}
           </button>
         )}
-      </div>
+      </PropertyCell>
 
-      <div>
-        <p className={fieldLabel}>Days Remaining</p>
+      <PropertyCell label="Days Remaining">
         <span
           className={cn(
-            "inline-flex items-center rounded-md px-2.5 py-1 text-[15px] font-bold",
+            "inline-flex items-center rounded-md font-bold leading-none",
+            due.severity === "overdue" || due.severity === "orange"
+              ? "px-2 py-1 text-[13px]"
+              : "px-1.5 py-0.5 text-[12px]",
             dueTone.text,
             dueTone.tint,
           )}
         >
           {due.severity === "none" ? "No Due Date" : due.daysLabel}
         </span>
-      </div>
+      </PropertyCell>
     </>
   )
 }
@@ -501,10 +569,7 @@ export function CurrentRevisionSection({
   return (
     <section className="pt-1">
       {!active ? (
-        <div className={cn(inspectorContentCard, "px-4 py-4")}>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
-            Current Drawing
-          </p>
+        <InformationCard title="Current Drawing" className="px-4 py-4">
           <p className="text-[15px] font-semibold text-t1">No active drawing work</p>
           <div className="mt-3 space-y-1 text-sm text-t3">
             <p className="font-medium text-t2">Latest completed</p>
@@ -529,13 +594,10 @@ export function CurrentRevisionSection({
           <p className="mt-3 text-sm text-t3">
             Create a new revision using the button above.
           </p>
-        </div>
+        </InformationCard>
       ) : (
         <div className="space-y-5">
-          <div className={cn(inspectorContentCard, "min-h-[7.5rem] px-4 py-4")}>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
-              {briefLabel}
-            </p>
+          <InformationCard title={briefLabel} className="min-h-[7.5rem] px-4 py-4">
             <p
               className={cn(
                 "text-[15px] font-semibold leading-relaxed whitespace-pre-wrap",
@@ -544,11 +606,10 @@ export function CurrentRevisionSection({
             >
               {briefText?.trim() || briefEmpty}
             </p>
-          </div>
+          </InformationCard>
 
-          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-            <div>
-              <p className={fieldLabel}>Status</p>
+          <PropertyGrid>
+            <PropertyCell label="Status">
               <WorkItemStatusSelector
                 workItemType={isRevision ? "revision" : "original"}
                 workItemId={currentWork.id!}
@@ -558,18 +619,19 @@ export function CurrentRevisionSection({
                 size="md"
                 onStatusChanged={onChanged}
               />
-            </div>
-            <DesignerAssignmentSelector
-              workItemType={isRevision ? "revision" : "original"}
-              workItemId={currentWork.id!}
-              currentDesigner={designer}
-              revisionLabel={isRevision ? (currentWork.revisionLabel ?? revLabel) : null}
-              designers={designers}
-              patchUrl={patchUrl}
-              labeled
-              unassignedLabel="Unassigned"
-              onDesignerChanged={onChanged}
-            />
+            </PropertyCell>
+            <PropertyCell label="Designer">
+              <DesignerAssignmentSelector
+                workItemType={isRevision ? "revision" : "original"}
+                workItemId={currentWork.id!}
+                currentDesigner={designer}
+                revisionLabel={isRevision ? (currentWork.revisionLabel ?? revLabel) : null}
+                designers={designers}
+                patchUrl={patchUrl}
+                unassignedLabel="Unassigned"
+                onDesignerChanged={onChanged}
+              />
+            </PropertyCell>
 
             <EditableTargetDue
               workItemId={currentWork.id!}
@@ -579,17 +641,15 @@ export function CurrentRevisionSection({
               onChanged={onChanged}
             />
 
-            <div>
-              <p className={fieldLabel}>{isRevision ? "Revision Date" : "Date Created"}</p>
-              <p className="text-sm text-t3">
+            <PropertyCell label={isRevision ? "Revision Date" : "Date Created"}>
+              <p className={fieldMuted}>
                 {safeDateLabel(revisionDate) || "—"}
               </p>
-            </div>
-            <div>
-              <p className={fieldLabel}>Issued</p>
-              <p className="text-sm text-t3">{issuedLabel}</p>
-            </div>
-          </div>
+            </PropertyCell>
+            <PropertyCell label="Issued">
+              <p className={fieldMuted}>{issuedLabel}</p>
+            </PropertyCell>
+          </PropertyGrid>
         </div>
       )}
     </section>
@@ -647,7 +707,7 @@ export function ProjectDetailsSection({
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className={cn(inspectorContentCard, "mt-3 space-y-3 px-3.5 py-3")}>
+          <div className={cn(informationCardClassName, "mt-3 space-y-3 px-3.5 py-3")}>
             <Meta label="Client" value={data.client} />
             <Meta label="Site" value={data.siteName} />
             <Meta label="Address" value={data.siteAddress} />
@@ -656,7 +716,7 @@ export function ProjectDetailsSection({
             <Meta label="Requested Date" value={safeDateLabel(data.dateRequested) || null} />
             {isManagedSite && data.otherJobsAtSiteCount > 0 && (
               <div>
-                <p className={fieldLabel}>Other Jobs At This Location</p>
+                <p className={cn(fieldLabel, "mb-1")}>Other Jobs At This Location</p>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold text-t1">
                     {data.otherJobsAtSiteCount} Job{data.otherJobsAtSiteCount === 1 ? "" : "s"}
@@ -714,26 +774,28 @@ export function CATIISummary({
 
   return (
     <section className={inspectorSectionRule}>
-      <SectionTitle icon={ShieldCheck}>CATII Check</SectionTitle>
+      <InspectorSectionHeader icon={ShieldCheck}>CATII Check</InspectorSectionHeader>
       {activeCheck ? (
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
-            <p className="mt-0.5 text-sm text-t3">
-              {activeCheck.revisionLabel ?? activeLabel}
-              {" · On file"}
-            </p>
+        <InformationCard className="mt-1 px-3.5 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
+              <p className="mt-0.5 text-sm text-t3">
+                {activeCheck.revisionLabel ?? activeLabel}
+                {" · On file"}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="shrink-0 text-xs font-medium text-ac2 hover:underline"
+              onClick={() => onOpen(activeCheck.id)}
+            >
+              Open Check
+            </button>
           </div>
-          <button
-            type="button"
-            className="shrink-0 text-xs font-medium text-ac2 hover:underline"
-            onClick={() => onOpen(activeCheck.id)}
-          >
-            Open Check
-          </button>
-        </div>
+        </InformationCard>
       ) : (
-        <div className="space-y-1.5">
+        <div className="mt-1 space-y-1.5">
           <div className="flex items-center justify-between gap-3">
             <p className={fieldMuted}>No CATII check for {activeLabel}</p>
             {canCreate && (
@@ -835,7 +897,7 @@ export function RevisionTimeline({
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className={cn(inspectorContentCard, "mt-3 overflow-hidden")}>
+          <div className={cn(informationCardClassName, "mt-3 overflow-hidden")}>
             {revisions.length === 0 ? (
               <p className={cn(fieldMuted, "px-3.5 py-3")}>Original drawing only</p>
             ) : (

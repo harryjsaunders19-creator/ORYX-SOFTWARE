@@ -30,6 +30,7 @@ import {
   type CurrentWorkRevisionLike,
 } from "@/modules/jobs/lib/current-work"
 import { getEngineeringStageFromDrawingStatus } from "@/modules/jobs/lib/engineering-workflow"
+import { getInspectorStatusAccentClass } from "@/modules/jobs/lib/drawing-status-colours"
 import {
   InspectorHeader,
   StatusChip,
@@ -525,7 +526,7 @@ export function JobsInspector({
 
   const isDrawer = presentation === "drawer"
   const actionBtn =
-    "inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors disabled:opacity-50"
+    "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors disabled:opacity-50"
   const primaryActionBtn = cn(actionBtn, "border border-transparent bg-ac text-on-ac hover:bg-ach")
   const secondaryActionBtn = cn(actionBtn, "border border-bd bg-transparent text-t1 hover:bg-surface-low")
 
@@ -581,8 +582,10 @@ export function JobsInspector({
     <StatusChip prefix="Project" status={originalStatus} tone="secondary" />
   )
 
+  const summaryStatus =
+    currentWork.type === "none" ? originalStatus : currentWork.status
   const summaryStage = getEngineeringStageFromDrawingStatus(
-    currentWork.type === "none" ? originalStatus : currentWork.status,
+    summaryStatus,
     { closed: currentWork.type === "none" },
   )
   const summaryDue = getRevisionDueInfo(
@@ -595,6 +598,9 @@ export function JobsInspector({
       : currentWork.type === "original"
         ? "Original"
         : "Complete"
+  const statusAccentClass = getInspectorStatusAccentClass(summaryStatus, {
+    overdue: summaryDue.severity === "overdue",
+  })
   const summaryStrip = (
     <RevisionSummaryStrip
       revision={summaryRevision}
@@ -606,6 +612,7 @@ export function JobsInspector({
           : summaryDue.daysLabel
       }
       dueSeverity={summaryDue.severity}
+      stageStatus={summaryStatus}
     />
   )
 
@@ -625,9 +632,17 @@ export function JobsInspector({
 
   return (
     <aside
-      className="jobs-inspector flex h-full min-h-0 w-full flex-col bg-transparent"
+      className="jobs-inspector relative flex h-full min-h-0 w-full flex-col bg-transparent"
       aria-label={`Inspector for ${drawingNumber}`}
     >
+      <span
+        className={cn(
+          "pointer-events-none absolute bottom-3 left-1.5 top-3 z-30 w-1 rounded-full",
+          statusAccentClass,
+        )}
+        aria-hidden
+      />
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col pl-2.5">
       <InspectorHeader
         drawingNumber={drawingNumber}
         revisionBadge={
@@ -666,7 +681,7 @@ export function JobsInspector({
           <div className="flex flex-col gap-2">
             <button
               type="button"
-              className={cn(primaryActionBtn, "h-11 w-full")}
+              className={cn(primaryActionBtn, "h-11")}
               onClick={openAddRevision}
               disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
             >
@@ -699,15 +714,15 @@ export function JobsInspector({
             </div>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full grid-cols-3 gap-2">
             <button
               type="button"
               className={primaryActionBtn}
               onClick={openAddRevision}
               disabled={!workItemsModel && !project.canAddRevision && !jobDetail}
             >
-              <Plus className="h-3.5 w-3.5" />
-              Add Revision
+              <Plus className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Add Revision</span>
             </button>
             <button
               type="button"
@@ -720,16 +735,16 @@ export function JobsInspector({
                   : "CATII Check is available when original or a revision is complete"
               }
             >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {cat2Busy ? "Creating…" : "CATII Check"}
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{cat2Busy ? "Creating…" : "CATII Check"}</span>
             </button>
             <button
               type="button"
               className={secondaryActionBtn}
               onClick={openQuoteAction}
             >
-              <Link2 className="h-3.5 w-3.5" />
-              {primaryQuote ? "Open Quote" : "Attach Quote"}
+              <Link2 className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{primaryQuote ? "Open Quote" : "Attach Quote"}</span>
             </button>
           </div>
         )}
@@ -942,6 +957,7 @@ export function JobsInspector({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </aside>
   )
 }

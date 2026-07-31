@@ -51,6 +51,19 @@ export const OVERDUE_STATUS_COLOUR: DrawingStatusVisual = {
   tint: "bg-dn-bg",
 }
 
+/**
+ * Narrow inspector accent bar colour for the active revision / due state.
+ * Green complete · blue in progress · teal new · amber awaiting · purple checking · red overdue.
+ */
+export function getInspectorStatusAccentClass(
+  status: string | null | undefined,
+  opts?: { overdue?: boolean },
+): string {
+  if (opts?.overdue) return OVERDUE_STATUS_COLOUR.dot
+  if (!status) return DRAWING_STATUS_COLOURS.NEW_REQUEST.dot
+  return getDrawingStatusColour(status).dot
+}
+
 const FALLBACK: DrawingStatusVisual = DRAWING_STATUS_COLOURS.NEW_REQUEST
 
 export function getDrawingStatusColour(status: string): DrawingStatusVisual {

@@ -20,6 +20,12 @@ export const surfaceWorkspace = "bg-s1"
 export const surfaceInspector =
   "bg-s2 shadow-inspector border-2 border-inspector-bd rounded-xl"
 
+/** High-priority information card (Amendment, alerts, summaries). */
+export {
+  InformationCard,
+  informationCardClassName,
+} from "@/shared/layouts/information-card"
+
 /** Stitch surface — bordered workspace card (Surface 1). */
 export const surfaceCard = "oryx-surface-card bg-s1 border border-bd rounded-xl"
 
