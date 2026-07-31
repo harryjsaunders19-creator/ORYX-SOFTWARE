@@ -138,7 +138,7 @@ export function StatusChip({
       <span
         className={cn(
           "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-t3",
-          tone === "primary" ? "border border-bd bg-surface-low" : "border border-transparent bg-transparent text-t4",
+          tone === "primary" ? "border border-bd bg-s1" : "border border-transparent bg-transparent text-t4",
         )}
       >
         <span className="h-1.5 w-1.5 rounded-full bg-t4" aria-hidden />
@@ -242,7 +242,7 @@ export function InspectorHeader({
                 {drawingNumber}
               </h3>
               {revisionBadge && (
-                <span className="rounded-md border border-bd bg-surface-low px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-t2">
+                <span className="rounded-md border border-bd bg-s1 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-t2">
                   {revisionBadge}
                 </span>
               )}
@@ -468,7 +468,7 @@ export function CurrentRevisionSection({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="min-h-[7.5rem] rounded-lg border border-bd/70 bg-surface-low px-4 py-4">
+          <div className="min-h-[7.5rem] rounded-lg border border-bd/70 bg-s1 px-4 py-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-t3">
               {briefLabel}
             </p>

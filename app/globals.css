@@ -73,7 +73,7 @@
    */
   --color-s0:     #F1F3F5;
   --color-s1:     #FFFFFF;
-  --color-s2:     #E7EBF0;
+  --color-s2:     #DFE5EC;
   --color-pg:     #F1F3F5;
   --color-sr:     #FFFFFF;
   --color-surface-low: #EBEDF0;
@@ -566,7 +566,7 @@ html.dark {
 html.stitch-layout {
   --color-s0: #F1F3F5;
   --color-s1: #FFFFFF;
-  --color-s2: #E7EBF0;
+  --color-s2: #DFE5EC;
   --color-pg: #F1F3F5;
   --color-sr: #FFFFFF;
   --color-surface-low: #EBEDF0;
