@@ -14,10 +14,8 @@ export default async function DashboardPage() {
   const statsKey = `/api/stats?calendarFrom=${calendarFrom}&calendarTo=${calendarTo}`
 
   let fallbackStats: StatsData | null = null
-  let userName: string | undefined
   const user = await getCurrentUser().catch(() => null)
   if (user) {
-    userName = user.name
     try {
       fallbackStats = await buildDashboardStats({
         role: user.role as Role,
@@ -30,11 +28,10 @@ export default async function DashboardPage() {
   }
 
   return (
-    <PageShell>
+    <PageShell className="max-w-[1440px] pt-8 pb-16 md:px-6 md:pt-10" wide>
       <DashboardStats
         statsKey={statsKey}
         fallbackStats={fallbackStats}
-        userName={userName}
       />
     </PageShell>
   )

@@ -7,6 +7,7 @@ import { UserProfileMenu } from "@/components/user-profile-menu"
 import { SettingsMenu } from "@/shared/layouts/settings-menu"
 import { CommandPalette } from "@/modules/search/components/command-palette"
 import { MODULES } from "@/shared/auth/permissions"
+import { useUser } from "@/shared/providers/user-context"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -61,8 +62,11 @@ type Props = {
 export function StitchTopBar({ onMenuClick }: Props) {
   const pathname = usePathname()
   const [searchOpen, setSearchOpen] = useState(false)
+  const { user, role } = useUser()
 
   const { section, trail } = useMemo(() => routeContext(pathname), [pathname])
+  const isDashboard = pathname === "/"
+  const roleLabel = role === "ADMIN" ? "Chief Engineer" : "Engineer"
 
   const openSearch = useCallback(() => setSearchOpen(true), [])
 
@@ -80,9 +84,9 @@ export function StitchTopBar({ onMenuClick }: Props) {
   return (
     <>
       <header
-        className="stitch-top-bar fixed top-0 z-40 flex items-center justify-between gap-6 border-b border-bd bg-pg px-6 max-md:gap-3 max-md:px-4"
+        className="stitch-top-bar fixed top-0 z-40 flex items-center justify-between gap-6 px-6 max-md:gap-3 max-md:px-4"
       >
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
           {onMenuClick && (
             <button
               type="button"
@@ -93,27 +97,34 @@ export function StitchTopBar({ onMenuClick }: Props) {
               <Menu className="h-5 w-5" />
             </button>
           )}
-          <h2 className="stitch-top-bar-title hidden shrink-0 sm:block">
-            {section}
-          </h2>
-          <div className="hidden h-6 w-px shrink-0 bg-bd sm:block" />
-          <span className="truncate text-sm text-t3">{trail}</span>
-        </div>
 
-        <div className="flex shrink-0 items-center gap-4">
+          {!isDashboard && (
+            <>
+              <h2 className="stitch-top-bar-title hidden shrink-0 sm:block">
+                {section}
+              </h2>
+              <div className="hidden h-6 w-px shrink-0 bg-bd sm:block" />
+              <span className="hidden truncate text-sm text-t3 sm:inline">{trail}</span>
+            </>
+          )}
+
           <button
             type="button"
             onClick={openSearch}
-            className="relative hidden items-center gap-2 rounded border border-bd bg-surface-low px-2 py-1.5 text-left transition-colors hover:border-bds hover:bg-sr md:flex"
+            className="relative hidden w-full max-w-md items-center gap-2 rounded-full bg-[var(--stitch-search-bg)] py-2 pl-10 pr-4 text-left transition-shadow hover:ring-1 hover:ring-black/10 md:flex"
             aria-label="Open global search"
           >
-            <Search className="h-4 w-4 shrink-0 text-t4" />
-            <span className="w-44 truncate text-sm text-t4">Search jobs, clients and documents…</span>
-            <kbd className="rounded border border-bd bg-sr px-1.5 py-0.5 type-badge text-t4">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-t3" />
+            <span className="truncate text-sm font-medium text-t3">
+              Search projects, CAD files, or clients...
+            </span>
+            <kbd className="ml-auto rounded border border-bd bg-sr px-1.5 py-0.5 type-badge text-t4">
               Ctrl K
             </kbd>
           </button>
+        </div>
 
+        <div className="flex shrink-0 items-center gap-4 md:gap-6">
           <button
             type="button"
             onClick={openSearch}
@@ -123,7 +134,7 @@ export function StitchTopBar({ onMenuClick }: Props) {
             <Search className="h-5 w-5" />
           </button>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-3 border-r border-bd pr-4 md:gap-4 md:pr-6">
             <NotificationsMenu />
             <SettingsMenu />
             <DropdownMenu>
@@ -147,7 +158,15 @@ export function StitchTopBar({ onMenuClick }: Props) {
             </DropdownMenu>
           </div>
 
-          <UserProfileMenu />
+          <div className="flex items-center gap-3 pl-0.5">
+            {user && (
+              <div className="hidden text-right sm:block">
+                <p className="text-sm font-medium leading-none text-t1">{user.name}</p>
+                <p className="mt-1 text-[10px] font-medium text-t3">{roleLabel}</p>
+              </div>
+            )}
+            <UserProfileMenu />
+          </div>
         </div>
       </header>
 

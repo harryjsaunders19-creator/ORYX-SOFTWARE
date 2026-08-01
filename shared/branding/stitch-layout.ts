@@ -1,22 +1,27 @@
 /**
- * Stitch ORYX OS shell — dark sidebar + light canvas (Stitch export palette).
+ * Stitch ORYX OS shell — Desktop Command Centre palette
+ * (light sidebar + light canvas, black active nav).
  */
 export const STITCH_COLORS = {
-  /** Dark sidebar panel */
-  sidebar: "#2e3132",
-  sidebarActive: "#373b3b",
-  sidebarBorder: "rgba(255, 255, 255, 0.08)",
-  sidebarText: "#ffffff",
-  sidebarTextMuted: "#a1a1aa",
-  sidebarHover: "rgba(255, 255, 255, 0.06)",
+  /** Light sidebar panel (surface-container) */
+  sidebar: "#eeeef0",
+  sidebarActive: "#000000",
+  sidebarBorder: "#cfc4c5",
+  sidebarText: "#1a1c1d",
+  sidebarTextMuted: "#4c4546",
+  sidebarHover: "#e1dfdf",
   /** Light main canvas */
-  surface: "#f8f9fa",
-  background: "#f8f9fa",
-  surfaceContainerLow: "#f3f4f5",
-  outlineVariant: "#c6c6cd",
-  onSurface: "#191c1d",
-  onSurfaceVariant: "#45464c",
+  surface: "#f9f9fb",
+  background: "#f9f9fb",
+  surfaceBright: "#f9f9fb",
+  surfaceContainerLow: "#f3f3f5",
+  outlineVariant: "#cfc4c5",
+  onSurface: "#1a1c1d",
+  onSurfaceVariant: "#4c4546",
   primary: "#000000",
+  error: "#ba1a1a",
+  errorContainer: "#ffdad6",
+  onErrorContainer: "#93000a",
 } as const
 
 export const STITCH_SIDEBAR_W = 256
@@ -33,4 +38,3 @@ export const STITCH_CANVAS_BG = STITCH_COLORS.background
 
 export const APP_SIDEBAR_W = STITCH_SIDEBAR_W
 export const APP_TOP_BAR_H = STITCH_TOP_BAR_H
-

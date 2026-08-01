@@ -3,12 +3,17 @@
 import { createElement, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
+import {
+  Archive,
+  CircleHelp,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Compass,
+} from "lucide-react"
 import { cn } from "@/shared/utils"
-import { Typography } from "@/shared/design/typography"
 import { useUser } from "@/shared/providers/user-context"
 import { modulesForUser, type ModuleDef } from "@/shared/auth/permissions"
-import { OryxLogo } from "@/shared/branding/oryx-logo"
 import { STITCH_SIDEBAR_COLLAPSED_W, STITCH_SIDEBAR_W } from "@/shared/branding/stitch-layout"
 import { isNavItemActive } from "@/shared/layouts/nav-utils"
 import { navIcon } from "@/shared/layouts/nav-icons"
@@ -16,14 +21,36 @@ import { NAV_GROUPS } from "@/shared/layouts/nav-groups"
 
 const SIDEBAR_COLLAPSE_KEY = "oryx-sidebar-collapsed"
 
+/** Command Centre primary order — remaining modules follow group order. */
+const PRIMARY_NAV_KEYS = [
+  "dashboard",
+  "jobs",
+  "clients",
+  "performance",
+  "billing",
+  "quotes",
+  "calendar",
+  "employees",
+  "job-map",
+  "site-visit-calculator",
+  "hold-list",
+  "password-vault",
+  "users",
+  "backups",
+  "health",
+] as const
+
+const FOOTER_NAV_KEYS = new Set(["archived", "health"])
+
 type NavLinkProps = {
   item: ModuleDef
   active: boolean
   collapsed: boolean
   onNavigate?: () => void
+  compact?: boolean
 }
 
-function NavLink({ item, active, collapsed, onNavigate }: NavLinkProps) {
+function NavLink({ item, active, collapsed, onNavigate, compact }: NavLinkProps) {
   const Icon = navIcon(item.key)
   return (
     <Link
@@ -32,21 +59,37 @@ function NavLink({ item, active, collapsed, onNavigate }: NavLinkProps) {
       onClick={() => onNavigate?.()}
       title={collapsed ? item.label : undefined}
       className={cn(
-        Typography.Nav,
-        "stitch-nav-link group flex items-center gap-3 rounded-md transition-colors duration-150 ease-in-out outline-none",
-        "focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-inset",
-        collapsed ? "justify-center px-0 py-2.5 mx-2" : "mx-2 px-3 py-2.5",
+        "stitch-nav-link group flex items-center gap-3 rounded-lg transition-colors duration-200 outline-none",
+        "focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset",
+        compact ? "px-4 py-2" : "px-4 py-3",
+        collapsed ? "justify-center mx-2 px-0" : "mx-0",
       )}
     >
       {createElement(Icon, {
-        className: "h-5 w-5 shrink-0 opacity-80 group-data-[active=true]:opacity-100",
+        className: "h-5 w-5 shrink-0",
         strokeWidth: active ? 2.25 : 1.75,
         "aria-hidden": true,
       })}
-      {!collapsed && <span className="truncate">{item.label}</span>}
+      {!collapsed && <span className="truncate text-[16px] leading-[1.5] tracking-[-0.01em]">{item.label}</span>}
       {collapsed && <span className="sr-only">{item.label}</span>}
     </Link>
   )
+}
+
+function orderedNavItems(nav: ModuleDef[]): ModuleDef[] {
+  const byKey = new Map(nav.map(m => [m.key, m]))
+  const primary = PRIMARY_NAV_KEYS
+    .map(k => byKey.get(k))
+    .filter((m): m is ModuleDef => !!m && !FOOTER_NAV_KEYS.has(m.key))
+
+  const seen = new Set(primary.map(m => m.key))
+  const rest = NAV_GROUPS
+    .flatMap(g => g.keys)
+    .map(k => byKey.get(k))
+    .filter((m): m is ModuleDef => !!m && !seen.has(m.key) && !FOOTER_NAV_KEYS.has(m.key))
+
+  const orphans = nav.filter(m => !seen.has(m.key) && !FOOTER_NAV_KEYS.has(m.key) && !rest.includes(m))
+  return [...primary, ...rest, ...orphans]
 }
 
 type SideNavContentProps = {
@@ -63,87 +106,122 @@ function SideNavContent({
   showCollapseToggle = false,
 }: SideNavContentProps) {
   const path = usePathname()
-  const { role, loading, user } = useUser()
+  const { role, loading, user, canAccess } = useUser()
   const nav = modulesForUser(role, user?.moduleAccess ?? null)
-  const byKey = new Map(nav.map(m => [m.key, m]))
+  const items = orderedNavItems(nav)
+  const archived = nav.find(m => m.key === "archived")
   const isActive = (key: string, href: string) => isNavItemActive(path, key, href)
-
-  const grouped = NAV_GROUPS
-    .map(group => ({
-      id: group.id,
-      label: group.label,
-      items: group.keys.map(k => byKey.get(k)).filter((m): m is ModuleDef => !!m),
-    }))
-    .filter(g => g.items.length > 0)
-
-  const groupedKeys = new Set<string>(NAV_GROUPS.flatMap(g => [...g.keys]))
-  const orphanItems = nav.filter(m => !groupedKeys.has(m.key))
-  const sections = orphanItems.length
-    ? [...grouped, { id: "more", label: "More", items: orphanItems }]
-    : grouped
+  const canCreateJob = canAccess("jobs")
 
   return (
     <>
-      <div className={cn("mb-4", collapsed ? "px-2" : "px-4")}>
+      <div className={cn(collapsed ? "px-2 pt-2" : "px-6 pt-4")}>
         <Link
           href="/"
-          className="block transition-opacity hover:opacity-90"
+          className={cn(
+            "mb-8 flex items-center transition-opacity hover:opacity-90",
+            collapsed ? "justify-center" : "gap-3",
+          )}
           onClick={() => onNavigate?.()}
-          aria-label="Oryx Scaffold Design — home"
+          aria-label="ORYX OS — home"
         >
-          {collapsed ? (
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-md bg-white/10">
-              <span className="text-sm font-semibold tracking-tight text-white">O</span>
-            </div>
-          ) : (
-            <>
-              <OryxLogo variant="menu" className="mb-2" />
-              <p className="stitch-sidebar-brand-sub">
-                {loading ? "\u00a0" : role === "ADMIN" ? "Internal admin" : "Engineer terminal"}
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-black text-white">
+            <Compass className="h-5 w-5" strokeWidth={2} aria-hidden />
+          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <h1 className="stitch-sidebar-brand-title text-[24px] font-bold leading-[1.3] tracking-tighter text-black">
+                ORYX OS
+              </h1>
+              <p className="stitch-sidebar-brand-sub text-[10px] font-semibold uppercase tracking-[0.2em] text-[#4c4546]">
+                Engineering Precision
               </p>
-            </>
+            </div>
           )}
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto thin-scroll px-0 pb-4" aria-busy={loading}>
+      <nav
+        className={cn(
+          "flex-1 space-y-1 overflow-y-auto thin-scroll pb-4",
+          collapsed ? "px-0" : "px-3",
+        )}
+        aria-busy={loading}
+      >
         {loading ? (
           [...Array(6)].map((_, i) => (
-            <div key={i} className={cn("my-2 h-9 animate-pulse rounded-md bg-white/10", collapsed ? "mx-2" : "mx-4")} />
+            <div
+              key={i}
+              className={cn(
+                "my-1 h-11 animate-pulse rounded-lg bg-black/5",
+                collapsed ? "mx-2" : "mx-0",
+              )}
+            />
           ))
         ) : (
-          sections.map(group => (
-            <div key={group.id} className="space-y-1">
-              {!collapsed && (
-                <p className="stitch-nav-section-label px-5 pb-1">
-                  {group.label}
-                </p>
-              )}
-              {collapsed && <div className="mx-4 my-1 h-px bg-white/10" aria-hidden />}
-              {group.items.map(item => (
-                <NavLink
-                  key={item.href}
-                  item={item}
-                  active={isActive(item.key, item.href)}
-                  collapsed={collapsed}
-                  onNavigate={onNavigate}
-                />
-              ))}
-            </div>
+          items.map(item => (
+            <NavLink
+              key={item.href}
+              item={item}
+              active={isActive(item.key, item.href)}
+              collapsed={collapsed}
+              onNavigate={onNavigate}
+            />
           ))
         )}
       </nav>
 
-      {showCollapseToggle && onToggleCollapse && (
-        <div className={cn("mt-auto border-t border-white/10 pt-3", collapsed ? "px-2" : "px-3")}>
+      <div className={cn("mt-auto space-y-4", collapsed ? "px-2 pb-2" : "px-6 pb-4")}>
+        {canCreateJob && (
+          <Link
+            href="/jobs?new=1"
+            onClick={() => onNavigate?.()}
+            title={collapsed ? "New Project" : undefined}
+            className={cn(
+              "flex w-full items-center justify-center gap-2 rounded-lg bg-black py-3 text-sm font-medium text-white transition-opacity hover:opacity-90",
+              collapsed && "px-0",
+            )}
+          >
+            <Plus className="h-5 w-5 shrink-0" aria-hidden />
+            {!collapsed && <span>New Project</span>}
+            {collapsed && <span className="sr-only">New Project</span>}
+          </Link>
+        )}
+
+        <div className="space-y-1 border-t border-[#cfc4c5] pt-4">
+          <a
+            href="https://www.oryxdesignltd.co.uk/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title={collapsed ? "Support" : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-4 py-2 text-[#4c4546] transition-colors hover:bg-[#e1dfdf]",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <CircleHelp className="h-5 w-5 shrink-0" aria-hidden />
+            {!collapsed && <span className="text-sm font-medium">Support</span>}
+            {collapsed && <span className="sr-only">Support</span>}
+          </a>
+          {archived && (
+            <NavLink
+              item={{ ...archived, label: "Archive" }}
+              active={isActive(archived.key, archived.href)}
+              collapsed={collapsed}
+              onNavigate={onNavigate}
+              compact
+            />
+          )}
+        </div>
+
+        {showCollapseToggle && onToggleCollapse && (
           <button
             type="button"
             onClick={onToggleCollapse}
             className={cn(
-                Typography.Nav,
-                "flex w-full items-center gap-3 rounded-md py-2.5 text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25",
-              collapsed ? "justify-center px-0" : "px-3",
+              "flex w-full items-center gap-3 rounded-lg py-2 text-sm text-[#4c4546] transition-colors hover:bg-[#e1dfdf]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
+              collapsed ? "justify-center px-0" : "px-4",
             )}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
@@ -157,13 +235,14 @@ function SideNavContent({
               </>
             )}
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </>
   )
 }
 
-const sidebarClass = "stitch-sidebar fixed left-0 top-0 bottom-0 z-50 flex flex-col py-4 transition-[width] duration-200 ease-out"
+const sidebarClass =
+  "stitch-sidebar fixed left-0 top-0 bottom-0 z-50 flex flex-col transition-[width] duration-200 ease-out"
 
 type Props = {
   mobileOpen?: boolean

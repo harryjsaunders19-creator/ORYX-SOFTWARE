@@ -1,11 +1,25 @@
 "use client"
 
 import Link from "next/link"
-import { CheckCircle2, ExternalLink } from "lucide-react"
-import { RevisionFamilyBadge } from "@/modules/jobs/components/badges/revision-family-badge"
-import { cn, getJobDeadlineInfo } from "@/shared/utils/utils"
-import { TONE, Panel, PanelEmpty } from "./dashboard-stats-primitives"
+import { format, parseISO, differenceInCalendarDays } from "date-fns"
+import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react"
+import { getJobDeadlineInfo } from "@/shared/utils/utils"
 import type { Job } from "@/lib/types"
+
+function dueCellLabel(job: Job): string {
+  const dl = getJobDeadlineInfo(job)
+  if (!job.requiredByDate) return dl.label
+  try {
+    const due = parseISO(job.requiredByDate)
+    const days = differenceInCalendarDays(new Date(), due)
+    const datePart = format(due, "d MMM")
+    if (days > 0) return `${datePart} (Overdue ${days}d)`
+    if (days === 0) return `Today`
+    return datePart
+  } catch {
+    return dl.label
+  }
+}
 
 export function DashboardOverduePanel({
   overdueJobs,
@@ -15,47 +29,78 @@ export function DashboardOverduePanel({
   overdueCount: number
 }) {
   return (
-    <Panel
-      title="Overdue jobs"
-      count={overdueCount}
-      countTone="overdue"
-      viewAllHref="/jobs?deadline=overdue"
-    >
-      {overdueJobs.length === 0 ? (
-        <PanelEmpty icon={CheckCircle2} message="Nothing overdue — operations are on track." />
-      ) : (
-        <ul className="divide-y divide-bd">
-          {overdueJobs.map(job => {
-            const dl = getJobDeadlineInfo(job)
-            return (
-              <li key={job.id}>
-                <Link
-                  href={`/jobs/${job.id}`}
-                  className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-surface-low"
-                >
-                  <span className={cn("h-2 w-2 shrink-0 rounded-full", TONE.overdue.dot)} aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <RevisionFamilyBadge job={job} size="xs" />
-                      <span className="type-drawing-number text-xs font-semibold text-t1">{job.drawingNumber}</span>
-                    </div>
-                    <p className="mt-0.5 truncate text-xs text-t3">
-                      {[job.clientCompany, job.address].filter(Boolean).join(" · ")}
-                    </p>
-                  </div>
-                  <span className={cn(
-                    "shrink-0 rounded-md px-2 py-0.5 type-badge",
-                    TONE.overdue.badge,
-                  )}>
-                    {dl.label}
-                  </span>
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-t4" aria-hidden />
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </Panel>
+    <section>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 fill-[#ba1a1a] text-[#ba1a1a]" aria-hidden />
+          <h3 className="text-2xl font-semibold tracking-tight text-t1">Overdue Jobs</h3>
+          {overdueCount > 0 && (
+            <span className="rounded-md bg-[var(--stitch-error-container,#ffdad6)] px-2 py-0.5 text-xs font-bold text-[var(--stitch-on-error-container,#93000a)] tabular-nums">
+              {overdueCount}
+            </span>
+          )}
+        </div>
+        <Link
+          href="/jobs?deadline=overdue"
+          className="text-xs font-semibold text-[#4c4546] underline decoration-dotted underline-offset-4 transition-colors hover:text-black dark:text-t3 dark:hover:text-t1"
+        >
+          View All Overdue
+        </Link>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-[var(--stitch-outline-variant,#cfc4c5)] bg-sr">
+        {overdueJobs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 px-6 py-12">
+            <CheckCircle2 className="h-5 w-5 text-t4" aria-hidden />
+            <p className="text-sm text-t3">Nothing overdue — operations are on track.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="border-b border-[var(--stitch-outline-variant,#cfc4c5)] bg-[var(--stitch-search-bg,#f3f3f5)]">
+                <tr>
+                  <th className="px-6 py-4 text-sm font-medium text-[#4c4546] dark:text-t3">Job ID</th>
+                  <th className="px-6 py-4 text-sm font-medium text-[#4c4546] dark:text-t3">Description</th>
+                  <th className="px-6 py-4 text-sm font-medium text-[#4c4546] dark:text-t3">Due Date</th>
+                  <th className="px-6 py-4 text-right text-sm font-medium text-[#4c4546] dark:text-t3">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--stitch-outline-variant,#cfc4c5)]">
+                {overdueJobs.map(job => {
+                  const description =
+                    [job.typeOfWorks, job.address || job.siteAddress, job.clientCompany]
+                      .filter(Boolean)
+                      .join(" — ") || "—"
+                  return (
+                    <tr key={job.id} className="group transition-colors hover:bg-[var(--stitch-search-bg,#f3f3f5)]/60">
+                      <td className="px-6 py-5">
+                        <span className="rounded bg-[var(--stitch-error-container,#ffdad6)] px-3 py-1 font-mono text-[13px] font-bold text-[var(--stitch-on-error-container,#93000a)]">
+                          {job.drawingNumber}
+                        </span>
+                      </td>
+                      <td className="max-w-[280px] truncate px-6 py-5 text-base text-t1">
+                        {description}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-5 text-[#4c4546] dark:text-t3">
+                        {dueCellLabel(job)}
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <Link
+                          href={`/jobs/${job.id}`}
+                          className="inline-flex rounded-full p-2 opacity-0 transition-opacity hover:bg-[var(--stitch-sidebar-bg,#eeeef0)] group-hover:opacity-100 focus-visible:opacity-100"
+                          aria-label={`Open ${job.drawingNumber}`}
+                        >
+                          <ExternalLink className="h-4 w-4 text-t2" />
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
   )
 }
