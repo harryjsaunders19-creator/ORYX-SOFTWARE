@@ -2,7 +2,7 @@ import { jobDb, db } from "@/lib/db"
 import { createId } from "@paralleldrive/cuid2"
 
 async function main() {
-  console.log("🌱  Seeding Oryx job tracker…")
+  console.log("🌱  Seeding ORYX job tracker…")
 
   const existing = db.prepare("SELECT sequence FROM DrawingSequence WHERE yearMonth='2606'").get()
   if (!existing) {

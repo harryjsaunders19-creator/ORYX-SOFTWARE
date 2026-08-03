@@ -1,5 +1,5 @@
 /**
- * Oryx OS Inspector design tokens — shared by Jobs and every future module panel.
+ * ORYX OS Inspector design tokens — shared by Jobs and every future module panel.
  * Prefer these over ad-hoc spacing so inspectors stay visually identical.
  */
 export const inspectorTokens = {

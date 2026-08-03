@@ -1,4 +1,4 @@
-/** Sidebar nav grouping for the Oryx OS shell. */
+/** Sidebar nav grouping for the ORYX OS shell. */
 export const NAV_GROUPS = [
   {
     id: "work",

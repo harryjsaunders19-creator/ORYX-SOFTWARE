@@ -4,7 +4,7 @@ import type { ReactNode } from "react"
 import { cn } from "@/shared/utils/utils"
 
 /**
- * Oryx OS Inspector — Surface 2 outer chrome.
+ * ORYX OS Inspector — Surface 2 outer chrome.
  *
  * Standard elevated focus panel for Jobs, Clients, Quotes, Calendar,
  * and every future module side panel. Apply only to the outer container;

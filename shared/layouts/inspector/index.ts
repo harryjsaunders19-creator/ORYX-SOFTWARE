@@ -1,5 +1,5 @@
 /**
- * Oryx OS Inspector design system — reuse across Jobs, Clients, Quotes, etc.
+ * ORYX OS Inspector design system — reuse across Jobs, Clients, Quotes, etc.
  *
  * Surface: InspectorShell (s2) · Content: InfoCard / RevisionCard
  * Structure: InspectorPanel · InspectorBody · InspectorSection · AccordionSection

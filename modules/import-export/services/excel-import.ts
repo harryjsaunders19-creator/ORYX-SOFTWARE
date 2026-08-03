@@ -1,7 +1,7 @@
 /**
  * lib/excel-import.ts
  *
- * Imports data from an Oryx Excel export workbook.
+ * Imports data from an ORYX Excel export workbook.
  * Matches the column layout produced by lib/global-export.ts.
  *
  * Strategy per sheet:
