@@ -23,7 +23,7 @@ export function DashboardHoldsPanel({
     <section>
       <div className="mb-6 flex items-center gap-3">
         <Ban className="h-5 w-5 text-[#4c4546] dark:text-t3" aria-hidden />
-        <h3 className="text-2xl font-semibold tracking-tight text-t1">Clients on Hold</h3>
+        <h3 className="type-section-heading text-t1">Clients on Hold</h3>
         {(clientsOnHold ?? holds.length) > 0 && (
           <span className="rounded-md bg-[var(--stitch-search-bg,#f3f3f5)] px-2 py-0.5 text-xs font-bold text-t2 tabular-nums">
             {clientsOnHold ?? holds.length}

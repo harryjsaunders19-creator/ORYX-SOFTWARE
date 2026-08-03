@@ -10,7 +10,7 @@ import { THEME_INIT_SCRIPT } from "@/shared/theme/theme-utils"
 import { buildSessionPayload } from "@/shared/auth/session-payload"
 
 export const metadata: Metadata = {
-  title: { default: "Oryx Design", template: "%s · Oryx" },
+  title: { default: "ORYX Design", template: "%s · ORYX" },
   description: "Scaffold design job management",
   icons: {
     icon: [

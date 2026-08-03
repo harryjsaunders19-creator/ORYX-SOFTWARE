@@ -446,7 +446,7 @@ export function AuthLayout({
         <div className="flex flex-col items-center gap-2 md:flex-row md:gap-4">
           <span className={cn(Typography.Helper, "font-bold text-t1")}>ORYX OS</span>
           <span className={cn(Typography.Helper, "text-center text-t3 md:text-left")}>
-            © {year} ORYX OS. Engineering Precision for Scaffold Design.
+            © {year} ORYX OS.
           </span>
         </div>
         <div className="flex flex-wrap justify-center gap-6">

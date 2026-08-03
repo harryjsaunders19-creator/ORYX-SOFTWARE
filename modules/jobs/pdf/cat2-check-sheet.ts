@@ -53,7 +53,7 @@ const LIABILITY =
   "Nothing in this certificate shall impose upon us any greater liability than the exercise of reasonable professional skill, care and diligence."
 
 const UNCONTROLLED_COPY =
-  "This certificate is only valid when viewed at the latest revision in the Oryx Document Management System. Printed or downloaded copies may become uncontrolled if subsequent revisions are issued."
+  "This certificate is only valid when viewed at the latest revision in the ORYX Document Management System. Printed or downloaded copies may become uncontrolled if subsequent revisions are issued."
 
 export function cat2ExportFilename(drawingNumber: string): string {
   const safeDrawing = drawingNumber.replace(/[\\/:*?"<>|]/g, "-").trim() || "drawing"
@@ -423,7 +423,7 @@ export async function buildCat2CheckSheetPdf(job: JobRow): Promise<Uint8Array> {
   const footerY = 50
   hRule(page, footerY + 14, RULE)
 
-  const company = "Oryx Scaffold Design Ltd"
+  const company = "ORYX Scaffold Design Ltd"
   const revLabel = `Rev ${revision}`
   const pageLabel = "Page 1 of 1"
   const footerSize = 7.5

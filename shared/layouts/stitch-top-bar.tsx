@@ -28,7 +28,7 @@ function looksLikeId(segment: string): boolean {
 }
 
 function routeContext(pathname: string): { section: string; trail: string } {
-  if (pathname === "/") return { section: "Oryx OS", trail: "Dashboard" }
+  if (pathname === "/") return { section: "ORYX OS", trail: "Dashboard" }
 
   const mod = MODULES.find(m => {
     if (m.href === "/") return false
@@ -37,7 +37,7 @@ function routeContext(pathname: string): { section: string; trail: string } {
 
   if (mod) {
     const rest = pathname.slice(mod.href.length).replace(/^\//, "")
-    if (!rest) return { section: "Oryx OS", trail: mod.label }
+    if (!rest) return { section: "ORYX OS", trail: mod.label }
 
     const parts = rest.split("/").filter(Boolean)
     const readable = parts
@@ -46,13 +46,13 @@ function routeContext(pathname: string): { section: string; trail: string } {
 
     if (!readable.length) {
       const singular = mod.label.endsWith("s") ? mod.label.slice(0, -1) : mod.label
-      return { section: "Oryx OS", trail: `${singular} detail` }
+      return { section: "ORYX OS", trail: `${singular} detail` }
     }
 
-    return { section: "Oryx OS", trail: `${mod.label} / ${readable.join(" / ")}` }
+    return { section: "ORYX OS", trail: `${mod.label} / ${readable.join(" / ")}` }
   }
 
-  return { section: "Oryx OS", trail: "Oryx Design" }
+  return { section: "ORYX OS", trail: "ORYX Design" }
 }
 
 type Props = {
@@ -151,7 +151,7 @@ export function StitchTopBar({ onMenuClick }: Props) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <a href="https://www.oryxdesignltd.co.uk/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                    <ExternalLink className="h-3.5 w-3.5" /> Oryx website
+                    <ExternalLink className="h-3.5 w-3.5" /> ORYX website
                   </a>
                 </DropdownMenuItem>
               </DropdownMenuContent>

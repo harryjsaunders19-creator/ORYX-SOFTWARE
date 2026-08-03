@@ -45,7 +45,7 @@ function KpiCard({
     >
       <p className="mb-2 text-sm font-medium text-[#4c4546] dark:text-t3">{label}</p>
       <div className="flex items-baseline gap-2">
-        <h2 className="text-[32px] font-bold leading-[1.2] tracking-[-0.02em] text-t1 tabular-nums">
+        <h2 className="type-stat text-t1 tabular-nums">
           {displayValue ?? value}
         </h2>
         <span className={cn("text-[12px] font-bold", subClass)}>{sub}</span>

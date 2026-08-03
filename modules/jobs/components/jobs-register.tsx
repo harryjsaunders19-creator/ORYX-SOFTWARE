@@ -384,10 +384,10 @@ export function JobsRegister({
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div className="min-w-0">
-                  <h1 className="text-[32px] font-bold leading-none tracking-tighter text-t1">
+                  <h1 className="type-page-title text-t1">
                     {title}
                   </h1>
-                  <p className="mt-2 text-sm text-t3">{subtitle}</p>
+                  <p className="type-small mt-2 text-t3">{subtitle}</p>
                 </div>
 
                 <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">

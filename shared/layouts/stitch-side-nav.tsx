@@ -69,7 +69,7 @@ function NavLink({ item, active, collapsed, onNavigate, compact }: NavLinkProps)
         strokeWidth: active ? 2.25 : 1.75,
         "aria-hidden": true,
       })}
-      {!collapsed && <span className="truncate text-[16px] leading-[1.5] tracking-[-0.01em]">{item.label}</span>}
+      {!collapsed && <span className="type-nav truncate">{item.label}</span>}
       {collapsed && <span className="sr-only">{item.label}</span>}
     </Link>
   )
@@ -131,12 +131,9 @@ function SideNavContent({
           ) : (
             <>
               <OryxLogo variant="menu" className="mb-3 max-w-[160px]" />
-              <h1 className="stitch-sidebar-brand-title text-[24px] font-bold leading-[1.3] tracking-tighter text-black">
+              <h1 className="stitch-sidebar-brand-title type-section-heading text-black">
                 ORYX OS
               </h1>
-              <p className="stitch-sidebar-brand-sub text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--stitch-sidebar-text-muted)]">
-                Engineering Precision
-              </p>
             </>
           )}
         </Link>

@@ -33,7 +33,7 @@ export function DashboardOverduePanel({
       <div className="mb-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 fill-[#ba1a1a] text-[#ba1a1a]" aria-hidden />
-          <h3 className="text-2xl font-semibold tracking-tight text-t1">Overdue Jobs</h3>
+          <h3 className="type-section-heading text-t1">Overdue Jobs</h3>
           {overdueCount > 0 && (
             <span className="rounded-md bg-[var(--stitch-error-container,#ffdad6)] px-2 py-0.5 text-xs font-bold text-[var(--stitch-on-error-container,#93000a)] tabular-nums">
               {overdueCount}

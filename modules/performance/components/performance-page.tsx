@@ -619,7 +619,7 @@ function PerformancePageInner() {
           <span className="uppercase tracking-wide">Last Sync: {syncTime}</span>
         </div>
         <div className="uppercase tracking-wide">
-          © {new Date().getFullYear()} Oryx OS Precision Engineering
+          © {new Date().getFullYear()} ORYX OS
         </div>
       </div>
     </PageShell>

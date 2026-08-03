@@ -77,7 +77,7 @@ export function DashboardAttentionBanner({
           <div className="flex items-start gap-2.5 text-sm text-ok-tx">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-ok-ic" aria-hidden />
             <p className="font-medium">
-              Oryx is operating normally — {active} active job{active === 1 ? "" : "s"}, nothing overdue.
+              ORYX is operating normally — {active} active job{active === 1 ? "" : "s"}, nothing overdue.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end">

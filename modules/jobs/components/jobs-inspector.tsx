@@ -644,7 +644,7 @@ export function JobsInspector({
               </button>
             ) : null}
             <div className="min-w-0">
-              <h2 className="text-[22px] font-bold tracking-tight text-t1 tabular-nums leading-tight">
+              <h2 className="type-section-heading type-drawing-number text-t1 tabular-nums">
                 {drawingNumber}
               </h2>
               <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-t3">

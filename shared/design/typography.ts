@@ -1,5 +1,5 @@
 /**
- * Oryx OS typography system — single Inter family, shared scale.
+ * ORYX OS typography system — single Inter family, shared scale.
  *
  * Prefer these tokens over arbitrary `text-[Npx]` / ad-hoc font weights.
  * CSS lives in `app/globals.css` (`.type-*` utilities + `@theme` text sizes).

@@ -530,7 +530,7 @@ export async function importLogicalBackupPack(
   const parsed = logicalBackupPackSchema.safeParse(raw)
   if (!parsed.success) {
     throw new Error(
-      "Invalid backup file. Expected an Oryx logical backup JSON (Export full data).",
+      "Invalid backup file. Expected an ORYX logical backup JSON (Export full data).",
     )
   }
   const pack = parsed.data as LogicalBackupPack

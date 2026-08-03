@@ -22,7 +22,7 @@ const jsonFileSchema = z.custom<File>(
   "No file provided",
 ).refine(
   file => file.name.toLowerCase().endsWith(".json"),
-  "File must be an Oryx logical backup (.json)",
+  "File must be an ORYX logical backup (.json)",
 )
 
 export async function POST(req: NextRequest) {
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     const payloadParsed = logicalBackupPackSchema.safeParse(parsed)
     if (!payloadParsed.success) {
       return NextResponse.json(
-        { error: "Invalid backup file. Expected an Oryx logical backup JSON (Export full data)." },
+        { error: "Invalid backup file. Expected an ORYX logical backup JSON (Export full data)." },
         { status: 422 },
       )
     }

@@ -51,7 +51,7 @@ export function DashboardScheduleRail({ events }: { events: DashboardWeekEvent[]
               <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
                 Next Meeting
               </span>
-              <h4 className="mt-4 mb-2 text-2xl font-semibold tracking-tight">{nextMeeting.title}</h4>
+              <h4 className="type-section-heading mt-4 mb-2">{nextMeeting.title}</h4>
               <div className="mb-6 flex items-center gap-2 text-base text-white/70">
                 <Clock className="h-4 w-4 shrink-0" aria-hidden />
                 <span>{eventTimeLabel(nextMeeting)}</span>

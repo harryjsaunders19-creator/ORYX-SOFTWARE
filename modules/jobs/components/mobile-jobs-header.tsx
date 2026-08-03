@@ -58,7 +58,7 @@ export function MobileJobsHeader({
   return (
     <header className="shrink-0 border-b border-bd bg-s1 px-4 pt-3 pb-3">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="min-w-0 text-[28px] font-bold leading-tight tracking-tight text-t1">
+        <h1 className="type-page-title min-w-0 text-t1">
           {title}
         </h1>
         {showProjectActions && canCreate ? (

@@ -242,10 +242,10 @@ export function InspectorHeader({
             <div className="flex flex-wrap items-center gap-2">
               <h3
                 className={cn(
-                  "font-bold tracking-tight text-t1 tabular-nums",
+                  "type-drawing-number tracking-tight text-t1 tabular-nums",
                   dense
-                    ? "text-lg leading-snug [overflow-wrap:anywhere]"
-                    : "truncate text-[22px]",
+                    ? "type-card-title leading-snug [overflow-wrap:anywhere]"
+                    : "type-section-heading truncate",
                 )}
               >
                 {drawingNumber}

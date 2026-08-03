@@ -99,10 +99,10 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       )}
     >
       <div role="cell" className="min-w-0 px-6 py-3.5">
-        <p className="min-w-0 truncate text-[16px] font-bold tabular-nums tracking-tight text-t1">
+        <p className="type-drawing-number type-body-lg min-w-0 truncate tabular-nums text-t1">
           {project.drawingNumber}
         </p>
-        <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide text-t3">
+        <p className="type-helper mt-0.5 truncate uppercase tracking-wide text-t3">
           {workType}
         </p>
       </div>
