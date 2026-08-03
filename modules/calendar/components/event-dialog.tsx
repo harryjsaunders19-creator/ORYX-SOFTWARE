@@ -249,7 +249,7 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
                 <Label>Assigned staff</Label>
                 <div className="border border-bd rounded-md p-2 max-h-[120px] overflow-y-auto thin-scroll space-y-0.5" style={{ borderColor: "var(--color-bd)" }}>
                   {users.map(u => (
-                    <label key={u.id} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-pg cursor-pointer text-xs text-t2">
+                    <label key={u.id} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-hover-surface cursor-pointer text-xs text-t2">
                       <input
                         type="checkbox"
                         checked={assigneeIds.includes(u.id)}

@@ -262,7 +262,7 @@ function BackupsInner() {
             </Button>
             <label className={cn(
               "inline-flex items-center gap-1.5 text-sm font-medium rounded-md px-3 py-1.5 border border-bd cursor-pointer",
-              "bg-sr text-t1 hover:bg-pg transition-colors",
+              "bg-sr text-t1 hover:bg-hover-surface transition-colors",
               (busy) && "opacity-50 pointer-events-none",
             )}>
               {importingJson
@@ -279,7 +279,7 @@ function BackupsInner() {
             </label>
             <label className={cn(
               "inline-flex items-center gap-1.5 text-sm font-medium rounded-md px-3 py-1.5 border border-bd cursor-pointer",
-              "bg-sr text-t1 hover:bg-pg transition-colors",
+              "bg-sr text-t1 hover:bg-hover-surface transition-colors",
               busy && "opacity-50 pointer-events-none",
             )}>
               {importingExcel

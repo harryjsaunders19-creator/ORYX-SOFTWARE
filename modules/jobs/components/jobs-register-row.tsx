@@ -87,13 +87,13 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       }}
       className={cn(
         REGISTER_GRID,
-        "group items-center gap-0 border-b border-bd px-0 cursor-pointer",
+        "group items-center gap-0 border-b border-bd-subtle px-0 cursor-pointer",
         "transition-[background-color,border-color] duration-150 ease-out",
         "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-jobs-row-selected-accent/40",
         selected
-          ? "border-l-4 border-l-jobs-row-selected-accent border-b-bd bg-jobs-row-selected"
+          ? "border-l-4 border-l-jobs-row-selected-accent border-b-bd-subtle bg-jobs-row-selected"
           : cn(
-              "border-l-4 border-l-transparent hover:bg-jobs-row-hover",
+              "border-l-4 border-l-transparent hover:bg-hover-surface",
               zebra && "bg-jobs-row-alt",
             ),
       )}

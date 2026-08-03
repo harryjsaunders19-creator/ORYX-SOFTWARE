@@ -32,7 +32,7 @@ export function DashboardHoldsPanel({
       </div>
 
       {holds.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-[var(--stitch-outline-variant,#cfc4c5)] bg-sr px-6 py-12">
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-bd bg-sr px-6 py-12 shadow-card">
           <CheckCircle2 className="h-5 w-5 text-t4" aria-hidden />
           <p className="text-sm text-t3">No clients are currently on hold.</p>
         </div>
@@ -42,15 +42,15 @@ export function DashboardHoldsPanel({
             <Link
               key={hold.id}
               href={`/clients/${hold.clientId}`}
-              className="group flex items-center justify-between rounded-xl border border-[var(--stitch-outline-variant,#cfc4c5)] bg-sr p-5 transition-shadow hover:shadow-sm"
+              className="group flex items-center justify-between rounded-xl border border-bd bg-sr p-5 shadow-card transition-shadow hover:shadow-sm"
             >
               <div className="flex min-w-0 items-center gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--stitch-sidebar-bg,#eeeef0)] text-sm font-bold text-black dark:bg-surface-low dark:text-t1">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-nested-surface text-sm font-bold text-t1">
                   {clientInitials(hold.clientName)}
                 </div>
                 <div className="min-w-0">
                   <h4 className="truncate text-sm font-medium text-t1">{hold.clientName}</h4>
-                  <p className="text-[12px] text-[#4c4546] dark:text-t3">
+                  <p className="text-[12px] text-t3">
                     Status:{" "}
                     <span className="font-medium text-[#ba1a1a]">{hold.reason || "On hold"}</span>
                   </p>

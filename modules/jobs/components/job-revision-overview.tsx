@@ -186,7 +186,7 @@ export function JobRevisionOverview({
                   key={row.id}
                   id={`revision-row-${row.id}`}
                   className={cn(
-                    "cursor-pointer transition-colors hover:bg-pg/50 group",
+                    "cursor-pointer transition-colors hover:bg-hover-surface group",
                     selectedRevisionId === row.id && "bg-pg/40",
                   )}
                   onClick={() => onSelectedRevisionId(row.id)}

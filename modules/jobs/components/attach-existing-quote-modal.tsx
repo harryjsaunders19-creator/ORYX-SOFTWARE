@@ -195,7 +195,7 @@ export function AttachExistingQuoteModal({
                       setError(null)
                     }}
                     className={cn(
-                      "w-full text-left px-3 py-2.5 hover:bg-pg transition-colors",
+                      "w-full text-left px-3 py-2.5 hover:bg-hover-surface transition-colors",
                       selected?.id === q.id && "bg-ac-bg",
                     )}
                   >

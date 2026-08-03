@@ -138,7 +138,7 @@ export function LinkJobModal({ quote, onClose, onLinked }: LinkJobModalProps) {
                     key={job.id}
                     type="button"
                     onClick={() => { setSelected(job); setConfirmReassign(false); setError(null) }}
-                    className={`w-full text-left px-3 py-2.5 hover:bg-pg transition-colors ${
+                    className={`w-full text-left px-3 py-2.5 hover:bg-hover-surface transition-colors ${
                       selected?.id === job.id ? "bg-ac-bg" : ""
                     }`}
                   >

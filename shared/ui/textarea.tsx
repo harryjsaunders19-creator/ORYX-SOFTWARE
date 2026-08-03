@@ -10,8 +10,9 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttribu
         Typography.Small,
         "flex w-full rounded-lg border border-bd bg-sr px-3.5 py-2.5 text-t1",
         "placeholder:text-t4 resize-none",
+        "hover:border-bd-strong",
         "focus:outline-none focus:ring-2 focus:ring-ac/20 focus:border-ac",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-nested-surface",
         className,
       )}
       style={{

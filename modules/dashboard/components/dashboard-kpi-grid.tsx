@@ -41,7 +41,7 @@ function KpiCard({
   return (
     <Link
       href={href}
-      className="block rounded-xl border border-[var(--stitch-outline-variant,#cfc4c5)] bg-sr p-6 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 max-md:p-4"
+      className="block rounded-xl border border-bd bg-sr p-6 shadow-card transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 max-md:p-4"
     >
       <p className="mb-2 text-sm font-medium text-[#4c4546] dark:text-t3">{label}</p>
       <div className="flex items-baseline gap-2">

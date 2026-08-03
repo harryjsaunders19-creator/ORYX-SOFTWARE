@@ -44,7 +44,7 @@ export const DropdownMenuItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-default select-none items-center gap-2 rounded-md px-2.5 py-2 text-sm outline-none",
-      "focus:bg-pg data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
+      "focus:bg-hover-surface data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
       danger ? "text-dn focus:bg-dn-bg" : "text-t1",
       className,
     )}
@@ -71,7 +71,7 @@ export const DropdownMenuCheckboxItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-default select-none items-center rounded-md py-2 pl-7 pr-2.5 text-sm text-t1 outline-none",
-      "focus:bg-pg data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
+      "focus:bg-hover-surface data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
       className,
     )}
     style={{ padding: "8px 10px 8px 28px", fontSize: "13px", borderRadius: "var(--radius-md)", position: "relative", cursor: "default" }}

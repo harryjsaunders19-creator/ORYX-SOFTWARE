@@ -103,7 +103,7 @@ export function NotificationsMenu() {
           type="button"
           className={cn(
             "relative h-9 w-9 rounded-full flex items-center justify-center",
-            "text-t3 hover:bg-pg hover:text-t2 transition-colors",
+            "text-t3 hover:bg-hover-surface hover:text-t2 transition-colors",
             open && "bg-pg text-t2",
           )}
           title="Notifications"
@@ -168,7 +168,7 @@ export function NotificationsMenu() {
                     <Link
                       href={n.href}
                       onClick={() => setOpen(false)}
-                      className="flex items-start gap-3 px-4 py-3 hover:bg-pg transition-colors border-b border-bd last:border-0"
+                      className="flex items-start gap-3 px-4 py-3 hover:bg-hover-surface transition-colors border-b border-bd last:border-0"
                     >
                       <div className="relative mt-0.5 shrink-0">
                         <div className="w-8 h-8 rounded-lg bg-surface-low flex items-center justify-center">

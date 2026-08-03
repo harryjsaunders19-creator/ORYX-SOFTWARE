@@ -94,7 +94,7 @@ export function TypeOfWorksCombobox({ value, onChange, disabled, className, erro
                     type="button"
                     onMouseDown={e => { e.preventDefault(); select(t) }}
                     className={cn(
-                      "w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-pg",
+                      "w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-hover-surface",
                       t === value ? "text-ac font-medium" : "text-t1",
                     )}
                   >

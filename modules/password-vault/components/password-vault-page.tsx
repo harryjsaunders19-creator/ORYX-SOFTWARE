@@ -153,7 +153,7 @@ function PasswordCell({
           const pw = await ensurePassword()
           if (pw) setVisible(true)
         }}
-        className="p-1 rounded text-t3 hover:text-t1 hover:bg-pg disabled:opacity-50"
+        className="p-1 rounded text-t3 hover:text-t1 hover:bg-hover-surface disabled:opacity-50"
         aria-label={visible ? "Hide password" : "Show password"}
       >
         {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -165,7 +165,7 @@ function PasswordCell({
           const pw = await ensurePassword()
           if (pw) await copyText(pw, "Password", toast)
         }}
-        className="p-1 rounded text-t3 hover:text-t1 hover:bg-pg disabled:opacity-50"
+        className="p-1 rounded text-t3 hover:text-t1 hover:bg-hover-surface disabled:opacity-50"
         aria-label="Copy password"
       >
         <Copy className="h-3.5 w-3.5" />
@@ -359,7 +359,7 @@ function VaultPageInner() {
               </TableHead>
               <tbody className="divide-y divide-bd">
                 {data.entries.map(entry => (
-                  <tr key={entry.id} className="hover:bg-pg/50">
+                  <tr key={entry.id} className="hover:bg-hover-surface/50">
                     <td className="px-4 py-3 font-medium text-t1 whitespace-nowrap">{entry.serviceName}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -368,7 +368,7 @@ function VaultPageInner() {
                           <button
                             type="button"
                             onClick={() => copyText(entry.username!, "Username", toast)}
-                            className="shrink-0 p-1 rounded text-t3 hover:text-t1 hover:bg-pg"
+                            className="shrink-0 p-1 rounded text-t3 hover:text-t1 hover:bg-hover-surface"
                             aria-label="Copy username"
                           >
                             <Copy className="h-3.5 w-3.5" />

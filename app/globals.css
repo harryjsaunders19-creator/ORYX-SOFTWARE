@@ -9,17 +9,20 @@
  *  Tailwind CSS v4: tokens live here in @theme (not tailwind.config).
  *
  *  Surfaces (prefer these for all modules):
- *    s0  Application canvas       → bg-s0   (Light: #F3F4F6 cool grey)
- *    s1  Workspace (lists/tables) → bg-s1   (Light: white)
- *    s2  Inspector / focus panel  → bg-s2 / bg-jobs-panel (Light: #F7F7F8)
- *        Use InspectorShell from shared/layouts/inspector-shell.tsx
+ *    s0  Application canvas       → bg-s0 / bg-pg   (Light: #F3F4F6)
+ *    s1  Primary cards / tables   → bg-s1 / bg-sr   (Light: #FFFFFF)
+ *    s2  Secondary panels         → bg-s2 / bg-jobs-panel (Light: #F7F7F8)
+ *    nested / subtle / hover      → bg-nested-surface, bg-surface-low, bg-hover-surface
+ *
+ *  Semantic aliases (light):
+ *    --app-canvas, --navigation-surface, --panel-surface, --card-surface,
+ *    --nested-surface, --subtle-surface, --hover-surface, --selected-surface,
+ *    --border-default, --border-subtle, --border-strong,
+ *    --text-primary, --text-secondary, --text-muted
+ *
+ *  Borders: bd = default (#D9DEE5), bd-subtle = dividers (#E5E7EB),
+ *           bd-strong = interactive (#CBD1D9).
  *  Legacy aliases: pg ≈ s0, sr ≈ s1.
- *
- *  Semantic aliases: --app-canvas, --sidebar-surface, --panel-surface,
- *  --card-surface, --subtle-surface, --border-default, --border-strong,
- *  --row-selected, --row-hover.
- *
- *  Other tokens: border-bd / text-t1 / text-ac / bg-sel-bg / shadow-modal
  *
  *  Radius (raw px — html font-size is 14px, so rem radii drift):
  *    control  --radius-lg  8px   buttons, inputs, selects
@@ -72,10 +75,9 @@
   /*
    * Surface hierarchy (Oryx OS) — Light Theme:
    *   s0 — Application canvas (cool light grey)
-   *   s1 — White workspace / table / cards
-   *   s2 — Inspector / focus panel (light neutral)
-   * Legacy aliases: pg ≈ s0, sr ≈ s1. Prefer s0/s1/s2 for new UI.
-   * Chrome stays monochrome; colour is for information only.
+   *   s1 — White primary cards / tables / forms
+   *   s2 — Secondary panels / inspectors
+   * Legacy aliases: pg ≈ s0, sr ≈ s1.
    */
   --color-s0:     #F3F4F6;
   --color-s1:     #FFFFFF;
@@ -83,27 +85,31 @@
   --color-pg:     #F3F4F6;
   --color-sr:     #FFFFFF;
   --color-surface-low: #F1F3F5;
+  --color-nested-surface: #FAFAFB;
+  --color-hover-surface: #F7F8FA;
+  --color-selected-surface: #EEF4FF;
   --color-sidebar:     #F7F8FA;
-  --color-nav-hover:   #edeeef;
-  --color-nav-active:  #e7e8e9;
+  --color-nav-hover:   #EEF0F3;
+  --color-nav-active:  #000000;
   --color-outline: #76777d;
 
-  /* Borders — neutral cool grey (not blue-grey) */
-  --color-bd:     #E5E7EB;
-  --color-bd-strong: #D9DEE5;
-  --color-bds:    #76777d;
-  /* Outer inspector panel outline (2px via border-2) */
+  /* Borders — default clearer than near-white; subtle for dense dividers */
+  --color-bd:        #D9DEE5;
+  --color-bd-subtle: #E5E7EB;
+  --color-bd-strong: #CBD1D9;
+  --color-bds:       #76777d;
+  /* Outer inspector panel outline */
   --color-inspector-bd: #D9DEE5;
-  /* Cards / dividers inside the inspector (Light Mode hierarchy) */
+  /* Cards / dividers inside the inspector */
   --color-inspector-card: #FFFFFF;
   --color-inspector-card-bd: #D9DEE5;
   --color-inspector-divider: #E5E7EB;
 
   /* Text */
-  --color-t1:     #191c1d;
+  --color-t1:     #111827;
   --color-t2:     #45464c;
-  --color-t3:     #76777d;
-  --color-t4:     #a1a1aa;
+  --color-t3:     #6B7280;
+  --color-t4:     #8A94A3;
 
   /* Primary accent — monochrome black (Stitch Engineering OS) */
   --color-ac:     #111827;
@@ -116,9 +122,9 @@
   --color-ac2h:   #0B6258;
   --color-ac2-bg: #E7F5F3;
 
-  /* UI selection / focus (neutral grey — never status colour) */
-  --color-sel-bg: #EEF1F5;
-  --color-sel-bd: #111827;
+  /* UI selection / focus — restrained blue-grey for selected rows */
+  --color-sel-bg: #EEF4FF;
+  --color-sel-bd: #2563EB;
 
   /* Danger */
   --color-dn:     #C0362C;   /* destructive actions */
@@ -215,11 +221,11 @@
   --space-8: 32px;
 
   /* ── Shadows ───────────────────────────────────────── */
-  --shadow-card:  0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-card:  0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-modal: 0 20px 50px -12px rgb(0 0 0 / 0.12), 0 4px 12px 0 rgb(0 0 0 / 0.04);
   --shadow-sidebar: none;
   /* Elevation for the active Inspector panel (Surface 2) */
-  --shadow-inspector: 0 8px 24px rgb(15 23 42 / 0.08);
+  --shadow-inspector: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   /* Soft lift for white cards sitting on the grey inspector */
   --shadow-inspector-card: none;
 
@@ -243,14 +249,22 @@
   --shadow-jobs-panel: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-jobs-list: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
 
-  /* Semantic surface aliases (prefer these for new chrome) */
+  /* Semantic surface aliases — single source for chrome across modules */
   --app-canvas: var(--color-s0);
+  --navigation-surface: var(--color-sidebar);
   --sidebar-surface: var(--color-sidebar);
-  --panel-surface: var(--color-jobs-panel);
-  --card-surface: var(--color-jobs-panel-card);
+  --panel-surface: var(--color-s2);
+  --card-surface: var(--color-s1);
+  --nested-surface: var(--color-nested-surface);
   --subtle-surface: var(--color-surface-low);
+  --hover-surface: var(--color-hover-surface);
+  --selected-surface: var(--color-selected-surface);
   --border-default: var(--color-bd);
+  --border-subtle: var(--color-bd-subtle);
   --border-strong: var(--color-bd-strong);
+  --text-primary: var(--color-t1);
+  --text-secondary: var(--color-t3);
+  --text-muted: var(--color-t4);
   --row-selected: var(--color-jobs-row-selected);
   --row-hover: var(--color-jobs-row-hover);
 }
@@ -269,8 +283,12 @@ html.dark {
   --color-pg:     #0F1115;
   --color-sr:     #181C22;
   --color-surface-low: #20252D;
+  --color-nested-surface: #1A1F26;
+  --color-hover-surface: #1A1F26;
+  --color-selected-surface: #1B2538;
   --color-outline: #3A414C;
   --color-bd:     #2B313B;
+  --color-bd-subtle: #2A3038;
   --color-bd-strong: #3A414C;
   --color-bds:    #3A414C;
   --color-inspector-bd: #2B313B;
@@ -290,8 +308,8 @@ html.dark {
   --color-ac2h:   #5EEAD4;
   --color-ac2-bg: rgba(45, 212, 191, 0.12);
   /* UI selection — deep slate-blue, not teal/green */
-  --color-sel-bg: #20252D;
-  --color-sel-bd: #E5E7EB;
+  --color-sel-bg: #1B2538;
+  --color-sel-bd: #3B82F6;
   --color-dn:     #EF4444;
   --color-dnh:    #F87171;
   --color-dn-bg:  rgba(239, 68, 68, 0.12);
@@ -364,12 +382,20 @@ html.dark {
   --shadow-jobs-list: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
 
   --app-canvas: var(--color-s0);
+  --navigation-surface: var(--color-sidebar);
   --sidebar-surface: var(--color-sidebar);
   --panel-surface: var(--color-jobs-panel);
   --card-surface: var(--color-jobs-panel-card);
+  --nested-surface: var(--color-nested-surface);
   --subtle-surface: var(--color-surface-low);
+  --hover-surface: var(--color-hover-surface);
+  --selected-surface: var(--color-selected-surface);
   --border-default: var(--color-bd);
+  --border-subtle: var(--color-bd-subtle);
   --border-strong: var(--color-bd-strong);
+  --text-primary: var(--color-t1);
+  --text-secondary: var(--color-t3);
+  --text-muted: var(--color-t4);
   --row-selected: var(--color-jobs-row-selected);
   --row-hover: var(--color-jobs-row-hover);
   color-scheme: dark;
@@ -658,17 +684,21 @@ html.stitch-layout {
   --color-pg: #F3F4F6;
   --color-sr: #FFFFFF;
   --color-surface-low: #F1F3F5;
-  --color-bd: #E5E7EB;
-  --color-bd-strong: #D9DEE5;
+  --color-nested-surface: #FAFAFB;
+  --color-hover-surface: #F7F8FA;
+  --color-selected-surface: #EEF4FF;
+  --color-bd: #D9DEE5;
+  --color-bd-subtle: #E5E7EB;
+  --color-bd-strong: #CBD1D9;
   --color-bds: #76777d;
   --color-inspector-bd: #D9DEE5;
   --color-inspector-card: #FFFFFF;
   --color-inspector-card-bd: #D9DEE5;
   --color-inspector-divider: #E5E7EB;
-  --color-t1: #191c1d;
+  --color-t1: #111827;
   --color-t2: #45464c;
   --color-t3: #6B7280;
-  --color-t4: #9CA3AF;
+  --color-t4: #8A94A3;
   --color-ac: #111827;
   --color-ach: #000000;
   --color-ac-bg: #f3f4f6;
@@ -706,16 +736,25 @@ html.stitch-layout {
   --color-jobs-row-selected-accent: #2563EB;
   --color-jobs-row-hover: #F7F8FA;
   --color-jobs-row-alt: #FCFCFD;
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-jobs-panel: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-jobs-list: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
 
   --app-canvas: var(--color-s0);
+  --navigation-surface: var(--stitch-sidebar-bg);
   --sidebar-surface: var(--stitch-sidebar-bg);
-  --panel-surface: var(--color-jobs-panel);
-  --card-surface: var(--color-jobs-panel-card);
+  --panel-surface: var(--color-s2);
+  --card-surface: var(--color-s1);
+  --nested-surface: var(--color-nested-surface);
   --subtle-surface: var(--color-surface-low);
+  --hover-surface: var(--color-hover-surface);
+  --selected-surface: var(--color-selected-surface);
   --border-default: var(--color-bd);
+  --border-subtle: var(--color-bd-subtle);
   --border-strong: var(--color-bd-strong);
+  --text-primary: var(--color-t1);
+  --text-secondary: var(--color-t3);
+  --text-muted: var(--color-t4);
   --row-selected: var(--color-jobs-row-selected);
   --row-hover: var(--color-jobs-row-hover);
   color-scheme: light;
@@ -728,7 +767,11 @@ html.stitch-layout.dark {
   --color-pg: #0F1115;
   --color-sr: #181C22;
   --color-surface-low: #20252D;
+  --color-nested-surface: #1A1F26;
+  --color-hover-surface: #1A1F26;
+  --color-selected-surface: #1B2538;
   --color-bd: #2B313B;
+  --color-bd-subtle: #2A3038;
   --color-bd-strong: #3A414C;
   --color-bds: #3A414C;
   --color-inspector-bd: #2B313B;
@@ -778,12 +821,20 @@ html.stitch-layout.dark {
   --shadow-jobs-list: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
 
   --app-canvas: var(--color-s0);
+  --navigation-surface: var(--stitch-sidebar-bg);
   --sidebar-surface: var(--stitch-sidebar-bg);
   --panel-surface: var(--color-jobs-panel);
   --card-surface: var(--color-jobs-panel-card);
+  --nested-surface: var(--color-nested-surface);
   --subtle-surface: var(--color-surface-low);
+  --hover-surface: var(--color-hover-surface);
+  --selected-surface: var(--color-selected-surface);
   --border-default: var(--color-bd);
+  --border-subtle: var(--color-bd-subtle);
   --border-strong: var(--color-bd-strong);
+  --text-primary: var(--color-t1);
+  --text-secondary: var(--color-t3);
+  --text-muted: var(--color-t4);
   --row-selected: var(--color-jobs-row-selected);
   --row-hover: var(--color-jobs-row-hover);
   color-scheme: dark;
@@ -801,6 +852,7 @@ html.stitch-layout .oryx-surface-card {
   box-shadow: var(--shadow-card);
   border-radius: var(--radius-xl);
   border-color: var(--color-bd);
+  background-color: var(--card-surface, var(--color-sr));
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 

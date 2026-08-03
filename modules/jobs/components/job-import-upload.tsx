@@ -59,7 +59,7 @@ export function JobImportUpload({ uploading, selectedFile, onFileUpload }: Props
         onClick={() => fileInputRef.current?.click()}
         className={cn(
           "border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors",
-          dragOver ? "border-ac bg-ac-bg" : "border-bd hover:border-bds hover:bg-pg",
+          dragOver ? "border-ac bg-ac-bg" : "border-bd hover:border-bds hover:bg-hover-surface",
         )}
         style={{
           borderWidth: "2px",

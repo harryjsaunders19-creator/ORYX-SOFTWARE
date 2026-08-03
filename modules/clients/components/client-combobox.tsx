@@ -162,7 +162,7 @@ export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, c
                   <button
                     type="button"
                     onMouseDown={e => { e.preventDefault(); select(c) }}
-                    className={cn("w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm", c.onHold ? "bg-dn-bg hover:bg-dn-bg/70" : "hover:bg-pg")}
+                    className={cn("w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm", c.onHold ? "bg-dn-bg hover:bg-dn-bg/70" : "hover:bg-hover-surface")}
                   >
                     <Building2 className={cn("h-3.5 w-3.5 shrink-0", c.onHold ? "text-dn" : "text-t4")} />
                     <div className="flex-1 min-w-0">
@@ -188,7 +188,7 @@ export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, c
               <button
                 type="button"
                 onMouseDown={e => { e.preventDefault(); setOpen(false); onCreateNew(query.trim()) }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-ac hover:bg-pg font-medium"
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-ac hover:bg-hover-surface font-medium"
               >
                 <Plus className="h-3.5 w-3.5 shrink-0" />
                 Create &ldquo;{query.trim()}&rdquo; as new client

@@ -19,6 +19,7 @@ export const SelectTrigger = React.forwardRef<
       Typography.Small,
       "flex h-9 w-full items-center justify-between rounded-lg border border-bd bg-sr",
       "px-3.5 text-t1 transition-colors duration-150",
+      "hover:border-bd-strong",
       "focus:outline-none focus:ring-2 focus:ring-ac/20 focus:border-ac",
       "disabled:cursor-not-allowed disabled:opacity-50",
       "data-[placeholder]:text-t4",
@@ -101,7 +102,7 @@ export const SelectItem = React.forwardRef<
       Typography.Small,
       "relative flex w-full cursor-default select-none items-center",
       "rounded-md py-2 pl-7 pr-2.5 text-t1",
-      "focus:bg-pg outline-none",
+      "focus:bg-hover-surface outline-none",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}

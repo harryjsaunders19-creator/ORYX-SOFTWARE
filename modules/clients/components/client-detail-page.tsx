@@ -440,7 +440,7 @@ function JobsTable({ jobs }: { jobs: Job[] }) {
         </thead>
         <tbody>
           {jobs.map(j => (
-            <tr key={j.id} className="border-b border-bd last:border-0 hover:bg-pg">
+            <tr key={j.id} className="border-b border-bd last:border-0 hover:bg-hover-surface">
               <td className="px-3 py-2.5 whitespace-nowrap">
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
                   <RevisionFamilyBadge job={j} size="xs" />

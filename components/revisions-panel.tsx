@@ -141,7 +141,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
             <tbody className="divide-y divide-bd">
               {isOriginal && (
                 <tr
-                  className={`cursor-pointer hover:bg-pg ${job.id !== latestRev?.id ? "bg-pg/40" : ""}`}
+                  className={`cursor-pointer hover:bg-hover-surface ${job.id !== latestRev?.id ? "bg-pg/40" : ""}`}
                   onClick={() => router.push(`/jobs/${job.id}`)}
                 >
                   <td className="px-3 py-2.5 font-semibold text-t3 whitespace-nowrap">—</td>
@@ -168,7 +168,7 @@ export function RevisionsPanel({ job, onRevisionCreated }: Props) {
                 return (
                   <tr
                     key={rev.id}
-                    className={`cursor-pointer hover:bg-pg ${isLatest ? "bg-ac-bg/50" : ""}`}
+                    className={`cursor-pointer hover:bg-hover-surface ${isLatest ? "bg-ac-bg/50" : ""}`}
                     onClick={() => router.push(`/jobs/${rev.id}`)}
                   >
                     <td className="px-3 py-2.5 font-semibold text-t1 whitespace-nowrap">

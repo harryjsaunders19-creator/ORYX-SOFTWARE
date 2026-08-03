@@ -13,7 +13,7 @@ export function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
   onQuoteSaved?: () => void
 }) {
   return (
-    <tr className="hover:bg-pg">
+    <tr className="hover:bg-hover-surface">
       {view === "awaiting" && (
         <td className="px-3 py-3 w-8">
           <input

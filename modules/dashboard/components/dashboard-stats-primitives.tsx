@@ -59,7 +59,7 @@ export function StatCard({
 }) {
   const t = TONE[tone]
   const inner = (
-    <div className="group relative h-full overflow-hidden rounded-xl border border-bd bg-sr p-5 transition-all duration-150 hover:border-bds hover:shadow-sm max-md:p-4">
+    <div className="group relative h-full overflow-hidden rounded-xl border border-bd bg-sr p-5 shadow-card transition-all duration-150 hover:border-bd-strong hover:shadow-sm max-md:p-4">
       <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: t.accent }} />
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className={cn("rounded-full p-2.5", t.icon)}>
@@ -104,9 +104,9 @@ export function Panel({
   viewAllLabel?: string
   children: React.ReactNode
 }) {
-  const badgeClass = countTone ? TONE[countTone].badge : "bg-pg text-t2"
+  const badgeClass = countTone ? TONE[countTone].badge : "bg-nested-surface text-t2"
   return (
-    <section className="flex min-h-56 flex-col overflow-hidden rounded-xl border border-bd bg-sr shadow-sm">
+    <section className="flex min-h-56 flex-col overflow-hidden rounded-xl border border-bd bg-sr shadow-card">
       <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-4">
         <div className="flex min-w-0 items-center gap-2">
           <h2 className={cn(Typography.CardTitle, "text-t1")}>{title}</h2>

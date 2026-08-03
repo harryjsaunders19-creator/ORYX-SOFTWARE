@@ -52,7 +52,7 @@ export function StatusWorkflow({ jobId, currentStatus, onStatusChange, patchUrl 
                 className={cn(
                   "group flex flex-col items-center gap-1 flex-1 min-w-0 py-1 rounded",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-ac focus-visible:ring-inset",
-                  !current && !busy && "hover:bg-pg cursor-pointer",
+                  !current && !busy && "hover:bg-hover-surface cursor-pointer",
                   current  && "cursor-default",
                   busy && !loading && "opacity-40 cursor-not-allowed",
                 )}

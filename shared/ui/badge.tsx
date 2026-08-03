@@ -3,7 +3,7 @@ import { Typography } from "@/shared/design/typography"
 
 /** Payment status — colour only for paid success / sent attention. */
 const PAYMENT_BADGE: Record<string, string> = {
-  DRAFT: "bg-pg text-t2 border border-bd",
+  DRAFT: "bg-nested-surface text-t2 border border-bd",
   SENT:  "bg-rs-bg text-rs-tx border border-rs-bd",
   PAID:  "bg-ok-bg text-ok-tx border border-ok-bd",
 }

@@ -135,7 +135,7 @@ export function AddressAutocomplete({
               <li key={`${r.lat}-${r.lng}-${i}`} role="option" aria-selected={selected?.label === r.label}>
                 <button
                   type="button"
-                  className="w-full text-left px-3 py-2.5 text-sm text-t1 hover:bg-pg focus:bg-pg focus:outline-none"
+                  className="w-full text-left px-3 py-2.5 text-sm text-t1 hover:bg-hover-surface focus:bg-hover-surface focus:outline-none"
                   onClick={() => pick(r)}
                 >
                   {r.label}

@@ -68,7 +68,7 @@ export function BackupsList({ backups, loading, localBackupSupported }: Props) {
               </thead>
               <tbody>
                 {backups.map(b => (
-                  <tr key={b.id} className={cn("border-b border-bd last:border-0 hover:bg-pg", b.status === "FAILED" && "bg-dn-bg/30")}>
+                  <tr key={b.id} className={cn("border-b border-bd last:border-0 hover:bg-hover-surface", b.status === "FAILED" && "bg-dn-bg/30")}>
                     <td className="px-4 py-3"><StatusIcon status={b.status} /></td>
                     <td className="px-4 py-3 text-xs text-t1 tabular-nums whitespace-nowrap">
                       {format(new Date(b.startedAt), "d MMM yyyy, HH:mm:ss")}

@@ -25,7 +25,7 @@ export function BatchRow({ batch }: { batch: BillingExportBatch }) {
     finally { setDownloading(false) }
   }
   return (
-    <tr className="hover:bg-pg">
+    <tr className="hover:bg-hover-surface">
       <td className="px-4 py-3 type-drawing-number text-ac whitespace-nowrap font-semibold">{batch.batchNumber}</td>
       <td className="px-4 py-3 text-t3 tabular-nums whitespace-nowrap">{formatDisplayDate(batch.exportDate)}</td>
       <td className="px-4 py-3 text-t2 whitespace-nowrap">{batch.exportedBy}</td>

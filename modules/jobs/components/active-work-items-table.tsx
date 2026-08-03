@@ -243,7 +243,7 @@ export function ActiveWorkItemsTable({
                   <tr
                     key={`${row.kind}:${row.id}`}
                     className={cn(
-                      "border-b border-bd cursor-pointer hover:bg-pg/80 transition-colors",
+                      "border-b border-bd cursor-pointer hover:bg-hover-surface/80 transition-colors",
                       JOB_ROW_BG[row.status] ?? "",
                       JOB_ROW_BORDER[row.status] ?? "",
                     )}

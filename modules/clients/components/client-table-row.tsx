@@ -23,7 +23,7 @@ export const ClientTableRow = memo(function ClientTableRow({
   onArchive: (c: ClientWithMeta) => void
 }) {
   return (
-    <tr className={cn("border-b border-bd last:border-0 hover:bg-pg", !c.active && "opacity-60")}>
+    <tr className={cn("border-b border-bd last:border-0 hover:bg-hover-surface", !c.active && "opacity-60")}>
       <td className="px-4 py-3">
         <Link href={`/clients/${c.id}`} prefetch={false} className="font-medium text-t1 hover:text-ac flex items-center gap-1.5">
           {c.name}

@@ -80,7 +80,7 @@ export const DialogContent = React.forwardRef<
         "flex flex-col overflow-hidden",
         className,
       )}
-      style={{ background: "var(--color-sr)", border: "1px solid var(--color-bd)", borderRadius: "var(--radius-xl)" }}
+      style={{ background: "var(--card-surface, var(--color-sr))", border: "1px solid var(--border-default, var(--color-bd))", borderRadius: "var(--radius-xl)" }}
       {...props}
     >
       {children}
@@ -89,7 +89,7 @@ export const DialogContent = React.forwardRef<
           className={cn(
             "absolute right-4 top-4 z-10",
             "h-7 w-7 rounded-lg flex items-center justify-center",
-            "text-t4 hover:text-t2 hover:bg-pg",
+            "text-t4 hover:text-t2 hover:bg-hover-surface",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-ac",
           )}
           style={{ color: "var(--color-t4)" }}
@@ -133,7 +133,7 @@ export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLD
   return (
     <div
       className={cn(
-        "shrink-0 px-7 py-5 border-t border-bd bg-pg",
+        "shrink-0 px-7 py-5 border-t border-bd bg-nested-surface",
         "flex items-center justify-between gap-3",
         className,
       )}
@@ -141,7 +141,7 @@ export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLD
         flexShrink: 0,
         padding: "20px 28px",
         borderTop: "1px solid var(--color-bd)",
-        background: "var(--color-pg)",
+        background: "var(--nested-surface, var(--color-nested-surface))",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",

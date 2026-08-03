@@ -48,7 +48,7 @@ export function DashboardOverduePanel({
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-[var(--stitch-outline-variant,#cfc4c5)] bg-sr">
+      <div className="overflow-hidden rounded-xl border border-bd bg-sr shadow-card">
         {overdueJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 px-6 py-12">
             <CheckCircle2 className="h-5 w-5 text-t4" aria-hidden />
@@ -57,22 +57,22 @@ export function DashboardOverduePanel({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="border-b border-[var(--stitch-outline-variant,#cfc4c5)] bg-[var(--stitch-search-bg,#f3f3f5)]">
+              <thead className="border-b border-bd bg-surface-low">
                 <tr>
-                  <th className="px-6 py-4 text-sm font-medium text-[#4c4546] dark:text-t3">Job ID</th>
-                  <th className="px-6 py-4 text-sm font-medium text-[#4c4546] dark:text-t3">Description</th>
-                  <th className="px-6 py-4 text-sm font-medium text-[#4c4546] dark:text-t3">Due Date</th>
-                  <th className="px-6 py-4 text-right text-sm font-medium text-[#4c4546] dark:text-t3">Action</th>
+                  <th className="px-6 py-4 text-sm font-medium text-t3">Job ID</th>
+                  <th className="px-6 py-4 text-sm font-medium text-t3">Description</th>
+                  <th className="px-6 py-4 text-sm font-medium text-t3">Due Date</th>
+                  <th className="px-6 py-4 text-right text-sm font-medium text-t3">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--stitch-outline-variant,#cfc4c5)]">
+              <tbody className="divide-y divide-bd-subtle">
                 {overdueJobs.map(job => {
                   const description =
                     [job.typeOfWorks, job.address || job.siteAddress, job.clientCompany]
                       .filter(Boolean)
                       .join(" — ") || "—"
                   return (
-                    <tr key={job.id} className="group transition-colors hover:bg-[var(--stitch-search-bg,#f3f3f5)]/60">
+                    <tr key={job.id} className="group transition-colors hover:bg-hover-surface">
                       <td className="px-6 py-5">
                         <span className="rounded bg-[var(--stitch-error-container,#ffdad6)] px-3 py-1 font-mono text-[13px] font-bold text-[var(--stitch-on-error-container,#93000a)]">
                           {job.drawingNumber}
@@ -81,13 +81,13 @@ export function DashboardOverduePanel({
                       <td className="max-w-[280px] truncate px-6 py-5 text-base text-t1">
                         {description}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-5 text-[#4c4546] dark:text-t3">
+                      <td className="whitespace-nowrap px-6 py-5 text-t3">
                         {dueCellLabel(job)}
                       </td>
                       <td className="px-6 py-5 text-right">
                         <Link
                           href={`/jobs/${job.id}`}
-                          className="inline-flex rounded-full p-2 opacity-0 transition-opacity hover:bg-[var(--stitch-sidebar-bg,#eeeef0)] group-hover:opacity-100 focus-visible:opacity-100"
+                          className="inline-flex rounded-full p-2 opacity-0 transition-opacity hover:bg-nested-surface group-hover:opacity-100 focus-visible:opacity-100"
                           aria-label={`Open ${job.drawingNumber}`}
                         >
                           <ExternalLink className="h-4 w-4 text-t2" />

@@ -8,10 +8,10 @@ import { Button } from "@/shared/ui/button"
 import { Typography } from "@/shared/design/typography"
 import { OryxLogo } from "@/shared/branding/oryx-logo"
 
-/** Stitch surface — bordered card, minimal shadow. */
-export const surfaceCard = "oryx-surface-card bg-sr border border-bd rounded-xl"
+/** Primary content card — white on the grey app canvas. */
+export const surfaceCard = "oryx-surface-card bg-sr border border-bd rounded-xl shadow-card"
 
-/** Standard page wrapper — Stitch canvas padding below top bar. */
+/** Standard page wrapper — sits on the app canvas (bg-pg / s0). */
 export function PageShell({ children, className, wide }: {
   children: React.ReactNode
   className?: string
@@ -75,14 +75,14 @@ export function SearchField({ value, onChange, placeholder, className }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? "Search…"}
-        className="pl-10 bg-surface-low border border-bd shadow-none h-9 rounded-lg focus-visible:ring-2 focus-visible:ring-t1/20"
+        className="pl-10 bg-sr border border-bd shadow-none h-9 rounded-lg hover:border-bd-strong focus-visible:ring-2 focus-visible:ring-t1/20"
         style={{ paddingLeft: "40px", height: "36px" }}
       />
     </div>
   )
 }
 
-/** Card container for tables and dashboard sections — Stitch Level 1 surface. */
+/** Card container for tables and dashboard sections — primary white surface. */
 export function DataPanel({ children, className, noPadding }: {
   children: React.ReactNode
   className?: string
@@ -90,7 +90,7 @@ export function DataPanel({ children, className, noPadding }: {
 }) {
   return (
     <div className={cn(
-      "oryx-surface-card bg-sr border border-bd rounded-xl overflow-hidden",
+      "oryx-surface-card bg-sr border border-bd rounded-xl shadow-card overflow-hidden",
       !noPadding && "p-0",
       className,
     )}>
@@ -105,11 +105,11 @@ export function PanelHeader({ title, count, action }: {
   action?: React.ReactNode
 }) {
   return (
-    <div className="px-4 py-3 border-b border-bd flex items-center justify-between shrink-0 bg-sr">
+    <div className="px-4 py-3 border-b border-bd flex items-center justify-between shrink-0 bg-surface-low">
       <div className="flex items-center gap-2 min-w-0">
         <p className={cn(Typography.CardTitle, "text-t1")}>{title}</p>
         {count != null && count > 0 && (
-          <span className={cn(Typography.Badge, "rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center bg-pg text-t2 shrink-0 tabular-nums")}>
+          <span className={cn(Typography.Badge, "rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center bg-nested-surface text-t2 shrink-0 tabular-nums")}>
             {count}
           </span>
         )}
@@ -178,7 +178,7 @@ export function KpiTile({ label, value, sub, valueClassName, className }: {
 }) {
   return (
     <div className={cn(
-      "oryx-surface-card rounded-xl border border-bd bg-sr p-5 transition-colors duration-150 hover:border-bds",
+      "oryx-surface-card rounded-xl border border-bd bg-sr p-5 shadow-card transition-colors duration-150 hover:border-bd-strong",
       className,
     )}>
       <p className={cn(Typography.Stat, "mb-2", valueClassName ?? "text-t1")}>{value}</p>
@@ -230,7 +230,7 @@ export function TabBar({ tabs, active, onChange, trailing }: {
             {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
             {label}
             {count != null && count > 0 && (
-              <span className={cn(Typography.Badge, "ml-0.5 min-w-[18px] h-5 px-1.5 flex items-center justify-center rounded-full bg-pg text-t2 tabular-nums")}>
+              <span className={cn(Typography.Badge, "ml-0.5 min-w-[18px] h-5 px-1.5 flex items-center justify-center rounded-full bg-nested-surface text-t2 tabular-nums")}>
                 {count}
               </span>
             )}
@@ -370,7 +370,7 @@ export function EmptyPanel({ icon: Icon, title, description, action }: {
   return (
     <div className="py-14 px-6 text-center">
       <div className="inline-flex flex-col items-center gap-3 max-w-sm mx-auto">
-        <div className="w-11 h-11 rounded-lg border border-bd flex items-center justify-center bg-pg">
+        <div className="w-11 h-11 rounded-lg border border-bd flex items-center justify-center bg-nested-surface">
           <Icon className="h-5 w-5 text-t4" />
         </div>
         <div>

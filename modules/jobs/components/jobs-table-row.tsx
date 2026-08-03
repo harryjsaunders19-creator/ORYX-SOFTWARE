@@ -364,7 +364,7 @@ export const JobTableRow = memo(
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    "h-7 w-7 rounded flex items-center justify-center text-t4 hover:text-t2 hover:bg-pg",
+                    "h-7 w-7 rounded flex items-center justify-center text-t4 hover:text-t2 hover:bg-hover-surface",
                     "invisible group-hover:visible data-[state=open]:visible data-[state=open]:bg-pg data-[state=open]:text-t2",
                   )}
                   title="Quick actions"

@@ -224,7 +224,7 @@ function UsersPageInner() {
             </thead>
             <tbody>
               {data?.users.map(u => (
-                <tr key={u.id} className={cn("border-b border-bd last:border-0 hover:bg-pg", !u.active && "opacity-60")}>
+                <tr key={u.id} className={cn("border-b border-bd last:border-0 hover:bg-hover-surface", !u.active && "opacity-60")}>
                   <td className="px-4 py-3">
                     <span className="font-medium text-t1">{u.name}</span>
                     {me?.id === u.id && <span className="type-helper text-t4 ml-1.5">(you)</span>}
@@ -361,7 +361,7 @@ function UsersPageInner() {
             <p className="text-sm text-t2 mb-3">
               Give this password to <span className="font-semibold text-t1">{tempPasswordInfo?.name}</span> so they can log in. They'll be asked to set their own password on first login.
             </p>
-            <div className="bg-pg border border-bd rounded-md p-3 flex items-center justify-between gap-2">
+            <div className="bg-nested-surface border border-bd rounded-md p-3 flex items-center justify-between gap-2">
               <div>
                 <p className="type-helper text-t4 mb-0.5">Email</p>
                 <p className="text-sm font-medium text-t1">{tempPasswordInfo?.email}</p>

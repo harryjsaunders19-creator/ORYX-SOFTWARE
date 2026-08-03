@@ -41,7 +41,7 @@ export function DashboardScheduleRail({ events }: { events: DashboardWeekEvent[]
   return (
     <div className="space-y-10 md:space-y-12">
       <section>
-        <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-[#4c4546] dark:text-t3">
+        <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-t3">
           Upcoming Meetings
         </h3>
         {nextMeeting ? (
@@ -83,7 +83,7 @@ export function DashboardScheduleRail({ events }: { events: DashboardWeekEvent[]
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-[var(--stitch-outline-variant,#cfc4c5)] bg-sr p-8">
+          <div className="rounded-2xl border border-bd bg-sr p-8 shadow-card">
             <p className="text-sm text-t3">No meetings scheduled this week.</p>
             <Link href="/calendar" className="mt-3 inline-block text-xs font-semibold text-t2 underline decoration-dotted">
               Open calendar
@@ -93,7 +93,7 @@ export function DashboardScheduleRail({ events }: { events: DashboardWeekEvent[]
       </section>
 
       <section>
-        <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-[#4c4546] dark:text-t3">
+        <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-t3">
           Site Visits
         </h3>
         {siteVisits.length === 0 ? (
@@ -113,10 +113,10 @@ export function DashboardScheduleRail({ events }: { events: DashboardWeekEvent[]
                           : "h-2 w-2 rounded-full bg-[#7e7576] dark:bg-t4"
                       }
                     />
-                    {!isLast && <div className="my-2 w-px flex-1 bg-[var(--stitch-outline-variant,#cfc4c5)]" />}
+                    {!isLast && <div className="my-2 w-px flex-1 bg-bd" />}
                   </div>
                   <div className={isLast ? "pb-0" : "pb-6"}>
-                    <p className={`text-sm font-medium ${isFirst ? "text-black dark:text-t1" : "text-[#4c4546] dark:text-t3"}`}>
+                    <p className={`text-sm font-medium ${isFirst ? "text-t1" : "text-t3"}`}>
                       {shortTime(e)}
                       <span className="ml-2 font-normal text-t4">
                         {format(parseISO(e.startDate), "EEE d")}
@@ -142,19 +142,19 @@ export function DashboardScheduleRail({ events }: { events: DashboardWeekEvent[]
         )}
       </section>
 
-      <div className="rounded-xl border border-[var(--stitch-outline-variant,#cfc4c5)] bg-[var(--stitch-sidebar-bg,#eeeef0)] p-6 dark:bg-surface-low">
+      <div className="rounded-xl border border-bd bg-nested-surface p-6">
         <div className="mb-4 flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#4c4546] dark:text-t3">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-t3">
             System Latency
           </span>
-          <Link href="/health" className="text-[10px] font-bold text-black hover:underline dark:text-t1">
+          <Link href="/health" className="text-[10px] font-bold text-t1 hover:underline">
             Status
           </Link>
         </div>
-        <div className="h-1 overflow-hidden rounded-full bg-[var(--stitch-outline-variant,#cfc4c5)]">
-          <div className="h-full w-[85%] rounded-full bg-black dark:bg-t1" />
+        <div className="h-1 overflow-hidden rounded-full bg-bd">
+          <div className="h-full w-[85%] rounded-full bg-t1" />
         </div>
-        <p className="mt-4 text-[12px] italic text-[#4c4546] dark:text-t3">All services operational</p>
+        <p className="mt-4 text-[12px] italic text-t3">All services operational</p>
       </div>
     </div>
   )

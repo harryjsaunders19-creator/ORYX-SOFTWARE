@@ -155,7 +155,7 @@ export default function HoldListPage() {
         <DataPanel>
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-pg border-b border-bd text-xs">
+              <tr className="bg-surface-low border-b border-bd text-xs">
                 <th className="px-4 py-2.5 text-left ">Client</th>
                 <th className="px-4 py-2.5 text-left ">Reason</th>
                 <th className="px-4 py-2.5 text-left ">Date Added</th>
@@ -166,7 +166,7 @@ export default function HoldListPage() {
             </thead>
             <tbody>
               {data.holds.map(hold => (
-                <tr key={hold.id} className="border-b border-bd last:border-0 hover:bg-pg">
+                <tr key={hold.id} className="border-b border-bd-subtle last:border-0 hover:bg-hover-surface">
                   <td className="px-4 py-3">
                     <Link href={`/clients/${hold.clientId}`} className="flex items-center gap-2 font-medium text-t1 hover:text-ac">
                       <Building2 className="h-3.5 w-3.5 text-t4 shrink-0" />
@@ -242,7 +242,7 @@ export default function HoldListPage() {
                       style={{ position: "absolute", zIndex: 50, background: "var(--color-sr)", border: "1px solid var(--color-bd)" }}>
                       {clientResults.map(c => (
                         <button key={c.id} type="button"
-                          className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-pg"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-hover-surface"
                           onClick={() => { setSelectedClient(c); setClientSearch("") }}>
                           <Building2 className="h-3.5 w-3.5 text-t4" />
                           <span className="font-medium text-t1">{c.name}</span>

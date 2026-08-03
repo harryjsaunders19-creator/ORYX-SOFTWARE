@@ -131,7 +131,7 @@ function EmployeesInner() {
                 </TableHead>
                 <tbody>
                   {data.employees.map(emp => (
-                    <tr key={emp.userId} className="border-b border-bd last:border-0 hover:bg-pg">
+                    <tr key={emp.userId} className="border-b border-bd last:border-0 hover:bg-hover-surface">
                       <td className="px-4 py-3">
                         <EmployeeAvatar userId={emp.userId} name={emp.name} />
                       </td>

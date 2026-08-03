@@ -109,7 +109,7 @@ function ImportClientsInner() {
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={cn("border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors", dragOver ? "border-ac bg-ac-bg" : "border-bd hover:border-bds hover:bg-pg")}
+            className={cn("border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors", dragOver ? "border-ac bg-ac-bg" : "border-bd hover:border-bds hover:bg-hover-surface")}
             style={{ borderWidth: "2px", borderStyle: "dashed", borderRadius: "16px", padding: "48px", textAlign: "center", cursor: "pointer" }}
           >
             <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} className="hidden" />

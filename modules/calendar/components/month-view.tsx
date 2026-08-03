@@ -82,7 +82,7 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
             <div
               key={dayKey}
               onClick={() => onDayClick(day)}
-              className="min-h-[72px] border-b border-r border-bd p-1 cursor-pointer hover:bg-pg/50 transition-colors sm:min-h-[100px] sm:p-1.5"
+              className="min-h-[72px] border-b border-r border-bd p-1 cursor-pointer hover:bg-hover-surface transition-colors sm:min-h-[100px] sm:p-1.5"
               style={{
                 backgroundColor: isToday ? "var(--color-ac-bg)" : undefined,
                 borderColor: "var(--color-bd)",

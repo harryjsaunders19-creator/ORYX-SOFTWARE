@@ -123,7 +123,7 @@ export function SupabaseStatusSection() {
                   <button
                     type="button"
                     onClick={() => setExpanded(open ? null : mod.id)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-pg/50"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-hover-surface"
                   >
                     {modOk
                       ? <CheckCircle2 className="h-4 w-4 text-ok-ic shrink-0" />

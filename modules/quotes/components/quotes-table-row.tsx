@@ -26,12 +26,12 @@ export function QuoteRowActions({ quote: q, isPdfBusy, onGeneratePdf, onEdit, on
     <div className="flex items-center gap-1 justify-end flex-wrap">
       {q.pdfPath ? (
         <a href={resolveQuotePdfUrl(q.id, q.pdfPath) ?? "#"} target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg" title="Open PDF">
+          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-hover-surface" title="Open PDF">
           <FileDown className="h-3.5 w-3.5" />
         </a>
       ) : (
         <button onClick={() => onGeneratePdf(q)} disabled={isPdfBusy}
-          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-pg disabled:opacity-50"
+          className="inline-flex items-center gap-1 text-xs text-t3 hover:text-ac px-1.5 py-1 rounded hover:bg-hover-surface disabled:opacity-50"
           title="Generate PDF">
           {isPdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
         </button>
@@ -81,7 +81,7 @@ function QuoteTableRow({ quote: q, isPdfBusy, onGeneratePdf, onEdit, onSetStatus
   onLinkJob?: (q: Quote) => void
 }) {
   return (
-    <tr className="border-b border-bd last:border-0 hover:bg-pg">
+    <tr className="border-b border-bd last:border-0 hover:bg-hover-surface">
       <td className="px-4 py-3 whitespace-nowrap">
         <span className="type-drawing-number type-badge text-ac">{q.quoteNumber}</span>
       </td>
