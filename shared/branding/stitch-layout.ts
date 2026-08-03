@@ -1,11 +1,12 @@
 /**
- * Stitch ORYX OS shell — global surface hierarchy palette
- * (cool-grey canvas, light navigation, black active nav).
+ * Stitch ORYX OS shell — surface hierarchy palette.
+ * Sidebar tokens flip with light/dark in `app/globals.css`.
  */
 export const STITCH_COLORS = {
-  /** Navigation surface — slightly lighter than canvas */
+  /** Navigation surface — light default; dark overrides in CSS */
   sidebar: "#F7F8FA",
   sidebarActive: "#000000",
+  sidebarActiveText: "#ffffff",
   sidebarBorder: "#D9DEE5",
   sidebarText: "#1a1c1d",
   sidebarTextMuted: "#6B7280",

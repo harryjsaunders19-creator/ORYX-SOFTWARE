@@ -59,7 +59,7 @@ function NavLink({ item, active, collapsed, onNavigate, compact }: NavLinkProps)
       title={collapsed ? item.label : undefined}
       className={cn(
         "stitch-nav-link group flex items-center gap-3 rounded-lg transition-colors duration-200 outline-none",
-        "focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset",
+        "focus-visible:ring-2 focus-visible:ring-[color:var(--stitch-sidebar-text)]/25 focus-visible:ring-inset",
         compact ? "px-4 py-2" : "px-4 py-3",
         collapsed ? "justify-center mx-2 px-0" : "mx-0",
       )}
@@ -125,13 +125,19 @@ function SideNavContent({
           aria-label="ORYX OS — home"
         >
           {collapsed ? (
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-black text-sm font-semibold tracking-tight text-white">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-md text-sm font-semibold tracking-tight"
+              style={{
+                backgroundColor: "var(--stitch-sidebar-active)",
+                color: "var(--stitch-sidebar-active-text, #fff)",
+              }}
+            >
               O
             </div>
           ) : (
             <>
               <OryxLogo variant="menu" className="mb-3 max-w-[160px]" />
-              <h1 className="stitch-sidebar-brand-title type-section-heading text-black">
+              <h1 className="stitch-sidebar-brand-title type-section-heading">
                 ORYX OS
               </h1>
             </>
@@ -151,9 +157,10 @@ function SideNavContent({
             <div
               key={i}
               className={cn(
-                "my-1 h-11 animate-pulse rounded-lg bg-black/5",
+                "my-1 h-11 animate-pulse rounded-lg",
                 collapsed ? "mx-2" : "mx-0",
               )}
+              style={{ backgroundColor: "color-mix(in srgb, var(--stitch-sidebar-text) 8%, transparent)" }}
             />
           ))
         ) : (
@@ -176,9 +183,13 @@ function SideNavContent({
             onClick={() => onNavigate?.()}
             title={collapsed ? "New Project" : undefined}
             className={cn(
-              "flex w-full items-center justify-center gap-2 rounded-lg bg-black py-3 text-sm font-medium text-white transition-opacity hover:opacity-90",
+              "flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-medium transition-opacity hover:opacity-90",
               collapsed && "px-0",
             )}
+            style={{
+              backgroundColor: "var(--stitch-sidebar-active)",
+              color: "var(--stitch-sidebar-active-text, #fff)",
+            }}
           >
             <Plus className="h-5 w-5 shrink-0" aria-hidden />
             {!collapsed && <span>New Project</span>}
@@ -218,7 +229,7 @@ function SideNavContent({
             onClick={onToggleCollapse}
             className={cn(
               "flex w-full items-center gap-3 rounded-lg py-2 text-sm text-[color:var(--stitch-sidebar-text-muted)] transition-colors hover:bg-[color:var(--stitch-sidebar-hover)]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--stitch-sidebar-text)]/25",
               collapsed ? "justify-center px-0" : "px-4",
             )}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}

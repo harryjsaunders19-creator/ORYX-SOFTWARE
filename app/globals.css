@@ -304,6 +304,9 @@ html.dark {
   --color-ach:    #ffffff;
   --color-ac-bg:  rgba(255, 255, 255, 0.08);
   --color-on-ac:  #111111;
+  --color-sidebar: #181C22;
+  --color-nav-hover: #20252D;
+  --color-nav-active: #F5F7FA;
   --color-ac2:    #2DD4BF;
   --color-ac2h:   #5EEAD4;
   --color-ac2-bg: rgba(45, 212, 191, 0.12);
@@ -710,10 +713,12 @@ html.stitch-layout {
   --color-nav-active: #000000;
   --stitch-sidebar-bg: #F7F8FA;
   --stitch-sidebar-active: #000000;
+  --stitch-sidebar-active-text: #ffffff;
   --stitch-sidebar-text: #1a1c1d;
   --stitch-sidebar-text-muted: #6B7280;
   --stitch-sidebar-hover: #EEF0F3;
   --stitch-sidebar-border: #D9DEE5;
+  --stitch-menu-logo-fill: #111827;
   --stitch-outline-variant: #D9DEE5;
   --stitch-canvas-bg: #F3F4F6;
   --stitch-top-bar-bg: #F7F8FA;
@@ -788,16 +793,18 @@ html.stitch-layout.dark {
   --color-on-ac: #111111;
   --color-sel-bg: #1B2538;
   --color-sel-bd: #3B82F6;
-  /* Command Centre sidebar stays light; canvas/top bar follow dark theme */
-  --color-sidebar: #F7F8FA;
-  --color-nav-hover: #EEF0F3;
-  --color-nav-active: #000000;
-  --stitch-sidebar-bg: #F7F8FA;
-  --stitch-sidebar-active: #000000;
-  --stitch-sidebar-text: #1a1c1d;
-  --stitch-sidebar-text-muted: #6B7280;
-  --stitch-sidebar-hover: #EEF0F3;
-  --stitch-sidebar-border: #D9DEE5;
+  /* Sidebar follows dark theme with the rest of the shell */
+  --color-sidebar: #181C22;
+  --color-nav-hover: #20252D;
+  --color-nav-active: #F5F7FA;
+  --stitch-sidebar-bg: #181C22;
+  --stitch-sidebar-active: #F5F7FA;
+  --stitch-sidebar-active-text: #111111;
+  --stitch-sidebar-text: #F5F7FA;
+  --stitch-sidebar-text-muted: #9AA3AF;
+  --stitch-sidebar-hover: #20252D;
+  --stitch-sidebar-border: #2B313B;
+  --stitch-menu-logo-fill: #F5F7FA;
   --stitch-canvas-bg: #0F1115;
   --stitch-top-bar-bg: rgba(24, 28, 34, 0.92);
   --stitch-search-bg: #20252D;
@@ -860,7 +867,7 @@ html.stitch-layout.dark .oryx-surface-card {
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.35);
 }
 
-/* Stitch shell — Command Centre light sidebar + theme-aware canvas */
+/* Stitch shell — theme-aware sidebar + canvas */
 html.stitch-layout .stitch-sidebar,
 aside.stitch-sidebar {
   background-color: var(--stitch-sidebar-bg);
@@ -940,18 +947,18 @@ html.stitch-layout .stitch-nav-link:hover {
 
 html.stitch-layout .stitch-nav-link[data-active="true"] {
   background-color: var(--stitch-sidebar-active) !important;
-  color: #ffffff !important;
+  color: var(--stitch-sidebar-active-text, #ffffff) !important;
   font-weight: var(--type-nav-weight);
   transform: scale(0.98);
 }
 
 html.stitch-layout .stitch-nav-link[data-active="true"]:hover {
   background-color: var(--stitch-sidebar-active) !important;
-  color: #ffffff !important;
+  color: var(--stitch-sidebar-active-text, #ffffff) !important;
 }
 
 html.stitch-layout .stitch-sidebar-brand-title {
-  color: #000000;
+  color: var(--stitch-sidebar-text);
   font-size: var(--type-section-size);
   font-weight: var(--type-section-weight);
   line-height: var(--type-section-leading);
@@ -974,12 +981,12 @@ html.stitch-layout .stitch-nav-section-label {
   color: var(--stitch-sidebar-text-muted);
 }
 
-/* Menu logo — dark mark on the light sidebar surface */
+/* Menu logo — theme-aware fill on the sidebar surface */
 html.stitch-layout .stitch-menu-logo {
   width: 100%;
   max-width: 180px;
   aspect-ratio: 1024 / 631;
-  background-color: #111827;
+  background-color: var(--stitch-menu-logo-fill, #111827);
   -webkit-mask-image: url("/branding/greyscale-logo.png?v=5");
   mask-image: url("/branding/greyscale-logo.png?v=5");
   -webkit-mask-mode: luminance;

@@ -61,8 +61,8 @@ const VARIANTS = {
 export function OryxLogo({ variant = "menu", className, priority }: OryxLogoProps) {
   const s = VARIANTS[variant === "sidebar" ? "menu" : variant]
 
-  // Sidebar mark: luminance mask on a white fill — black in the PNG becomes
-  // transparent so only the wordmark shows on the dark nav.
+  // Sidebar mark: luminance mask on a theme-aware fill (dark on light sidebar,
+  // light on dark sidebar).
   if (variant === "menu" || variant === "sidebar") {
     return (
       <div
