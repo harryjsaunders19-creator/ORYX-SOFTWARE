@@ -9,12 +9,15 @@
  *  Tailwind CSS v4: tokens live here in @theme (not tailwind.config).
  *
  *  Surfaces (prefer these for all modules):
- *    s0  Application background   → bg-s0   (Light: pure white)
- *    s1  Workspace (lists/tables) → bg-s1   (Light: pure white)
- *    s2  Inspector / focus panel  → bg-s2 + border-2 border-inspector-bd + shadow-inspector
+ *    s0  Application canvas       → bg-s0   (Light: #F3F4F6 cool grey)
+ *    s1  Workspace (lists/tables) → bg-s1   (Light: white)
+ *    s2  Inspector / focus panel  → bg-s2 / bg-jobs-panel (Light: #F7F7F8)
  *        Use InspectorShell from shared/layouts/inspector-shell.tsx
- *        (Light: neutral engineering grey — not blue-grey)
  *  Legacy aliases: pg ≈ s0, sr ≈ s1.
+ *
+ *  Semantic aliases: --app-canvas, --sidebar-surface, --panel-surface,
+ *  --card-surface, --subtle-surface, --border-default, --border-strong,
+ *  --row-selected, --row-hover.
  *
  *  Other tokens: border-bd / text-t1 / text-ac / bg-sel-bg / shadow-modal
  *
@@ -68,31 +71,32 @@
   /* ── Colours ───────────────────────────────────────── */
   /*
    * Surface hierarchy (Oryx OS) — Light Theme:
-   *   s0 — Application background (pure white)
-   *   s1 — Workspace / job list (pure white)
-   *   s2 — Inspector / focus panel (neutral engineering grey)
+   *   s0 — Application canvas (cool light grey)
+   *   s1 — White workspace / table / cards
+   *   s2 — Inspector / focus panel (light neutral)
    * Legacy aliases: pg ≈ s0, sr ≈ s1. Prefer s0/s1/s2 for new UI.
    * Chrome stays monochrome; colour is for information only.
    */
-  --color-s0:     #FFFFFF;
+  --color-s0:     #F3F4F6;
   --color-s1:     #FFFFFF;
-  --color-s2:     #E7E9ED;
-  --color-pg:     #FFFFFF;
+  --color-s2:     #F7F7F8;
+  --color-pg:     #F3F4F6;
   --color-sr:     #FFFFFF;
-  --color-surface-low: #F3F4F6;
-  --color-sidebar:     #f8f9fa;
+  --color-surface-low: #F1F3F5;
+  --color-sidebar:     #F7F8FA;
   --color-nav-hover:   #edeeef;
   --color-nav-active:  #e7e8e9;
   --color-outline: #76777d;
 
   /* Borders — neutral cool grey (not blue-grey) */
   --color-bd:     #E5E7EB;
+  --color-bd-strong: #D9DEE5;
   --color-bds:    #76777d;
   /* Outer inspector panel outline (2px via border-2) */
-  --color-inspector-bd: #E5E7EB;
+  --color-inspector-bd: #D9DEE5;
   /* Cards / dividers inside the inspector (Light Mode hierarchy) */
   --color-inspector-card: #FFFFFF;
-  --color-inspector-card-bd: #E5E7EB;
+  --color-inspector-card-bd: #D9DEE5;
   --color-inspector-divider: #E5E7EB;
 
   /* Text */
@@ -217,22 +221,38 @@
   /* Elevation for the active Inspector panel (Surface 2) */
   --shadow-inspector: 0 8px 24px rgb(15 23 42 / 0.08);
   /* Soft lift for white cards sitting on the grey inspector */
-  --shadow-inspector-card: 0 1px 2px rgb(15 23 42 / 0.04);
+  --shadow-inspector-card: none;
 
   /*
-   * Jobs floating Job Detail workspace (light).
+   * Jobs surfaces (light) — panel sits above canvas; cards stay white.
    * Dark overrides live under html.dark / html.stitch-layout.dark.
    */
-  --color-jobs-panel: #FFFFFF;
-  --color-jobs-panel-bd: #E5E7EB;
+  --color-jobs-panel: #F7F7F8;
+  --color-jobs-panel-bd: #D9DEE5;
   --color-jobs-panel-card: #FFFFFF;
-  --color-jobs-panel-card-bd: #E5E7EB;
+  --color-jobs-panel-card-bd: #D9DEE5;
   --color-jobs-panel-divider: #E5E7EB;
-  --color-jobs-panel-hover: #F3F4F6;
-  --color-jobs-panel-btn-bd: #E5E7EB;
-  --color-jobs-row-selected: #F3F4F6;
-  --color-jobs-row-hover: #F9FAFB;
-  --shadow-jobs-panel: 0 4px 18px rgba(0, 0, 0, 0.06);
+  --color-jobs-panel-hover: #F1F3F5;
+  --color-jobs-panel-btn-bd: #D9DEE5;
+  --color-jobs-table-header: #F1F3F5;
+  --color-jobs-table-header-bd: #D7DCE3;
+  --color-jobs-row-selected: #EEF4FF;
+  --color-jobs-row-selected-accent: #2563EB;
+  --color-jobs-row-hover: #F7F8FA;
+  --color-jobs-row-alt: #FCFCFD;
+  --shadow-jobs-panel: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-jobs-list: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  /* Semantic surface aliases (prefer these for new chrome) */
+  --app-canvas: var(--color-s0);
+  --sidebar-surface: var(--color-sidebar);
+  --panel-surface: var(--color-jobs-panel);
+  --card-surface: var(--color-jobs-panel-card);
+  --subtle-surface: var(--color-surface-low);
+  --border-default: var(--color-bd);
+  --border-strong: var(--color-bd-strong);
+  --row-selected: var(--color-jobs-row-selected);
+  --row-hover: var(--color-jobs-row-hover);
 }
 
 /*
@@ -251,6 +271,7 @@ html.dark {
   --color-surface-low: #20252D;
   --color-outline: #3A414C;
   --color-bd:     #2B313B;
+  --color-bd-strong: #3A414C;
   --color-bds:    #3A414C;
   --color-inspector-bd: #2B313B;
   --color-inspector-card: #20252D;
@@ -333,9 +354,24 @@ html.dark {
   --color-jobs-panel-divider: #2A3038;
   --color-jobs-panel-hover: #242A33;
   --color-jobs-panel-btn-bd: #3A414C;
-  --color-jobs-row-selected: #20252D;
+  --color-jobs-table-header: #20252D;
+  --color-jobs-table-header-bd: #323944;
+  --color-jobs-row-selected: #1B2538;
+  --color-jobs-row-selected-accent: #3B82F6;
   --color-jobs-row-hover: #1A1F26;
+  --color-jobs-row-alt: #181C22;
   --shadow-jobs-panel: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-jobs-list: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+
+  --app-canvas: var(--color-s0);
+  --sidebar-surface: var(--color-sidebar);
+  --panel-surface: var(--color-jobs-panel);
+  --card-surface: var(--color-jobs-panel-card);
+  --subtle-surface: var(--color-surface-low);
+  --border-default: var(--color-bd);
+  --border-strong: var(--color-bd-strong);
+  --row-selected: var(--color-jobs-row-selected);
+  --row-hover: var(--color-jobs-row-hover);
   color-scheme: dark;
 }
 
@@ -613,59 +649,75 @@ html.dark {
 }
 
 /*
- * Stitch ORYX OS — light canvas + dark sidebar by default; dark mode flips canvas.
+ * Stitch ORYX OS — cool-grey canvas + light sidebar; dark mode flips canvas.
  */
 html.stitch-layout {
-  --color-s0: #f9f9fb;
+  --color-s0: #F3F4F6;
   --color-s1: #FFFFFF;
-  --color-s2: #f3f3f5;
-  --color-pg: #f9f9fb;
+  --color-s2: #F7F7F8;
+  --color-pg: #F3F4F6;
   --color-sr: #FFFFFF;
-  --color-surface-low: #f3f3f5;
+  --color-surface-low: #F1F3F5;
   --color-bd: #E5E7EB;
+  --color-bd-strong: #D9DEE5;
   --color-bds: #76777d;
-  --color-inspector-bd: #E5E7EB;
+  --color-inspector-bd: #D9DEE5;
   --color-inspector-card: #FFFFFF;
-  --color-inspector-card-bd: #E5E7EB;
+  --color-inspector-card-bd: #D9DEE5;
   --color-inspector-divider: #E5E7EB;
   --color-t1: #191c1d;
   --color-t2: #45464c;
-  --color-t3: #76777d;
-  --color-t4: #a1a1aa;
+  --color-t3: #6B7280;
+  --color-t4: #9CA3AF;
   --color-ac: #111827;
   --color-ach: #000000;
   --color-ac-bg: #f3f4f6;
   --color-on-ac: #ffffff;
-  --color-sel-bg: #EEF1F5;
-  --color-sel-bd: #111827;
-  --color-sidebar: #eeeef0;
-  --color-nav-hover: #e1dfdf;
+  --color-sel-bg: #EEF4FF;
+  --color-sel-bd: #2563EB;
+  --color-sidebar: #F7F8FA;
+  --color-nav-hover: #EEF0F3;
   --color-nav-active: #000000;
-  --stitch-sidebar-bg: #eeeef0;
+  --stitch-sidebar-bg: #F7F8FA;
   --stitch-sidebar-active: #000000;
   --stitch-sidebar-text: #1a1c1d;
-  --stitch-sidebar-text-muted: #4c4546;
-  --stitch-sidebar-hover: #e1dfdf;
-  --stitch-sidebar-border: #cfc4c5;
-  --stitch-outline-variant: #cfc4c5;
-  --stitch-canvas-bg: #f9f9fb;
-  --stitch-top-bar-bg: rgba(249, 249, 251, 0.8);
-  --stitch-search-bg: #f3f3f5;
+  --stitch-sidebar-text-muted: #6B7280;
+  --stitch-sidebar-hover: #EEF0F3;
+  --stitch-sidebar-border: #D9DEE5;
+  --stitch-outline-variant: #D9DEE5;
+  --stitch-canvas-bg: #F3F4F6;
+  --stitch-top-bar-bg: #F7F8FA;
+  --stitch-search-bg: #F1F3F5;
   --stitch-error-container: #ffdad6;
   --stitch-on-error-container: #93000a;
   --stitch-sidebar-w: 256px;
   --stitch-top-bar-h: 64px;
 
-  --color-jobs-panel: #FFFFFF;
-  --color-jobs-panel-bd: #E5E7EB;
+  --color-jobs-panel: #F7F7F8;
+  --color-jobs-panel-bd: #D9DEE5;
   --color-jobs-panel-card: #FFFFFF;
-  --color-jobs-panel-card-bd: #E5E7EB;
+  --color-jobs-panel-card-bd: #D9DEE5;
   --color-jobs-panel-divider: #E5E7EB;
-  --color-jobs-panel-hover: #F3F4F6;
-  --color-jobs-panel-btn-bd: #E5E7EB;
-  --color-jobs-row-selected: #F3F4F6;
-  --color-jobs-row-hover: #F9FAFB;
-  --shadow-jobs-panel: 0 4px 18px rgba(0, 0, 0, 0.06);
+  --color-jobs-panel-hover: #F1F3F5;
+  --color-jobs-panel-btn-bd: #D9DEE5;
+  --color-jobs-table-header: #F1F3F5;
+  --color-jobs-table-header-bd: #D7DCE3;
+  --color-jobs-row-selected: #EEF4FF;
+  --color-jobs-row-selected-accent: #2563EB;
+  --color-jobs-row-hover: #F7F8FA;
+  --color-jobs-row-alt: #FCFCFD;
+  --shadow-jobs-panel: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-jobs-list: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  --app-canvas: var(--color-s0);
+  --sidebar-surface: var(--stitch-sidebar-bg);
+  --panel-surface: var(--color-jobs-panel);
+  --card-surface: var(--color-jobs-panel-card);
+  --subtle-surface: var(--color-surface-low);
+  --border-default: var(--color-bd);
+  --border-strong: var(--color-bd-strong);
+  --row-selected: var(--color-jobs-row-selected);
+  --row-hover: var(--color-jobs-row-hover);
   color-scheme: light;
 }
 
@@ -677,6 +729,7 @@ html.stitch-layout.dark {
   --color-sr: #181C22;
   --color-surface-low: #20252D;
   --color-bd: #2B313B;
+  --color-bd-strong: #3A414C;
   --color-bds: #3A414C;
   --color-inspector-bd: #2B313B;
   --color-inspector-card: #20252D;
@@ -690,20 +743,20 @@ html.stitch-layout.dark {
   --color-ach: #ffffff;
   --color-ac-bg: rgba(255, 255, 255, 0.08);
   --color-on-ac: #111111;
-  --color-sel-bg: #20252D;
-  --color-sel-bd: #E5E7EB;
+  --color-sel-bg: #1B2538;
+  --color-sel-bd: #3B82F6;
   /* Command Centre sidebar stays light; canvas/top bar follow dark theme */
-  --color-sidebar: #eeeef0;
-  --color-nav-hover: #e1dfdf;
+  --color-sidebar: #F7F8FA;
+  --color-nav-hover: #EEF0F3;
   --color-nav-active: #000000;
-  --stitch-sidebar-bg: #eeeef0;
+  --stitch-sidebar-bg: #F7F8FA;
   --stitch-sidebar-active: #000000;
   --stitch-sidebar-text: #1a1c1d;
-  --stitch-sidebar-text-muted: #4c4546;
-  --stitch-sidebar-hover: #e1dfdf;
-  --stitch-sidebar-border: #cfc4c5;
+  --stitch-sidebar-text-muted: #6B7280;
+  --stitch-sidebar-hover: #EEF0F3;
+  --stitch-sidebar-border: #D9DEE5;
   --stitch-canvas-bg: #0F1115;
-  --stitch-top-bar-bg: rgba(24, 28, 34, 0.88);
+  --stitch-top-bar-bg: rgba(24, 28, 34, 0.92);
   --stitch-search-bg: #20252D;
   --stitch-outline-variant: #2B313B;
   --stitch-error-container: #5c1a1a;
@@ -715,9 +768,24 @@ html.stitch-layout.dark {
   --color-jobs-panel-divider: #2A3038;
   --color-jobs-panel-hover: #242A33;
   --color-jobs-panel-btn-bd: #3A414C;
-  --color-jobs-row-selected: #20252D;
+  --color-jobs-table-header: #20252D;
+  --color-jobs-table-header-bd: #323944;
+  --color-jobs-row-selected: #1B2538;
+  --color-jobs-row-selected-accent: #3B82F6;
   --color-jobs-row-hover: #1A1F26;
+  --color-jobs-row-alt: #181C22;
   --shadow-jobs-panel: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-jobs-list: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+
+  --app-canvas: var(--color-s0);
+  --sidebar-surface: var(--stitch-sidebar-bg);
+  --panel-surface: var(--color-jobs-panel);
+  --card-surface: var(--color-jobs-panel-card);
+  --subtle-surface: var(--color-surface-low);
+  --border-default: var(--color-bd);
+  --border-strong: var(--color-bd-strong);
+  --row-selected: var(--color-jobs-row-selected);
+  --row-hover: var(--color-jobs-row-hover);
   color-scheme: dark;
 }
 
@@ -743,8 +811,8 @@ html.stitch-layout.dark .oryx-surface-card {
 /* Stitch shell — Command Centre light sidebar + theme-aware canvas */
 html.stitch-layout .stitch-sidebar,
 aside.stitch-sidebar {
-  background-color: var(--stitch-sidebar-bg) !important;
-  border-right: 1px solid var(--stitch-sidebar-border, #cfc4c5) !important;
+  background-color: var(--stitch-sidebar-bg);
+  border-right: 1px solid var(--stitch-sidebar-border, #D9DEE5);
   color: var(--stitch-sidebar-text);
 }
 
@@ -765,11 +833,11 @@ html.stitch-layout .stitch-top-bar {
   left: 0;
   right: 0;
   height: var(--stitch-top-bar-h);
-  background-color: var(--stitch-top-bar-bg) !important;
-  border-bottom: none !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  backdrop-filter: saturate(150%) blur(12px);
-  -webkit-backdrop-filter: saturate(150%) blur(12px);
+  background-color: var(--stitch-top-bar-bg);
+  border-bottom: 1px solid var(--stitch-sidebar-border, var(--color-bd-strong));
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   transition: left 200ms ease-out;
 }
 

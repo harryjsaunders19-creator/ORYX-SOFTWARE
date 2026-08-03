@@ -5,8 +5,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { cn } from "@/shared/utils/utils"
 
 /**
- * Floating Job Detail workspace — theme-aware elevated panel.
- * Light: white on white. Dark: #181C22 on #0F1115 (not a bright inverted card).
+ * Job Detail workspace — panel surface above the canvas, white cards inside.
  */
 export function JobsInspectorShell({
   children,

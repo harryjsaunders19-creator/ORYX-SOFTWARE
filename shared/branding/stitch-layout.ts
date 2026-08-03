@@ -1,23 +1,23 @@
 /**
- * Stitch ORYX OS shell — Desktop Command Centre palette
- * (light sidebar + light canvas, black active nav).
+ * Stitch ORYX OS shell — surface hierarchy palette
+ * (cool-grey canvas, light sidebar, black active nav).
  */
 export const STITCH_COLORS = {
-  /** Light sidebar panel (surface-container) */
-  sidebar: "#eeeef0",
+  /** Light sidebar — slightly lighter than canvas */
+  sidebar: "#F7F8FA",
   sidebarActive: "#000000",
-  sidebarBorder: "#cfc4c5",
+  sidebarBorder: "#D9DEE5",
   sidebarText: "#1a1c1d",
-  sidebarTextMuted: "#4c4546",
-  sidebarHover: "#e1dfdf",
-  /** Light main canvas */
-  surface: "#f9f9fb",
-  background: "#f9f9fb",
-  surfaceBright: "#f9f9fb",
-  surfaceContainerLow: "#f3f3f5",
-  outlineVariant: "#cfc4c5",
+  sidebarTextMuted: "#6B7280",
+  sidebarHover: "#EEF0F3",
+  /** Cool light-grey application canvas */
+  surface: "#F3F4F6",
+  background: "#F3F4F6",
+  surfaceBright: "#FFFFFF",
+  surfaceContainerLow: "#F1F3F5",
+  outlineVariant: "#D9DEE5",
   onSurface: "#1a1c1d",
-  onSurfaceVariant: "#4c4546",
+  onSurfaceVariant: "#6B7280",
   primary: "#000000",
   error: "#ba1a1a",
   errorContainer: "#ffdad6",

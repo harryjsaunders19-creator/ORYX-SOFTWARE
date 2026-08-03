@@ -3,8 +3,8 @@
  * `stitch_minimalist_monochrome_job_card` (ORYX OS | Engineering Hub · Job List).
  * Design system: Industrial Mono Refined. Inspector rail: 480px.
  */
-/** Stitch Final registry row height (py-5 denser list). */
-export const REGISTER_ROW_H = 72
+/** Stitch Final registry row height (+4px for denser-but-legible scan). */
+export const REGISTER_ROW_H = 76
 /** Desktop: list flexes; inspector is a fixed 480px rail. */
 export const REGISTER_PCT = 65
 export const INSPECTOR_PCT = 35

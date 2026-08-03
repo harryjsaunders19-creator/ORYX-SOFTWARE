@@ -329,7 +329,7 @@ export function JobsRegister({
   }, [showMobileInspector])
 
   const toolbarBtn =
-    "inline-flex h-9 items-center gap-2 rounded border border-bd px-3 text-sm font-medium text-t1 transition-colors hover:bg-surface-low disabled:opacity-40"
+    "inline-flex h-9 items-center gap-2 rounded border border-bd-strong bg-s1 px-3 text-sm font-medium text-t1 transition-colors hover:bg-jobs-row-hover disabled:opacity-40"
 
   const handleExport = () => {
     void exportJobsToCsv(

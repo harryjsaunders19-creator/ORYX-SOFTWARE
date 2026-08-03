@@ -4,8 +4,8 @@
  */
 export const inspectorTokens = {
   /** Between major body sections (cards, metadata, accordions). */
-  section: "gap-6",
-  sectionY: "space-y-6",
+  section: "gap-7",
+  sectionY: "space-y-7",
   /** Padding inside InfoCard / RevisionCard. */
   cardPadding: "p-5",
   /** Metadata property grid row gap. */

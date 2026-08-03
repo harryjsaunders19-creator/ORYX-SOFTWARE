@@ -5,7 +5,7 @@ import { cn } from "@/shared/utils/utils"
 import { inspectorTokens, inspectorType } from "./tokens"
 
 export const infoCardClassName = cn(
-  "rounded-[10px] border border-inspector-card-bd bg-inspector-card shadow-inspector-card",
+  "rounded-[12px] border border-inspector-card-bd bg-inspector-card shadow-inspector-card",
 )
 
 /** Elevated information surface for high-priority inspector content. */

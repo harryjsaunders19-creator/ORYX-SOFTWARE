@@ -87,18 +87,18 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       }}
       className={cn(
         REGISTER_GRID,
-        "group items-center gap-0 border-b border-jobs-panel-bd/70 px-0 cursor-pointer",
-        "transition-[background-color,border-color,box-shadow] duration-150 ease-out",
-        "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ac",
+        "group items-center gap-0 border-b border-bd px-0 cursor-pointer",
+        "transition-[background-color,border-color] duration-150 ease-out",
+        "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-jobs-row-selected-accent/40",
         selected
-          ? "border-l-[3px] border-l-t1 border-b border-b-jobs-panel-bd bg-jobs-row-selected"
+          ? "border-l-4 border-l-jobs-row-selected-accent border-b-bd bg-jobs-row-selected"
           : cn(
-              "border-l-[3px] border-l-transparent hover:bg-jobs-row-hover",
-              zebra && "bg-jobs-row-hover/50",
+              "border-l-4 border-l-transparent hover:bg-jobs-row-hover",
+              zebra && "bg-jobs-row-alt",
             ),
       )}
     >
-      <div role="cell" className="min-w-0 px-6 py-3">
+      <div role="cell" className="min-w-0 px-6 py-3.5">
         <p className="min-w-0 truncate text-[16px] font-bold tabular-nums tracking-tight text-t1">
           {project.drawingNumber}
         </p>
@@ -107,17 +107,17 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
         </p>
       </div>
 
-      <div role="cell" className="min-w-0 px-6 py-3">
-        <p className="truncate text-sm text-t1">{project.clientCompany || "—"}</p>
+      <div role="cell" className="min-w-0 px-6 py-3.5">
+        <p className="truncate text-sm font-medium text-t2">{project.clientCompany || "—"}</p>
       </div>
 
-      <div role="cell" className="min-w-0 px-6 py-3">
-        <p className="truncate text-sm text-t2">{site}</p>
+      <div role="cell" className="min-w-0 px-6 py-3.5">
+        <p className="truncate text-sm text-t3">{site}</p>
       </div>
 
       <div
         role="cell"
-        className="min-w-0 px-6 py-3"
+        className="min-w-0 px-6 py-3.5"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
@@ -142,7 +142,7 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
 
       <div
         role="cell"
-        className="min-w-0 px-6 py-3"
+        className="min-w-0 px-6 py-3.5"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >

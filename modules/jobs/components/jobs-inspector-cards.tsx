@@ -589,7 +589,7 @@ export function ProjectDetailsSection({
       <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-t4">
         Job Summary
       </h3>
-      <div className="space-y-4 rounded-2xl border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
+      <div className="space-y-4 rounded-[12px] border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
         <Meta label="Client" value={data.client} />
         <Meta label="Site" value={data.siteName} />
         <Meta label="Address" value={data.siteAddress} />
@@ -659,7 +659,7 @@ export function CATIISummary({
         Linked Records
       </h3>
       {activeCheck ? (
-        <div className="rounded-2xl border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
+        <div className="rounded-[12px] border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-t1">{displayId}</p>
@@ -678,7 +678,7 @@ export function CATIISummary({
           </div>
         </div>
       ) : (
-        <div className="space-y-1.5 rounded-2xl border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
+        <div className="space-y-1.5 rounded-[12px] border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
           <div className="flex items-center justify-between gap-3">
             <p className={fieldMuted}>No CATII check for {activeLabel}</p>
             {canCreate && (
@@ -767,13 +767,13 @@ export function RevisionTimeline({
       </h3>
 
       {revisions.length === 0 || !current ? (
-        <div className="space-y-5 rounded-2xl border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
+        <div className="space-y-5 rounded-[12px] border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
           <p className={fieldMuted}>Original drawing only</p>
           {children}
         </div>
       ) : (
         <div className="space-y-5">
-          <div className="space-y-4 rounded-2xl border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
+          <div className="space-y-4 rounded-[12px] border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
             <button
               type="button"
               className={cn(

@@ -133,7 +133,7 @@ function SideNavContent({
               <h1 className="stitch-sidebar-brand-title text-[24px] font-bold leading-[1.3] tracking-tighter text-black">
                 ORYX OS
               </h1>
-              <p className="stitch-sidebar-brand-sub text-[10px] font-semibold uppercase tracking-[0.2em] text-[#4c4546]">
+              <p className="stitch-sidebar-brand-sub text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--stitch-sidebar-text-muted)]">
                 Engineering Precision
               </p>
             </div>
@@ -188,14 +188,14 @@ function SideNavContent({
           </Link>
         )}
 
-        <div className="space-y-1 border-t border-[#cfc4c5] pt-4">
+        <div className="space-y-1 border-t border-[color:var(--stitch-sidebar-border)] pt-4">
           <a
             href="https://www.oryxdesignltd.co.uk/"
             target="_blank"
             rel="noopener noreferrer"
             title={collapsed ? "Support" : undefined}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-4 py-2 text-[#4c4546] transition-colors hover:bg-[#e1dfdf]",
+              "flex items-center gap-3 rounded-lg px-4 py-2 text-[color:var(--stitch-sidebar-text-muted)] transition-colors hover:bg-[color:var(--stitch-sidebar-hover)]",
               collapsed && "justify-center px-0",
             )}
           >
@@ -219,7 +219,7 @@ function SideNavContent({
             type="button"
             onClick={onToggleCollapse}
             className={cn(
-              "flex w-full items-center gap-3 rounded-lg py-2 text-sm text-[#4c4546] transition-colors hover:bg-[#e1dfdf]",
+              "flex w-full items-center gap-3 rounded-lg py-2 text-sm text-[color:var(--stitch-sidebar-text-muted)] transition-colors hover:bg-[color:var(--stitch-sidebar-hover)]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
               collapsed ? "justify-center px-0" : "px-4",
             )}

@@ -59,8 +59,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   return (
     <div
       className={cn(
-        "mx-8 mb-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-jobs-panel-bd bg-s1",
-        "shadow-[0px_4px_18px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)]",
+        "mx-8 mb-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-jobs-panel-bd bg-s1 shadow-jobs-list",
         className,
       )}
     >
@@ -68,7 +67,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
         role="row"
         className={cn(
           REGISTER_GRID,
-          "sticky top-0 z-20 shrink-0 items-center border-b border-bd bg-surface-low",
+          "sticky top-0 z-20 shrink-0 items-center border-b border-jobs-table-header-bd bg-jobs-table-header",
         )}
       >
         {HEADERS.map((label, i) => (
@@ -76,7 +75,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
             key={label || `overflow-${i}`}
             role="columnheader"
             className={cn(
-              "px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-t3",
+              "px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-t3",
             )}
           >
             {label}

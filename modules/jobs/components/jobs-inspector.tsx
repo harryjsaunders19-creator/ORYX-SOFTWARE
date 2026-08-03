@@ -628,7 +628,7 @@ export function JobsInspector({
         <div
           className={cn(
             "flex items-start justify-between gap-3",
-            isDrawer ? "px-6 pt-6 pb-5" : "px-7 pt-7 pb-7",
+            isDrawer ? "px-6 pt-6 pb-5" : "px-7 pt-7 pb-6",
           )}
         >
           <div className="flex min-w-0 items-start gap-2">
@@ -685,11 +685,11 @@ export function JobsInspector({
       <div
         key={project.id}
         className={cn(
-          "mobile-job-detail__content min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-contain",
+          "mobile-job-detail__content min-h-0 flex-1 space-y-7 overflow-x-hidden overflow-y-auto overscroll-contain",
           "[-webkit-overflow-scrolling:touch]",
           isDrawer
             ? "px-6 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
-            : "px-7 py-7",
+            : "px-7 py-6",
         )}
       >
         <section aria-label="Actions" className="grid grid-cols-2 gap-3">

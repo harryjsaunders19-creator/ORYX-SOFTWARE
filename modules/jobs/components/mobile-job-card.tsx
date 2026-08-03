@@ -69,8 +69,8 @@ export const MobileJobCard = memo(function MobileJobCard({
         "transition-[border-color,box-shadow] duration-150 ease-out",
         "cursor-pointer focus-visible:ring-2 focus-visible:ring-ac",
         selected
-          ? "border-l-4 border-l-t1 border-bd"
-          : "border-l-4 border-l-transparent hover:border-bd",
+          ? "border-l-4 border-l-jobs-row-selected-accent border-bd bg-jobs-row-selected"
+          : "border-l-4 border-l-transparent hover:border-bd hover:bg-jobs-row-hover",
       )}
     >
       <div className="flex items-start justify-between gap-3">
