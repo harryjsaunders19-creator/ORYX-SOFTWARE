@@ -8,11 +8,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
-  Compass,
 } from "lucide-react"
 import { cn } from "@/shared/utils"
 import { useUser } from "@/shared/providers/user-context"
 import { modulesForUser, type ModuleDef } from "@/shared/auth/permissions"
+import { OryxLogo } from "@/shared/branding/oryx-logo"
 import { STITCH_SIDEBAR_COLLAPSED_W, STITCH_SIDEBAR_W } from "@/shared/branding/stitch-layout"
 import { isNavItemActive } from "@/shared/layouts/nav-utils"
 import { navIcon } from "@/shared/layouts/nav-icons"
@@ -118,24 +118,26 @@ function SideNavContent({
         <Link
           href="/"
           className={cn(
-            "mb-8 flex items-center transition-opacity hover:opacity-90",
-            collapsed ? "justify-center" : "gap-3",
+            "mb-8 block transition-opacity hover:opacity-90",
+            collapsed && "flex justify-center",
           )}
           onClick={() => onNavigate?.()}
           aria-label="ORYX OS — home"
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-black text-white">
-            <Compass className="h-5 w-5" strokeWidth={2} aria-hidden />
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
+          {collapsed ? (
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-black text-sm font-semibold tracking-tight text-white">
+              O
+            </div>
+          ) : (
+            <>
+              <OryxLogo variant="menu" className="mb-3 max-w-[160px]" />
               <h1 className="stitch-sidebar-brand-title text-[24px] font-bold leading-[1.3] tracking-tighter text-black">
                 ORYX OS
               </h1>
               <p className="stitch-sidebar-brand-sub text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--stitch-sidebar-text-muted)]">
                 Engineering Precision
               </p>
-            </div>
+            </>
           )}
         </Link>
       </div>

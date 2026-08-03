@@ -974,12 +974,12 @@ html.stitch-layout .stitch-nav-section-label {
   color: var(--stitch-sidebar-text-muted);
 }
 
-/* Legacy menu logo mask — retained for auth / other surfaces */
+/* Menu logo — dark mark on the light sidebar surface */
 html.stitch-layout .stitch-menu-logo {
   width: 100%;
   max-width: 180px;
   aspect-ratio: 1024 / 631;
-  background-color: #191c1d;
+  background-color: #111827;
   -webkit-mask-image: url("/branding/greyscale-logo.png?v=5");
   mask-image: url("/branding/greyscale-logo.png?v=5");
   -webkit-mask-mode: luminance;
