@@ -102,7 +102,38 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         changedBy,
       })
 
-      const updatedQuote = await quoteService.linkToJob(id, dashboard.parent.id)
+      // quotes.job_id FKs to jobs(id); parent id lives in parent_jobs.
+      // Link via parent_job_id only — never write parent id into job_id.
+      let updatedQuote: Awaited<ReturnType<typeof quoteService.findUnique>> = null
+      try {
+        const { createAdminClient } = await import("@/shared/supabase/admin")
+        const { data, error } = await createAdminClient()
+          .from("quotes")
+          .update({
+            parent_job_id: dashboard.parent.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .is("job_id", null)
+          .select("*")
+          .maybeSingle()
+        if (error) throw new Error(error.message)
+        updatedQuote = data
+          ? await quoteService.findUnique(id)
+          : null
+      } catch (linkErr) {
+        try {
+          await parentJobService.deleteCreated(dashboard.parent.id)
+        } catch (cleanupErr) {
+          logError("quote.convert.work_items_rollback_failed", cleanupErr, {
+            quoteId: id,
+            jobId: dashboard.parent.id,
+          })
+        }
+        logError("quote.convert.link_failed", linkErr, { quoteId: id, jobId })
+        return NextResponse.json({ error: "Failed to link quote to job" }, { status: 500 })
+      }
+
       if (!updatedQuote) {
         try {
           await parentJobService.deleteCreated(dashboard.parent.id)
@@ -115,15 +146,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         logError("quote.convert.link_failed", new Error("quote link failed"), { quoteId: id, jobId })
         return NextResponse.json({ error: "Failed to link quote to job" }, { status: 500 })
       }
-
-      // Best-effort: also set parent_job_id on the quote when column exists
-      try {
-        const { createAdminClient } = await import("@/shared/supabase/admin")
-        await createAdminClient()
-          .from("quotes")
-          .update({ parent_job_id: dashboard.parent.id })
-          .eq("id", id)
-      } catch { /* optional column */ }
 
       logEvent("quote.convert.success", {
         quoteId: id,

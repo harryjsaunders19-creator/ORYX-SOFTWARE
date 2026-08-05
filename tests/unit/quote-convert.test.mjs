@@ -71,6 +71,12 @@ describe("validateQuoteForConvert", () => {
     assert.equal(r.status, 409)
   })
 
+  it("rejects quotes linked via parent_job_id (work-items model)", () => {
+    const r = validateQuoteForConvert({ status: "ACCEPTED", jobId: null, parentJobId: "parent-1" })
+    assert.equal(r.ok, false)
+    assert.equal(r.status, 409)
+  })
+
   it("accepts convertible quotes", () => {
     const r = validateQuoteForConvert({ status: "ACCEPTED", jobId: null })
     assert.equal(r.ok, true)

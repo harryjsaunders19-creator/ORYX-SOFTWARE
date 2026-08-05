@@ -16,6 +16,8 @@ export interface QuoteRow {
   status: string
   notes: string | null
   jobId: string | null
+  /** Set when converted under WORK_ITEMS_MODEL (FK to parent_jobs). */
+  parentJobId?: string | null
   createdBy: string
   pdfPath: string | null
   preparedBy: string | null

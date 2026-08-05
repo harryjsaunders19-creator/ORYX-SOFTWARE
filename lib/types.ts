@@ -251,6 +251,8 @@ export interface Quote {
   status:        string   // DRAFT | SENT | ACCEPTED | REJECTED | EXPIRED
   notes:         string | null
   jobId:         string | null
+  /** Present when converted under the work-items model (parent_jobs FK). */
+  parentJobId?:  string | null
   createdBy:     string
   pdfPath:       string | null
   preparedBy:    string | null

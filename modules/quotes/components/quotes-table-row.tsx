@@ -58,10 +58,10 @@ export function QuoteRowActions({ quote: q, isPdfBusy, onGeneratePdf, onEdit, on
           </Button>
         </>
       )}
-      {q.status === "ACCEPTED" && !q.jobId && (
+      {q.status === "ACCEPTED" && !q.jobId && !q.parentJobId && (
         <Button variant="primary" size="sm" onClick={() => onConvert(q)}>Create Job</Button>
       )}
-      {!q.jobId && (
+      {!q.jobId && !q.parentJobId && (
         <Button variant="ghost" size="sm" className="text-t4 hover:text-wn-tx hover:bg-wn-bg" title="Archive quote" onClick={() => onArchive(q)}>
           <Archive className="h-3.5 w-3.5" />
         </Button>

@@ -44,7 +44,7 @@ type QuoteQuery = any
 const QUOTE_LIST_SELECT = [
   "id", "quote_number", "client_id", "client_company", "contact_name", "address",
   "description", "type_of_works", "custom_type_description", "quote_value",
-  "quote_date", "expiry_date", "status", "notes", "job_id", "created_by",
+  "quote_date", "expiry_date", "status", "notes", "job_id", "parent_job_id", "created_by",
   "pdf_path", "prepared_by", "vat_rate", "archived_at", "archived_by",
   "created_at", "updated_at",
 ].join(",")

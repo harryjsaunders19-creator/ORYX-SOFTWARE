@@ -203,6 +203,7 @@ export const SUPABASE_INFRA_MIGRATIONS = [
   { id: "login-rate-limits", label: "Login rate limits", migration: "026_login_rate_limits.sql", tables: ["login_rate_limits"] },
   { id: "security-sequences-aggregates", label: "Security sequences & aggregates", migration: "027_security_sequences_aggregates.sql", tables: ["app_sequences"] },
   { id: "employee-files-storage", label: "Employee files Storage bucket", migration: "028_employee_files_storage.sql", tables: [] },
+  { id: "convert-quote-parent-job-fix", label: "Fix convert_quote_to_job parent_job_id FK", migration: "043_fix_convert_quote_parent_job_id.sql", tables: ["quotes"] },
 ] as const
 
 export const SUPABASE_GO_LIVE_STEPS = [

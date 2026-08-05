@@ -69,14 +69,26 @@ function buildJobRow(data: CreateJobData, now: string): JobRow {
 }
 
 function isMissingRpcError(message: string): boolean {
-  return /convert_quote_to_job|42883|does not exist|PGRST202/i.test(message)
+  // Only treat *missing function* as absent — not business errors whose
+  // messages also contain the function name (e.g. "convert_quote_to_job: …").
+  return (
+    /42883|PGRST202/i.test(message) ||
+    /could not find the function.*convert_quote_to_job/i.test(message) ||
+    /function public\.convert_quote_to_job.*does not exist/i.test(message) ||
+    (/convert_quote_to_job/i.test(message) && /does not exist/i.test(message))
+  )
+}
+
+/** Old RPC builds wrote jobs.id into quotes.parent_job_id (FK to parent_jobs) — fall back. */
+function isBrokenParentJobIdRpcError(message: string): boolean {
+  return /parent_job_id/i.test(message) && /foreign key|violates/i.test(message)
 }
 
 async function convertViaRpc(
   quoteId: string,
   job: JobRow,
   changedBy: string,
-): Promise<{ job: JobRow; quote: QuoteRow } | "missing_rpc"> {
+): Promise<{ job: JobRow; quote: QuoteRow } | "missing_rpc" | "use_fallback"> {
   const supabase = createAdminClient()
   const { error } = await supabase.rpc("convert_quote_to_job", {
     p_quote_id: quoteId,
@@ -87,6 +99,7 @@ async function convertViaRpc(
 
   if (error) {
     if (isMissingRpcError(error.message)) return "missing_rpc"
+    if (isBrokenParentJobIdRpcError(error.message)) return "use_fallback"
     throw new Error(error.message)
   }
 
@@ -126,7 +139,7 @@ export async function convertQuoteToLegacyJob(
   // Local/CI SQLite has no admin client — skip RPC and use the create+link path.
   if (isSupabaseAdminConfigured()) {
     const viaRpc = await convertViaRpc(quoteId, job, changedBy)
-    if (viaRpc !== "missing_rpc") return viaRpc
+    if (viaRpc !== "missing_rpc" && viaRpc !== "use_fallback") return viaRpc
   }
 
   return convertLegacyFallback(quoteId, data)

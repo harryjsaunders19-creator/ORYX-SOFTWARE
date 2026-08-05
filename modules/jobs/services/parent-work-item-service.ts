@@ -117,7 +117,9 @@ async function recordWorkItemHistory(opts: {
 }): Promise<void> {
   await supabaseStatusHistoryRepo.upsert({
     id: nanoid(),
-    jobId: opts.workItem.legacyJobId,
+    // Prefer work_item_id only — legacyJobId may not exist in public.jobs when
+    // WORK_ITEMS_MODEL creates parent/work-item rows without a jobs mirror.
+    jobId: null,
     workItemId: opts.workItem.id,
     fromStatus: opts.fromStatus,
     toStatus: opts.toStatus,

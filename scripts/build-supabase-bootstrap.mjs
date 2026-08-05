@@ -68,6 +68,7 @@ const MIGRATION_ORDER = [
   "040_dashboard_active_jobs_statuses.sql",
   "041_dashboard_active_jobs_new_in_progress.sql",
   "042_dashboard_active_revisions.sql",
+  "043_fix_convert_quote_parent_job_id.sql",
 ]
 
 const header = `-- =============================================================================

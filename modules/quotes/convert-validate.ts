@@ -3,6 +3,7 @@
 export type QuoteConvertCandidate = {
   status: string
   jobId: string | null
+  parentJobId?: string | null
 }
 
 export type QuoteConvertValidationResult =
@@ -22,7 +23,7 @@ export function validateQuoteForConvert(
       body: { error: "Only accepted quotes can be converted to jobs" },
     }
   }
-  if (quote.jobId) {
+  if (quote.jobId || quote.parentJobId) {
     return {
       ok: false,
       status: 409,

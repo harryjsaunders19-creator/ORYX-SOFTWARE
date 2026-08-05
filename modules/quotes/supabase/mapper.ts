@@ -19,6 +19,7 @@ export interface SupabaseQuoteRow {
   status: string
   notes: string | null
   job_id: string | null
+  parent_job_id?: string | null
   created_by: string
   pdf_path: string | null
   prepared_by: string | null
@@ -61,6 +62,7 @@ export function toQuoteRow(row: SupabaseQuoteRow): QuoteRow {
     status: row.status,
     notes: row.notes,
     jobId: row.job_id,
+    parentJobId: row.parent_job_id ?? null,
     createdBy: row.created_by,
     pdfPath: row.pdf_path,
     preparedBy: row.prepared_by,
@@ -89,6 +91,8 @@ export function toSupabaseQuoteRow(quote: QuoteRow): SupabaseQuoteRow {
     status: quote.status,
     notes: quote.notes,
     job_id: quote.jobId,
+    // parent_job_id is set only via dedicated link helpers — omit from full-row upserts
+    // so older databases without the column still accept quote sync payloads.
     created_by: quote.createdBy,
     pdf_path: quote.pdfPath,
     prepared_by: quote.preparedBy,
