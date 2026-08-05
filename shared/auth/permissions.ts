@@ -40,7 +40,7 @@ export interface ModuleDef {
 export const MODULES: ModuleDef[] = [
   { key: "dashboard",  label: "Dashboard", href: "/",                  roles: ["ADMIN", "ENGINEER"] },
   { key: "clients",    label: "Clients",   href: "/clients",           roles: ["ADMIN", "ENGINEER"] },
-  { key: "hold-list",  label: "Hold List", href: "/clients/hold-list", roles: ["ADMIN", "ENGINEER"] },
+  { key: "hold-list",  label: "Client Hold List", href: "/clients/hold-list", roles: ["ADMIN", "ENGINEER"] },
   { key: "jobs",       label: "Jobs",      href: "/jobs",              roles: ["ADMIN", "ENGINEER"] },
   { key: "job-map",    label: "Job Map",   href: "/job-map",           roles: ["ADMIN"] },
   { key: "site-visit-calculator", label: "Site Visit Calculator", href: "/site-visit-calculator", roles: ["ADMIN", "ENGINEER"] },
