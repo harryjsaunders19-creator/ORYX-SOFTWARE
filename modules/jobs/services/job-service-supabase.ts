@@ -211,7 +211,7 @@ export const jobService = {
     byItemType: { itemType: string; count: number }[]
     unassigned: number
     totalActiveJobs: number
-    totalRevisions: number
+    activeRevisions: number
     overdueCount: number
     dueTodayCount: number
     dueThisWeekCount: number

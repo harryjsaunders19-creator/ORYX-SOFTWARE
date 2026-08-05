@@ -27,6 +27,7 @@ import {
 } from "./mapper"
 import {
   countActiveOriginalJobs,
+  countActiveRevisions,
   displayDeadlineByOriginal,
   overdueOriginalIds,
   tallyDeadlineStats,
@@ -739,7 +740,7 @@ export const supabaseJobRepo = {
     byItemType:       { itemType: string; count: number }[]
     unassigned:       number
     totalActiveJobs:  number
-    totalRevisions:   number
+    activeRevisions:  number
     overdueCount:     number
     dueTodayCount:    number
     dueThisWeekCount: number
@@ -770,7 +771,6 @@ export const supabaseJobRepo = {
     const statusCounts = new Map<string, number>()
     const typeCounts = new Map<string, number>()
     let unassigned = 0
-    let totalRevisions = 0
     const tallyRows = [] as {
       id: string
       parentJobId: string | null
@@ -788,8 +788,6 @@ export const supabaseJobRepo = {
       const designer = (row.designer as string | null) ?? ""
       if (!designer) unassigned += 1
 
-      if (row.parent_job_id != null) totalRevisions += 1
-
       tallyRows.push({
         id: row.id as string,
         parentJobId: (row.parent_job_id as string | null) ?? null,
@@ -801,6 +799,7 @@ export const supabaseJobRepo = {
 
     const deadlines = tallyDeadlineStats(tallyRows, todayIsoDate())
     const totalActiveJobs = countActiveOriginalJobs(tallyRows)
+    const activeRevisions = countActiveRevisions(tallyRows)
 
     return {
       byStatus: VALID_STATUSES
@@ -811,7 +810,7 @@ export const supabaseJobRepo = {
         .filter(r => r.count > 0),
       unassigned,
       totalActiveJobs,
-      totalRevisions,
+      activeRevisions,
       ...deadlines,
     }
   },

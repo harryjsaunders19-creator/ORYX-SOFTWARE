@@ -81,7 +81,7 @@ export const statsService = {
       recentJobs:      [],
       unassigned:      counts.unassigned,
       totalActiveJobs: counts.totalActiveJobs,
-      totalRevisions:  counts.totalRevisions,
+      activeRevisions:  counts.activeRevisions,
       totalQuotedValue: 0,
       totalIssuedValue: 0,
       avgJobValue:      0,

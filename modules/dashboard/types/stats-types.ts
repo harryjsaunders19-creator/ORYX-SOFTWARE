@@ -19,7 +19,7 @@ export interface DashboardWeekEvent {
 export interface StatsData {
   total:            number
   totalActiveJobs:  number
-  totalRevisions:   number
+  activeRevisions:  number
   newRequest:       number
   inDesign:         number
   checking:         number

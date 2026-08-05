@@ -28,6 +28,13 @@ export const DASHBOARD_ACTIVE_STATUSES = new Set([
   "IN_DESIGN",
 ])
 
+/** Revision rows still in flight — not sent (Ready to Send) or Complete. */
+export const DASHBOARD_ACTIVE_REVISION_STATUSES = new Set([
+  "NEW_REQUEST",
+  "IN_DESIGN",
+  "CHECKING",
+])
+
 function dayOnly(value: string | null | undefined): string | null {
   if (!value) return null
   return value.length >= 10 ? value.slice(0, 10) : value
@@ -98,6 +105,16 @@ export function countActiveOriginalJobs(rows: DeadlineTallyRow[]): number {
   let n = 0
   for (const { status } of display.values()) {
     if (DASHBOARD_ACTIVE_STATUSES.has(status)) n += 1
+  }
+  return n
+}
+
+/** Revision rows (not originals) that still need completing. */
+export function countActiveRevisions(rows: DeadlineTallyRow[]): number {
+  let n = 0
+  for (const row of rows) {
+    if (row.parentJobId == null) continue
+    if (DASHBOARD_ACTIVE_REVISION_STATUSES.has(row.status)) n += 1
   }
   return n
 }
