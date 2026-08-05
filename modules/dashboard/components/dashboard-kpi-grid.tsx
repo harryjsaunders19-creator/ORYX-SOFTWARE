@@ -7,13 +7,6 @@ function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n)
 }
 
-function formatMoneyShort(value: number | null | undefined): string | null {
-  if (value == null || Number.isNaN(value)) return null
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}m total`
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}k total`
-  return `$${Math.round(value)} total`
-}
-
 function KpiCard({
   label,
   value,
@@ -62,7 +55,6 @@ export function DashboardKpiGrid({
   overdueCount,
   totalRevisions,
   dueTodayCount,
-  invoicingValue,
   isAdmin,
 }: {
   active: number
@@ -72,11 +64,8 @@ export function DashboardKpiGrid({
   overdueCount: number
   totalRevisions?: number
   dueTodayCount?: number
-  invoicingValue?: number | null
   isAdmin: boolean
 }) {
-  const invoiceSub = formatMoneyShort(invoicingValue) ?? (invoicing > 0 ? "Awaiting handoff" : "Nothing queued")
-
   return (
     <section className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4 md:mb-12">
       <KpiCard
@@ -97,7 +86,7 @@ export function DashboardKpiGrid({
       <KpiCard
         label="Requires Check"
         value={checking}
-        sub={checking > 0 ? "Engineering Review" : "Queue clear"}
+        sub={checking > 0 ? "Pending" : "Queue clear"}
         subTone={checking > 0 ? "secondary" : "muted"}
         href="/jobs/checking"
       />
@@ -105,7 +94,7 @@ export function DashboardKpiGrid({
         <KpiCard
           label="Ready to Invoice"
           value={invoicing}
-          sub={invoiceSub}
+          sub={invoicing > 0 ? "Awaiting handoff" : "Nothing queued"}
           subTone="muted"
           href="/billing"
         />

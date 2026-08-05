@@ -141,21 +141,6 @@ export function DashboardScheduleRail({ events }: { events: DashboardWeekEvent[]
           </div>
         )}
       </section>
-
-      <div className="rounded-xl border border-bd bg-nested-surface p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-t3">
-            System Latency
-          </span>
-          <Link href="/health" className="text-[10px] font-bold text-t1 hover:underline">
-            Status
-          </Link>
-        </div>
-        <div className="h-1 overflow-hidden rounded-full bg-bd">
-          <div className="h-full w-[85%] rounded-full bg-t1" />
-        </div>
-        <p className="mt-4 text-[12px] italic text-t3">All services operational</p>
-      </div>
     </div>
   )
 }

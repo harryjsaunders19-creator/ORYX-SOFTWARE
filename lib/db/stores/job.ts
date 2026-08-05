@@ -359,7 +359,7 @@ export const jobDb = {
     return tallyDeadlineStats(rows, todayIsoDate())
   },
 
-  /** Originals whose current-revision status is New / In Progress / Checking. */
+  /** Originals whose current-revision status is New Request / In Progress. */
   countActiveOriginals(): number {
     const rows = db.prepare(
       "SELECT id, parentJobId, revisionLetter, status, requiredByDate FROM Job WHERE archivedAt IS NULL",

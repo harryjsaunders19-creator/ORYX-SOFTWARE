@@ -66,6 +66,7 @@ const MIGRATION_ORDER = [
   "038_user_module_access.sql",
   "039_job_design_standards.sql",
   "040_dashboard_active_jobs_statuses.sql",
+  "041_dashboard_active_jobs_new_in_progress.sql",
 ]
 
 const header = `-- =============================================================================
