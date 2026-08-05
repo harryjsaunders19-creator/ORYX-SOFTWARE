@@ -84,7 +84,7 @@ export class QuotePdfContext {
     }
   }
 
-  drawRule(y: number, x1 = CONTENT_LEFT, x2 = CONTENT_RIGHT, color = COLOR.rule): void {
+  drawRule(y: number, x1: number = CONTENT_LEFT, x2: number = CONTENT_RIGHT, color: RGB = COLOR.rule): void {
     this.page.drawLine({
       start: { x: x1, y },
       end: { x: x2, y },

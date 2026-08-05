@@ -11,12 +11,18 @@ import {
 } from "../layout"
 import type { QuotePdfContext } from "../context"
 
-const BOX_WIDTH = 220
+const BOX_WIDTH = 240
 
 /** Totals summary box anchored to the bottom-right at `anchorY`. */
 export function measureTotalsBoxHeight(totals: QuotePdfTotals): number {
-  const rows = totals.showVat ? 3 : 2
-  return SP.md * 2 + rows * (lineStep(TYPE.totalLabel) + SP.md) + TYPE.grandTotal + SP.lg
+  const innerPad = SP.lg
+  const rowGap = SP.md
+  const normalStep = lineStep(TYPE.totalValue) + rowGap
+  const sep = SP.lg
+  const grandStep = lineStep(TYPE.grandTotal) + SP.md
+
+  const normalRows = totals.showVat ? 2 : 1 // Subtotal (+ VAT)
+  return innerPad * 2 + normalRows * normalStep + sep + grandStep
 }
 
 /** Totals summary box anchored to the bottom-right. */
@@ -25,33 +31,21 @@ export function drawTotalsSummary(
   totals: QuotePdfTotals,
   anchorY: number,
 ): number {
-  const rows: { label: string; value: string; grand?: boolean }[] = [
-    { label: "Subtotal", value: fmtMoney(totals.subtotal) },
-  ]
-  if (totals.showVat && totals.vat != null) {
-    rows.push({ label: "VAT", value: fmtMoney(totals.vat) })
-  }
-  rows.push({
-    label: "Grand Total",
-    value: fmtMoney(totals.grandTotal),
-    grand: true,
-  })
-
   const labelSize = TYPE.totalLabel
   const valueSize = TYPE.totalValue
   const grandSize = TYPE.grandTotal
-  const rowGap = SP.md
-  const innerPad = SP.md
-  const grandPadTop = SP.sm
 
-  let boxH = innerPad * 2
-  for (const row of rows) {
-    boxH += row.grand
-      ? grandPadTop + capHeight(grandSize) + descender(grandSize) + SP.sm
-      : lineStep(labelSize)
-    boxH += rowGap
-  }
-  boxH -= rowGap
+  const innerPad = SP.lg
+  const rowGap = SP.md
+  const normalStep = lineStep(TYPE.totalValue) + rowGap
+  const sepGap = SP.lg
+  const grandStep = lineStep(TYPE.grandTotal) + SP.md
+
+  const boxH =
+    innerPad * 2 +
+    (totals.showVat ? 2 : 1) * normalStep +
+    sepGap +
+    grandStep
 
   const boxRight = CONTENT_RIGHT
   const boxLeft = boxRight - BOX_WIDTH
@@ -63,41 +57,40 @@ export function drawTotalsSummary(
     y: boxBottom,
     width: BOX_WIDTH,
     height: boxH,
-    color: COLOR.totalsBg,
+    color: COLOR.white,
     borderColor: COLOR.panelBorder,
-    borderWidth: 0.5,
+    borderWidth: 0.65,
   })
 
   let y = boxTop - innerPad
   const labelX = boxLeft + innerPad
   const valueX = boxRight - innerPad
 
-  for (const row of rows) {
-    if (row.grand) {
-      y -= grandPadTop
-      ctx.drawText(row.label, labelX, y, {
-        size: labelSize,
-        color: COLOR.muted,
-      })
-      ctx.drawText(row.value, valueX, y, {
-        size: grandSize,
-        bold: true,
-        align: "right",
-      })
-      y -= descender(grandSize) + SP.sm
-      continue
-    }
+  ctx.drawText("Subtotal", labelX, y, { size: labelSize, color: COLOR.muted })
+  ctx.drawText(fmtMoney(totals.subtotal), valueX, y, { size: valueSize, align: "right" })
+  y -= normalStep
 
-    ctx.drawText(row.label, labelX, y, {
-      size: labelSize,
-      color: COLOR.muted,
-    })
-    ctx.drawText(row.value, valueX, y, {
-      size: valueSize,
-      align: "right",
-    })
-    y -= lineStep(labelSize) + rowGap
+  if (totals.showVat && totals.vat != null) {
+    ctx.drawText("VAT", labelX, y + rowGap / 2, { size: labelSize, color: COLOR.muted })
+    ctx.drawText(fmtMoney(totals.vat), valueX, y + rowGap / 2, { size: valueSize, align: "right" })
+    y -= normalStep
   }
+
+  const sepY = y + rowGap / 2 - SP.sm
+  ctx.page.drawLine({
+    start: { x: labelX, y: sepY },
+    end: { x: valueX, y: sepY },
+    thickness: 0.45,
+    color: COLOR.rule,
+  })
+
+  y = sepY - SP.sm
+  ctx.drawText("Grand Total", labelX, y, { size: labelSize, color: COLOR.muted })
+  ctx.drawText(fmtMoney(totals.grandTotal), valueX, y, {
+    size: grandSize,
+    bold: true,
+    align: "right",
+  })
 
   return Math.min(boxBottom, anchorY) - SP.lg
 }

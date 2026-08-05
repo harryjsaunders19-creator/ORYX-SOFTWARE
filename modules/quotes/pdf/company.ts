@@ -10,6 +10,8 @@ export const QUOTE_COMPANY = {
   website: "www.oryxdesignltd.co.uk",
   /** Omit from PDF when null. */
   companyRegistration: null as string | null,
+  /** Omit from PDF when null. */
+  vatNumber: null as string | null,
 } as const
 
 export const DEFAULT_QUOTE_TERMS = [

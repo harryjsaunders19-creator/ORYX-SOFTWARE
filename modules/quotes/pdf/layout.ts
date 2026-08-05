@@ -31,26 +31,28 @@ export const SP = {
 export const TYPE = {
   companyName: 11,
   companyDetail: 8,
-  docTitle: 10,
-  quoteNumber: 15,
+  /** "QUOTATION" label in the title area. */
+  docTitle: 12,
+  /** Prominent quote reference. */
+  quoteNumber: 22,
   metaLabel: 7.5,
-  metaValue: 9,
-  section: 8.5,
-  body: 9.5,
-  table: 9,
-  tableHead: 8,
-  terms: 8.5,
-  totalLabel: 9.5,
-  totalValue: 9.5,
-  grandTotal: 17,
-  footer: 7.5,
+  metaValue: 9.5,
+  section: 10,
+  body: 10.25,
+  table: 10,
+  tableHead: 9,
+  terms: 9.25,
+  totalLabel: 10,
+  totalValue: 10.25,
+  grandTotal: 24,
+  footer: 8,
 } as const
 
 export const LEADING = {
   tight: 1.35,
-  body: 1.5,
-  relaxed: 1.6,
-  terms: 1.55,
+  body: 1.55,
+  relaxed: 1.65,
+  terms: 1.6,
 } as const
 
 export const COLOR = {
@@ -71,19 +73,21 @@ export const LOGO = {
 } as const
 
 export const FOOTER_Y = 36
-export const FOOTER_RESERVE = 72
+// Reserve bottom space for the multi-line corporate footer.
+export const FOOTER_RESERVE = 60
 export const MIN_CONTENT_Y = MARGIN.bottom + FOOTER_RESERVE
 
 export const TABLE = {
-  headerHeight: 22,
-  minRowHeight: 28,
-  rowPadY: 10,
-  rowPadX: 8,
-  colDesc: 0.42,
+  headerHeight: 26,
+  minRowHeight: 36,
+  rowPadY: 14,
+  rowPadX: 10,
+  /** Description dominates. */
+  colDesc: 0.50,
   colQty: 0.08,
-  colRate: 0.16,
-  colVat: 0.12,
-  colTotal: 0.22,
+  colRate: 0.15,
+  colVat: 0.10,
+  colTotal: 0.17,
 } as const
 
 export function lineStep(size: number, leading: number = LEADING.body): number {

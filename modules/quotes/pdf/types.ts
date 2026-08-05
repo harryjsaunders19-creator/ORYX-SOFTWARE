@@ -34,7 +34,10 @@ export interface QuotePdfTotals {
 export interface QuotePdfPayload {
   meta: QuotePdfDocumentMeta
   client: QuotePdfClientFields
-  projectDescription: string | null
+  /** Quote description / scope shown as the narrative proposal section. */
+  scope: string | null
+  /** Optional quote notes (additional narrative). */
+  quotationNotes: string | null
   lineItems: QuotePdfLineItem[]
   totals: QuotePdfTotals
   terms: string[]

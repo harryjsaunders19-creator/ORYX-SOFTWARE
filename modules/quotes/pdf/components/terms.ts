@@ -20,26 +20,17 @@ export function drawTermsSection(
 ): number {
   if (!terms.length) return startY ?? ctx.cursorY
 
-  const headingH = lineStep(TYPE.section) + SP.sm + 8
-  const estimatedBody = terms.reduce(
-    (sum, term, i) =>
-      sum +
-      ctx.measureWrappedHeight(
-        `${i + 1}.  ${term}`,
-        TYPE.terms,
-        TERMS_WIDTH - SP.sm,
-        lineStep(TYPE.terms, 1.55),
-      ) +
-      SP.md,
-    0,
-  )
-
+  const fixedStart = startY != null
   const baseY = startY ?? ctx.cursorY
-  if (baseY - (headingH + estimatedBody + SP.lg) < MIN_CONTENT_Y) {
-    ctx.addPage()
+  let y = baseY
+
+  const headingH = lineStep(TYPE.section) + SP.sm + 8
+  if (!fixedStart) {
+    // When startY isn't pinned (normal flow), ensure we can render at least the heading.
+    ctx.ensureSpace(headingH + SP.lg)
+    y = ctx.cursorY
   }
 
-  let y = startY ?? ctx.cursorY
   ctx.drawText("Terms & Conditions", CONTENT_LEFT, y, {
     size: TYPE.section,
     bold: true,
@@ -48,13 +39,20 @@ export function drawTermsSection(
   ctx.drawRule(y, CONTENT_LEFT, CONTENT_LEFT + TERMS_WIDTH)
   y -= SP.lg
 
+  const itemGap = SP.md
   for (let i = 0; i < terms.length; i++) {
-    y = ctx.drawWrapped(`${i + 1}.  ${terms[i]}`, CONTENT_LEFT, y, TERMS_WIDTH - SP.sm, {
+    const itemText = `${i + 1}.  ${terms[i]}`
+    const itemHeight = ctx.measureWrappedHeight(itemText, TYPE.terms, TERMS_WIDTH - SP.sm) + itemGap
+    if (y - itemHeight < MIN_CONTENT_Y) {
+      ctx.addPage()
+      y = ctx.cursorY
+    }
+
+    y = ctx.drawWrapped(itemText, CONTENT_LEFT, y, TERMS_WIDTH - SP.sm, {
       size: TYPE.terms,
       color: COLOR.muted,
-      step: lineStep(TYPE.terms, 1.55),
     })
-    y -= SP.md
+    y -= itemGap
   }
 
   return y - SP.lg
@@ -63,19 +61,17 @@ export function drawTermsSection(
 /** Minimum Y required to place terms and totals side by side. */
 export function termsSectionMinHeight(ctx: QuotePdfContext, terms: string[]): number {
   if (!terms.length) return 0
+  const itemGap = SP.md
   const headingH = lineStep(TYPE.section) + SP.sm + 8 + SP.lg
-  const body = terms.reduce(
-    (sum, term, i) =>
+  const body = terms.reduce((sum, term, i) => {
+    const itemText = `${i + 1}.  ${term}`
+    return (
       sum +
-      ctx.measureWrappedHeight(
-        `${i + 1}.  ${term}`,
-        TYPE.terms,
-        TERMS_WIDTH - SP.sm,
-        lineStep(TYPE.terms, 1.55),
-      ) +
-      SP.md,
-    0,
-  )
+      ctx.measureWrappedHeight(itemText, TYPE.terms, TERMS_WIDTH - SP.sm) +
+      itemGap
+    )
+  }, 0)
+
   return headingH + body + SP.lg
 }
 

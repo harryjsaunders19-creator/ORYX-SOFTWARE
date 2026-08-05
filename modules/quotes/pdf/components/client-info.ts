@@ -2,87 +2,122 @@ import type { QuotePdfClientFields } from "../types"
 import {
   COLOR,
   CONTENT_LEFT,
-  CONTENT_RIGHT,
+  CONTENT_WIDTH,
   SP,
   TYPE,
+  capHeight,
   descender,
   lineStep,
 } from "../layout"
 import type { QuotePdfContext } from "../context"
 
-const FIELD_DEFS: { key: keyof QuotePdfClientFields; label: string }[] = [
-  { key: "client", label: "Client" },
-  { key: "contact", label: "Contact" },
-  { key: "project", label: "Project" },
-  { key: "site", label: "Site" },
-  { key: "address", label: "Address" },
-  { key: "reference", label: "Reference" },
-]
+type Row = { label: string; value: string }
 
-/** Client information panel — only populated fields are rendered. */
+function rowsFor(
+  fields: QuotePdfClientFields,
+  keys: Array<{ key: keyof QuotePdfClientFields; label: string }>,
+): Row[] {
+  return keys
+    .map(k => ({ label: k.label, value: (fields[k.key] ?? "").trim() }))
+    .filter(r => !!r.value)
+}
+
+/** Two balanced information panels for client + project (only render existing fields). */
 export function drawClientInformation(
   ctx: QuotePdfContext,
   fields: QuotePdfClientFields,
 ): number {
-  const rows = FIELD_DEFS
-    .map(def => ({ ...def, value: fields[def.key]?.trim() }))
-    .filter(row => row.value)
+  const leftRows = rowsFor(fields, [
+    { key: "client", label: "Client" },
+    { key: "contact", label: "Contact" },
+    { key: "address", label: "Address" },
+    { key: "reference", label: "Reference" },
+  ])
 
-  if (!rows.length) {
-    return ctx.cursorY
+  const rightRows = rowsFor(fields, [
+    { key: "project", label: "Project" },
+    { key: "site", label: "Site" },
+  ])
+
+  if (!leftRows.length && !rightRows.length) return ctx.cursorY
+
+  const panelGap = SP.lg
+  const both = leftRows.length && rightRows.length
+  const panelW = both ? (CONTENT_WIDTH - panelGap) / 2 : CONTENT_WIDTH
+
+  const leftX = CONTENT_LEFT
+  const rightX = both ? CONTENT_LEFT + panelW + panelGap : CONTENT_LEFT
+
+  const innerPad = SP.lg
+  const labelW = 62
+  const headingH = lineStep(TYPE.section) + SP.sm + 8
+
+  const valueW = panelW - innerPad - (labelW + SP.sm)
+
+  const measurePanelH = (rows: Row[]): number => {
+    const rowHeights = rows.map(r => Math.max(lineStep(TYPE.body), ctx.measureWrappedHeight(r.value, TYPE.body, valueW)))
+    return (
+      innerPad * 2 +
+      headingH +
+      (rows.length ? SP.sm : 0) +
+      rowHeights.reduce((sum, h) => sum + h, 0) +
+      (rows.length - 1) * SP.sm
+    )
   }
 
-  const panelX = CONTENT_LEFT
-  const panelW = CONTENT_RIGHT - CONTENT_LEFT
-  const labelW = 72
-  const valueX = panelX + labelW + SP.md
-  const valueW = panelW - labelW - SP.md - SP.lg
+  const leftH = leftRows.length ? measurePanelH(leftRows) : 0
+  const rightH = rightRows.length ? measurePanelH(rightRows) : 0
+  const sectionH = Math.max(leftH, rightH)
 
-  const rowHeights = rows.map(row =>
-    Math.max(
-      lineStep(TYPE.body),
-      ctx.measureWrappedHeight(row.value!, TYPE.body, valueW),
-    ),
-  )
-  const innerPad = SP.md
-  const panelH =
-    innerPad * 2 +
-    rowHeights.reduce((sum, h) => sum + h, 0) +
-    (rows.length - 1) * SP.sm
-
-  ctx.ensureSpace(panelH + SP.lg)
+  ctx.ensureSpace(sectionH + SP.lg)
   const topY = ctx.cursorY
 
-  ctx.page.drawRectangle({
-    x: panelX,
-    y: topY - panelH,
-    width: panelW,
-    height: panelH,
-    color: COLOR.panel,
-    borderColor: COLOR.panelBorder,
-    borderWidth: 0.5,
-  })
+  const drawPanelAtTop = (x: number, rows: Row[], heading: string, panelH: number) => {
+    ctx.page.drawRectangle({
+      x,
+      y: topY - panelH,
+      width: panelW,
+      height: panelH,
+      color: COLOR.white,
+      borderColor: COLOR.panelBorder,
+      borderWidth: 0.6,
+    })
 
-  let y = topY - innerPad - capBaseline(TYPE.body)
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]!
-    ctx.drawText(row.label, panelX + innerPad, y, {
-      size: TYPE.metaLabel,
+    const valueX = x + innerPad + labelW + SP.sm
+    let y = topY - innerPad - capHeight(TYPE.section)
+
+    ctx.drawText(heading.toUpperCase(), x + innerPad, y, {
+      size: TYPE.section,
+      bold: true,
       color: COLOR.muted,
     })
-    y = ctx.drawWrapped(row.value!, valueX, y, valueW, {
-      size: TYPE.body,
-      step: lineStep(TYPE.body),
-    })
-    if (i < rows.length - 1) {
-      y -= SP.sm
-      y += capBaseline(TYPE.body) - descender(TYPE.body)
+    y -= descender(TYPE.section) + SP.sm
+    ctx.drawRule(y, x + innerPad, x + panelW - innerPad)
+    y -= SP.sm
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]!
+      ctx.drawText(row.label.toUpperCase(), x + innerPad, y, {
+        size: TYPE.metaLabel,
+        color: COLOR.faint,
+      })
+      y = ctx.drawWrapped(row.value, valueX, y, valueW, {
+        size: TYPE.body,
+        step: lineStep(TYPE.body),
+      })
+      if (i < rows.length - 1) y -= SP.sm
     }
   }
 
-  return topY - panelH - SP.xl
-}
+  if (both) {
+    drawPanelAtTop(leftX, leftRows, "Client", leftH)
+    drawPanelAtTop(rightX, rightRows, "Project", rightH)
+  } else if (leftRows.length) {
+    drawPanelAtTop(leftX, leftRows, "Client", leftH)
+  } else {
+    drawPanelAtTop(rightX, rightRows, "Project", rightH)
+  }
 
-function capBaseline(size: number): number {
-  return Math.round(size * 0.72)
+  ctx.cursorY = topY - sectionH - SP.xl
+  return ctx.cursorY
 }

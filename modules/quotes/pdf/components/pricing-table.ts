@@ -10,6 +10,7 @@ import {
   TABLE,
   TYPE,
   capHeight,
+  descender,
   lineStep,
 } from "../layout"
 import type { QuotePdfContext } from "../context"
@@ -43,12 +44,15 @@ function drawTableHeaderRow(ctx: QuotePdfContext, topY: number): number {
   const cols = tableColumns()
   const bandBottom = topY - TABLE.headerHeight
 
-  ctx.page.drawLine({
-    start: { x: CONTENT_LEFT, y: bandBottom },
-    end: { x: CONTENT_RIGHT, y: bandBottom },
-    thickness: 0.75,
-    color: COLOR.ink,
+  // Soft, print-friendly header band.
+  ctx.page.drawRectangle({
+    x: CONTENT_LEFT,
+    y: bandBottom,
+    width: CONTENT_WIDTH,
+    height: TABLE.headerHeight,
+    color: COLOR.white,
   })
+  ctx.drawRule(bandBottom, CONTENT_LEFT, CONTENT_RIGHT, COLOR.rule)
 
   const baseline = topY - TABLE.headerHeight + Math.round((TABLE.headerHeight - capHeight(TYPE.tableHead)) / 2)
   for (const col of cols) {
@@ -66,7 +70,7 @@ function drawTableHeaderRow(ctx: QuotePdfContext, topY: number): number {
 
 function rowHeight(ctx: QuotePdfContext, item: QuotePdfLineItem, descColW: number): number {
   const lines = ctx.wrapText(item.description, TYPE.table, descColW)
-  const textH = lines.length * lineStep(TYPE.table, 1.45)
+  const textH = lines.length * lineStep(TYPE.table)
   return Math.max(TABLE.minRowHeight, textH + TABLE.rowPadY * 2)
 }
 
@@ -82,21 +86,13 @@ function drawDataRow(
   const descCol = cols[0]!
   const bottom = topY - rowH
 
-  if (alt) {
-    ctx.page.drawRectangle({
-      x: CONTENT_LEFT,
-      y: bottom,
-      width: CONTENT_WIDTH,
-      height: rowH,
-      color: COLOR.rowAlt,
-    })
-  }
+  // No banding: avoids an "export to spreadsheet" aesthetic.
 
   const textTop = topY - TABLE.rowPadY
   let lineY = textTop
   for (const line of ctx.wrapText(item.description, TYPE.table, descCol.width - TABLE.rowPadX * 2)) {
     ctx.drawText(line, descCol.x + TABLE.rowPadX, lineY, { size: TYPE.table })
-    lineY -= lineStep(TYPE.table, 1.45)
+    lineY -= lineStep(TYPE.table)
   }
 
   const values: { col: ColumnSpec; text: string }[] = [
@@ -105,11 +101,7 @@ function drawDataRow(
     {
       col: cols[3]!,
       text:
-        showVatAmounts && item.vatApplicable && item.vatAmount != null
-          ? fmtMoney(item.vatAmount)
-          : item.vatApplicable
-            ? "Yes"
-            : "",
+        showVatAmounts && item.vatAmount != null ? fmtMoney(item.vatAmount) : "",
     },
     { col: cols[4]!, text: fmtMoney(item.lineTotal) },
   ]
@@ -125,7 +117,7 @@ function drawDataRow(
   ctx.page.drawLine({
     start: { x: CONTENT_LEFT, y: bottom },
     end: { x: CONTENT_RIGHT, y: bottom },
-    thickness: 0.35,
+    thickness: 0.4,
     color: COLOR.rule,
   })
 }
@@ -148,8 +140,18 @@ export function drawPricingTable(
   const cols = tableColumns()
   const descColW = cols[0]!.width - TABLE.rowPadX * 2
 
-  ctx.ensureSpace(TABLE.headerHeight + TABLE.minRowHeight + SP.xl)
-  let rowTop = drawTableHeaderRow(ctx, ctx.cursorY)
+  const headingH = lineStep(TYPE.section) + SP.sm + 10
+  // Keep a modest headroom buffer; table pagination already handles the rest.
+  ctx.ensureSpace(headingH + TABLE.headerHeight + TABLE.minRowHeight)
+  ctx.drawText("Commercial Breakdown", CONTENT_LEFT, ctx.cursorY, {
+    size: TYPE.section,
+    bold: true,
+    color: COLOR.ink,
+  })
+  let headingY = ctx.cursorY - descender(TYPE.section) - SP.sm
+  ctx.drawRule(headingY)
+  headingY -= SP.lg
+  let rowTop = drawTableHeaderRow(ctx, headingY)
   let bandIndex = 0
 
   for (const item of items) {

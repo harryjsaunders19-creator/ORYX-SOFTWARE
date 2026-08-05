@@ -23,7 +23,7 @@ import type { QuotePdfLineItem, QuotePdfPayload } from "./types"
 import { drawQuoteHeader } from "./components/header"
 import { drawQuoteTitleBlock } from "./components/title-block"
 import { drawClientInformation } from "./components/client-info"
-import { drawProjectDescription } from "./components/project-description"
+import { drawScopeOfWorks } from "./components/project-description"
 import { drawPricingTable } from "./components/pricing-table"
 import { drawTotalsSummary, measureTotalsBoxHeight } from "./components/totals"
 import { drawTermsSection, termsSectionMinHeight } from "./components/terms"
@@ -126,7 +126,8 @@ function buildQuotePayload(
       address: showBillingAddress ? billingAddress : undefined,
       reference: client?.accountCode?.trim() || undefined,
     },
-    projectDescription: notes,
+    scope: quote.description?.trim() || null,
+    quotationNotes: notes,
     lineItems,
     totals: {
       subtotal,
@@ -157,7 +158,7 @@ async function renderQuotePdf(payload: QuotePdfPayload): Promise<Uint8Array> {
   ctx.cursorY = drawQuoteHeader(ctx)
   ctx.cursorY = drawQuoteTitleBlock(ctx, payload.meta)
   ctx.cursorY = drawClientInformation(ctx, payload.client)
-  ctx.cursorY = drawProjectDescription(ctx, payload.projectDescription)
+  ctx.cursorY = drawScopeOfWorks(ctx, payload.scope, payload.quotationNotes)
 
   const continuation = `${QUOTE_COMPANY.name}  ·  ${payload.meta.quoteNumber}`
   const { endY: tableEndY } = drawPricingTable(
