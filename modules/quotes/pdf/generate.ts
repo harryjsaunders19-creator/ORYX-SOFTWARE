@@ -44,21 +44,24 @@ const SP_XS  = 4
 const SP_SM  = 8
 const SP_MD  = 12
 const SP_LG  = 16
-const SP_XL  = 20
+const SP_XL  = 24
+/** Gap between major sections (~8–9 mm). */
+const SP_SECTION = 24
 
-// ── Typography scale (points) ─────────────────────────────────────────────────
-const T_QUOT     = 36    // QUOTATION heading
-const T_CO       = 22    // company name
-const T_HEAD     = 11    // section labels
-const T_BODY     = 10    // body / table
+// ── Typography scale (points) — fewer sizes, clearer hierarchy ────────────────
+const T_QUOT     = 40    // QUOTE title (hero)
+const T_CO       = 18    // company name
+const T_HEAD     = 10    // black section header labels
+const T_BODY     = 10    // body / table / customer / site
 const T_META_LBL = 8     // metadata labels
-const T_META_VAL = 9.5   // metadata values
-const T_DETAIL   = 8.5   // company detail lines
+const T_META_VAL = 10    // metadata values
+const T_QUOTE_NO = 12    // quote number in meta — more prominent
+const T_DETAIL   = 9     // company detail lines
 const T_TERMS    = 9     // terms text
-const T_TOTAL    = 13    // TOTAL row
-const T_FOOTER   = 8.5   // footer
+const T_TOTAL    = 14    // TOTAL row
+const T_FOOTER   = 8     // footer
 
-// Liberation Sans proportional metrics
+// Inter proportional metrics (approximate)
 const CAP = 0.72   // cap-height / em
 const DSC = 0.21   // descender depth / em
 
@@ -66,20 +69,23 @@ const DSC = 0.21   // descender depth / em
 const capH = (size: number) => Math.round(size * CAP)
 const dscH = (size: number) => Math.round(size * DSC)
 
-// Line step helpers — size × leading, rounded to whole points
-const STEP_DETAIL = Math.round(T_DETAIL  * 1.45)   // 12 pt
-const STEP_META   = 16                              // meta rows (explicit)
-const STEP_BODY   = Math.round(T_BODY    * 1.5)    // 15 pt
-const STEP_TERMS  = Math.round(T_TERMS   * 1.55)   // 14 pt
+// Line step helpers — slightly increased leading for print readability
+const STEP_DETAIL = Math.round(T_DETAIL  * 1.55)
+const STEP_META   = 18
+const STEP_BODY   = Math.round(T_BODY    * 1.6)
+const STEP_TERMS  = Math.round(T_TERMS   * 1.65)
 
 // ── Monochrome palette ────────────────────────────────────────────────────────
 const INK      = rgb(0.051, 0.051, 0.051)
 const CHARCOAL = rgb(0.165, 0.165, 0.165)
 const WHITE    = rgb(1, 1, 1)
-const RULE_C   = rgb(0.784, 0.784, 0.784)
-const ROW_ALT  = rgb(0.961, 0.961, 0.961)
-const TOTAL_BG = rgb(0.914, 0.914, 0.914)
-const LABEL_C  = rgb(0.424, 0.424, 0.424)
+const RULE_C   = rgb(0.82, 0.82, 0.82)     // lighter 1pt rules
+const ROW_ALT  = rgb(0.975, 0.975, 0.975)  // subtler zebra
+const TOTAL_BG = rgb(0.92, 0.92, 0.92)
+const LABEL_C  = rgb(0.40, 0.40, 0.40)
+
+/** Uniform border / rule thickness (1 pt). */
+const BORDER_W = 1
 
 // ── Table column widths (proportional) ───────────────────────────────────────
 // Description 60 % | Purchase Order 18 % | VAT 8 % | Amount 14 %
@@ -88,35 +94,35 @@ const COL_PO_X    = Math.round(MARGIN_L + CONTENT_W * 0.60)   // ≈ 348
 const COL_VAT_X   = Math.round(COL_PO_X  + CONTENT_W * 0.18)  // ≈ 439
 const COL_AMT_END = MARGIN_R
 
-const CELL_PAD       = 10                                       // horizontal cell padding
-const DESC_W         = COL_PO_X - COL_DESC_X - CELL_PAD        // wrap width ≈ 294
+const CELL_PAD       = 12                                       // horizontal + vertical cell padding
+const DESC_W         = COL_PO_X - COL_DESC_X - CELL_PAD * 2
 
-const TABLE_HDR_H    = 24   // charcoal header band height
-const TABLE_ROW_H    = 26   // minimum data row height
+const TABLE_HDR_H    = 30   // charcoal header band height (matches section headers)
+const TABLE_ROW_H    = 32   // minimum data row height
 const TABLE_ROW_STEP = STEP_BODY
 
 // Reserve this many points below the last table row for totals + terms + footer
-const FOOTER_RES = 250
+const FOOTER_RES = 270
 const PAGE_SAFE  = 40
 
 // ── Header column widths ──────────────────────────────────────────────────────
 const LOGO_W      = 92.8
 const LOGO_H      = 56.9
-const QUOT_COL_W  = 200      // fixed right-column width for QUOTATION + meta
-const CO_X        = MARGIN_L + LOGO_W + SP_LG           // company text left ≈ 152
-const CO_COL_W    = MARGIN_R - QUOT_COL_W - SP_LG - CO_X // middle column width ≈ 154
+const QUOT_COL_W  = 200      // fixed right-column width for QUOTE + meta
+const CO_X        = MARGIN_L + LOGO_W + SP_LG + SP_SM   // breathing room between logo and company text
 const QUOT_COL_X  = MARGIN_R - QUOT_COL_W               // right column start ≈ 351
 
 // Meta alignment: labels right-align to META_LBL_X, values right-align to MARGIN_R
-const META_LBL_X  = MARGIN_R - 82                       // ≈ 469
+// Leave enough gap for a prominent quote number (T_QUOTE_NO).
+const META_LBL_X  = MARGIN_R - 118
 
 // Company detail lines must not invade the right meta column
-const DETAIL_MAX_W = QUOT_COL_X - CO_X - SP_MD          // ≈ 187
+const DETAIL_MAX_W = QUOT_COL_X - CO_X - SP_MD
 
 // ── Page layout anchor ────────────────────────────────────────────────────────
-const CONTENT_TOP = PAGE_HEIGHT - 52   // ≈ 789.89 (≈ 18 mm top margin)
-const FOOTER_Y    = 48
-const FOOTER_RULE = FOOTER_Y + SP_MD
+const CONTENT_TOP = PAGE_HEIGHT - 56   // slightly more top whitespace
+const FOOTER_Y    = 44
+const FOOTER_RULE = FOOTER_Y + SP_LG
 
 // ── Company / Terms data ──────────────────────────────────────────────────────
 const COMPANY = {
@@ -290,22 +296,28 @@ export async function buildQuotePdfBuffer(
   }
 
   const drawHRule = (y: number, x1 = MARGIN_L, x2 = MARGIN_R) =>
-    page.drawLine({ start: { x: x1, y }, end: { x: x2, y }, thickness: 0.5, color: RULE_C })
+    page.drawLine({ start: { x: x1, y }, end: { x: x2, y }, thickness: BORDER_W, color: RULE_C })
 
   /**
-   * Draw a section heading (T_HEAD bold) + thin rule below.
-   * Returns the y of the rule (caller should add SP_MD before content).
+   * Black section header band — identical style for CUSTOMER / SITE / TERMS / table.
+   * Returns the y at the bottom of the band (content starts below + padding).
    */
-  const drawSectionHead = (label: string, x: number, topY: number, colW: number): number => {
-    drawText(label, x, topY, { size: T_HEAD, bold: true })
-    const ruleY = topY - dscH(T_HEAD) - SP_XS
-    page.drawLine({
-      start: { x, y: ruleY },
-      end:   { x: x + colW, y: ruleY },
-      thickness: 0.5,
-      color: RULE_C,
+  const drawBlackHeader = (label: string, x: number, topY: number, width: number): number => {
+    const bandBottom = topY - TABLE_HDR_H
+    page.drawRectangle({
+      x, y: bandBottom, width, height: TABLE_HDR_H, color: CHARCOAL,
     })
-    return ruleY
+    const baseline = topY - TABLE_HDR_H + Math.round((TABLE_HDR_H - capH(T_HEAD)) / 2)
+    // Light letter-spacing via per-character draw
+    const gap = 0.55
+    let cx = x + CELL_PAD
+    for (const ch of label.split("")) {
+      page.drawText(ch, {
+        x: cx, y: baseline, size: T_HEAD, font: fontBold, color: WHITE,
+      })
+      cx += fontBold.widthOfTextAtSize(ch, T_HEAD) + gap
+    }
+    return bandBottom
   }
 
   /**
@@ -315,25 +327,23 @@ export async function buildQuotePdfBuffer(
     p.drawRectangle({
       x: MARGIN_L, y: topY - TABLE_HDR_H, width: CONTENT_W, height: TABLE_HDR_H, color: CHARCOAL,
     })
-    // Vertically centre T_BODY text in the band
-    const baseline = topY - TABLE_HDR_H + Math.round((TABLE_HDR_H - capH(T_BODY)) / 2)
+    const baseline = topY - TABLE_HDR_H + Math.round((TABLE_HDR_H - capH(T_HEAD)) / 2)
     const hdr = (text: string, x: number, align: "left" | "right" = "left") => {
-      const w = fontBold.widthOfTextAtSize(text, T_BODY)
+      const w = fontBold.widthOfTextAtSize(text, T_HEAD)
       p.drawText(text, {
         x: align === "right" ? x - w : x,
         y: baseline,
-        size: T_BODY,
+        size: T_HEAD,
         font: fontBold,
         color: WHITE,
       })
     }
     hdr("DESCRIPTION",    COL_DESC_X + CELL_PAD)
-    // Right-align within the PO cell end so the label can't overlap the VAT header
-    // when switching fonts (e.g. Liberation Sans -> Inter).
+    // Right-align within the PO cell end so the label can't overlap VAT
     hdr("PURCHASE ORDER", COL_VAT_X - CELL_PAD, "right")
     hdr("VAT",            COL_VAT_X  + CELL_PAD)
-    hdr("AMOUNT",         COL_AMT_END,            "right")
-    return topY - TABLE_HDR_H   // first data row starts here
+    hdr("AMOUNT",         COL_AMT_END - CELL_PAD, "right")
+    return topY - TABLE_HDR_H
   }
 
   // ── SECTION 1: Header (three independent columns) ─────────────────────────
@@ -352,32 +362,33 @@ export async function buildQuotePdfBuffer(
   })
   const col1End = CONTENT_TOP - LOGO_H   // visual bottom of logo
 
-  // Column 3 — QUOTATION + meta (drawn before col 2 so col2 can clear it)
-  // QUOTATION: cap top aligns with CONTENT_TOP
+  // Column 3 — QUOTE + meta (drawn before col 2 so col2 can clear it)
   const quotBaseline = CONTENT_TOP - capH(T_QUOT)
   drawText("QUOTE", MARGIN_R, quotBaseline, { size: T_QUOT, bold: true, align: "right" })
 
-  const metaRows: [string, string][] = [
+  const metaRows: [string, string, number?][] = [
     ["DATE",        fmtDate(quote.quoteDate)],
-    ["QUOTE #",     quote.quoteNumber],
+    ["QUOTE #",     quote.quoteNumber, T_QUOTE_NO],
     ["CUSTOMER ID", customerId ?? "—"],
     ["VALID UNTIL", fmtDate(quote.expiryDate)],
   ]
-  // First meta row clears QUOTATION descender
-  let metaY = quotBaseline - dscH(T_QUOT) - SP_MD
-  for (const [label, value] of metaRows) {
+  // First meta row clears QUOTE descender — slightly more breathing room
+  let metaY = quotBaseline - dscH(T_QUOT) - SP_LG
+  for (const [label, value, valueSize] of metaRows) {
     drawText(label, META_LBL_X, metaY, { size: T_META_LBL, align: "right", color: LABEL_C })
-    drawText(value, MARGIN_R,   metaY, { size: T_META_VAL, bold: true,      align: "right" })
+    drawText(value, MARGIN_R,   metaY, {
+      size: valueSize ?? T_META_VAL,
+      bold: true,
+      align: "right",
+    })
     metaY -= STEP_META
   }
   // Visual bottom of last meta row
   const col3End = metaY + STEP_META - dscH(T_META_VAL)
 
   // Column 2 — Company name + address + phone + prepared-by
-  // Company name: cap top placed safely below QUOTATION descender
-  const quotDescBottom  = quotBaseline - dscH(T_QUOT)
-  const coNameCapTop    = quotDescBottom - SP_SM   // 8 pt gap below QUOTATION descender
-  const coNameBaseline  = coNameCapTop - capH(T_CO)
+  // Align company name near the logo top for cleaner letterhead balance
+  const coNameBaseline  = CONTENT_TOP - capH(T_CO)
 
   drawText(COMPANY.name, CO_X, coNameBaseline, { size: T_CO, bold: true })
 
@@ -387,8 +398,8 @@ export async function buildQuotePdfBuffer(
     `T: ${COMPANY.phone}`,
     `Prepared by: ${preparedBy}`,
   ]
-  // First detail: below company name descender
-  let detailY = coNameBaseline - dscH(T_CO) - SP_LG
+  // First detail: below company name descender with comfortable gap
+  let detailY = coNameBaseline - dscH(T_CO) - SP_MD
   for (const line of details) {
     drawText(truncate(line, DETAIL_MAX_W, T_DETAIL), CO_X, detailY, { size: T_DETAIL, color: LABEL_C })
     detailY -= STEP_DETAIL
@@ -399,48 +410,52 @@ export async function buildQuotePdfBuffer(
   const headerEnd = Math.min(col1End, col2End, col3End)
 
   // ── Separator after header
-  const hdrRuleY = headerEnd - SP_MD
+  const hdrRuleY = headerEnd - SP_SECTION
   drawHRule(hdrRuleY)
 
   // ── SECTION 2: Customer / Site (two equal columns) ────────────────────────
-  const halfW    = (CONTENT_W - SP_LG) / 2   // ≈ 245.75 pt
+  const halfW    = (CONTENT_W - SP_LG) / 2
   const siteColX = MARGIN_L + halfW + SP_LG
 
-  const custHeadY = hdrRuleY - SP_XL   // 20 pt breathing room below rule
+  const custHeadY = hdrRuleY - SP_SECTION
 
-  // Both column headings at the same y
-  const custRuleY = drawSectionHead("CUSTOMER", MARGIN_L, custHeadY, halfW)
-  const siteRuleY = drawSectionHead("SITE",     siteColX, custHeadY, halfW)
+  // Identical black headers for both columns
+  const custBandBottom = drawBlackHeader("CUSTOMER", MARGIN_L, custHeadY, halfW)
+  const siteBandBottom = drawBlackHeader("SITE",     siteColX, custHeadY, halfW)
 
-  // Content starts immediately below each heading rule + SP_MD
-  let custY = custRuleY - SP_MD
-  let siteY = siteRuleY - SP_MD
+  // Internal padding below black headers before content
+  let custY = custBandBottom - SP_LG
+  let siteY = siteBandBottom - SP_LG
 
   // Customer company name — wraps naturally
-  custY = drawWrapped(quote.clientCompany, MARGIN_L, custY, halfW - SP_SM, {
-    size: T_BODY, step: STEP_BODY,
+  custY = drawWrapped(quote.clientCompany, MARGIN_L + SP_MD, custY, halfW - SP_LG, {
+    size: T_BODY, step: STEP_BODY, bold: true,
   })
   // Contact line — truncated (single line)
   if (quote.contactName) {
     drawText(
-      truncate(`Contact — ${quote.contactName}`, halfW - SP_SM, T_BODY - 1),
-      MARGIN_L, custY, { size: T_BODY - 1, color: LABEL_C }
+      truncate(`Contact — ${quote.contactName}`, halfW - SP_LG, T_BODY),
+      MARGIN_L + SP_MD, custY, { size: T_BODY, color: LABEL_C }
     )
     custY -= STEP_BODY
   }
 
   // Site address — wraps naturally
-  siteY = drawWrapped(quote.address, siteColX, siteY, halfW - SP_SM, {
+  siteY = drawWrapped(quote.address, siteColX + SP_MD, siteY, halfW - SP_LG, {
     size: T_BODY, step: STEP_BODY,
   })
 
+  // Extra bottom padding inside the customer/site area
+  custY -= SP_MD
+  siteY -= SP_MD
+
   // Section ends at whichever column is taller
   const csEnd    = Math.min(custY, siteY)
-  const secRuleY = csEnd - SP_SM
+  const secRuleY = csEnd - SP_SECTION
   drawHRule(secRuleY)
 
   // ── SECTION 3: Item Table ─────────────────────────────────────────────────
-  let rowTop            = drawTableHeader(page, secRuleY - SP_MD)
+  let rowTop            = drawTableHeader(page, secRuleY - SP_SECTION)
   let paginationOccurred = false
   let bandIndex         = 0
 
@@ -463,7 +478,7 @@ export async function buildQuotePdfBuffer(
       bandIndex          = 0
     }
 
-    // Alternating row tint
+    // Alternating row tint (subtle)
     if (bandIndex % 2 === 1) {
       page.drawRectangle({
         x: MARGIN_L, y: rowTop - rowH, width: CONTENT_W, height: rowH, color: ROW_ALT,
@@ -477,20 +492,20 @@ export async function buildQuotePdfBuffer(
       drawText(line, COL_DESC_X + CELL_PAD, lineBase, { size: T_BODY })
       lineBase -= TABLE_ROW_STEP
     }
-    // VAT indicator centred in its column
+    // VAT indicator
     if (item.vatApplicable) {
       drawText("X", COL_VAT_X + CELL_PAD + 2, textBase, { size: T_BODY })
     }
-    // Amount right-aligned
+    // Amount right-aligned with consistent cell padding
     drawText(fmtNumber(item.amount), COL_AMT_END - CELL_PAD, textBase, {
       size: T_BODY, align: "right",
     })
 
-    // Bottom rule
+    // Bottom rule — uniform 1pt
     page.drawLine({
       start: { x: MARGIN_L, y: rowTop - rowH },
       end:   { x: MARGIN_R, y: rowTop - rowH },
-      thickness: 0.5,
+      thickness: BORDER_W,
       color: RULE_C,
     })
 
@@ -511,7 +526,7 @@ export async function buildQuotePdfBuffer(
       page.drawLine({
         start: { x: MARGIN_L, y: rowTop - TABLE_ROW_H },
         end:   { x: MARGIN_R, y: rowTop - TABLE_ROW_H },
-        thickness: 0.5, color: RULE_C,
+        thickness: BORDER_W, color: RULE_C,
       })
       rowTop -= TABLE_ROW_H
       bandIndex++
@@ -525,21 +540,21 @@ export async function buildQuotePdfBuffer(
   // Terms occupy the left ~55 % of content width.
   // Totals occupy the right ~45 % — x ranges never overlap.
 
-  const TERMS_COL_W = Math.round(CONTENT_W * 0.54) - SP_SM   // ≈ 266 pt
-  const TERMS_RIGHT = MARGIN_L + TERMS_COL_W                   // ≈ 310
+  const TERMS_COL_W = Math.round(CONTENT_W * 0.54) - SP_SM
+  const TERMS_RIGHT = MARGIN_L + TERMS_COL_W
 
-  let termsY     = tableBottom - SP_MD
-  const tRuleY   = drawSectionHead("TERMS AND CONDITIONS", MARGIN_L, termsY, TERMS_COL_W)
-  termsY         = tRuleY - SP_LG   // comfortable gap below heading rule
+  let termsY     = tableBottom - SP_SECTION
+  const tBandBottom = drawBlackHeader("TERMS AND CONDITIONS", MARGIN_L, termsY, TERMS_COL_W)
+  termsY         = tBandBottom - SP_LG - SP_XS   // internal padding below black header
 
   for (let i = 0; i < TERMS.length; i++) {
     termsY = drawWrapped(
       `${i + 1}.  ${TERMS[i]}`,
-      MARGIN_L, termsY,
-      TERMS_COL_W - SP_SM,
+      MARGIN_L + SP_MD, termsY,
+      TERMS_COL_W - SP_LG,
       { size: T_TERMS, color: LABEL_C, step: STEP_TERMS }
     )
-    termsY -= SP_SM   // extra gap between numbered items
+    termsY -= SP_MD   // comfortable gap between numbered items
   }
 
   // ── SECTION 5: Totals (lower right) ───────────────────────────────────────
@@ -549,9 +564,9 @@ export async function buildQuotePdfBuffer(
   // The background of the TOTAL row starts at TERMS_RIGHT + SP_LG so it
   // never overlaps the terms text.
 
-  const TOTALS_LBL_X = Math.round(MARGIN_R - CONTENT_W * 0.27)   // ≈ 414
+  const TOTALS_LBL_X = Math.round(MARGIN_R - CONTENT_W * 0.27)
 
-  let totalsY = tableBottom - SP_XL   // 20 pt below table, slightly offset from terms
+  let totalsY = tableBottom - SP_SECTION
 
   if (quote.vatRate != null) {
     const subRows: [string, string][] = [
@@ -561,18 +576,18 @@ export async function buildQuotePdfBuffer(
       ["VAT Due",  fmtNumber(vatDue)],
     ]
     for (const [label, value] of subRows) {
-      drawText(label, TOTALS_LBL_X, totalsY, { size: 9,   align: "right", color: LABEL_C })
-      drawText(value, MARGIN_R,     totalsY, { size: 9,   align: "right" })
-      totalsY -= SP_LG + SP_XS   // 20 pt step — comfortable spacing
+      drawText(label, TOTALS_LBL_X, totalsY, { size: T_BODY, align: "right", color: LABEL_C })
+      drawText(value, MARGIN_R,     totalsY, { size: T_BODY, align: "right" })
+      totalsY -= SP_LG + SP_SM   // ~24 pt step — clearer vertical rhythm
     }
   }
 
-  // TOTAL row: 8 pt above the label, grey band, bold T_TOTAL text
-  totalsY -= SP_SM   // extra gap above TOTAL
+  // TOTAL row: extra gap above, stronger band, bold T_TOTAL text
+  totalsY -= SP_MD
   const totalBandX = Math.max(TERMS_RIGHT + SP_LG, TOTALS_LBL_X - SP_XL)
-  const totalBandH = SP_XL + SP_SM   // 28 pt band
+  const totalBandH = SP_XL + SP_MD   // ~36 pt band
   page.drawRectangle({
-    x: totalBandX, y: totalsY - SP_XS,
+    x: totalBandX, y: totalsY - SP_SM,
     width: MARGIN_R - totalBandX,
     height: totalBandH,
     color: TOTAL_BG,
@@ -587,21 +602,30 @@ export async function buildQuotePdfBuffer(
 
   drawHRule(FOOTER_RULE)
 
-  const footerColW = CONTENT_W / 3
-  const footerMaxW = footerColW - SP_SM
-
-  const footerItems: Array<{ text: string; x: number; align: "left" | "right" }> = [
-    { text: COMPANY.name,                               x: MARGIN_L,                  align: "left"  },
-    { text: COMPANY.addressLines[1].replace(/\.$/, ""), x: MARGIN_L + footerColW,     align: "left"  },
-    { text: `T: ${COMPANY.phone}`,                      x: MARGIN_L + footerColW * 2, align: "left"  },
-    { text: `E: ${COMPANY.email}`,                      x: MARGIN_R,                  align: "right" },
+  const footerItems: Array<{ text: string; x: number; align: "left" | "right" | "center" }> = [
+    { text: COMPANY.name,                               x: MARGIN_L,                              align: "left"   },
+    { text: COMPANY.addressLines[1].replace(/\.$/, ""), x: (MARGIN_L + MARGIN_R) / 2,             align: "center" },
+    { text: `T: ${COMPANY.phone}  ·  ${COMPANY.email}`, x: MARGIN_R,                              align: "right"  },
   ]
 
   for (const item of footerItems) {
-    const displayed = item.align === "left"
-      ? truncate(item.text, footerMaxW, T_FOOTER)
-      : item.text
-    drawText(displayed, item.x, FOOTER_Y, { size: T_FOOTER, color: LABEL_C, align: item.align })
+    if (item.align === "center") {
+      const font = fontRegular
+      const w = font.widthOfTextAtSize(item.text, T_FOOTER)
+      page.drawText(item.text, {
+        x: item.x - w / 2,
+        y: FOOTER_Y,
+        size: T_FOOTER,
+        font,
+        color: LABEL_C,
+      })
+    } else {
+      const maxW = CONTENT_W * 0.38
+      const displayed = item.align === "left"
+        ? truncate(item.text, maxW, T_FOOTER)
+        : item.text
+      drawText(displayed, item.x, FOOTER_Y, { size: T_FOOTER, color: LABEL_C, align: item.align })
+    }
   }
 
   const pdfBytes = await doc.save()
