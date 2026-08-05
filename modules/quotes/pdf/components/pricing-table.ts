@@ -151,14 +151,23 @@ export function drawPricingTable(
   let headingY = ctx.cursorY - descender(TYPE.section) - SP.sm
   ctx.drawRule(headingY)
   headingY -= SP.lg
+  const tableTopForHeight = headingY
   let rowTop = drawTableHeaderRow(ctx, headingY)
   let bandIndex = 0
+  let paginationOccurred = false
+
+  // Data-driven density: if there are multiple line items, aim for the table
+  // (including header) to occupy ~40–50% of the remaining page.
+  const usableHeight = ctx.cursorY - MIN_CONTENT_Y
+  const targetFraction = items.length >= 2 ? 0.45 : 0.30
+  const targetTableHeight = usableHeight * targetFraction
 
   for (const item of items) {
     const rowH = rowHeight(ctx, item, descColW)
 
     if (rowTop - rowH < MIN_CONTENT_Y) {
       ctx.addPage()
+      paginationOccurred = true
       if (continuationLabel) {
         ctx.drawText(continuationLabel, CONTENT_LEFT, ctx.cursorY, {
           size: TYPE.metaLabel,
@@ -173,6 +182,25 @@ export function drawPricingTable(
     drawDataRow(ctx, item, rowTop, rowH, showVatAmounts, bandIndex % 2 === 1)
     rowTop -= rowH
     bandIndex++
+  }
+
+  // If the table stayed on a single page, add subtle filler rows so the table
+  // becomes the visual centrepiece (template-inspired density).
+  if (!paginationOccurred && items.length >= 2) {
+    let usedHeight = tableTopForHeight - rowTop
+    while (usedHeight < targetTableHeight && rowTop - TABLE.minRowHeight >= MIN_CONTENT_Y) {
+      const emptyH = TABLE.minRowHeight
+      const bottom = rowTop - emptyH
+      ctx.page.drawLine({
+        start: { x: CONTENT_LEFT, y: bottom },
+        end: { x: CONTENT_RIGHT, y: bottom },
+        thickness: 0.4,
+        color: COLOR.rule,
+      })
+      rowTop = bottom
+      usedHeight = tableTopForHeight - rowTop
+      bandIndex++
+    }
   }
 
   // Reduce trailing whitespace so short quotations can keep Terms on the same page.

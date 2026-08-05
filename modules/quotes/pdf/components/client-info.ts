@@ -48,8 +48,8 @@ export function drawClientInformation(
   const leftX = CONTENT_LEFT
   const rightX = both ? CONTENT_LEFT + panelW + panelGap : CONTENT_LEFT
 
-  const innerPad = SP.lg
-  const headingH = lineStep(TYPE.section) + SP.sm + 8
+  const innerPad = SP.md
+  const headingH = lineStep(TYPE.section) + SP.xs + 6
 
   // Client/Project cards provide context via their headings,
   // so values render without repeated field labels.
@@ -80,7 +80,7 @@ export function drawClientInformation(
       height: panelH,
       color: COLOR.white,
       borderColor: COLOR.panelBorder,
-      borderWidth: 0.6,
+      borderWidth: 0.5,
     })
 
     const valueX = x + innerPad
@@ -91,9 +91,9 @@ export function drawClientInformation(
       bold: true,
       color: COLOR.muted,
     })
-    y -= descender(TYPE.section) + SP.sm
+    y -= descender(TYPE.section) + SP.xs
     ctx.drawRule(y, x + innerPad, x + panelW - innerPad)
-    y -= SP.sm
+    y -= SP.xs
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!
@@ -103,7 +103,7 @@ export function drawClientInformation(
         bold: i === 0,
         color: COLOR.ink,
       })
-      if (i < rows.length - 1) y -= SP.sm
+      if (i < rows.length - 1) y -= SP.xs
     }
   }
 
@@ -116,6 +116,6 @@ export function drawClientInformation(
     drawPanelAtTop(rightX, rightRows, "Project", rightH)
   }
 
-  ctx.cursorY = topY - sectionH - SP.xl
+  ctx.cursorY = topY - sectionH - SP.lg
   return ctx.cursorY
 }

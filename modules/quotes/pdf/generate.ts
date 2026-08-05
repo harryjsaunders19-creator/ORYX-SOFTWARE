@@ -170,32 +170,20 @@ async function renderQuotePdf(payload: QuotePdfPayload): Promise<Uint8Array> {
   ctx.cursorY = tableEndY
 
   const termsHeight = termsSectionMinHeight(ctx, payload.terms)
-  const totalsHeight = measureTotalsBoxHeight(payload.totals)
-  const anchorY = ctx.cursorY
+  // Totals sit directly beneath the pricing table.
+  const totalsEndY = drawTotalsSummary(ctx, payload.totals, ctx.cursorY)
+  // drawTotalsSummary() already accounts for a small bottom gap.
+  ctx.cursorY = totalsEndY
 
-  // Totals should sit immediately beneath the pricing table whenever possible (right side),
-  // while terms render alongside it (left side). Move the entire terms block to the next
-  // page when it doesn't fit, rather than splitting awkwardly.
-  const availableHeight = anchorY - MIN_CONTENT_Y
-  // Fit decisions are intentionally slightly tolerant to avoid turning minor
-  // measurement differences into full extra pages.
-  const FIT_TOLERANCE = SP.sm
-  // Totals are already drawn immediately below the table; for whether Terms
-  // should stay on the same page, we primarily care about whether the *Terms*
-  // block can remain above the printable floor.
-  const canPlaceOnCurrentPage = termsHeight <= availableHeight + FIT_TOLERANCE
+  // Terms follow totals: if the Terms block fits, keep it on this page.
+  // If it doesn't fit, move the entire block to the next page (no splitting).
+  const availableOnPage = ctx.cursorY - MIN_CONTENT_Y
+  const needsMoveToNextPage = termsHeight > availableOnPage
+  if (needsMoveToNextPage) ctx.addPage()
 
-  const totalsEndY = drawTotalsSummary(ctx, payload.totals, anchorY)
-
-  if (canPlaceOnCurrentPage) {
-    const termsEndY = drawTermsSection(ctx, payload.terms, anchorY, { allowSplit: false })
-    ctx.cursorY = Math.min(totalsEndY, termsEndY)
-  } else {
-    ctx.addPage()
-    const availableAfterMove = ctx.cursorY - MIN_CONTENT_Y
-    const allowSplit = termsHeight > availableAfterMove
-    ctx.cursorY = drawTermsSection(ctx, payload.terms, ctx.cursorY, { allowSplit })
-  }
+  const availableAfterMove = ctx.cursorY - MIN_CONTENT_Y
+  const allowSplit = termsHeight > availableAfterMove
+  ctx.cursorY = drawTermsSection(ctx, payload.terms, ctx.cursorY, { allowSplit })
 
   drawFooters(ctx)
 

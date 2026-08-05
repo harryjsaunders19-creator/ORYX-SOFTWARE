@@ -10,8 +10,8 @@ import {
 } from "../layout"
 import type { QuotePdfContext } from "../context"
 
-// Render terms alongside the right-aligned totals box.
-const TERMS_WIDTH = Math.round(CONTENT_WIDTH * 0.58)
+// Terms render beneath the totals (main bottom section).
+const TERMS_WIDTH = CONTENT_WIDTH
 
 /** Numbered terms and conditions with comfortable spacing. */
 export function drawTermsSection(
