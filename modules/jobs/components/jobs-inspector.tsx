@@ -157,9 +157,6 @@ export function JobsInspector({
   const jobKey = !workItemsModel ? `/api/jobs/${project.id}?include=parent,current` : null
   const revisionsKey = !workItemsModel ? `/api/jobs/${project.id}/revisions` : null
   const docsKey = secondaryReady ? `/api/jobs/${project.id}/documents?limit=40` : null
-  const quotesKey = secondaryReady
-    ? `/api/quotes?search=${encodeURIComponent(project.drawingNumber)}&page=1&limit=25`
-    : null
 
   const { data: parentDashRaw, isLoading: parentLoading, mutate: mutateParent } =
     useApi<ParentJobDashboard>(parentKey)
@@ -168,6 +165,31 @@ export function JobsInspector({
   const { data: revisionsDataRaw, mutate: mutateRevisions } =
     useApi<RevisionsResponse>(revisionsKey)
   const { data: docsData, mutate: mutateDocs } = useApi<DocumentsResponse>(docsKey, SECONDARY_SWR)
+
+  // Exact job_id filter (supports comma-separated parent + revision / legacy ids).
+  // Starts with project.id; expands once revision/work-item ids are known.
+  const quoteJobIds = useMemo(() => {
+    const ids = new Set<string>([project.id])
+    if (workItemsModel && parentDashRaw?.parent?.id === project.id) {
+      for (const wi of asSafeArray(parentDashRaw.workItems)) {
+        if (wi.legacyJobId) ids.add(wi.legacyJobId)
+      }
+    }
+    if (
+      !workItemsModel
+      && revisionsDataRaw
+      && (!revisionsDataRaw.parentId || revisionsDataRaw.parentId === project.id)
+    ) {
+      for (const r of asSafeArray(revisionsDataRaw.chain)) {
+        if (r.id) ids.add(r.id)
+      }
+    }
+    return [...ids].sort()
+  }, [project.id, workItemsModel, parentDashRaw, revisionsDataRaw])
+
+  const quotesKey = secondaryReady
+    ? `/api/quotes?jobId=${encodeURIComponent(quoteJobIds.join(","))}&page=1&limit=200`
+    : null
   const { data: quotesData, mutate: mutateQuotes } = useApi<QuotesListResponse>(quotesKey, SECONDARY_SWR)
 
   // Ignore keepPreviousData from a different job when switching selection.
@@ -379,6 +401,7 @@ export function JobsInspector({
 
   const originalQuote: QuoteCardItem | null = useMemo(() => {
     if (jobDetail?.currentQuote) return toQuoteCard(jobDetail.currentQuote)
+    // Prefer ACCEPTED among quotes already scoped to this job family by the API.
     const linkedToParent = asSafeArray(quotesData?.quotes).filter(q => q.jobId === project.id)
     const preferred =
       linkedToParent.find(q => q.status === "ACCEPTED")
@@ -391,6 +414,7 @@ export function JobsInspector({
 
   const revisionQuote: QuoteCardItem | null = useMemo(() => {
     if (!activeRevision?.legacyJobId) return null
+    // Attribute among the jobId-scoped result set (display preference, not discovery).
     const hit = asSafeArray(quotesData?.quotes).find(q => q.jobId === activeRevision.legacyJobId)
     if (!hit) return null
     return toQuoteCard(hit, activeRevision.letter ? `Rev ${activeRevision.letter}` : "Revision")

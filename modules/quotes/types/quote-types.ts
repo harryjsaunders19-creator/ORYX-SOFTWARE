@@ -87,6 +87,8 @@ export interface QuoteListOptions {
   search?: string
   status?: string
   clientId?: string
+  /** Exact match on quotes.job_id — one or many ids (not text search). */
+  jobIds?: string[]
   skip?: number
   take?: number
 }

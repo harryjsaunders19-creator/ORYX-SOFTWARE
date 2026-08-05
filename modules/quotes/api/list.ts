@@ -52,9 +52,25 @@ export async function GET(req: NextRequest) {
     const sp     = req.nextUrl.searchParams
     const search = sp.get("search") ?? ""
     const status = sp.get("status") ?? ""
+    // Exact job_id match: single id or comma-separated list (parent + revision job ids).
+    const jobIds = [...new Set(
+      (sp.get("jobId") ?? "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean),
+    )]
     const page   = parsePageParam(sp.get("page"))
-    const limit  = parseLimitParam(sp.get("limit"), 25, 100)
-    const opts   = { ...(search && { search }), ...(status && { status }) }
+    // Job-scoped fetches return a job's full quote set; general list stays paginated.
+    const limit  = parseLimitParam(
+      sp.get("limit"),
+      jobIds.length ? 200 : 25,
+      jobIds.length ? 500 : 100,
+    )
+    const opts   = {
+      ...(search && { search }),
+      ...(status && { status }),
+      ...(jobIds.length && { jobIds }),
+    }
     const [quotes, total, expiringSoonCount, expiredClearableCount] = await Promise.all([
       quoteService.findMany({ ...opts, skip: (page - 1) * limit, take: limit }),
       quoteService.count(opts),
