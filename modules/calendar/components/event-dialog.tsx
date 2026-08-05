@@ -1,7 +1,8 @@
 "use client"
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { Trash2, MapPin, Video, CalendarOff } from "lucide-react"
+import Link from "next/link"
+import { Trash2, MapPin, Video, CalendarOff, Users, ClipboardList, CalendarClock, ExternalLink } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Input }  from "@/shared/ui/input"
 import { Label }  from "@/shared/ui/label"
@@ -13,12 +14,16 @@ import {
 import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
+import { CATEGORY_COLOUR_DEFAULTS } from "../config/category-config"
 
 const EVENT_TYPES = [
-  { id: "cat_site_visit",    name: "Site Visit",     color: "#1E5A96", icon: MapPin }, // tag-design
-  { id: "cat_teams_meeting", name: "Teams Meeting",  color: "#0E7A6E", icon: Video }, // ac2
+  { id: "cat_site_visit", name: "Site Visit", color: CATEGORY_COLOUR_DEFAULTS.cat_site_visit.color, icon: MapPin },
+  { id: "cat_client_meeting", name: "Client Meeting", color: CATEGORY_COLOUR_DEFAULTS.cat_client_meeting.color, icon: Users },
+  { id: "cat_teams_meeting", name: "Meeting", color: CATEGORY_COLOUR_DEFAULTS.cat_teams_meeting.color, icon: Video },
+  { id: "cat_internal_meeting", name: "Internal", color: CATEGORY_COLOUR_DEFAULTS.cat_internal_meeting.color, icon: ClipboardList },
+  { id: "cat_deadline", name: "Deadline", color: CATEGORY_COLOUR_DEFAULTS.cat_deadline.color, icon: CalendarClock },
   ...(isExperimentalEnabled("leave")
-    ? [{ id: "cat_leave" as const, name: "Leave", color: "#71717A", icon: CalendarOff }] // gy
+    ? [{ id: "cat_leave" as const, name: "Leave", color: CATEGORY_COLOUR_DEFAULTS.cat_leave.color, icon: CalendarOff }]
     : []),
 ]
 
@@ -30,6 +35,7 @@ interface CalendarEvent {
   jobId: string | null; clientId: string | null
   assignees: { userId: string; userName: string }[]
   categoryName: string; categoryColor: string
+  jobDrawingNumber?: string | null
 }
 
 interface EventDialogProps {
@@ -167,7 +173,7 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
             {/* Event type selector */}
             <div className="flex flex-col gap-1.5">
               <Label>Event type</Label>
-              <div className="flex gap-2 flex-wrap">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {EVENT_TYPES.map(t => {
                   const Icon = t.icon
                   const active = categoryId === t.id
@@ -176,15 +182,15 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
                       key={t.id}
                       type="button"
                       onClick={() => setCategoryId(t.id)}
-                      className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors"
+                      className="flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-colors sm:text-sm"
                       style={{
                         borderColor: active ? t.color : "var(--color-bd)",
                         backgroundColor: active ? t.color + "12" : "transparent",
                         color: active ? t.color : "var(--color-t2)",
                       }}
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      {t.name}
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{t.name}</span>
                     </button>
                   )
                 })}
@@ -268,6 +274,16 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
               <Label>Notes</Label>
               <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Additional details…" />
             </div>
+
+            {isEdit && event?.jobId ? (
+              <Link
+                href={`/jobs/${event.jobId}`}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-ac2 transition-colors hover:text-ac2h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ac/35 rounded"
+              >
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                Open linked job{event.jobDrawingNumber ? ` · ${event.jobDrawingNumber}` : ""}
+              </Link>
+            ) : null}
           </div>
         </DialogBody>
         <DialogFooter>
