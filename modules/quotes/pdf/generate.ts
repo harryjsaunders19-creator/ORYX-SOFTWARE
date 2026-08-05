@@ -45,8 +45,8 @@ const SP_SM  = 8
 const SP_MD  = 12
 const SP_LG  = 16
 const SP_XL  = 24
-/** Gap between major sections (~8–9 mm). */
-const SP_SECTION = 24
+/** Gap between major sections (~6–7 mm) — efficient without feeling cramped. */
+const SP_SECTION = 18
 
 // ── Typography scale (points) — fewer sizes, clearer hierarchy ────────────────
 const T_QUOT     = 40    // QUOTE title (hero)
@@ -72,8 +72,8 @@ const dscH = (size: number) => Math.round(size * DSC)
 // Line step helpers — consistent leading for print readability
 const STEP_DETAIL = Math.round(T_DETAIL  * 1.55)
 const STEP_META   = 18
-const STEP_BODY   = Math.round(T_BODY    * 1.58)
-const STEP_TERMS  = Math.round(T_TERMS   * 1.62)
+const STEP_BODY   = Math.round(T_BODY    * 1.55)
+const STEP_TERMS  = Math.round(T_TERMS   * 1.58)
 
 // ── Monochrome palette — print-friendly, light fills ──────────────────────────
 const INK      = rgb(0.05, 0.05, 0.05)
@@ -94,38 +94,40 @@ const COL_PO_X    = Math.round(MARGIN_L + CONTENT_W * 0.58)
 const COL_VAT_X   = Math.round(COL_PO_X  + CONTENT_W * 0.19)
 const COL_AMT_END = MARGIN_R
 
-const CELL_PAD_X     = 14   // horizontal cell padding
-const CELL_PAD_Y     = 11   // vertical cell padding
+const CELL_PAD_X     = 12   // horizontal cell padding
+const CELL_PAD_Y     = 8    // vertical cell padding — denser rows
 const DESC_W         = COL_PO_X - COL_DESC_X - CELL_PAD_X * 2
 
-/** Shared black header height (~17% shorter than previous 30pt). */
+/** Shared black header height. */
 const HEADER_H       = 25
 const HEADER_PAD_X   = 16
 const HEADER_TRACK   = 0.9  // letter-spacing for black headers
 
-const TABLE_ROW_H    = 34   // minimum data row height
+const TABLE_ROW_H    = 28   // minimum data row height
 const TABLE_ROW_STEP = STEP_BODY
+/** Max empty filler rows on short quotes (keep density, avoid empty grey). */
+const TABLE_FILLER_MAX = 5
 
 // Reserve this many points below the last table row for totals + terms + footer
-const FOOTER_RES = 270
+const FOOTER_RES = 240
 const PAGE_SAFE  = 40
 
 // ── Header column widths ──────────────────────────────────────────────────────
-const LOGO_W      = 92.8
-const LOGO_H      = 56.9
+// Logo +18% — stronger anchor, same top-left position
+const LOGO_W      = 109.5
+const LOGO_H      = 67.1
 const QUOT_COL_W  = 200      // fixed right-column width for QUOTE + meta
-const CO_X        = MARGIN_L + LOGO_W + SP_LG + SP_SM   // breathing room between logo and company text
-const QUOT_COL_X  = MARGIN_R - QUOT_COL_W               // right column start ≈ 351
+const CO_X        = MARGIN_L + LOGO_W + SP_LG   // breathing room between logo and company text
+const QUOT_COL_X  = MARGIN_R - QUOT_COL_W
 
 // Meta alignment: labels right-align to META_LBL_X, values right-align to MARGIN_R
-// Leave enough gap for a prominent quote number (T_QUOTE_NO).
 const META_LBL_X  = MARGIN_R - 118
 
 // Company detail lines must not invade the right meta column
 const DETAIL_MAX_W = QUOT_COL_X - CO_X - SP_MD
 
 // ── Page layout anchor ────────────────────────────────────────────────────────
-const CONTENT_TOP = PAGE_HEIGHT - 56   // slightly more top whitespace
+const CONTENT_TOP = PAGE_HEIGHT - 52
 const FOOTER_Y    = 44
 const FOOTER_RULE = FOOTER_Y + SP_LG
 
@@ -395,19 +397,23 @@ export async function buildQuotePdfBuffer(
   const col3End = metaY + STEP_META - dscH(T_META_VAL)
 
   // Column 2 — Company name + address + phone + prepared-by
-  // Align company name near the logo top for cleaner letterhead balance
-  const coNameBaseline  = CONTENT_TOP - capH(T_CO)
-
-  drawText(COMPANY.name, CO_X, coNameBaseline, { size: T_CO, bold: true })
-
+  // Vertically centre the company block against the (larger) logo.
   const details: string[] = [
     COMPANY.addressLines[0],
     COMPANY.addressLines[1],
     `T: ${COMPANY.phone}`,
     `Prepared by: ${preparedBy}`,
   ]
-  // First detail: below company name descender with comfortable gap
-  let detailY = coNameBaseline - dscH(T_CO) - SP_MD
+  const companyBlockH =
+    capH(T_CO) + dscH(T_CO) + SP_SM + details.length * STEP_DETAIL
+  const logoCenterY = CONTENT_TOP - LOGO_H / 2
+  let coNameBaseline = logoCenterY + companyBlockH / 2 - capH(T_CO)
+  // Keep company name from rising above the page content top
+  coNameBaseline = Math.min(coNameBaseline, CONTENT_TOP - capH(T_CO))
+
+  drawText(COMPANY.name, CO_X, coNameBaseline, { size: T_CO, bold: true })
+
+  let detailY = coNameBaseline - dscH(T_CO) - SP_SM
   for (const line of details) {
     drawText(truncate(line, DETAIL_MAX_W, T_DETAIL), CO_X, detailY, { size: T_DETAIL, color: LABEL_C })
     detailY -= STEP_DETAIL
@@ -431,9 +437,9 @@ export async function buildQuotePdfBuffer(
   const custBandBottom = drawBlackHeader("CUSTOMER", MARGIN_L, custHeadY, halfW)
   const siteBandBottom = drawBlackHeader("SITE",     siteColX, custHeadY, halfW)
 
-  // Internal padding below black headers before content
-  let custY = custBandBottom - SP_LG
-  let siteY = siteBandBottom - SP_LG
+  // Internal padding below black headers — tighter, still readable
+  let custY = custBandBottom - SP_MD
+  let siteY = siteBandBottom - SP_MD
 
   // Customer company name — wraps naturally
   custY = drawWrapped(quote.clientCompany, MARGIN_L + SP_MD, custY, halfW - SP_LG, {
@@ -453,9 +459,9 @@ export async function buildQuotePdfBuffer(
     size: T_BODY, step: STEP_BODY,
   })
 
-  // Extra bottom padding inside the customer/site area
-  custY -= SP_MD
-  siteY -= SP_MD
+  // Modest bottom padding — avoid oversized empty areas
+  custY -= SP_SM
+  siteY -= SP_SM
 
   // Section ends at whichever column is taller
   const csEnd    = Math.min(custY, siteY)
@@ -525,9 +531,9 @@ export async function buildQuotePdfBuffer(
     bandIndex++
   }
 
-  // Filler rows — rules only (no zebra blocks on empty space)
+  // Filler rows — fewer empties; rules only (no grey blocks)
   if (!paginationOccurred) {
-    while (bandIndex < 8 && rowTop - TABLE_ROW_H >= PAGE_SAFE + FOOTER_RES) {
+    while (bandIndex < TABLE_FILLER_MAX && rowTop - TABLE_ROW_H >= PAGE_SAFE + FOOTER_RES) {
       page.drawLine({
         start: { x: MARGIN_L, y: rowTop - TABLE_ROW_H },
         end:   { x: MARGIN_R, y: rowTop - TABLE_ROW_H },
@@ -550,7 +556,7 @@ export async function buildQuotePdfBuffer(
 
   let termsY     = tableBottom - SP_SECTION
   const tBandBottom = drawBlackHeader("TERMS AND CONDITIONS", MARGIN_L, termsY, TERMS_COL_W)
-  termsY         = tBandBottom - SP_LG - SP_XS   // internal padding below black header
+  termsY         = tBandBottom - SP_MD   // tighter padding below black header
 
   for (let i = 0; i < TERMS.length; i++) {
     termsY = drawWrapped(
@@ -559,7 +565,7 @@ export async function buildQuotePdfBuffer(
       TERMS_COL_W - SP_LG,
       { size: T_TERMS, color: LABEL_C, step: STEP_TERMS }
     )
-    termsY -= SP_MD   // comfortable gap between numbered items
+    termsY -= SP_SM   // tighter between numbered items
   }
 
   // ── SECTION 5: Totals (lower right) ───────────────────────────────────────
@@ -571,7 +577,7 @@ export async function buildQuotePdfBuffer(
 
   const TOTALS_LBL_X = Math.round(MARGIN_R - CONTENT_W * 0.27)
   const TOTALS_VAL_X = MARGIN_R
-  const TOTALS_STEP  = SP_LG + SP_SM   // consistent row rhythm
+  const TOTALS_STEP  = SP_LG   // tighter totals rhythm
 
   let totalsY = tableBottom - SP_SECTION
 
@@ -589,7 +595,7 @@ export async function buildQuotePdfBuffer(
     }
   }
 
-  // TOTAL: hairline + soft tinted band (not a heavy Excel block)
+  // TOTAL: hairline + compact tinted band (~25% shorter footprint)
   totalsY -= SP_SM
   page.drawLine({
     start: { x: Math.max(TERMS_RIGHT + SP_LG, TOTALS_LBL_X - SP_XL), y: totalsY + SP_MD },
@@ -600,15 +606,15 @@ export async function buildQuotePdfBuffer(
   totalsY -= SP_XS
 
   const totalBandX = Math.max(TERMS_RIGHT + SP_LG, TOTALS_LBL_X - SP_XL)
-  const totalBandH = SP_XL + SP_SM   // ~32 pt — padded, not oversized
+  const totalBandH = SP_LG + SP_SM   // ~24 pt — subtle highlight, not a panel
   page.drawRectangle({
     x: totalBandX,
-    y: totalsY - SP_MD,
+    y: totalsY - SP_SM,
     width: MARGIN_R - totalBandX,
     height: totalBandH,
     color: TOTAL_BG,
   })
-  const totalBaseline = totalsY - SP_MD + Math.round((totalBandH - capH(T_TOTAL)) / 2)
+  const totalBaseline = totalsY - SP_SM + Math.round((totalBandH - capH(T_TOTAL)) / 2)
   drawText("TOTAL",                 TOTALS_LBL_X, totalBaseline, { size: T_TOTAL, bold: true, align: "right" })
   drawText(`£ ${fmtNumber(total)}`, TOTALS_VAL_X, totalBaseline, { size: T_TOTAL, bold: true, align: "right" })
 
