@@ -17,6 +17,19 @@ function parseBulletText(line: string): string {
   return line.trim().replace(/^([•-])\s+/, "").replace(/^([•-])/, "").trim()
 }
 
+function renderRichLine(text: string): { text: string; bold: boolean } {
+  const t = text.trim()
+  const wholeBold = t.match(/^\*\*([^*]+)\*\*$/)
+  if (wholeBold) {
+    return { text: wholeBold[1], bold: true }
+  }
+  // Strip inline bold markers if they exist, without attempting mixed-font wrapping.
+  if (t.includes("**")) {
+    return { text: t.replace(/\*\*([^*]+)\*\*/g, "$1"), bold: false }
+  }
+  return { text, bold: false }
+}
+
 /**
  * Scope of Works section (from quote.description) with paragraph spacing and basic
  * bullet support. Optionally follows with "Quotation Notes" (from quote.notes).
@@ -65,18 +78,20 @@ export function drawScopeOfWorks(
       const lines = paragraph.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
       for (const line of lines) {
         const isBullet = isBulletLine(line)
-        const text = isBullet ? `• ${parseBulletText(line)}` : line
+        const raw = isBullet ? `• ${parseBulletText(line)}` : line
+        const rich = renderRichLine(raw)
         const x = isBullet ? bulletX : CONTENT_LEFT
         const w = isBullet ? bulletW : width
-        const h = ctx.measureWrappedHeight(text, TYPE.body, w)
+        const h = ctx.measureWrappedHeight(rich.text, TYPE.body, w)
 
         ctx.cursorY = y
         ctx.ensureSpace(h + SP.xs)
         y = ctx.cursorY
 
-        y = ctx.drawWrapped(text, x, y, w, {
+        y = ctx.drawWrapped(rich.text, x, y, w, {
           size: TYPE.body,
           color: COLOR.ink,
+          bold: rich.bold,
         })
         y -= SP.xs
       }

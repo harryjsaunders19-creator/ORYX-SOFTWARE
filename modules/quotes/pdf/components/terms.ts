@@ -10,42 +10,42 @@ import {
 } from "../layout"
 import type { QuotePdfContext } from "../context"
 
-const TERMS_WIDTH = Math.round(CONTENT_WIDTH * 0.58)
+// Terms render below the financial summary, so they can use the full content width.
+const TERMS_WIDTH = CONTENT_WIDTH
 
 /** Numbered terms and conditions with comfortable spacing. */
 export function drawTermsSection(
   ctx: QuotePdfContext,
   terms: string[],
   startY?: number,
+  opts?: { allowSplit?: boolean },
 ): number {
   if (!terms.length) return startY ?? ctx.cursorY
 
-  const fixedStart = startY != null
-  const baseY = startY ?? ctx.cursorY
-  let y = baseY
+  const allowSplit = opts?.allowSplit ?? false
+  let y = startY ?? ctx.cursorY
 
-  const headingH = lineStep(TYPE.section) + SP.sm + 8
-  if (!fixedStart) {
-    // When startY isn't pinned (normal flow), ensure we can render at least the heading.
-    ctx.ensureSpace(headingH + SP.lg)
-    y = ctx.cursorY
+  const drawHeading = () => {
+    ctx.drawText("Terms & Conditions", CONTENT_LEFT, y, {
+      size: TYPE.section,
+      bold: true,
+    })
+    y -= descender(TYPE.section) + SP.sm
+    ctx.drawRule(y, CONTENT_LEFT, CONTENT_LEFT + TERMS_WIDTH)
+    y -= SP.lg
   }
 
-  ctx.drawText("Terms & Conditions", CONTENT_LEFT, y, {
-    size: TYPE.section,
-    bold: true,
-  })
-  y -= descender(TYPE.section) + SP.sm
-  ctx.drawRule(y, CONTENT_LEFT, CONTENT_LEFT + TERMS_WIDTH)
-  y -= SP.lg
+  drawHeading()
 
   const itemGap = SP.md
   for (let i = 0; i < terms.length; i++) {
     const itemText = `${i + 1}.  ${terms[i]}`
     const itemHeight = ctx.measureWrappedHeight(itemText, TYPE.terms, TERMS_WIDTH - SP.sm) + itemGap
-    if (y - itemHeight < MIN_CONTENT_Y) {
+
+    if (allowSplit && y - itemHeight < MIN_CONTENT_Y) {
       ctx.addPage()
       y = ctx.cursorY
+      drawHeading()
     }
 
     y = ctx.drawWrapped(itemText, CONTENT_LEFT, y, TERMS_WIDTH - SP.sm, {
@@ -62,7 +62,7 @@ export function drawTermsSection(
 export function termsSectionMinHeight(ctx: QuotePdfContext, terms: string[]): number {
   if (!terms.length) return 0
   const itemGap = SP.md
-  const headingH = lineStep(TYPE.section) + SP.sm + 8 + SP.lg
+  const headingH = lineStep(TYPE.section) + SP.sm + SP.lg + 6
   const body = terms.reduce((sum, term, i) => {
     const itemText = `${i + 1}.  ${term}`
     return (

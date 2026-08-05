@@ -143,7 +143,7 @@ export function drawPricingTable(
   const headingH = lineStep(TYPE.section) + SP.sm + 10
   // Keep a modest headroom buffer; table pagination already handles the rest.
   ctx.ensureSpace(headingH + TABLE.headerHeight + TABLE.minRowHeight)
-  ctx.drawText("Commercial Breakdown", CONTENT_LEFT, ctx.cursorY, {
+  ctx.drawText("Quotation Items", CONTENT_LEFT, ctx.cursorY, {
     size: TYPE.section,
     bold: true,
     color: COLOR.ink,

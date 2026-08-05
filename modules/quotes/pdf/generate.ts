@@ -160,7 +160,7 @@ async function renderQuotePdf(payload: QuotePdfPayload): Promise<Uint8Array> {
   ctx.cursorY = drawClientInformation(ctx, payload.client)
   ctx.cursorY = drawScopeOfWorks(ctx, payload.scope, payload.quotationNotes)
 
-  const continuation = `${QUOTE_COMPANY.name}  ·  ${payload.meta.quoteNumber}`
+  const continuation = `Quotation Items (continued) · ${payload.meta.quoteNumber}`
   const { endY: tableEndY } = drawPricingTable(
     ctx,
     payload.lineItems,
@@ -170,16 +170,21 @@ async function renderQuotePdf(payload: QuotePdfPayload): Promise<Uint8Array> {
   ctx.cursorY = tableEndY
 
   const termsHeight = termsSectionMinHeight(ctx, payload.terms)
-  const totalsHeight = measureTotalsBoxHeight(payload.totals)
-  const blockHeight = Math.max(termsHeight, totalsHeight) + SP.xl
-  if (ctx.cursorY - blockHeight < MIN_CONTENT_Y) {
-    ctx.addPage()
-  }
+  // Totals should sit immediately beneath the pricing table whenever possible.
+  const totalsEndY = drawTotalsSummary(ctx, payload.totals, ctx.cursorY)
+  ctx.cursorY = totalsEndY - SP.md
 
-  const summaryAnchorY = ctx.cursorY
-  const totalsEndY = drawTotalsSummary(ctx, payload.totals, summaryAnchorY)
-  const termsEndY = drawTermsSection(ctx, payload.terms, summaryAnchorY)
-  ctx.cursorY = Math.min(totalsEndY, termsEndY)
+  // Word/Indesign-style flow:
+  // - if the Terms block fits, keep it on the current page (no awkward splitting)
+  // - otherwise move the whole Terms block to the next page
+  // - only split terms if the terms block itself is larger than a single page.
+  const availableOnPage = ctx.cursorY - MIN_CONTENT_Y
+  const needsMoveToNextPage = availableOnPage < termsHeight
+  if (needsMoveToNextPage) ctx.addPage()
+
+  const availableAfterMove = (ctx.cursorY - SP.md) - MIN_CONTENT_Y
+  const allowSplit = termsHeight > availableAfterMove
+  ctx.cursorY = drawTermsSection(ctx, payload.terms, ctx.cursorY - SP.md, { allowSplit })
 
   drawFooters(ctx)
 

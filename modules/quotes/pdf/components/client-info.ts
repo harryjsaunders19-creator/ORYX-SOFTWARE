@@ -49,17 +49,17 @@ export function drawClientInformation(
   const rightX = both ? CONTENT_LEFT + panelW + panelGap : CONTENT_LEFT
 
   const innerPad = SP.lg
-  const labelW = 62
   const headingH = lineStep(TYPE.section) + SP.sm + 8
 
-  const valueW = panelW - innerPad - (labelW + SP.sm)
+  // Client/Project cards provide context via their headings,
+  // so values render without repeated field labels.
+  const valueW = panelW - innerPad * 2
 
   const measurePanelH = (rows: Row[]): number => {
     const rowHeights = rows.map(r => Math.max(lineStep(TYPE.body), ctx.measureWrappedHeight(r.value, TYPE.body, valueW)))
     return (
       innerPad * 2 +
       headingH +
-      (rows.length ? SP.sm : 0) +
       rowHeights.reduce((sum, h) => sum + h, 0) +
       (rows.length - 1) * SP.sm
     )
@@ -83,7 +83,7 @@ export function drawClientInformation(
       borderWidth: 0.6,
     })
 
-    const valueX = x + innerPad + labelW + SP.sm
+    const valueX = x + innerPad
     let y = topY - innerPad - capHeight(TYPE.section)
 
     ctx.drawText(heading.toUpperCase(), x + innerPad, y, {
@@ -97,13 +97,11 @@ export function drawClientInformation(
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!
-      ctx.drawText(row.label.toUpperCase(), x + innerPad, y, {
-        size: TYPE.metaLabel,
-        color: COLOR.faint,
-      })
       y = ctx.drawWrapped(row.value, valueX, y, valueW, {
         size: TYPE.body,
         step: lineStep(TYPE.body),
+        bold: i === 0,
+        color: COLOR.ink,
       })
       if (i < rows.length - 1) y -= SP.sm
     }
