@@ -57,6 +57,7 @@ export function DashboardSectionHeader({
   viewAllLabel,
   as = "h2",
   id,
+  size = "default",
 }: {
   title: string
   count?: number
@@ -66,14 +67,20 @@ export function DashboardSectionHeader({
   viewAllLabel?: string
   as?: "h2" | "h3"
   id?: string
+  size?: "default" | "compact"
 }) {
   const Heading = as
   const badgeClass = countTone ? TONE[countTone].badge : "bg-nested-surface text-t2"
+  const titleClass =
+    size === "compact"
+      ? cn(Typography.Label, "font-semibold uppercase tracking-[0.14em] text-t2")
+      : cn(Typography.SectionHeading, "text-t1")
+
   return (
-    <div className="mb-4 flex items-center justify-between gap-3 md:mb-5">
-      <div className="flex min-w-0 items-center gap-2.5">
+    <div className="mb-3 flex min-h-8 items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2">
         {Icon && <Icon className="h-4 w-4 shrink-0 text-t2" aria-hidden />}
-        <Heading id={id} className={cn(Typography.SectionHeading, "text-t1")}>{title}</Heading>
+        <Heading id={id} className={titleClass}>{title}</Heading>
         {count != null && count > 0 && (
           <span
             className={cn(
@@ -102,11 +109,20 @@ export function DashboardSectionHeader({
   )
 }
 
-/** Compact empty state — no illustrations. */
-export function DashboardEmptyState({ message }: { message: string }) {
+/** Compact empty state — no illustrations or heavy borders. */
+export function DashboardEmptyState({
+  message,
+  detail,
+}: {
+  message: string
+  detail?: string
+}) {
   return (
-    <div className="flex items-center justify-center rounded-xl border border-bd bg-sr px-5 py-8 shadow-card">
-      <p className={cn(Typography.Small, "text-center text-t2")}>{message}</p>
+    <div className="cc-dashboard-empty">
+      <p>{message}</p>
+      {detail && (
+        <p className="mt-0.5 text-t3">{detail}</p>
+      )}
     </div>
   )
 }
@@ -128,7 +144,7 @@ export function StatCard({
 }) {
   const t = TONE[tone]
   const inner = (
-    <div className="group relative h-full overflow-hidden rounded-xl border border-bd bg-sr p-5 shadow-card transition-all duration-150 hover:border-bd-strong hover:shadow-sm max-md:p-4">
+    <div className="group relative h-full overflow-hidden rounded-xl border border-bd-subtle bg-sr p-5 transition-all duration-150 hover:border-bd hover:bg-hover-surface max-md:p-4">
       <div className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: t.accent }} />
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className={cn("rounded-full p-2.5", t.icon)}>
@@ -145,7 +161,7 @@ export function StatCard({
         {value}
       </p>
       <p className={cn(Typography.Small, "mt-2 font-medium text-t1")}>{label}</p>
-      {sub && <p className={cn(Typography.Helper, "mt-1 text-t2")}>{sub}</p>}
+      {sub && <p className={cn(Typography.Helper, "mt-1 text-t3")}>{sub}</p>}
     </div>
   )
   return href ? (
@@ -175,7 +191,7 @@ export function Panel({
 }) {
   const badgeClass = countTone ? TONE[countTone].badge : "bg-nested-surface text-t2"
   return (
-    <section className="flex min-h-56 flex-col overflow-hidden rounded-xl border border-bd bg-sr shadow-card">
+    <section className="flex min-h-56 flex-col overflow-hidden rounded-xl border border-bd-subtle bg-sr">
       <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-4">
         <div className="flex min-w-0 items-center gap-2">
           <h2 className={cn(Typography.CardTitle, "text-t1")}>{title}</h2>
@@ -199,14 +215,14 @@ export function Panel({
           </Link>
         )}
       </div>
-      <div className="flex flex-1 flex-col border-t border-bd">{children}</div>
+      <div className="flex flex-1 flex-col">{children}</div>
     </section>
   )
 }
 
 export function PanelEmpty({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-5 py-10">
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-5 py-8">
       <Icon className="h-5 w-5 text-t3" aria-hidden />
       <p className={cn(Typography.Small, "text-center text-t2")}>{message}</p>
     </div>

@@ -68,14 +68,14 @@ export function DashboardHoldsPanel({
                 key={hold.id}
                 href={`/clients/${hold.clientId}`}
                 className={cn(
-                  "group flex items-start justify-between gap-3 rounded-xl border border-wn-bd/70 bg-sr p-4 shadow-card",
-                  "transition-all duration-150 hover:border-wn-bd hover:bg-hover-surface",
+                  "cc-dashboard-surface group flex items-start justify-between gap-3 p-4",
+                  "transition-colors duration-150 hover:border-bd hover:bg-hover-surface",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-t1/20",
                 )}
               >
                 <div className="flex min-w-0 items-start gap-3">
                   <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-wn-bg text-xs font-bold text-wn-tx"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-wn-bg text-[11px] font-bold text-wn-tx"
                     aria-hidden
                   >
                     {clientInitials(hold.clientName)}
@@ -88,12 +88,12 @@ export function DashboardHoldsPanel({
                       {hold.reason || "On hold"}
                     </p>
                     {meta && (
-                      <p className={cn(Typography.Helper, "mt-1 text-t2")}>{meta}</p>
+                      <p className={cn(Typography.Helper, "mt-1 text-t3")}>{meta}</p>
                     )}
                   </div>
                 </div>
                 <ChevronRight
-                  className="mt-1 h-4 w-4 shrink-0 text-t3 transition-colors group-hover:text-t1"
+                  className="mt-0.5 h-4 w-4 shrink-0 text-t3 transition-colors group-hover:text-t1"
                   aria-hidden
                 />
               </Link>

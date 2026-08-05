@@ -79,13 +79,13 @@
    *   s2 — Secondary panels / inspectors
    * Legacy aliases: pg ≈ s0, sr ≈ s1.
    */
-  --color-s0:     #F3F4F6;
+  --color-s0:     #E8EAEE;
   --color-s1:     #FFFFFF;
   --color-s2:     #F7F7F8;
-  --color-pg:     #F3F4F6;
+  --color-pg:     #E8EAEE;
   --color-sr:     #FFFFFF;
-  --color-surface-low: #F1F3F5;
-  --color-nested-surface: #FAFAFB;
+  --color-surface-low: #F0F2F5;
+  --color-nested-surface: #F8F9FA;
   --color-hover-surface: #F7F8FA;
   --color-selected-surface: #EEF4FF;
   --color-sidebar:     #F7F8FA;
@@ -681,13 +681,13 @@ html.dark {
  * Stitch ORYX OS — cool-grey canvas + light sidebar; dark mode flips canvas.
  */
 html.stitch-layout {
-  --color-s0: #F3F4F6;
+  --color-s0: #E8EAEE;
   --color-s1: #FFFFFF;
   --color-s2: #F7F7F8;
-  --color-pg: #F3F4F6;
+  --color-pg: #E8EAEE;
   --color-sr: #FFFFFF;
-  --color-surface-low: #F1F3F5;
-  --color-nested-surface: #FAFAFB;
+  --color-surface-low: #F0F2F5;
+  --color-nested-surface: #F8F9FA;
   --color-hover-surface: #F7F8FA;
   --color-selected-surface: #EEF4FF;
   --color-bd: #D9DEE5;
@@ -720,9 +720,9 @@ html.stitch-layout {
   --stitch-sidebar-border: #D9DEE5;
   --stitch-menu-logo-fill: #111827;
   --stitch-outline-variant: #D9DEE5;
-  --stitch-canvas-bg: #F3F4F6;
+  --stitch-canvas-bg: #E8EAEE;
   --stitch-top-bar-bg: #F7F8FA;
-  --stitch-search-bg: #F1F3F5;
+  --stitch-search-bg: #F0F2F5;
   --stitch-error-container: #ffdad6;
   --stitch-on-error-container: #93000a;
   --stitch-sidebar-w: 256px;
@@ -959,10 +959,10 @@ html.stitch-layout .stitch-nav-link[data-active="true"]:hover {
 
 html.stitch-layout .stitch-sidebar-brand-title {
   color: var(--stitch-sidebar-text);
-  font-size: var(--type-section-size);
-  font-weight: var(--type-section-weight);
-  line-height: var(--type-section-leading);
-  letter-spacing: var(--type-section-tracking);
+  font-size: var(--type-card-title-size);
+  font-weight: var(--type-card-title-weight);
+  line-height: var(--type-card-title-leading);
+  letter-spacing: var(--type-card-title-tracking);
 }
 
 html.stitch-layout .stitch-sidebar-brand-sub {
@@ -1035,19 +1035,53 @@ html.stitch-layout .stitch-top-bar-title {
   overscroll-behavior: contain;
 }
 
-/* Dashboard home — restrained hierarchy polish (scoped; does not restyle the shell) */
-.cc-dashboard .cc-dashboard-stat {
-  font-size: 32px;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+/* Dashboard home — premium polish (scoped; shell tokens unchanged in dark) */
+.cc-dashboard {
+  --dashboard-section-gap: 1.5rem; /* 24px */
 }
 
-/* Dark mode: lift muted copy for scanability without brightening borders */
+.cc-dashboard .cc-dashboard-stat {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+/* Primary dashboard surfaces — depth via background, not shadow */
+.cc-dashboard .cc-dashboard-surface {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-bd-subtle);
+  background-color: var(--color-sr);
+}
+
+.cc-dashboard .cc-dashboard-kpi {
+  box-shadow: none;
+}
+
+.cc-dashboard .cc-dashboard-panel {
+  box-shadow: none;
+}
+
+.cc-dashboard .cc-dashboard-empty {
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface-low);
+  padding: 0.625rem 1rem;
+}
+
+.cc-dashboard .cc-dashboard-empty p {
+  font-size: var(--type-small-size);
+  line-height: var(--type-small-leading);
+  color: var(--color-t2);
+}
+
+/* Dark mode: lift muted copy; cards stay elevated via surface tokens */
 html.dark .cc-dashboard .text-t3 {
   color: color-mix(in srgb, var(--color-t2) 82%, var(--color-t3));
 }
 
-html.dark .cc-dashboard {
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.28), 0 4px 14px -6px rgb(0 0 0 / 0.4);
+html.dark .cc-dashboard .cc-dashboard-surface,
+html.dark .cc-dashboard .cc-dashboard-kpi,
+html.dark .cc-dashboard .cc-dashboard-panel {
+  box-shadow: none;
 }
 

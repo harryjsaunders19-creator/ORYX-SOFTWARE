@@ -45,37 +45,46 @@ export function DashboardOverduePanel({
       />
 
       {overdueJobs.length === 0 ? (
-        <DashboardEmptyState message="No overdue jobs" />
+        <DashboardEmptyState
+          message="No overdue jobs"
+          detail="Everything is up to date."
+        />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-dn-bd/60 bg-sr shadow-card">
+        <div className="cc-dashboard-panel cc-dashboard-surface overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-left">
-              <thead className="border-b border-bd bg-surface-low">
+              <thead className="bg-surface-low">
                 <tr>
-                  <th className={cn(Typography.TableHead, "px-4 py-3 text-t2 sm:px-5")}>
+                  <th className={cn(Typography.TableHead, "px-4 py-2.5 text-t2 sm:px-5")}>
                     Drawing
                   </th>
-                  <th className={cn(Typography.TableHead, "px-4 py-3 text-t2 sm:px-5")}>
+                  <th className={cn(Typography.TableHead, "px-4 py-2.5 text-t2 sm:px-5")}>
                     Description
                   </th>
-                  <th className={cn(Typography.TableHead, "px-4 py-3 text-t2 sm:px-5")}>
+                  <th className={cn(Typography.TableHead, "px-4 py-2.5 text-t2 sm:px-5")}>
                     Due
                   </th>
-                  <th className={cn(Typography.TableHead, "px-4 py-3 text-right text-t2 sm:px-5")}>
+                  <th className={cn(Typography.TableHead, "px-4 py-2.5 text-right text-t2 sm:px-5")}>
                     <span className="sr-only">Open</span>
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-bd-subtle">
-                {overdueJobs.map(job => {
+              <tbody>
+                {overdueJobs.map((job, i) => {
                   const description =
                     [job.typeOfWorks, job.address || job.siteAddress, job.clientCompany]
                       .filter(Boolean)
                       .join(" — ") || "—"
                   const due = dueCellLabel(job)
                   return (
-                    <tr key={job.id} className="group relative">
-                      <td className="px-4 py-3.5 sm:px-5">
+                    <tr
+                      key={job.id}
+                      className={cn(
+                        "group relative",
+                        i > 0 && "border-t border-bd-subtle",
+                      )}
+                    >
+                      <td className="px-4 py-3 sm:px-5">
                         <Link
                           href={`/jobs/${job.id}`}
                           className="absolute inset-0 z-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-t1/25"
@@ -85,16 +94,16 @@ export function DashboardOverduePanel({
                           className={cn(
                             Typography.DrawingNumber,
                             Typography.Table,
-                            "relative z-10 inline-flex rounded-md bg-dn-bg px-2.5 py-1 font-bold text-dn-tx",
+                            "relative z-10 inline-flex rounded-md bg-dn-bg px-2 py-0.5 font-bold text-dn-tx",
                           )}
                         >
                           {job.drawingNumber}
                         </span>
                       </td>
-                      <td className="relative z-10 max-w-[220px] truncate px-4 py-3.5 text-t1 pointer-events-none sm:max-w-[280px] sm:px-5">
+                      <td className="relative z-10 max-w-[220px] truncate px-4 py-3 text-t1 pointer-events-none sm:max-w-[280px] sm:px-5">
                         <span className={Typography.Table}>{description}</span>
                       </td>
-                      <td className="relative z-10 whitespace-nowrap px-4 py-3.5 pointer-events-none sm:px-5">
+                      <td className="relative z-10 whitespace-nowrap px-4 py-3 pointer-events-none sm:px-5">
                         <div className="flex flex-col gap-0.5">
                           <span className={cn(Typography.Table, "text-t1")}>{due.date}</span>
                           {due.overdue && (
@@ -104,9 +113,9 @@ export function DashboardOverduePanel({
                           )}
                         </div>
                       </td>
-                      <td className="relative z-10 px-4 py-3.5 text-right pointer-events-none sm:px-5">
+                      <td className="relative z-10 px-4 py-3 text-right pointer-events-none sm:px-5">
                         <span
-                          className="inline-flex rounded-md p-1.5 text-t2 transition-colors group-hover:bg-nested-surface group-hover:text-t1"
+                          className="inline-flex rounded-md p-1 text-t3 transition-colors group-hover:bg-nested-surface group-hover:text-t1"
                           aria-hidden
                         >
                           <ChevronRight className="h-4 w-4" />

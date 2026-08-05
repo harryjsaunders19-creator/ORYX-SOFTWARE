@@ -22,37 +22,34 @@ function KpiCard({
 }) {
   const t = TONE[tone]
   const subClass =
-    emphasize && tone === "due"
+    emphasize && (tone === "due" || tone === "overdue")
       ? "text-dn-tx"
-      : emphasize && tone === "overdue"
-        ? "text-dn-tx"
-        : emphasize && tone === "checking"
-          ? "text-wn-tx"
-          : "text-t2"
+      : emphasize && tone === "checking"
+        ? "text-wn-tx"
+        : "text-t3"
 
   return (
     <Link
       href={href}
       className={cn(
-        "group relative block overflow-hidden rounded-xl border border-bd bg-sr p-5 shadow-card",
-        "transition-all duration-150 hover:border-bd-strong hover:bg-hover-surface",
+        "cc-dashboard-kpi cc-dashboard-surface group relative flex min-h-[104px] flex-col px-4 py-4",
+        "transition-colors duration-150 hover:border-bd hover:bg-hover-surface",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-t1/20",
-        "max-md:p-4",
       )}
     >
       <span
-        className="absolute inset-y-0 left-0 w-0.5"
-        style={{ backgroundColor: emphasize ? t.accent : "transparent" }}
+        className="absolute inset-y-3 left-0 w-0.5 rounded-full"
+        style={{ backgroundColor: t.accent, opacity: emphasize ? 1 : 0.4 }}
         aria-hidden
       />
-      <p className={cn(Typography.Label, "mb-3 font-medium text-t2")}>{label}</p>
-      <div className="flex min-h-[2.25rem] items-baseline gap-2">
+      <p className={cn(Typography.Label, "min-h-4 font-medium text-t2")}>{label}</p>
+      <div className="mt-3 flex flex-1 flex-col justify-end">
         <p className={cn(Typography.Stat, "cc-dashboard-stat tabular-nums text-t1")}>
           {value}
         </p>
-        <span className={cn(Typography.Helper, "font-medium", subClass)}>
+        <p className={cn(Typography.Helper, "mt-1.5 font-medium", subClass)}>
           {sub}
-        </span>
+        </p>
       </div>
     </Link>
   )
@@ -80,7 +77,7 @@ export function DashboardKpiGrid({
   return (
     <section
       aria-label="Dashboard summary"
-      className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 md:mb-10 md:gap-5"
+      className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4"
     >
       <KpiCard
         label="Active Jobs"

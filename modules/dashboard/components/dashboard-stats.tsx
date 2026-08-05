@@ -66,16 +66,16 @@ export function DashboardStats({
 
   if (isLoading && !stats) {
     return (
-      <div className="cc-dashboard space-y-8">
-        <div className="h-14 max-w-md rounded-lg skeleton" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="cc-dashboard space-y-6">
+        <div className="h-12 max-w-md rounded-lg skeleton" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 rounded-xl skeleton" />
+            <div key={i} className="h-[104px] rounded-xl skeleton" />
           ))}
         </div>
         <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12 h-64 rounded-xl skeleton lg:col-span-8" />
-          <div className="col-span-12 h-64 rounded-xl skeleton lg:col-span-4" />
+          <div className="col-span-12 h-56 rounded-xl skeleton lg:col-span-8" />
+          <div className="col-span-12 h-56 rounded-xl skeleton lg:col-span-4" />
         </div>
       </div>
     )
@@ -103,25 +103,19 @@ export function DashboardStats({
         isAdmin={isAdmin}
       />
 
-      {/*
-        Attention hierarchy (DOM order = mobile stack):
-        1. Overdue → 2/3 surfaced in KPIs → 4. Schedule → 5. Holds → 6. Invoice KPI
-      */}
-      <div className="grid grid-cols-12 items-start gap-6 md:gap-8">
-        <div className="col-span-12 lg:col-span-8">
+      <div className="grid grid-cols-12 items-start gap-6">
+        <div className="col-span-12 flex flex-col gap-6 lg:col-span-8">
           <DashboardOverduePanel
             overdueJobs={overdueJobs}
             overdueCount={overdueCount}
           />
-        </div>
-        <div className="col-span-12 lg:col-span-4">
-          <DashboardScheduleRail events={events} />
-        </div>
-        <div className="col-span-12 lg:col-span-8">
           <DashboardHoldsPanel
             holds={holds}
             clientsOnHold={stats?.clientsOnHold}
           />
+        </div>
+        <div className="col-span-12 lg:col-span-4">
+          <DashboardScheduleRail events={events} />
         </div>
       </div>
     </div>

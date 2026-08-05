@@ -88,12 +88,12 @@ export function DashboardHeading({
   })
 
   return (
-    <header className="mb-6 md:mb-8">
+    <header className="mb-4">
       <h1 className={cn(Typography.PageTitle, "text-t1")}>
         {greeting}, {name}
       </h1>
       {summary && (
-        <p className={cn(Typography.Small, "mt-1.5 max-w-2xl text-t2")}>
+        <p className={cn(Typography.Small, "mt-1 max-w-2xl text-t2")}>
           {summary}
         </p>
       )}
