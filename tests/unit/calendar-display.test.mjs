@@ -10,11 +10,8 @@ import {
   resolveCategoryColour,
   CATEGORY_COLOUR_DEFAULTS,
   resolveCategoryFilter,
+  isUserSelectableCategory,
 } from "../../modules/calendar/config/category-config.ts"
-import {
-  isJobDerivedEventId,
-  jobIdFromDerivedEventId,
-} from "../../modules/calendar/lib/job-derived-ids.ts"
 
 describe("calendar-display", () => {
   it("builds month range spanning week-aligned grid", () => {
@@ -37,13 +34,13 @@ describe("calendar-display", () => {
 
   it("uses muted category colours", () => {
     assert.equal(resolveCategoryColour("cat_site_visit"), CATEGORY_COLOUR_DEFAULTS.cat_site_visit.color)
-    assert.equal(resolveCategoryColour("cat_deadline"), CATEGORY_COLOUR_DEFAULTS.cat_deadline.color)
+    assert.equal(resolveCategoryColour("cat_client_meeting"), CATEGORY_COLOUR_DEFAULTS.cat_client_meeting.color)
     assert.match(CATEGORY_COLOUR_DEFAULTS.cat_overdue.color, /^#/)
   })
 
   it("tints overdue events muted red", () => {
     const colour = resolveEventDisplayColour({
-      categoryId: "cat_deadline",
+      categoryId: "cat_site_visit",
       endDate: "2020-01-01",
       status: "SCHEDULED",
     })
@@ -60,7 +57,7 @@ describe("calendar-display", () => {
 
   it("keeps colour as non-sole indicator via type labels", () => {
     assert.equal(eventTypeLabel("cat_site_visit"), "Site Visit")
-    assert.equal(eventTypeLabel("cat_deadline", "Design Deadline"), "Design Deadline")
+    assert.equal(eventTypeLabel("cat_teams_meeting", "Meeting"), "Meeting")
   })
 })
 
@@ -71,22 +68,8 @@ describe("calendar category filters", () => {
     assert.ok(f.categoryIds?.includes("cat_internal_meeting"))
   })
 
-  it("groups deadline-derived categories", () => {
-    const f = resolveCategoryFilter("cat_deadline")
-    assert.deepEqual(f.categoryIds, [
-      "cat_deadline",
-      "cat_revision_due",
-      "cat_checking_due",
-    ])
-  })
-})
-
-describe("job-derived event ids", () => {
-  it("parses derived job ids for deep links", () => {
-    const id = "derived:job:deadline:abc123"
-    assert.equal(isJobDerivedEventId(id), true)
-    assert.equal(jobIdFromDerivedEventId(id), "abc123")
-    assert.equal(isJobDerivedEventId("evt_manual"), false)
-    assert.equal(jobIdFromDerivedEventId("evt_manual"), null)
+  it("does not expose job deadline categories for creation", () => {
+    assert.equal(isUserSelectableCategory("cat_deadline"), false)
+    assert.equal(isUserSelectableCategory("cat_site_visit"), true)
   })
 })

@@ -11,7 +11,6 @@ export const CALENDAR_USER_CATEGORY_IDS = [
   "cat_client_meeting",
   "cat_teams_meeting",
   "cat_internal_meeting",
-  "cat_deadline",
   ...(isExperimentalEnabled("leave") ? (["cat_leave"] as const) : []),
 ] as const
 
@@ -26,13 +25,9 @@ export const CATEGORY_COLOUR_DEFAULTS: Record<string, { name: string; color: str
   cat_client_meeting:   { name: "Client Meeting",    color: "#6B5B95" }, // muted purple
   cat_teams_meeting:    { name: "Meeting",           color: "#5B6B8A" }, // slate-purple
   cat_internal_meeting: { name: "Internal Meeting",  color: "#4A6B7C" }, // petrol
-  cat_deadline:         { name: "Design Deadline",   color: "#B86A2E" }, // muted orange
   cat_leave:            { name: "Leave",             color: "#6B7280" }, // neutral grey
   cat_survey:           { name: "Survey",            color: "#6B7340" },
   cat_installation:     { name: "Installation",      color: "#3D7A55" },
-  /** Derived / system — not user-created */
-  cat_revision_due:     { name: "Revision Due",      color: "#8B5E3C" },
-  cat_checking_due:     { name: "CAT II / Checking", color: "#6E3F9E" },
   cat_completed:        { name: "Completed",         color: "#3D7A55" }, // muted green
   cat_overdue:          { name: "Urgent / Overdue",  color: "#A8483E" }, // muted red
 }
@@ -41,7 +36,6 @@ export const CATEGORY_COLOUR_DEFAULTS: Record<string, { name: string; color: str
 export const CALENDAR_LEGEND_ITEMS: { id: string; label: string; color: string }[] = [
   { id: "cat_site_visit", label: "Site Visit", color: CATEGORY_COLOUR_DEFAULTS.cat_site_visit.color },
   { id: "cat_client_meeting", label: "Meeting", color: CATEGORY_COLOUR_DEFAULTS.cat_client_meeting.color },
-  { id: "cat_deadline", label: "Deadline", color: CATEGORY_COLOUR_DEFAULTS.cat_deadline.color },
   { id: "cat_leave", label: "Leave", color: CATEGORY_COLOUR_DEFAULTS.cat_leave.color },
 ]
 
@@ -85,12 +79,6 @@ export function resolveCategoryFilter(categoryId?: string | null): {
   ) {
     return {
       categoryIds: ["cat_teams_meeting", "cat_client_meeting", "cat_internal_meeting"],
-    }
-  }
-  // Deadlines include job-derived revision / CAT II due dates
-  if (categoryId === "cat_deadline") {
-    return {
-      categoryIds: ["cat_deadline", "cat_revision_due", "cat_checking_due"],
     }
   }
   return { categoryId }

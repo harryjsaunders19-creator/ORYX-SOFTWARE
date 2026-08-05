@@ -14,10 +14,6 @@ import {
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 import { createId } from "@paralleldrive/cuid2"
 import { ANNUAL_LEAVE_CATEGORY_ID } from "@/modules/leave/constants"
-import {
-  findJobDerivedCalendarEvents,
-  isJobDerivedEventId,
-} from "../services/job-derived-events"
 
 export async function GET(req: NextRequest) {
   const auth = await requireModuleAccess("calendar")
@@ -36,7 +32,6 @@ export async function GET(req: NextRequest) {
     const hideRejected = sp.get("hideRejected") !== "false"
     const leaveStatus = sp.get("leaveStatus") ?? undefined
     const department = sp.get("department") ?? undefined
-    const includeJobs = sp.get("includeJobs") !== "false"
 
     const categoryFilter = resolveCategoryFilter(sp.get("categoryId"))
 
@@ -50,55 +45,19 @@ export async function GET(req: NextRequest) {
 
     if (!isExperimentalEnabled("leave")) {
       events = events.filter(e => !isLeaveCategory(e.categoryId))
-    } else {
-      events = await filterLeaveEventsForViewer(auth.user, events, {
-        showLeave,
-        hideRejected,
-        leaveStatus,
-        department,
-        filterUserId: sp.get("leaveUserId") ?? undefined,
-      })
-
-      if (!showLeave) {
-        events = events.filter(e => e.categoryId !== ANNUAL_LEAVE_CATEGORY_ID)
-      }
+      return listResponse({ events })
     }
 
-    // Overlay engineering deadlines / site-visit jobs (no duplicate entry).
-    if (includeJobs && !sp.get("jobId")) {
-      try {
-        const derived = await findJobDerivedCalendarEvents(from, to)
-        const linkedJobIds = new Set(
-          events.map(e => e.jobId).filter((id): id is string => Boolean(id)),
-        )
-        // Skip derived rows when a manual calendar event already links the same job
-        // on an overlapping day — avoids double-booking the grid.
-        const filtered = derived.filter(d => {
-          if (!d.jobId) return true
-          if (linkedJobIds.has(d.jobId)) return false
-          // Also skip if this specific derived id somehow already exists
-          return !isJobDerivedEventId(d.id) || !events.some(e => e.id === d.id)
-        })
+    events = await filterLeaveEventsForViewer(auth.user, events, {
+      showLeave,
+      hideRejected,
+      leaveStatus,
+      department,
+      filterUserId: sp.get("leaveUserId") ?? undefined,
+    })
 
-        const categoryId = sp.get("categoryId")
-        const scoped = !categoryId || categoryId === "ALL"
-          ? filtered
-          : filtered.filter(d => {
-              const resolved = resolveCategoryFilter(categoryId)
-              if (resolved.categoryIds) return resolved.categoryIds.includes(d.categoryId)
-              return d.categoryId === resolved.categoryId
-            })
-
-        const userId = sp.get("userId")
-        // Job-derived events have no assignees — omit when filtering by staff.
-        if (!userId) {
-          events = [...events, ...scoped].sort((a, b) =>
-            a.startDate.localeCompare(b.startDate) || a.title.localeCompare(b.title),
-          )
-        }
-      } catch (err) {
-        console.warn("[calendar.api.events] job-derived overlay failed:", err)
-      }
+    if (!showLeave) {
+      events = events.filter(e => e.categoryId !== ANNUAL_LEAVE_CATEGORY_ID)
     }
 
     return listResponse({ events })

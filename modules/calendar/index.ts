@@ -41,8 +41,3 @@ export {
   resolveEventDisplayColour,
   type CalendarViewMode,
 } from "./lib/calendar-display"
-
-export {
-  isJobDerivedEventId,
-  jobIdFromDerivedEventId,
-} from "./lib/job-derived-ids"

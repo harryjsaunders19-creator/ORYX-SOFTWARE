@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
 import Link from "next/link"
-import { Trash2, MapPin, Video, CalendarOff, Users, ClipboardList, CalendarClock, ExternalLink } from "lucide-react"
+import { Trash2, MapPin, Video, CalendarOff, Users, ClipboardList, ExternalLink } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Input }  from "@/shared/ui/input"
 import { Label }  from "@/shared/ui/label"
@@ -21,7 +21,6 @@ const EVENT_TYPES = [
   { id: "cat_client_meeting", name: "Client Meeting", color: CATEGORY_COLOUR_DEFAULTS.cat_client_meeting.color, icon: Users },
   { id: "cat_teams_meeting", name: "Meeting", color: CATEGORY_COLOUR_DEFAULTS.cat_teams_meeting.color, icon: Video },
   { id: "cat_internal_meeting", name: "Internal", color: CATEGORY_COLOUR_DEFAULTS.cat_internal_meeting.color, icon: ClipboardList },
-  { id: "cat_deadline", name: "Deadline", color: CATEGORY_COLOUR_DEFAULTS.cat_deadline.color, icon: CalendarClock },
   ...(isExperimentalEnabled("leave")
     ? [{ id: "cat_leave" as const, name: "Leave", color: CATEGORY_COLOUR_DEFAULTS.cat_leave.color, icon: CalendarOff }]
     : []),

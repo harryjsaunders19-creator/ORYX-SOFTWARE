@@ -33,10 +33,6 @@ import {
   resolveEventDisplayColour,
   type CalendarViewMode,
 } from "../lib/calendar-display"
-import {
-  isJobDerivedEventId,
-  jobIdFromDerivedEventId,
-} from "../lib/job-derived-ids"
 
 const LEAVE_ENABLED = isExperimentalEnabled("leave")
 
@@ -103,7 +99,7 @@ export default function CalendarPage() {
 
   const eventsKey = useMemo(() => {
     const { from, to } = getCalendarRange(currentDate, view)
-    const params = new URLSearchParams({ from, to, includeJobs: "true" })
+    const params = new URLSearchParams({ from, to })
     if (filterCategory !== "ALL") params.set("categoryId", filterCategory)
     if (filterUser !== "ALL") params.set("userId", filterUser)
     if (LEAVE_ENABLED) {
@@ -154,7 +150,6 @@ export default function CalendarPage() {
     return CALENDAR_LEGEND_ITEMS.filter(item => {
       if (item.id === "cat_leave") return leaveOn
       return categories.some(c => c.id === item.id)
-        || item.id === "cat_deadline"
         || item.id === "cat_client_meeting"
     })
   }, [categories, showLeave])
@@ -167,26 +162,13 @@ export default function CalendarPage() {
   }
 
   const handleEventClick = (eventId: string) => {
-    if (isJobDerivedEventId(eventId)) {
-      const jobId = jobIdFromDerivedEventId(eventId)
-        ?? events.find(e => e.id === eventId)?.jobId
-      if (jobId) {
-        router.push(`/jobs/${jobId}`)
-        return
-      }
-    }
     const ev = events.find(e => e.id === eventId)
     if (!ev) return
-    if (ev.jobId && isJobDerivedEventId(ev.id)) {
-      router.push(`/jobs/${ev.jobId}`)
-      return
-    }
     if (LEAVE_ENABLED && isLeaveEvent(ev)) {
       setLeaveEvent(ev)
       setLeaveDialogOpen(true)
       return
     }
-    // Linked calendar events: open edit; job link available via drawing in title/dialog context
     setEditEvent(ev)
     setDefaultDate(undefined)
     setDialogOpen(true)
