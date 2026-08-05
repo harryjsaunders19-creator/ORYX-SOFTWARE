@@ -2,6 +2,10 @@
  * Quote PDF generation — extracted from the API route so it can run
  * in the background via next/server `after()`.
  *
+ * Shared entry points:
+ *   buildQuotePdfFromPayload(data) — render any QuotationPdfData
+ *   buildQuotePdfBuffer(id)        — load a quote record then render
+ *
  * ─── Layout engine ────────────────────────────────────────────────────────────
  * Every drawing function signature is:
  *
@@ -21,16 +25,18 @@
  * truncated at their column boundary.
  * ──────────────────────────────────────────────────────────────────────────────
  */
-import { quoteService } from "../services/quote-service"
-import { clientService } from "@/modules/clients"
 import { quotePdfDownloadUrl } from "./urls"
 import { setCachedQuotePdf } from "./cache"
+import { quoteService } from "../services/quote-service"
 import { PDFDocument, rgb } from "pdf-lib"
 import fontkit from "@pdf-lib/fontkit"
 import { format } from "date-fns"
 import fs from "fs/promises"
 import path from "path"
 import { BRAND_LOGO_DOCUMENT_PATH } from "@/shared/branding/branding"
+import { QUOTE_COMPANY, DEFAULT_QUOTE_TERMS } from "./company"
+import { mapQuoteRecordToQuotationPdfData } from "./map-quote-to-pdf-data"
+import type { QuotationPdfData } from "./types"
 
 // ── Page geometry ─────────────────────────────────────────────────────────────
 const PAGE_WIDTH  = 595.28
@@ -96,6 +102,7 @@ const COL_AMT_END = MARGIN_R
 const CELL_PAD_X     = 8    // horizontal cell padding — currency / text breathing room
 const CELL_PAD_Y     = 5    // vertical cell padding — balanced row proportions
 const DESC_W         = COL_PO_X - COL_DESC_X - CELL_PAD_X * 2
+const PO_W           = COL_VAT_X - COL_PO_X - CELL_PAD_X * 2
 
 /** Shared black header height — elegant labels (~38% shorter than original ~24.5). */
 const HEADER_H       = 15.0
@@ -130,21 +137,7 @@ const CONTENT_TOP = PAGE_HEIGHT - 52   // balanced top margin
 const FOOTER_Y    = 38
 const FOOTER_RULE = FOOTER_Y + SP_XL + SP_SM   // generous space before footer
 
-// ── Company / Terms data ──────────────────────────────────────────────────────
-const COMPANY = {
-  name: "ORYX Scaffold Design Ltd",
-  addressLines: ["Little Woodlands, 61 Bath Road, Willsbridge.", "Bristol, BS30 6ES."],
-  phone: "0117 3290050",
-  email: "harry@oryxdesignltd.co.uk",
-  website: "www.oryxdesignltd.co.uk",
-}
-
-const TERMS = [
-  "Customer will be billed after indicating acceptance of this quote.",
-  "Payment will be due 21 days after the receipt of invoice.",
-  "Please confirm acceptance of this quote in written form through email.",
-  "Any further works or revisions after the submittal of the first design will be charged at £95.00 + VAT Per hour.",
-]
+const COMPANY = QUOTE_COMPANY
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 function fmtNumber(value: number): string {
@@ -184,33 +177,33 @@ function wrapText(
   return lines
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
-export async function buildQuotePdfBuffer(
-  id: string
+function resolveLineItems(data: QuotationPdfData) {
+  const items = data.items.map((item, index) => ({
+    ...item,
+    purchaseOrder:
+      item.purchaseOrder
+      ?? (index === 0 ? data.purchaseOrder ?? null : null),
+  }))
+  return items
+}
+
+/**
+ * Render a quotation PDF from the shared QuotationPdfData model.
+ * Used by the Quotes module and Site Visit Calculator export.
+ */
+export async function buildQuotePdfFromPayload(
+  data: QuotationPdfData
 ): Promise<{ pdfBytes: Uint8Array; filename: string }> {
-  const quote = await quoteService.findUnique(id)
-  if (!quote) throw new Error("Quote not found")
+  const preparedBy = data.preparedBy
+  const customerId = data.customerId
+  const lineItems = resolveLineItems(data)
+  const terms = data.terms.length ? data.terms : [...DEFAULT_QUOTE_TERMS]
 
-  const preparedBy = quote.createdBy
-
-  const [client, realLineItems] = await Promise.all([
-    quote.clientId ? clientService.findUnique(quote.clientId) : Promise.resolve(null),
-    quoteService.findLineItemsForQuote(quote.id),
-  ])
-
-  const customerId = client?.accountCode ?? null
-  const lineItems = realLineItems.length
-    ? realLineItems.map(li => ({
-        description:    li.description,
-        amount:         li.amount,
-        vatApplicable:  li.vatApplicable === 1,
-      }))
-    : [{ description: quote.description, amount: quote.quoteValue, vatApplicable: true }]
-
-  const subtotal = lineItems.reduce((s, li) => s + li.amount, 0)
-  const taxable  = lineItems.filter(li => li.vatApplicable).reduce((s, li) => s + li.amount, 0)
-  const vatDue   = quote.vatRate != null ? taxable * (quote.vatRate / 100) : 0
-  const total    = quote.vatRate != null ? subtotal + vatDue : subtotal
+  const subtotal = data.subtotal
+  const taxable  = data.taxable ?? lineItems.filter(li => li.vatApplicable).reduce((s, li) => s + li.amount, 0)
+  const vatDue   = data.vatAmount
+  const total    = data.grandTotal
+  const vatRate  = data.vatRate
 
   // ── PDF document + assets ─────────────────────────────────────────────────
   const doc = await PDFDocument.create()
@@ -253,21 +246,6 @@ export async function buildQuotePdfBuffer(
       font,
       color: opts.color ?? INK,
     })
-  }
-
-  /**
-   * Draw a single text line. Returns the y for the NEXT line.
-   * step defaults to size × 1.5.
-   */
-  const drawLine = (
-    text: string,
-    x: number,
-    baselineY: number,
-    opts: DrawOpts & { step?: number }
-  ): number => {
-    const { step = Math.round(opts.size * 1.5), ...rest } = opts
-    drawText(text, x, baselineY, rest)
-    return baselineY - step
   }
 
   /**
@@ -386,7 +364,7 @@ export async function buildQuotePdfBuffer(
     color: LABEL_C,
   })
   metaY -= Math.round(T_META_LBL * 1.6)
-  drawText(quote.quoteNumber, MARGIN_R, metaY, {
+  drawText(data.quotationNumber, MARGIN_R, metaY, {
     size: T_QUOTE_NO,
     bold: true,
     align: "right",
@@ -394,9 +372,9 @@ export async function buildQuotePdfBuffer(
   metaY -= dscH(T_QUOTE_NO) + SP_LG + SP_XS
 
   const metaRows: [string, string][] = [
-    ["DATE",        fmtDate(quote.quoteDate)],
+    ["DATE",        fmtDate(data.issueDate)],
     ["CUSTOMER ID", customerId ?? "—"],
-    ["VALID UNTIL", fmtDate(quote.expiryDate)],
+    ["VALID UNTIL", fmtDate(data.validUntil)],
   ]
   for (const [label, value] of metaRows) {
     drawText(label, META_LBL_X, metaY, { size: T_META_LBL, align: "right", color: LABEL_C })
@@ -450,20 +428,21 @@ export async function buildQuotePdfBuffer(
   let siteY = siteBandBottom - SP_MD
 
   // Customer company name — wraps naturally
-  custY = drawWrapped(quote.clientCompany, MARGIN_L + SP_MD, custY, halfW - SP_LG, {
+  const clientLabel = data.client.trim() || "—"
+  custY = drawWrapped(clientLabel, MARGIN_L + SP_MD, custY, halfW - SP_LG, {
     size: T_BODY, step: STEP_BODY, bold: true,
   })
   // Contact line — truncated (single line)
-  if (quote.contactName) {
+  if (data.contact) {
     drawText(
-      truncate(`Contact — ${quote.contactName}`, halfW - SP_LG, T_BODY),
+      truncate(`Contact — ${data.contact}`, halfW - SP_LG, T_BODY),
       MARGIN_L + SP_MD, custY, { size: T_BODY, color: LABEL_C }
     )
     custY -= STEP_BODY
   }
 
   // Site address — wraps naturally
-  siteY = drawWrapped(quote.address, siteColX + SP_MD, siteY, halfW - SP_LG, {
+  siteY = drawWrapped(data.site, siteColX + SP_MD, siteY, halfW - SP_LG, {
     size: T_BODY, step: STEP_BODY,
   })
 
@@ -494,7 +473,7 @@ export async function buildQuotePdfBuffer(
       page   = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
       rowTop = drawTableHeader(page, PAGE_HEIGHT - SP_LG * 3)
       drawText(
-        `${COMPANY.name} — Quote ${quote.quoteNumber} (continued)`,
+        `${COMPANY.name} — Quote ${data.quotationNumber} (continued)`,
         MARGIN_L, PAGE_HEIGHT - SP_LG, { size: T_DETAIL, color: LABEL_C }
       )
       paginationOccurred = true
@@ -517,6 +496,15 @@ export async function buildQuotePdfBuffer(
     for (const line of descLines) {
       drawText(line, COL_DESC_X + CELL_PAD_X, lineBase, { size: T_BODY })
       lineBase -= TABLE_ROW_STEP
+    }
+    // Purchase order (existing column — blank when unset)
+    if (item.purchaseOrder?.trim()) {
+      drawText(
+        truncate(item.purchaseOrder.trim(), PO_W, T_BODY),
+        COL_VAT_X - CELL_PAD_X,
+        textBase,
+        { size: T_BODY, align: "right" },
+      )
     }
     // VAT indicator
     if (item.vatApplicable) {
@@ -566,9 +554,9 @@ export async function buildQuotePdfBuffer(
   const tBandBottom = drawBlackHeader("TERMS AND CONDITIONS", MARGIN_L, termsY, TERMS_COL_W)
   termsY         = tBandBottom - SP_MD   // tighter padding below black header
 
-  for (let i = 0; i < TERMS.length; i++) {
+  for (let i = 0; i < terms.length; i++) {
     termsY = drawWrapped(
-      `${i + 1}.  ${TERMS[i]}`,
+      `${i + 1}.  ${terms[i]}`,
       MARGIN_L + SP_MD, termsY,
       TERMS_COL_W - SP_LG,
       { size: T_TERMS, color: LABEL_C, step: STEP_TERMS }
@@ -589,11 +577,11 @@ export async function buildQuotePdfBuffer(
 
   let totalsY = tableBottom - SP_SECTION
 
-  if (quote.vatRate != null) {
+  if (vatRate != null) {
     const subRows: [string, string][] = [
       ["Subtotal", fmtNumber(subtotal)],
       ["Taxable",  fmtNumber(taxable)],
-      ["VAT Rate", `${quote.vatRate.toFixed(2)}%`],
+      ["VAT Rate", `${vatRate.toFixed(2)}%`],
       ["VAT Due",  fmtNumber(vatDue)],
     ]
     for (const [label, value] of subRows) {
@@ -660,8 +648,17 @@ export async function buildQuotePdfBuffer(
   }
 
   const pdfBytes = await doc.save()
-  const safeNumber = quote.quoteNumber.replace(/[^a-zA-Z0-9\-_]/g, "_")
-  return { pdfBytes, filename: `${safeNumber}.pdf` }
+  const filename = data.filename?.trim()
+    || `${data.quotationNumber.replace(/[^a-zA-Z0-9\-_]/g, "_")}.pdf`
+  return { pdfBytes, filename }
+}
+
+/** Load a persisted quote and render the shared quotation PDF. */
+export async function buildQuotePdfBuffer(
+  id: string
+): Promise<{ pdfBytes: Uint8Array; filename: string }> {
+  const data = await mapQuoteRecordToQuotationPdfData(id)
+  return buildQuotePdfFromPayload(data)
 }
 
 export async function generateQuotePdf(id: string): Promise<{ pdfPath: string }> {
