@@ -13,6 +13,7 @@ import { DashboardKpiGrid } from "./dashboard-kpi-grid"
 import { DashboardOverduePanel } from "./dashboard-overdue-panel"
 import { DashboardHoldsPanel } from "./dashboard-holds-panel"
 import { DashboardScheduleRail } from "./dashboard-schedule-rail"
+import { DashboardSkeleton } from "./dashboard-skeleton"
 
 export function DashboardStats({
   statsKey: statsKeyProp,
@@ -52,7 +53,7 @@ export function DashboardStats({
   const invoicing = stats?.readyForInvoicingCount ?? 0
   const active = stats?.totalActiveJobs ?? 0
 
-  if (error) {
+  if (error && !stats) {
     return (
       <div className="space-y-3 rounded-xl border border-dn-bd bg-dn-bg p-4 text-sm text-dn-tx">
         <p className="font-medium">Failed to load dashboard data.</p>
@@ -65,24 +66,25 @@ export function DashboardStats({
   }
 
   if (isLoading && !stats) {
-    return (
-      <div className="cc-dashboard space-y-6">
-        <div className="h-12 max-w-md rounded-lg skeleton" />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-[104px] rounded-xl skeleton" />
-          ))}
-        </div>
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12 h-56 rounded-xl skeleton lg:col-span-8" />
-          <div className="col-span-12 h-56 rounded-xl skeleton lg:col-span-4" />
-        </div>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   return (
     <div className="cc-dashboard">
+      {error && stats ? (
+        <div
+          className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-wn-bd bg-wn-bg px-3 py-2 text-sm text-wn-tx"
+          role="status"
+        >
+          <p className="min-w-0 text-xs sm:text-sm">
+            Couldn’t refresh dashboard data. Showing the last successful load.
+          </p>
+          <Button variant="outline" size="sm" className="shrink-0" onClick={() => void mutate()}>
+            <RefreshCw className="h-3.5 w-3.5" /> Retry
+          </Button>
+        </div>
+      ) : null}
+
       <DashboardHeading
         userName={userName}
         overdueCount={overdueCount}

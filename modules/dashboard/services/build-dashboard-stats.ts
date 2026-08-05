@@ -14,7 +14,7 @@ export async function buildDashboardStats(opts: {
     byStatus, byItemType, recentJobs, unassigned, totalActiveJobs, activeRevisions,
     totalQuotedValue, totalIssuedValue, avgJobValue, handoffStats,
     holds, clientsOnHold, overdueJobs, weekEvents,
-    deadlines, qStats,
+    deadlines,
   } = await statsService.dashboard({
     calendarFrom: opts.calendarFrom,
     calendarTo: opts.calendarTo,
@@ -45,12 +45,6 @@ export async function buildDashboardStats(opts: {
     // Dashboard KPI shows item counts only — no monetary values on the home page.
     readyForInvoicingValue:   null,
     clearedForInvoicingCount: canView ? handoffStats.clearedCount  : null,
-    quotesSent:           qStats.sent,
-    quotesAccepted:       qStats.accepted,
-    quotesRejected:       qStats.rejected,
-    quotesTotalValue:     canView ? qStats.totalValue : null,
-    quotesWonValue:       canView ? qStats.acceptedValue : null,
-    quotesConversionRate: qStats.conversionRate,
     byItemType,
     byStatus,
     recentJobs: recentJobs as StatsData["recentJobs"],

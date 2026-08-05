@@ -3,13 +3,13 @@
  *
  * Perf: only load what the home dashboard renders. Commercial quote/job value
  * aggregates and recent-jobs lists are omitted (not shown on the page).
- * Quote status counts / conversion rate are included for KPI cards.
+ * Quote status counts / conversion rate are intentionally not queried — nothing
+ * on the home dashboard renders them (see /api/analytics for quote metrics).
  */
 import { jobService } from "@/modules/jobs"
 import { holdService } from "@/modules/clients/hold"
 import { billingHandoffService } from "@/modules/billing"
 import { calendarService } from "@/modules/calendar"
-import { quoteService } from "@/modules/quotes"
 import { errorMessage } from "@/shared/utils/error-message"
 import type { JobRow } from "@/modules/jobs/types/job-types"
 import type { CalendarEventWithDetails } from "@/modules/calendar/types/calendar-types"
@@ -22,18 +22,6 @@ export interface DashboardOptions {
 }
 
 const EMPTY_HANDOFF_STATS = { awaitingCount: 0, awaitingValue: 0, clearedCount: 0 }
-
-const EMPTY_QUOTE_STATS = {
-  total: 0,
-  draft: 0,
-  sent: 0,
-  accepted: 0,
-  rejected: 0,
-  expired: 0,
-  totalValue: 0,
-  acceptedValue: 0,
-  conversionRate: 0,
-}
 
 const DASHBOARD_CALENDAR_CATEGORIES = ["cat_site_visit", "cat_teams_meeting"]
 
@@ -52,7 +40,7 @@ export const statsService = {
     const includeBilling = opts.includeBilling === true
 
     // dashboardCounts() — one slim Supabase scan / RPC instead of many head counts.
-    const [counts, handoffStats, holdsPreview, holdsCount, overdueJobs, weekEvents, qStats] = await Promise.all([
+    const [counts, handoffStats, holdsPreview, holdsCount, overdueJobs, weekEvents] = await Promise.all([
       jobService.dashboardCounts(),
       includeBilling
         ? tryStat("billingAwaitingCount", async () => {
@@ -72,7 +60,6 @@ export const statsService = {
             categoryIds: DASHBOARD_CALENDAR_CATEGORIES,
           }), [] as CalendarEventWithDetails[])
         : Promise.resolve([] as CalendarEventWithDetails[]),
-      tryStat("quoteStats", () => quoteService.stats(), EMPTY_QUOTE_STATS),
     ])
 
     return {
@@ -95,7 +82,6 @@ export const statsService = {
         dueTodayCount:    counts.dueTodayCount,
         dueThisWeekCount: counts.dueThisWeekCount,
       },
-      qStats,
     }
   },
 }

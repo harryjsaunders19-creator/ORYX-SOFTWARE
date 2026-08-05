@@ -39,13 +39,6 @@ export interface StatsData {
   readyForInvoicingCount: number | null
   readyForInvoicingValue: number | null
   clearedForInvoicingCount: number | null
-  // Quote module — counts/rate stay visible to Engineers, money does not
-  quotesSent:       number
-  quotesAccepted:   number
-  quotesRejected:   number
-  quotesTotalValue: number | null
-  quotesWonValue:   number | null
-  quotesConversionRate: number
   byItemType:       { itemType: string; count: number }[]
   byStatus:         { status: string; count: number }[]
   recentJobs:       Pick<Job, "id"|"drawingNumber"|"itemType"|"address"|"status"|"clientCompany"|"clientId"|"designer"|"quoteValue"|"invoiceId"|"parentJobId"|"revisionLetter"|"createdAt">[]
