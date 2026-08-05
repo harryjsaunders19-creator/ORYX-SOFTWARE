@@ -30,7 +30,7 @@ export function RequireRole({ roles, children }: { roles: Role[]; children: Reac
       <div className="px-6 py-16 flex flex-col items-center text-center">
         <ShieldAlert className="h-5 w-5 text-t4 mb-3" />
         <p className="text-sm font-medium text-t1 mb-1">You don&rsquo;t have access to this page</p>
-        <p className="text-xs text-t3 mb-4">This area is restricted to Admins.</p>
+        <p className="text-xs text-t3 mb-4">This area is restricted to Admin and Accounts roles.</p>
         <Link href="/" className="text-sm text-ac hover:text-ach font-medium">Back to dashboard</Link>
       </div>
     )

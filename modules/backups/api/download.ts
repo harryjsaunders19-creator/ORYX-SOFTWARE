@@ -7,16 +7,17 @@
  * Returns 404 if no completed backup exists or if all backup files have
  * been pruned from disk.
  */
-import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { backupRecordService } from "../services/backup-record-service"
 import { backupDataFilePath } from "../backup-service"
 import fs from "fs"
 import { format } from "date-fns"
 
 export async function GET() {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {

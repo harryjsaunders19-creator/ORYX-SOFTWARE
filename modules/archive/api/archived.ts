@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { jobService } from "@/modules/jobs"
 import { quoteService } from "@/modules/quotes"
 import { clientService } from "@/modules/clients"
@@ -11,7 +11,7 @@ import { isSupabaseAdminConfigured } from "@/shared/supabase/config"
 
 export async function GET() {
   try {
-    const auth = await requireRole(["ADMIN"])
+    const auth = await requireFullAccess()
     if (auth instanceof NextResponse) return auth
 
     await probeArchivedColumns()

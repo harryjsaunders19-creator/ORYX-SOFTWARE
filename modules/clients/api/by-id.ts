@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clientService } from "../services/client-service"
-import { requireModuleAccess, requireRole } from "@/shared/auth/auth"
+import { requireModuleAccess, requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { canViewCommercialValues, canViewClientAnalytics } from "@/shared/auth/permissions"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { apiInternalError } from "@/shared/api-errors"
@@ -152,7 +152,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireRole(["ADMIN"])
+    const auth = await requireFullAccess()
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

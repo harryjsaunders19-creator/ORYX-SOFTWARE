@@ -1,4 +1,5 @@
 import type { UserRow } from "@/modules/users/types"
+import type { Role } from "@/shared/types/role"
 
 export type SearchEntityType =
   | "job"
@@ -35,7 +36,7 @@ export interface GlobalSearchResult {
 
 export interface GlobalSearchOptions {
   query: string
-  role: "ADMIN" | "ENGINEER"
+  role: Role
   limit?: number
   /** Required for employee search (access-scoped directory). */
   viewer?: UserRow

@@ -628,7 +628,7 @@ function PerformancePageInner() {
 
 export default function PerformancePage() {
   return (
-    <RequireRole roles={["ADMIN"]}>
+    <RequireRole roles={["ADMIN", "ACCOUNTS"]}>
       <PerformancePageInner />
     </RequireRole>
   )

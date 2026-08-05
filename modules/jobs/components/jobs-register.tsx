@@ -65,7 +65,9 @@ export function JobsRegister({
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const { isAdmin } = useUser()
+  const { isAdmin, canAccess } = useUser()
+  const canCreateJobs = canAccess("jobs")
+  const canImport = isAdmin
 
   const searchRef = useRef<HTMLInputElement>(null)
   const mobileSearchRef = useRef<HTMLInputElement>(null)
@@ -444,12 +446,12 @@ export function JobsRegister({
                         type="button"
                         className={toolbarBtn}
                         onClick={() => router.push("/jobs/import")}
-                        disabled={!isAdmin}
+                        disabled={!canImport}
                       >
                         <Upload className="h-3.5 w-3.5" />
                         Import
                       </button>
-                      {isAdmin && (
+                      {canCreateJobs && (
                         <Button type="button" size="sm" className="h-9" onClick={() => setCreateOpen(true)}>
                           <Plus className="h-3.5 w-3.5" />
                           Create Job
@@ -628,8 +630,8 @@ export function JobsRegister({
           onScopeChange={setScope}
           scopeCounts={scopeCounts}
           showProjectActions={!isChecking}
-          canCreate={isAdmin}
-          canImport={isAdmin}
+          canCreate={canCreateJobs}
+          canImport={canImport}
           onNewProject={() => setCreateOpen(true)}
           onFilters={() => setFiltersOpen(v => !v)}
           onExport={handleExport}

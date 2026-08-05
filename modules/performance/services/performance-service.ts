@@ -2,6 +2,7 @@ import { JOB_STATUSES, WORK_ITEM_TYPES } from "@/lib/constants"
 import { jobService } from "@/modules/jobs"
 import { clientService } from "@/modules/clients"
 import { userService } from "@/modules/users"
+import { coerceRole } from "@/shared/types/role"
 import type {
   ChartPoint,
   FilterOptions,
@@ -58,7 +59,7 @@ type AggregateContext = {
 }
 
 export function normalizeRole(role: string | null | undefined): PerformanceRole {
-  return String(role ?? "").trim().toUpperCase() === "ADMIN" ? "ADMIN" : "ENGINEER"
+  return coerceRole(role)
 }
 
 export function normalizeKey(name: string): string {

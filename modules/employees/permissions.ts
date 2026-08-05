@@ -1,14 +1,15 @@
 /**
- * Employee profile access control — uses existing ADMIN / ENGINEER roles.
+ * Employee profile access control — Admin / Accounts / Engineer roles.
  * Managers are engineers who appear as managerId on direct reports.
  */
 import type { Role } from "@/shared/types/role"
 import type { UserRow } from "@/modules/users/types"
+import { hasFullAccess } from "@/shared/auth/permissions"
 
 export type EmployeeAccess = "admin" | "manager" | "self" | "none"
 
 export function isAdmin(role: Role): boolean {
-  return role === "ADMIN"
+  return hasFullAccess(role)
 }
 
 /** Fields employees may PATCH on their own profile. */

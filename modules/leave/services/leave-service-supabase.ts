@@ -20,6 +20,7 @@ import { canAcceptLeave, canReviewLeave } from "../permissions"
 import { supabaseLeaveRepo } from "../supabase/repository"
 import { supabaseEmployeeRepo } from "@/modules/employees/supabase/repository"
 import { SHOW_PENDING_ON_CREATE, toAllDayRange, buildEventTitle } from "./leave-helpers"
+import { hasFullAccess } from "@/shared/auth/permissions"
 
 async function ensureEmployeeProfile(userId: string): Promise<EmployeeProfileRow> {
   const existing = await supabaseEmployeeRepo.findProfile(userId)
@@ -141,7 +142,7 @@ export const leaveService = {
     to?: string
   }): Promise<LeaveRequestWithMeta[]> {
     const rows = await supabaseLeaveRepo.findMany(opts)
-    if (viewer.role === "ADMIN") return rows
+    if (hasFullAccess(viewer.role)) return rows
     const reports = await supabaseEmployeeRepo.directReportIds(viewer.id)
     return rows.filter(r => r.userId === viewer.id || reports.includes(r.userId))
   },
@@ -161,7 +162,7 @@ export const leaveService = {
     },
   ): Promise<LeaveRequestWithMeta | null> {
     const userId = data.userId ?? actor.id
-    if (userId !== actor.id && actor.role !== "ADMIN" && !(await canReviewLeave(actor, userId))) {
+    if (userId !== actor.id && !hasFullAccess(actor.role) && !(await canReviewLeave(actor, userId))) {
       return null
     }
 

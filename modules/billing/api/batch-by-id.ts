@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
 import { billingHandoffService } from "../services/billing-handoff-service"
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: Request, { params }: Ctx) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {

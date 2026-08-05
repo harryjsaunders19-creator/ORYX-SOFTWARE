@@ -8,7 +8,7 @@ import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { createId } from "@paralleldrive/cuid2"
 import { CREATABLE_ITEM_TYPE_VALUES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE, sanitizeJobTags } from "@/lib/constants"
-import { requireModuleAccess, requireRole, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, requireRole, requireFullAccess, actorName } from "@/shared/auth/auth"
 import { MAX_JOB_LIST_EXPORT_ROWS } from "@/modules/import-export/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
@@ -300,7 +300,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (exportAll) {
-      const admin = await requireRole(["ADMIN"])
+      const admin = await requireFullAccess()
       if (admin instanceof NextResponse) return admin
       if (!(await checkRateLimit(`export:${admin.user.id}`, RATE_PRESETS.export))) {
         return rateLimitedResponse(3600)

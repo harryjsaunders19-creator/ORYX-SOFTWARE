@@ -17,7 +17,7 @@ const JobMapPage = dynamic(
 
 export function JobMapPageShell() {
   return (
-    <RequireRole roles={["ADMIN"]}>
+    <RequireRole roles={["ADMIN", "ACCOUNTS"]}>
       <JobMapPage />
     </RequireRole>
   )

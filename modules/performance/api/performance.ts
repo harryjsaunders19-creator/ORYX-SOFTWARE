@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { listResponse } from "@/shared/utils/api-cache"
 import {
@@ -9,7 +9,7 @@ import {
 } from "../services/performance-service"
 
 export async function GET(req: NextRequest) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {

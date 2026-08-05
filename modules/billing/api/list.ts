@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { billingHandoffService } from "../services/billing-handoff-service"
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { enrichHandoffsWithLinkedQuoteValues } from "../enrich-handoff-quote-values"
 
 export async function GET(req: NextRequest) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {

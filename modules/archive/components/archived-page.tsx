@@ -298,7 +298,7 @@ function ArchivedInner() {
 
 export default function ArchivedPage() {
   return (
-    <RequireRole roles={["ADMIN"]}>
+    <RequireRole roles={["ADMIN", "ACCOUNTS"]}>
       <Suspense><ArchivedInner /></Suspense>
     </RequireRole>
   )

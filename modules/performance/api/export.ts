@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import ExcelJS from "exceljs"
 import { PDFDocument, StandardFonts } from "pdf-lib"
 import { apiInternalError } from "@/shared/api-errors"
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { buildPerformancePayload, resolvePerformanceFilters, resolvePerformancePeriod } from "../services/performance-service"
 
 function csvEscape(value: string | number | null | undefined): string {
@@ -92,7 +92,7 @@ async function toPdf(payload: Awaited<ReturnType<typeof buildPerformancePayload>
 }
 
 export async function GET(req: NextRequest) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
   try {
     const query = req.nextUrl.searchParams

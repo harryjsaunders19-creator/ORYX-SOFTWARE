@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { typeOfWorksMigrationLogDb } from "@/lib/db"
-import { requireRole, actorName } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess, actorName } from "@/shared/auth/auth"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: "Not available in this environment" }, { status: 501 })
   }
 
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {

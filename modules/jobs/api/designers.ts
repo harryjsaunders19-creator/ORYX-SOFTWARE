@@ -1,25 +1,19 @@
 import { NextResponse } from "next/server"
-import { userService } from "@/modules/users"
 import { requireModuleAccess } from "@/shared/auth/auth"
 import { listResponse } from "@/shared/utils/api-cache"
 import { apiInternalError } from "@/shared/api-errors"
+import { listDesignerEligibleNames } from "../services/designer-directory"
 
 /**
- * Designer picker options — active Users-tab names only (Admin + Engineer).
- * Used by job list / form dropdowns so assignment matches Performance.
+ * Designer picker options — active Admin + Engineer names only.
+ * Accounts users are excluded (not designer-eligible).
  */
 export async function GET() {
   try {
     const auth = await requireModuleAccess("jobs")
     if (auth instanceof NextResponse) return auth
 
-    const users = await userService.findMany({ activeOnly: true })
-    const designers = [...new Set(
-      users
-        .map(u => u.name.trim().replace(/\s+/g, " "))
-        .filter(Boolean),
-    )].sort((a, b) => a.localeCompare(b))
-
+    const designers = await listDesignerEligibleNames()
     return listResponse({ designers })
   } catch (err) {
     return apiInternalError("jobs.api.designers", err)

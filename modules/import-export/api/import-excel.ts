@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { importFromExcelBuffer } from "../services/excel-import"
 
 /** Large imports batch-upsert to Supabase — allow up to 60s on Vercel (see vercel.json). */
@@ -23,7 +23,7 @@ const excelFileSchema = z.custom<File>(
 )
 
 export async function POST(req: NextRequest) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")

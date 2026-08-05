@@ -11,7 +11,7 @@ import { JobImportResult } from "./job-import-result"
 
 export default function ImportJobsPage() {
   return (
-    <RequireRole roles={["ADMIN"]}>
+    <RequireRole roles={["ADMIN", "ACCOUNTS"]}>
       <ImportJobsInner />
     </RequireRole>
   )

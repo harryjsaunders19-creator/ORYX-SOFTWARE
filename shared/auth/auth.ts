@@ -17,6 +17,7 @@ import {
   canAccessModule,
   getModule,
   parseModuleAccessJson,
+  FULL_ACCESS_ROLES,
 } from "@/shared/auth/permissions"
 import {
   verifySessionTokenDetailed,
@@ -90,6 +91,11 @@ export async function requireRole(roles: Role[]): Promise<RoleCheckResult> {
     return NextResponse.json({ error: "You don't have permission to access this." }, { status: 403 })
   }
   return { user }
+}
+
+/** Admin or Accounts — full administrative / system access. */
+export async function requireFullAccess(): Promise<RoleCheckResult> {
+  return requireRole([...FULL_ACCESS_ROLES])
 }
 
 /** Sign-in check for routes that any authenticated role may call. */

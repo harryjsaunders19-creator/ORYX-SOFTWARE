@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireModuleAccess, requireRole } from "@/shared/auth/auth"
+import { requireModuleAccess, requireRole, requireFullAccess } from "@/shared/auth/auth"
 import type { UpdateCalendarEventData } from "../types/calendar-types"
 import { calendarService } from "../services/calendar-service"
 import { userService } from "@/modules/users"
 import { isUserSelectableCategory } from "../config/category-config"
+import { hasFullAccess } from "@/shared/auth/permissions"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -32,7 +33,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const existing = await calendarService.findUnique(id)
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    const isAdmin = auth.user.role === "ADMIN"
+    const isAdmin = hasFullAccess(auth.user.role)
     const isCreator = existing.createdBy === auth.user.id
     const isAssignee = existing.assignees.some(a => a.userId === auth.user.id)
     if (!isAdmin && !isCreator && !isAssignee) {
@@ -75,7 +76,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {

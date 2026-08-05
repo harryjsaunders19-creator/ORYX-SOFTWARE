@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { jobMapService } from "../services/job-map-service"
 import type { JobMapBbox } from "../types/job-map-types"
 
@@ -19,7 +19,7 @@ function parseBbox(req: NextRequest): JobMapBbox | undefined {
 /** Read-only — never geocodes. Optional ?south&west&north&east for viewport loads. */
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireRole(["ADMIN"])
+    const auth = await requireFullAccess()
     if (auth instanceof NextResponse) return auth
 
     const bbox = parseBbox(req)

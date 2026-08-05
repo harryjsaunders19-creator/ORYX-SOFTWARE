@@ -6,7 +6,7 @@
  */
 import { NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import {
   buildLogicalBackupPack,
   logicalBackupFilename,
@@ -15,7 +15,7 @@ import {
 export const maxDuration = 60
 
 export async function GET() {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import(

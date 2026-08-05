@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { jobMapService, GEOCODE_BATCH_SIZE } from "../services/job-map-service"
 
 /** Admin — batch geocode completed jobs missing coordinates. */
 export async function POST() {
   try {
-    const auth = await requireRole(["ADMIN"])
+    const auth = await requireFullAccess()
     if (auth instanceof NextResponse) return auth
 
     const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")

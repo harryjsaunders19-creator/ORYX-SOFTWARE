@@ -482,7 +482,7 @@ function VaultPageInner() {
 
 export default function PasswordVaultPage() {
   return (
-    <RequireRole roles={["ADMIN"]}>
+    <RequireRole roles={["ADMIN", "ACCOUNTS"]}>
       <VaultPageInner />
     </RequireRole>
   )

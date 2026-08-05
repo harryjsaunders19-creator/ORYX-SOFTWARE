@@ -3,17 +3,18 @@ import type { Role } from "@/shared/types/role"
 import type { CalendarEventWithDetails } from "@/modules/calendar/types"
 import { ANNUAL_LEAVE_CATEGORY_ID } from "./constants"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
+import { hasFullAccess } from "@/shared/auth/permissions"
 
 export function isAnnualLeaveEvent(event: CalendarEventWithDetails): boolean {
   return event.categoryId === ANNUAL_LEAVE_CATEGORY_ID
 }
 
 export function canViewTeamLeave(role: Role): boolean {
-  return role === "ADMIN" || role === "ENGINEER"
+  return role === "ADMIN" || role === "ENGINEER" || role === "ACCOUNTS"
 }
 
 export async function canReviewLeave(viewer: UserRow, targetUserId: string): Promise<boolean> {
-  if (viewer.role === "ADMIN") return true
+  if (hasFullAccess(viewer.role)) return true
   if (isSupabaseOnly()) {
     const { supabaseEmployeeRepo } = await import("@/modules/employees/supabase/repository")
     return (await supabaseEmployeeRepo.directReportIds(viewer.id)).includes(targetUserId)
@@ -22,13 +23,13 @@ export async function canReviewLeave(viewer: UserRow, targetUserId: string): Pro
   return employeeProfileDb.directReportIds(viewer.id).includes(targetUserId)
 }
 
-/** Accept or reject leave requests — admins only. */
+/** Accept or reject leave requests — full-access roles only. */
 export function canAcceptLeave(viewer: UserRow): boolean {
-  return viewer.role === "ADMIN"
+  return hasFullAccess(viewer.role)
 }
 
 export function canFilterAllEmployees(role: Role, directReportIds: string[]): boolean {
-  return role === "ADMIN" || directReportIds.length > 0
+  return hasFullAccess(role) || directReportIds.length > 0
 }
 
 /** Filter calendar events for leave visibility based on role and filters. */
@@ -45,7 +46,7 @@ export async function filterLeaveEventsForViewer(
 ): Promise<CalendarEventWithDetails[]> {
   let reports: string[]
   let viewerDepartment: string | null = null
-  const isAdmin = viewer.role === "ADMIN"
+  const isAdmin = hasFullAccess(viewer.role)
   const needsDeptCheck = !isAdmin && canViewTeamLeave(viewer.role as Role)
 
   if (isSupabaseOnly()) {

@@ -28,6 +28,7 @@ import { JobDocumentsUploadZone } from "./job-documents-upload-zone"
 import { JobDocumentsFilters } from "./job-documents-filters"
 import { JobDocumentsList } from "./job-documents-list"
 import { RenameDocumentDialog, MoveCategoryDialog, DeleteDocumentDialog } from "./job-documents-dialogs"
+import { hasFullAccess } from "@/shared/auth/permissions"
 
 type ListResponse = {
   documents: JobDocumentRow[]
@@ -50,7 +51,7 @@ export function JobDocumentsPanel({
 }) {
   const { toast } = useToast()
   const { user } = useUser()
-  const writeOk = canWrite && (user?.role === "ADMIN" || user?.role === "ENGINEER")
+  const writeOk = canWrite && !!user && (hasFullAccess(user.role) || user.role === "ENGINEER")
 
   const [docs, setDocs] = useState<JobDocumentRow[]>([])
   const [total, setTotal] = useState(0)

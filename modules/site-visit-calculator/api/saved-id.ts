@@ -4,6 +4,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import { ORYX_OFFICE } from "../constants"
 import { savedCalculationService } from "../services/saved-service"
 import { buildCalculationResult } from "../services/calculator-math"
+import { hasFullAccess } from "@/shared/auth/permissions"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -48,7 +49,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const existing = await savedCalculationService.findUnique(id)
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-    if (auth.user.role !== "ADMIN" && existing.createdBy !== auth.user.id) {
+    if (!hasFullAccess(auth.user.role) && existing.createdBy !== auth.user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 

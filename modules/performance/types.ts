@@ -1,6 +1,6 @@
 /** Performance & Analytics DTOs. */
 
-export type PerformanceRole = "ADMIN" | "ENGINEER"
+export type PerformanceRole = "ADMIN" | "ENGINEER" | "ACCOUNTS"
 export type TrendDirection = "up" | "down" | "flat"
 
 export interface PerformancePeriod {

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { archiveLogService } from "../services/archive-log-service"
 
 export async function GET() {
   try {
-    const auth = await requireRole(["ADMIN"])
+    const auth = await requireFullAccess()
     if (auth instanceof NextResponse) return auth
 
     const entries = await archiveLogService.findMany(500)

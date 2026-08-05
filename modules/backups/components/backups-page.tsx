@@ -17,7 +17,7 @@ import {
 import { BackupsList } from "./backups-list"
 
 export default function BackupsPage() {
-  return <RequireRole roles={["ADMIN"]}><BackupsInner /></RequireRole>
+  return <RequireRole roles={["ADMIN", "ACCOUNTS"]}><BackupsInner /></RequireRole>
 }
 
 function BackupsInner() {

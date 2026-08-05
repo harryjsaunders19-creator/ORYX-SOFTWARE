@@ -3,13 +3,14 @@ import { apiInternalError } from "@/shared/api-errors"
 
 import { userService } from "../services/user-service"
 import { toPublicUser } from "../types/user-types"
-import { requireRole } from "@/shared/auth/auth"
-import { isValidRole, normalizeModuleAccess, serializeModuleAccess } from "@/shared/auth/permissions"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { isValidRole, normalizeModuleAccess, serializeModuleAccess, hasFullAccess, parseModuleAccessJson } from "@/shared/auth/permissions"
+import type { Role } from "@/shared/types/role"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   const { id } = await params
@@ -19,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {
@@ -53,16 +54,21 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     const normalizedModuleAccess = body.moduleAccess === undefined ? undefined : normalizeModuleAccess(body.moduleAccess)
+    const nextRole: Role = body.role !== undefined && isValidRole(body.role) ? body.role : existing.role
 
     const updated = await userService.update(id, {
       ...(body.name   !== undefined && { name:   String(body.name).trim() }),
       ...(body.email  !== undefined && { email:  body.email ? String(body.email).trim() : null }),
-      ...(body.role   !== undefined && { role:   body.role as "ADMIN" | "ENGINEER" }),
+      ...(body.role   !== undefined && { role:   nextRole }),
       ...(body.active !== undefined && { active: body.active ? 1 : 0 }),
-      ...(normalizedModuleAccess !== undefined && {
-        moduleAccessJson: (body.role === "ADMIN" || existing.role === "ADMIN")
+      ...((body.role !== undefined || normalizedModuleAccess !== undefined) && {
+        moduleAccessJson: hasFullAccess(nextRole)
           ? null
-          : serializeModuleAccess(normalizedModuleAccess),
+          : serializeModuleAccess(
+              normalizedModuleAccess !== undefined
+                ? normalizedModuleAccess
+                : parseModuleAccessJson(existing.moduleAccessJson),
+            ),
       }),
     })
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -73,7 +79,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {

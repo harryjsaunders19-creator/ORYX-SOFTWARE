@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { quoteService } from "../services/quote-service"
-import { requireModuleAccess, requireRole } from "@/shared/auth/auth"
+import { requireModuleAccess, requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { parseQuoteWorksBody, shouldAutoExpireQuote } from "../quote-works"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { apiInternalError } from "@/shared/api-errors"
@@ -174,7 +174,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireRole(["ADMIN"])
+    const auth = await requireFullAccess()
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

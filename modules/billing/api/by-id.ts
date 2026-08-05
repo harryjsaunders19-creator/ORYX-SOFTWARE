@@ -3,7 +3,7 @@ import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { billingHandoffService } from "../services/billing-handoff-service"
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { parseOptionalMoney } from "@/shared/utils/utils"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -13,7 +13,7 @@ const updateBillingValueBodySchema = z.object({
 }).passthrough()
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {

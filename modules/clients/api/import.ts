@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 import { logError } from "@/shared/logger"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { clientService } from "../services/client-service"
 import { createId } from "@paralleldrive/cuid2"
 import {
@@ -23,7 +23,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024
 const MAX_ROWS = 5000
 
 export async function POST(req: NextRequest) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   const { checkRateLimit, rateLimitedResponse, RATE_PRESETS } = await import("@/shared/auth/rate-limit")

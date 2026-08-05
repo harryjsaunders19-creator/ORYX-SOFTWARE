@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { backupRecordService } from "../services/backup-record-service"
 import { BACKUPS_DIR, LOCAL_BACKUPS_EPHEMERAL_ON_VERCEL } from "../backup-paths"
 
 export async function GET() {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {
@@ -28,7 +28,7 @@ export async function GET() {
 }
 
 export async function POST(_req: NextRequest) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {

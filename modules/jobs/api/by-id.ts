@@ -3,13 +3,14 @@ import { z } from "zod"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/modules/clients"
 import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE, sanitizeJobTags, type JobStatusValue } from "@/lib/constants"
-import { requireModuleAccess, requireRole, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, requireRole, requireFullAccess, actorName } from "@/shared/auth/auth"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { cancelRecordForJob } from "@/modules/archive/cancel-record"
 import { apiInternalError } from "@/shared/api-errors"
 import { billingHandoffService } from "@/modules/billing"
 import { resolveDirectoryDesigner } from "../services/designer-directory"
+import { hasFullAccess } from "@/shared/auth/permissions"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       result.hasRevisions = revs.length > 0
       result.revisionCount = revs.length
     }
-    if (include.has("billing") && auth.user.role === "ADMIN") {
+    if (include.has("billing") && hasFullAccess(auth.user.role)) {
       const sourceId = (result.currentRevisionId as string | undefined) ?? id
       result.billingHandoff = await billingHandoffService.findBySourceJobId(sourceId)
     }
@@ -221,7 +222,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireRole(["ADMIN"])
+    const auth = await requireFullAccess()
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

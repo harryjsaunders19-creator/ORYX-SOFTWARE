@@ -44,7 +44,7 @@ function downloadTemplate() {
 }
 
 export default function ImportClientsPage() {
-  return <RequireRole roles={["ADMIN"]}><ImportClientsInner /></RequireRole>
+  return <RequireRole roles={["ADMIN", "ACCOUNTS"]}><ImportClientsInner /></RequireRole>
 }
 
 function ImportClientsInner() {

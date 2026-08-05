@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo } from "react"
 import type { User } from "@/lib/types"
 import type { Role } from "@/shared/types/role"
-import { canAccessModule as canAccessModuleFn } from "@/shared/auth/permissions"
+import { canAccessModule as canAccessModuleFn, hasFullAccess } from "@/shared/auth/permissions"
 import { useApi } from "@/shared/hooks/use-api"
 
 interface UserCtx {
@@ -111,7 +111,8 @@ export function UserProvider({
   }, [applySession])
 
   const role = user?.role ?? "ENGINEER" // fail closed — see lib/auth.ts getCurrentRole()
-  const isAdmin = role === "ADMIN"
+  // Full-access roles (Admin + Accounts) share privileged UI/API surfaces.
+  const isAdmin = hasFullAccess(role)
 
   const canAccess = useCallback(
     (moduleKey: string) => canAccessModuleFn(role, moduleKey, user?.moduleAccess ?? null),

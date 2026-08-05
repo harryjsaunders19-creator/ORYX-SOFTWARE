@@ -8,6 +8,7 @@ import { jobService } from "@/modules/jobs"
 import { holdService } from "@/modules/clients/hold"
 import { leaveService } from "@/modules/leave"
 import { getDeadlineInfo, todayIsoDate } from "@/shared/utils/utils"
+import { hasFullAccess } from "@/shared/auth/permissions"
 import {
   sortNotifications,
   type AppNotification,
@@ -80,7 +81,7 @@ export const notificationService = {
       })
     }
 
-    if (viewer.role === "ADMIN" && isExperimentalEnabled("leave")) {
+    if (hasFullAccess(viewer.role) && isExperimentalEnabled("leave")) {
       const pendingLeave = await leaveService.findMany(viewer, { status: "PENDING" })
       for (const req of pendingLeave.slice(0, 15)) {
         items.push({

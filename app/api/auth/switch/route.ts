@@ -14,6 +14,7 @@ import { withoutPassword } from "@/modules/users/types/user-types"
 import { identitySwitchLogService } from "@/lib/services/identity-switch-service"
 import { userService } from "@/modules/users"
 import { SESSION_COOKIE, REAL_SESSION_COOKIE, getRealUser } from "@/shared/auth/auth"
+import { hasFullAccess } from "@/shared/auth/permissions"
 import { setSessionCookies } from "@/shared/auth/auth-cookies"
 import { verifySessionToken, verifySessionTokenDetailed } from "@/shared/auth/session-cookie"
 import { sessionRevocationService } from "@/lib/services/session-revocation-service"
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
     // REAL identity's role, never the currently-active one, so an admin
     // impersonating a non-admin can't use that session to impersonate a
     // third identity; only logging out and back in as the real admin can.
-    if (realUser.role !== "ADMIN") {
+    if (!hasFullAccess(realUser.role)) {
       await softAuditLog({ action: "IMPERSONATION_REJECTED", realUserId: realUser.id, realUserName: realUser.name, targetUserId: target.id, targetUserName: target.name })
       return NextResponse.json({ error: "Only administrators can switch to another account. Log out and sign back in as yourself if you need a different identity." }, { status: 403 })
     }

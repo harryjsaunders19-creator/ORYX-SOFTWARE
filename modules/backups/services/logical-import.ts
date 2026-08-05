@@ -5,6 +5,7 @@
  */
 import { createId } from "@paralleldrive/cuid2"
 import { hashPassword, generateTempPassword } from "@/shared/auth/password"
+import { coerceRole } from "@/shared/types/role"
 import { userService } from "@/modules/users"
 import { clientService } from "@/modules/clients"
 import { jobService } from "@/modules/jobs"
@@ -74,7 +75,7 @@ async function importUsers(
     const email = typeof row.email === "string" && row.email.trim()
       ? row.email.trim().toLowerCase()
       : null
-    const role = row.role === "ADMIN" ? "ADMIN" : "ENGINEER"
+    const role = coerceRole(row.role)
     const active = row.active === 0 ? 0 : 1
     const id = typeof row.id === "string" && row.id.trim() ? row.id.trim() : createId()
 

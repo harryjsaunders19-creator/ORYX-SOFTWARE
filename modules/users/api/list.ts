@@ -4,12 +4,12 @@ import { apiInternalError } from "@/shared/api-errors"
 import { userService } from "../services/user-service"
 import { toPublicUser } from "../types/user-types"
 import { createId } from "@paralleldrive/cuid2"
-import { requireRole } from "@/shared/auth/auth"
-import { isValidRole, DEFAULT_ROLE, normalizeModuleAccess, serializeModuleAccess } from "@/shared/auth/permissions"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { isValidRole, DEFAULT_ROLE, normalizeModuleAccess, serializeModuleAccess, hasFullAccess } from "@/shared/auth/permissions"
 import { generateTempPassword, hashPassword } from "@/shared/auth/password"
 
 export async function GET() {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {
@@ -21,7 +21,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     if (existing) return NextResponse.json({ error: `A user with email "${email}" already exists.` }, { status: 409 })
 
     const role = isValidRole(body.role) ? body.role : DEFAULT_ROLE
-    const moduleAccess = role === "ADMIN" ? null : normalizeModuleAccess(body.moduleAccess)
+    const moduleAccess = hasFullAccess(role) ? null : normalizeModuleAccess(body.moduleAccess)
     const tempPassword = generateTempPassword()
 
     const user = await userService.create({

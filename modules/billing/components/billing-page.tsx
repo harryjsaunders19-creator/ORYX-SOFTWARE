@@ -284,7 +284,7 @@ function BillingPageInner() {
 
 export default function BillingPage() {
   return (
-    <RequireRole roles={["ADMIN"]}>
+    <RequireRole roles={["ADMIN", "ACCOUNTS"]}>
       <BillingPageInner />
     </RequireRole>
   )

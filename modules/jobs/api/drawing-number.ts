@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { jobService } from "../services/job-service"
 import { historyService } from "../services/history-service"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
@@ -22,7 +22,7 @@ const setDrawingNumberBodySchema = z.object({
 }).passthrough()
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {

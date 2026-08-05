@@ -5,11 +5,11 @@
  * and which modules are actively reading from Supabase at runtime.
  */
 import { NextResponse } from "next/server"
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { buildSupabaseStatusReport } from "@/shared/supabase/status-report"
 
 export async function GET() {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   const report = await buildSupabaseStatusReport()

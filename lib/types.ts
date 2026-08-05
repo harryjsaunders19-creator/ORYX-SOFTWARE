@@ -78,7 +78,7 @@ export interface CancelRecord {
   performedAt:       string
 }
 
-export type Role = "ADMIN" | "ENGINEER"
+export type Role = "ADMIN" | "ENGINEER" | "ACCOUNTS"
 
 export interface User {
   id:        string

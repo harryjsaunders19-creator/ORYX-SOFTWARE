@@ -17,36 +17,40 @@ import { useUser }  from "@/shared/providers/user-context"
 import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, DataPanel } from "@/shared/layouts/page-layout"
 import { cn } from "@/shared/utils/utils"
-import { MODULES, ROLES } from "@/shared/auth/permissions"
+import { MODULES, ROLES, hasFullAccess, roleDisplayLabel, isAccountsRole } from "@/shared/auth/permissions"
 import type { User, Role } from "@/lib/types"
 
 type UsersData = { users: User[]; total: number }
 const ENGINEER_MODULES = MODULES.filter(m => m.roles.includes("ENGINEER"))
 
 function RoleBadge({ role }: { role: string }) {
+  const label = roleDisplayLabel(role)
   return (
     <span className={cn(
       "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 type-badge whitespace-nowrap",
-      role === "ADMIN" ? "bg-ac-bg text-ac" : "bg-t1/[0.06] text-t2",
+      hasFullAccess(role) ? "bg-ac-bg text-ac" : "bg-t1/[0.06] text-t2",
     )}>
-      {role === "ADMIN" && <ShieldCheck className="h-3.5 w-3.5" />}
-      {role === "ADMIN" ? "Admin" : "Engineer"}
+      {hasFullAccess(role) && <ShieldCheck className="h-3.5 w-3.5" />}
+      {label}
     </span>
   )
 }
 
-function UserForm({ formId, initial, onSubmit }: {
+function UserForm({ formId, initial, onSubmit, activeDesignerWarning }: {
   formId: string
   initial: { name: string; email: string; role: Role; moduleAccess: string[] | null }
   onSubmit: (data: { name: string; email: string; role: Role; moduleAccess: string[] | null }) => void
+  /** Shown when switching an engineering user to Accounts while they have active designer work. */
+  activeDesignerWarning?: string | null
 }) {
   const [name,  setName]  = useState(initial.name)
   const [email, setEmail] = useState(initial.email)
   const [role,  setRole]  = useState<Role>(initial.role)
   const [moduleAccess, setModuleAccess] = useState<string[] | null>(initial.moduleAccess)
+  const showAccountsWarning = isAccountsRole(role) && !isAccountsRole(initial.role) && !!activeDesignerWarning
 
   return (
-    <form id={formId} onSubmit={e => { e.preventDefault(); onSubmit({ name: name.trim(), email: email.trim(), role, moduleAccess }) }} className="space-y-3">
+    <form id={formId} onSubmit={e => { e.preventDefault(); onSubmit({ name: name.trim(), email: email.trim(), role, moduleAccess: hasFullAccess(role) ? null : moduleAccess }) }} className="space-y-3">
       <div className="flex flex-col gap-1.5">
         <Label>Name *</Label>
         <Input value={name} onChange={e => setName(e.target.value)} autoFocus required placeholder="Jane Smith" />
@@ -60,15 +64,24 @@ function UserForm({ formId, initial, onSubmit }: {
         <Select value={role} onValueChange={v => setRole(v as Role)}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            {ROLES.map(r => <SelectItem key={r} value={r}>{r === "ADMIN" ? "Admin" : "Engineer"}</SelectItem>)}
+            {ROLES.map(r => (
+              <SelectItem key={r} value={r}>{roleDisplayLabel(r)}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-t4">New users default to Engineer — promote to Admin deliberately.</p>
+        <p className="text-xs text-t4">
+          New users default to Engineer. Accounts has full system access but cannot be assigned as a designer.
+        </p>
+        {showAccountsWarning && (
+          <p className="text-xs text-wn-tx mt-1">{activeDesignerWarning}</p>
+        )}
       </div>
       <div className="flex flex-col gap-2">
         <Label>Module access</Label>
-        {role === "ADMIN" ? (
-          <p className="text-xs text-t4">Admins always have full module access.</p>
+        {hasFullAccess(role) ? (
+          <p className="text-xs text-t4">
+            {isAccountsRole(role) ? "Accounts" : "Admin"} users always have full module access.
+          </p>
         ) : (
           <>
             <p className="text-xs text-t4">Toggle what this engineer can see in the sidebar and open directly.</p>
@@ -118,6 +131,7 @@ function UsersPageInner() {
   const [deleting,   setDeleting]   = useState(false)
   const [tempPasswordInfo, setTempPasswordInfo] = useState<{ name: string; email: string; password: string } | null>(null)
   const [resetting,  setResetting]  = useState<string | null>(null)
+  const [designerWarning, setDesignerWarning] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -131,12 +145,34 @@ function UsersPageInner() {
 
   useEffect(() => { load() }, [load])
 
+  const openEdit = async (u: User) => {
+    setEditUser(u)
+    setDesignerWarning(null)
+    try {
+      const res = await fetch(`/api/jobs?search=${encodeURIComponent(u.name)}&limit=50`)
+      if (!res.ok) return
+      const body = await res.json() as { jobs?: { designer?: string | null; currentDesigner?: string | null; status?: string }[] }
+      const nameKey = u.name.trim().replace(/\s+/g, " ").toLowerCase()
+      const active = (body.jobs ?? []).filter(j => {
+        const designer = (j.currentDesigner ?? j.designer ?? "").trim().replace(/\s+/g, " ").toLowerCase()
+        return designer === nameKey && j.status !== "ISSUED"
+      })
+      if (active.length > 0) {
+        setDesignerWarning(
+          "This user is currently assigned to active engineering work. Changing their role to Accounts will remove them from future designer selection but will not alter historical assignments.",
+        )
+      }
+    } catch {
+      /* warning is advisory only */
+    }
+  }
+
   const doCreate = async (d: { name: string; email: string; role: Role; moduleAccess: string[] | null }) => {
     setSaving(true)
     try {
       const res = await fetch("/api/users", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: d.name, email: d.email, role: d.role, moduleAccess: d.role === "ADMIN" ? null : d.moduleAccess }),
+        body: JSON.stringify({ name: d.name, email: d.email, role: d.role, moduleAccess: hasFullAccess(d.role) ? null : d.moduleAccess }),
       })
       const body = await res.json() as { user?: User; tempPassword?: string; error?: string }
       if (!res.ok) { toast(body.error ?? "Failed to create user", "error"); return }
@@ -168,7 +204,7 @@ function UsersPageInner() {
           name: d.name,
           email: d.email || null,
           role: d.role,
-          moduleAccess: d.role === "ADMIN" ? null : d.moduleAccess,
+          moduleAccess: hasFullAccess(d.role) ? null : d.moduleAccess,
         }),
       })
       const body = await res.json() as User & { error?: string }
@@ -241,7 +277,7 @@ function UsersPageInner() {
                   <td className="px-4 py-4 align-middle text-xs text-t4 tabular-nums whitespace-nowrap">{format(new Date(u.createdAt), "d MMM yyyy")}</td>
                   <td className="px-4 py-4 align-middle">
                     <div className="flex items-center gap-1 justify-end">
-                      <Button variant="ghost" size="sm" onClick={() => setEditUser(u)}>Edit</Button>
+                      <Button variant="ghost" size="sm" onClick={() => void openEdit(u)}>Edit</Button>
                       {u.active ? (
                         <Button variant="ghost" size="icon-sm" onClick={() => toggleActive(u)} title="Disable" className="h-8 w-8 text-t4 hover:text-dn">
                           <UserX className="h-3.5 w-3.5" />
@@ -287,7 +323,7 @@ function UsersPageInner() {
       </Dialog>
 
       {/* Edit */}
-      <Dialog open={!!editUser} onOpenChange={o => { if (!o) setEditUser(null) }}>
+      <Dialog open={!!editUser} onOpenChange={o => { if (!o) { setEditUser(null); setDesignerWarning(null) } }}>
         <DialogContent size="sm">
           <DialogHeader><DialogTitle>Edit user</DialogTitle></DialogHeader>
           <DialogBody>
@@ -301,6 +337,7 @@ function UsersPageInner() {
                   moduleAccess: editUser.moduleAccess,
                 }}
                 onSubmit={doEdit}
+                activeDesignerWarning={designerWarning}
               />
             )}
           </DialogBody>
@@ -398,5 +435,5 @@ function UsersPageInner() {
 }
 
 export default function UsersPage() {
-  return <RequireRole roles={["ADMIN"]}><UsersPageInner /></RequireRole>
+  return <RequireRole roles={["ADMIN", "ACCOUNTS"]}><UsersPageInner /></RequireRole>
 }

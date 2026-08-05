@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { jobService } from "@/modules/jobs"
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { DRAWING_SEQUENCE_KEY } from "@/lib/drawing-number"
 
 export async function GET() {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   const checks: Record<string, { ok: boolean; message: string; detail?: Record<string, unknown> | string | number | null }> = {}

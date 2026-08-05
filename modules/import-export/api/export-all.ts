@@ -2,12 +2,12 @@ import { NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { format } from "date-fns"
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { globalExportToBuffer } from "../services/global-export"
 import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
 
 export async function GET() {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   if (!(await checkRateLimit(`export:${auth.user.id}`, RATE_PRESETS.export))) {

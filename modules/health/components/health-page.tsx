@@ -55,7 +55,7 @@ function CheckRow({ name, check }: { name: string; check: Check }) {
 }
 
 export default function HealthPage() {
-  return <RequireRole roles={["ADMIN"]}><HealthPageInner /></RequireRole>
+  return <RequireRole roles={["ADMIN", "ACCOUNTS"]}><HealthPageInner /></RequireRole>
 }
 
 function HealthPageInner() {

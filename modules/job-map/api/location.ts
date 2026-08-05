@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"import { apiInternalError } from "@/shared/api-errors"
+import { NextRequest, NextResponse } from "next/server"
+import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { jobMapService } from "../services/job-map-service"
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -8,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> }
 /** Admin — save manually placed pin coordinates. */
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireRole(["ADMIN"])
+    const auth = await requireFullAccess()
     if (auth instanceof NextResponse) return auth
 
     const { id } = await params

@@ -1,8 +1,9 @@
 /** User directory types shared across SQLite and Supabase. */
 import type { User } from "@/lib/types"
 import { parseModuleAccessJson } from "@/shared/auth/permissions"
+import type { Role } from "@/shared/types/role"
 
-export type Role = "ADMIN" | "ENGINEER"
+export type { Role }
 
 export interface UserRow {
   id: string

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { billingHandoffService } from "../services/billing-handoff-service"
 import { buildAccountsHandoverWorkbook, workbookToBuffer } from "../billing-export"
-import { requireRole, actorName } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess, actorName } from "@/shared/auth/auth"
 import { logEvent } from "@/shared/logger"
 import { apiInternalError } from "@/shared/api-errors"
 import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
@@ -16,7 +16,7 @@ const billingExportBodySchema = z.object({
 }).passthrough()
 
 export async function POST(req: NextRequest) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   if (!(await checkRateLimit(`billing-export:${auth.user.id}`, RATE_PRESETS.billingExport))) {

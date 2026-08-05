@@ -25,6 +25,7 @@ import { jobService } from "@/modules/jobs"
 import { quoteService } from "@/modules/quotes"
 import { userService } from "@/modules/users"
 import { hashPassword, generateTempPassword } from "@/shared/auth/password"
+import { coerceRole } from "@/shared/types/role"
 import type { ClientRow } from "@/modules/clients/types"
 import { sheetDataRows } from "../utils/excel-import-rows"
 import {
@@ -559,7 +560,7 @@ async function importUsers(sheet: ExcelJS.Worksheet): Promise<SheetResult> {
     const emailRaw = str(row.getCell(col.email))
     const email = emailRaw ? emailRaw.toLowerCase() : null
     const roleRaw = str(row.getCell(col.role)).toUpperCase()
-    const role = roleRaw === "ADMIN" ? "ADMIN" as const : "ENGINEER" as const
+    const role = coerceRole(roleRaw)
     const statusLabel = str(row.getCell(col.status)).toLowerCase()
     const active = statusLabel === "disabled" || statusLabel === "archived" ? 0 : 1
 

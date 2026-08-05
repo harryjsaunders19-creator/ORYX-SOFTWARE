@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole } from "@/shared/auth/auth"
+import { requireRole, requireFullAccess } from "@/shared/auth/auth"
 import { clientService } from "../services/client-service"
 import { jobService } from "@/modules/jobs"
 
@@ -87,7 +87,7 @@ function computeAnalytics(jobs: AnalyticsJob[]) {
 }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireRole(["ADMIN"])
+  const auth = await requireFullAccess()
   if (auth instanceof NextResponse) return auth
 
   try {
