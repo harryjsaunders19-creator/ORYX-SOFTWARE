@@ -175,6 +175,7 @@ export function drawPricingTable(
     bandIndex++
   }
 
-  ctx.cursorY = rowTop - SP.lg
+  // Reduce trailing whitespace so short quotations can keep Terms on the same page.
+  ctx.cursorY = rowTop - SP.sm
   return { endY: ctx.cursorY }
 }

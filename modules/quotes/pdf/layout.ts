@@ -74,7 +74,7 @@ export const LOGO = {
 
 export const FOOTER_Y = 36
 // Reserve bottom space for the multi-line corporate footer.
-export const FOOTER_RESERVE = 60
+export const FOOTER_RESERVE = 48
 export const MIN_CONTENT_Y = MARGIN.bottom + FOOTER_RESERVE
 
 export const TABLE = {

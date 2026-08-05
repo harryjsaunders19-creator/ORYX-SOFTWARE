@@ -10,8 +10,8 @@ import {
 } from "../layout"
 import type { QuotePdfContext } from "../context"
 
-// Terms render below the financial summary, so they can use the full content width.
-const TERMS_WIDTH = CONTENT_WIDTH
+// Render terms alongside the right-aligned totals box.
+const TERMS_WIDTH = Math.round(CONTENT_WIDTH * 0.58)
 
 /** Numbered terms and conditions with comfortable spacing. */
 export function drawTermsSection(
@@ -62,7 +62,10 @@ export function drawTermsSection(
 export function termsSectionMinHeight(ctx: QuotePdfContext, terms: string[]): number {
   if (!terms.length) return 0
   const itemGap = SP.md
-  const headingH = lineStep(TYPE.section) + SP.sm + SP.lg + 6
+  // Must mirror drawHeading() cursor movement:
+  // - y -= descender(TYPE.section) + SP.sm
+  // - y -= SP.lg
+  const headingH = descender(TYPE.section) + SP.sm + SP.lg
   const body = terms.reduce((sum, term, i) => {
     const itemText = `${i + 1}.  ${term}`
     return (
