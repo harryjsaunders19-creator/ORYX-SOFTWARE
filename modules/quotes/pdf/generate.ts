@@ -46,16 +46,16 @@ const SP_MD  = 12
 const SP_LG  = 16
 const SP_XL  = 24
 /** Gap between major sections (~6–7 mm) — efficient without feeling cramped. */
-const SP_SECTION = 18
+const SP_SECTION = 22
 
 // ── Typography scale (points) — fewer sizes, clearer hierarchy ────────────────
-const T_QUOT     = 30    // QUOTATION title — secondary to logo, fits without crowding
-const T_CO       = 18    // company name
-const T_HEAD     = 11    // black section header labels (section labels, not banners)
+const T_QUOT     = 28    // QUOTATION title — ~15% under former QUOTE size
+const T_CO       = 15    // company name (single line; never wraps)
+const T_HEAD     = 11.5  // black section labels — SemiBold 11–12pt
 const T_BODY     = 10    // body / table / customer / site
 const T_META_LBL = 8     // metadata labels / captions
 const T_META_VAL = 10    // metadata values
-const T_QUOTE_NO = 14    // quotation number — primary value under title
+const T_QUOTE_NO = 13    // quotation number — primary value under title
 const T_DETAIL   = 9     // company detail lines
 const T_TERMS    = 9     // terms text
 const T_TOTAL    = 12    // TOTAL row
@@ -69,9 +69,9 @@ const DSC = 0.21   // descender depth / em
 const capH = (size: number) => Math.round(size * CAP)
 const dscH = (size: number) => Math.round(size * DSC)
 
-// Line step helpers — consistent leading for print readability
-const STEP_DETAIL = Math.round(T_DETAIL  * 1.55)
-const STEP_META   = 17
+// Line step helpers — slightly more open for calmer header/body rhythm
+const STEP_DETAIL = Math.round(T_DETAIL  * 1.75)
+const STEP_META   = 20
 const STEP_BODY   = Math.round(T_BODY    * 1.52)
 const STEP_TERMS  = Math.round(T_TERMS   * 1.55)
 
@@ -93,42 +93,42 @@ const COL_PO_X    = Math.round(MARGIN_L + CONTENT_W * 0.58)
 const COL_VAT_X   = Math.round(COL_PO_X  + CONTENT_W * 0.19)
 const COL_AMT_END = MARGIN_R
 
-const CELL_PAD_X     = 15   // horizontal cell padding
-const CELL_PAD_Y     = 6    // vertical cell padding — denser rows
+const CELL_PAD_X     = 8    // horizontal cell padding — currency / text breathing room
+const CELL_PAD_Y     = 5    // vertical cell padding — balanced row proportions
 const DESC_W         = COL_PO_X - COL_DESC_X - CELL_PAD_X * 2
 
-/** Shared black header height — elegant section labels. */
-const HEADER_H       = 15.5
-const HEADER_PAD_X   = 12
-const HEADER_TRACK   = 0.7  // ~0.5–1px letter-spacing
+/** Shared black header height — elegant labels (~38% shorter than original ~24.5). */
+const HEADER_H       = 15.0
+const HEADER_PAD_X   = 8
+const HEADER_TRACK   = 0.75 // slight letter-spacing
 
-const TABLE_ROW_H    = 24   // minimum data row height
+const TABLE_ROW_H    = 22   // minimum data row height — leaner rows, taller table presence
 const TABLE_ROW_STEP = STEP_BODY
-/** Max empty filler rows on short quotes. */
-const TABLE_FILLER_MAX = 3
+/** Filler rows extend the table so the page fills ~85–90% without grey blocks. */
+const TABLE_FILLER_MAX = 8
 
 // Reserve this many points below the last table row for totals + terms + footer
-const FOOTER_RES = 220
+const FOOTER_RES = 205
 const PAGE_SAFE  = 40
 
-// ── Header column widths ──────────────────────────────────────────────────────
-// Logo +15% — stronger branding anchor, same top-left position
-const LOGO_W      = 148.6
-const LOGO_H      = 91.1
-const QUOT_COL_W  = 210
-const CO_X        = MARGIN_L + LOGO_W + SP_MD   // tight but comfortable gap to company text
-const QUOT_COL_X  = MARGIN_R - QUOT_COL_W
+// ── Header grid: ~60% branding / ~40% quotation meta ─────────────────────────
+// Slightly over 60% so "ORYX Scaffold Design Ltd" stays on one line at T_CO.
+const HEAD_LEFT_W  = Math.round(CONTENT_W * 0.63)
+const HEAD_RIGHT_X = MARGIN_L + HEAD_LEFT_W
+
+// Logo ~16% larger than original template (92.8×56.9); same top-left position.
+const LOGO_W = 108
+const LOGO_H = 66.2
+const CO_X   = MARGIN_L + LOGO_W + 10
+const DETAIL_MAX_W = HEAD_RIGHT_X - CO_X - SP_SM
 
 // Meta: values right-align to MARGIN_R; labels sit left of values
-const META_LBL_X  = MARGIN_R - 112
-
-// Company detail lines must not invade the right meta column
-const DETAIL_MAX_W = Math.max(120, QUOT_COL_X - CO_X - SP_MD)
+const META_LBL_X = MARGIN_R - 108
 
 // ── Page layout anchor ────────────────────────────────────────────────────────
-const CONTENT_TOP = PAGE_HEIGHT - 48
-const FOOTER_Y    = 44
-const FOOTER_RULE = FOOTER_Y + SP_LG
+const CONTENT_TOP = PAGE_HEIGHT - 52   // balanced top margin
+const FOOTER_Y    = 38
+const FOOTER_RULE = FOOTER_Y + SP_XL + SP_SM   // generous space before footer
 
 // ── Company / Terms data ──────────────────────────────────────────────────────
 const COMPANY = {
@@ -136,6 +136,7 @@ const COMPANY = {
   addressLines: ["Little Woodlands, 61 Bath Road, Willsbridge.", "Bristol, BS30 6ES."],
   phone: "0117 3290050",
   email: "harry@oryxdesignltd.co.uk",
+  website: "www.oryxdesignltd.co.uk",
 }
 
 const TERMS = [
@@ -364,34 +365,33 @@ export async function buildQuotePdfBuffer(
   //
   //  Col 1: Logo
   //  Col 2: Company name + detail lines
-  //  Col 3: QUOTATION title (36pt) + meta rows
+  //  Col 3: QUOTATION title + meta rows
 
-  // Column 1 — Logo
-  // pdf-lib drawImage: y = bottom-left corner
+  // Column 1 — Logo (top-left, same position)
   page.drawImage(logoImage, {
     x: MARGIN_L, y: CONTENT_TOP - LOGO_H, width: LOGO_W, height: LOGO_H,
   })
-  const col1End = CONTENT_TOP - LOGO_H   // visual bottom of logo
+  const col1End = CONTENT_TOP - LOGO_H
 
-  // Column 3 — QUOTATION + Quotation No. + meta
+  // Column 3 — QUOTATION + Quotation No. + meta (right ~37%)
   // Hierarchy: Logo → QUOTATION → Quotation No. → dates / customer id
   const quotBaseline = CONTENT_TOP - capH(T_QUOT)
   drawText("QUOTATION", MARGIN_R, quotBaseline, { size: T_QUOT, bold: true, align: "right" })
 
   // Quotation No. — subtle caption above a prominent reference value
-  let metaY = quotBaseline - dscH(T_QUOT) - SP_MD
+  let metaY = quotBaseline - dscH(T_QUOT) - SP_LG - SP_XS
   drawText("Quotation No.", MARGIN_R, metaY, {
     size: T_META_LBL,
     align: "right",
     color: LABEL_C,
   })
-  metaY -= Math.round(T_META_LBL * 1.4)
+  metaY -= Math.round(T_META_LBL * 1.6)
   drawText(quote.quoteNumber, MARGIN_R, metaY, {
     size: T_QUOTE_NO,
     bold: true,
     align: "right",
   })
-  metaY -= dscH(T_QUOTE_NO) + SP_MD
+  metaY -= dscH(T_QUOTE_NO) + SP_LG + SP_XS
 
   const metaRows: [string, string][] = [
     ["DATE",        fmtDate(quote.quoteDate)],
@@ -403,44 +403,35 @@ export async function buildQuotePdfBuffer(
     drawText(value, MARGIN_R,   metaY, { size: T_META_VAL, bold: true, align: "right" })
     metaY -= STEP_META
   }
-  // Visual bottom of last meta row
   const col3End = metaY + STEP_META - dscH(T_META_VAL)
 
-  // Column 2 — Company name + address + phone + prepared-by
-  // Vertically centre the company block against the (larger) logo.
+  // Column 2 — Company information (beside logo; column widened for single-line name)
+  // Company name is ALWAYS a single line — never wraps.
   const details: string[] = [
     COMPANY.addressLines[0],
     COMPANY.addressLines[1],
     `T: ${COMPANY.phone}`,
+    `E: ${COMPANY.email}`,
+    `W: ${COMPANY.website}`,
     `Prepared by: ${preparedBy}`,
   ]
-  const nameLines = wrapText(COMPANY.name, fontBold, T_CO, DETAIL_MAX_W)
-  const companyBlockH =
-    nameLines.length * Math.round(T_CO * 1.2) +
-    SP_SM +
-    details.length * STEP_DETAIL
-  const logoCenterY = CONTENT_TOP - LOGO_H / 2
-  let coNameBaseline = logoCenterY + companyBlockH / 2 - capH(T_CO)
-  // Keep company name from rising above the page content top
-  coNameBaseline = Math.min(coNameBaseline, CONTENT_TOP - capH(T_CO))
+  // Align company block top with logo / QUOTATION — shared top margin
+  const coNameBaseline = CONTENT_TOP - capH(T_CO)
 
-  let nameY = coNameBaseline
-  for (const line of nameLines) {
-    drawText(line, CO_X, nameY, { size: T_CO, bold: true })
-    nameY -= Math.round(T_CO * 1.2)
-  }
+  drawText(COMPANY.name, CO_X, coNameBaseline, { size: T_CO, bold: true })
 
-  let detailY = nameY - SP_XS
+  let detailY = coNameBaseline - dscH(T_CO) - SP_MD
   for (const line of details) {
-    drawText(truncate(line, DETAIL_MAX_W, T_DETAIL), CO_X, detailY, { size: T_DETAIL, color: LABEL_C })
+    drawText(truncate(line, DETAIL_MAX_W, T_DETAIL), CO_X, detailY, {
+      size: T_DETAIL,
+      color: LABEL_C,
+    })
     detailY -= STEP_DETAIL
   }
   const col2End = detailY + STEP_DETAIL - dscH(T_DETAIL)
 
-  // Header ends at the lowest (smallest y) of all three columns
+  // Header ends at the lowest of all three columns — then calm breathing room
   const headerEnd = Math.min(col1End, col2End, col3End)
-
-  // ── Separator after header
   const hdrRuleY = headerEnd - SP_SECTION
   drawHRule(hdrRuleY)
 
