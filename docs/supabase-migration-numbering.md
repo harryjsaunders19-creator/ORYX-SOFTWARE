@@ -22,4 +22,4 @@ changing filenames can desync Supabase migration history
 - Never reuse a number that already appears in this folder.
 - After editing migrations, regenerate bootstrap: `npm run supabase:bootstrap`.
 - `scripts/build-supabase-bootstrap.mjs` `MIGRATION_ORDER` must list every file in
-  this folder (currently through `040_dashboard_active_jobs_statuses.sql`).
+  this folder (currently through `041_dashboard_active_jobs_new_in_progress.sql`).

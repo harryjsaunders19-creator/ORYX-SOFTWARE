@@ -103,7 +103,7 @@ describe("tallyDeadlineStats", () => {
 })
 
 describe("countActiveOriginalJobs", () => {
-  it("counts only New Request, In Progress, and Requires Checking", () => {
+  it("counts only New Request and In Progress", () => {
     const rows = [
       row({ id: "a", status: "NEW_REQUEST" }),
       row({ id: "b", status: "IN_DESIGN" }),
@@ -111,7 +111,7 @@ describe("countActiveOriginalJobs", () => {
       row({ id: "d", status: "READY_TO_SEND" }),
       row({ id: "e", status: "ISSUED" }),
     ]
-    assert.equal(countActiveOriginalJobs(rows), 3)
+    assert.equal(countActiveOriginalJobs(rows), 2)
   })
 
   it("uses current-revision status so a completed current rev is not active", () => {
@@ -135,9 +135,22 @@ describe("countActiveOriginalJobs", () => {
         id: "r1",
         parentJobId: "p1",
         revisionLetter: "A",
-        status: "CHECKING",
+        status: "IN_DESIGN",
       }),
     ]
     assert.equal(countActiveOriginalJobs(rows), 1)
+  })
+
+  it("does not count Requires Checking as active", () => {
+    const rows = [
+      row({ id: "p1", status: "ISSUED" }),
+      row({
+        id: "r1",
+        parentJobId: "p1",
+        revisionLetter: "A",
+        status: "CHECKING",
+      }),
+    ]
+    assert.equal(countActiveOriginalJobs(rows), 0)
   })
 })

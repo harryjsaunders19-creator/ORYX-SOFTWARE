@@ -42,7 +42,8 @@ export async function buildDashboardStats(opts: {
     dueTodayCount:      deadlines.dueTodayCount,
     dueThisWeekCount:   deadlines.dueThisWeekCount,
     readyForInvoicingCount:   canView ? handoffStats.awaitingCount : null,
-    readyForInvoicingValue:   canView ? handoffStats.awaitingValue : null,
+    // Dashboard KPI shows item counts only — no monetary values on the home page.
+    readyForInvoicingValue:   null,
     clearedForInvoicingCount: canView ? handoffStats.clearedCount  : null,
     quotesSent:           qStats.sent,
     quotesAccepted:       qStats.accepted,

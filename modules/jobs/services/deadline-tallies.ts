@@ -22,11 +22,10 @@ export type DeadlineTallies = {
   dueThisWeekCount: number
 }
 
-/** Statuses that count as “active” on the dashboard KPI. */
+/** Statuses that count as “active” on the dashboard KPI (New Request / In Progress). */
 export const DASHBOARD_ACTIVE_STATUSES = new Set([
   "NEW_REQUEST",
   "IN_DESIGN",
-  "CHECKING",
 ])
 
 function dayOnly(value: string | null | undefined): string | null {
@@ -90,9 +89,9 @@ export function tallyDeadlineStats(
 }
 
 /**
- * Original jobs whose current-revision display status is still in progress
- * (New Request / In Progress / Requires Checking). Completed and Ready to Send
- * are excluded — matches what staff expect from “active jobs”.
+ * Original jobs whose current-revision display status is New Request or In Progress.
+ * Requires Checking, Ready to Send, and Complete are excluded — checking has its
+ * own KPI, and completed work must not inflate “active jobs”.
  */
 export function countActiveOriginalJobs(rows: DeadlineTallyRow[]): number {
   const display = displayDeadlineByOriginal(rows)
