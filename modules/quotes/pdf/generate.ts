@@ -49,16 +49,16 @@ const SP_XL  = 24
 const SP_SECTION = 18
 
 // ── Typography scale (points) — fewer sizes, clearer hierarchy ────────────────
-const T_QUOT     = 40    // QUOTE title (hero)
+const T_QUOT     = 30    // QUOTATION title — secondary to logo, fits without crowding
 const T_CO       = 18    // company name
 const T_HEAD     = 11    // black section header labels (section labels, not banners)
 const T_BODY     = 10    // body / table / customer / site
-const T_META_LBL = 8     // metadata labels
+const T_META_LBL = 8     // metadata labels / captions
 const T_META_VAL = 10    // metadata values
-const T_QUOTE_NO = 12    // quote number in meta — more prominent
+const T_QUOTE_NO = 14    // quotation number — primary value under title
 const T_DETAIL   = 9     // company detail lines
 const T_TERMS    = 9     // terms text
-const T_TOTAL    = 12    // TOTAL row (emphasis via weight + space, not size)
+const T_TOTAL    = 12    // TOTAL row
 const T_FOOTER   = 8     // footer
 
 // Inter proportional metrics (approximate)
@@ -71,7 +71,7 @@ const dscH = (size: number) => Math.round(size * DSC)
 
 // Line step helpers — consistent leading for print readability
 const STEP_DETAIL = Math.round(T_DETAIL  * 1.55)
-const STEP_META   = 18
+const STEP_META   = 17
 const STEP_BODY   = Math.round(T_BODY    * 1.52)
 const STEP_TERMS  = Math.round(T_TERMS   * 1.55)
 
@@ -80,7 +80,7 @@ const INK      = rgb(0.05, 0.05, 0.05)
 const CHARCOAL = rgb(0.12, 0.12, 0.12)
 const WHITE    = rgb(1, 1, 1)
 const RULE_C   = rgb(0.88, 0.88, 0.88)     // light hairline rules
-const ROW_ALT  = rgb(0.973, 0.973, 0.973)  // #F8F8F8 — nearly invisible zebra
+const ROW_ALT  = rgb(0.980, 0.980, 0.980)  // #FAFAFA — barely-noticeable zebra
 const TOTAL_BG = rgb(0.973, 0.973, 0.973)  // #F8F8F8 — soft TOTAL highlight
 const LABEL_C  = rgb(0.42, 0.42, 0.42)
 
@@ -88,17 +88,16 @@ const LABEL_C  = rgb(0.42, 0.42, 0.42)
 const BORDER_W = 0.75
 
 // ── Table column widths (proportional) ───────────────────────────────────────
-// Description 58 % | Purchase Order 19 % | VAT 9 % | Amount 14 %
 const COL_DESC_X  = MARGIN_L
 const COL_PO_X    = Math.round(MARGIN_L + CONTENT_W * 0.58)
 const COL_VAT_X   = Math.round(COL_PO_X  + CONTENT_W * 0.19)
 const COL_AMT_END = MARGIN_R
 
-const CELL_PAD_X     = 14   // horizontal cell padding
+const CELL_PAD_X     = 15   // horizontal cell padding
 const CELL_PAD_Y     = 6    // vertical cell padding — denser rows
 const DESC_W         = COL_PO_X - COL_DESC_X - CELL_PAD_X * 2
 
-/** Shared black header height (~38% shorter than 25pt) — section labels, not banners. */
+/** Shared black header height — elegant section labels. */
 const HEADER_H       = 15.5
 const HEADER_PAD_X   = 12
 const HEADER_TRACK   = 0.7  // ~0.5–1px letter-spacing
@@ -106,28 +105,28 @@ const HEADER_TRACK   = 0.7  // ~0.5–1px letter-spacing
 const TABLE_ROW_H    = 24   // minimum data row height
 const TABLE_ROW_STEP = STEP_BODY
 /** Max empty filler rows on short quotes. */
-const TABLE_FILLER_MAX = 4
+const TABLE_FILLER_MAX = 3
 
 // Reserve this many points below the last table row for totals + terms + footer
 const FOOTER_RES = 220
 const PAGE_SAFE  = 40
 
 // ── Header column widths ──────────────────────────────────────────────────────
-// Logo +18% from prior size — stronger anchor, same top-left position
-const LOGO_W      = 129.2
-const LOGO_H      = 79.2
-const QUOT_COL_W  = 200
-const CO_X        = MARGIN_L + LOGO_W + SP_LG
+// Logo +15% — stronger branding anchor, same top-left position
+const LOGO_W      = 148.6
+const LOGO_H      = 91.1
+const QUOT_COL_W  = 210
+const CO_X        = MARGIN_L + LOGO_W + SP_MD   // tight but comfortable gap to company text
 const QUOT_COL_X  = MARGIN_R - QUOT_COL_W
 
-// Meta alignment: labels right-align to META_LBL_X, values right-align to MARGIN_R
-const META_LBL_X  = MARGIN_R - 118
+// Meta: values right-align to MARGIN_R; labels sit left of values
+const META_LBL_X  = MARGIN_R - 112
 
 // Company detail lines must not invade the right meta column
-const DETAIL_MAX_W = QUOT_COL_X - CO_X - SP_MD
+const DETAIL_MAX_W = Math.max(120, QUOT_COL_X - CO_X - SP_MD)
 
 // ── Page layout anchor ────────────────────────────────────────────────────────
-const CONTENT_TOP = PAGE_HEIGHT - 50
+const CONTENT_TOP = PAGE_HEIGHT - 48
 const FOOTER_Y    = 44
 const FOOTER_RULE = FOOTER_Y + SP_LG
 
@@ -374,25 +373,34 @@ export async function buildQuotePdfBuffer(
   })
   const col1End = CONTENT_TOP - LOGO_H   // visual bottom of logo
 
-  // Column 3 — QUOTE + meta (drawn before col 2 so col2 can clear it)
+  // Column 3 — QUOTATION + Quotation No. + meta
+  // Hierarchy: Logo → QUOTATION → Quotation No. → dates / customer id
   const quotBaseline = CONTENT_TOP - capH(T_QUOT)
-  drawText("QUOTE", MARGIN_R, quotBaseline, { size: T_QUOT, bold: true, align: "right" })
+  drawText("QUOTATION", MARGIN_R, quotBaseline, { size: T_QUOT, bold: true, align: "right" })
 
-  const metaRows: [string, string, number?][] = [
+  // Quotation No. — subtle caption above a prominent reference value
+  let metaY = quotBaseline - dscH(T_QUOT) - SP_MD
+  drawText("Quotation No.", MARGIN_R, metaY, {
+    size: T_META_LBL,
+    align: "right",
+    color: LABEL_C,
+  })
+  metaY -= Math.round(T_META_LBL * 1.4)
+  drawText(quote.quoteNumber, MARGIN_R, metaY, {
+    size: T_QUOTE_NO,
+    bold: true,
+    align: "right",
+  })
+  metaY -= dscH(T_QUOTE_NO) + SP_MD
+
+  const metaRows: [string, string][] = [
     ["DATE",        fmtDate(quote.quoteDate)],
-    ["QUOTE #",     quote.quoteNumber, T_QUOTE_NO],
     ["CUSTOMER ID", customerId ?? "—"],
     ["VALID UNTIL", fmtDate(quote.expiryDate)],
   ]
-  // First meta row clears QUOTE descender — slightly more breathing room
-  let metaY = quotBaseline - dscH(T_QUOT) - SP_LG
-  for (const [label, value, valueSize] of metaRows) {
+  for (const [label, value] of metaRows) {
     drawText(label, META_LBL_X, metaY, { size: T_META_LBL, align: "right", color: LABEL_C })
-    drawText(value, MARGIN_R,   metaY, {
-      size: valueSize ?? T_META_VAL,
-      bold: true,
-      align: "right",
-    })
+    drawText(value, MARGIN_R,   metaY, { size: T_META_VAL, bold: true, align: "right" })
     metaY -= STEP_META
   }
   // Visual bottom of last meta row
@@ -406,16 +414,23 @@ export async function buildQuotePdfBuffer(
     `T: ${COMPANY.phone}`,
     `Prepared by: ${preparedBy}`,
   ]
+  const nameLines = wrapText(COMPANY.name, fontBold, T_CO, DETAIL_MAX_W)
   const companyBlockH =
-    capH(T_CO) + dscH(T_CO) + SP_SM + details.length * STEP_DETAIL
+    nameLines.length * Math.round(T_CO * 1.2) +
+    SP_SM +
+    details.length * STEP_DETAIL
   const logoCenterY = CONTENT_TOP - LOGO_H / 2
   let coNameBaseline = logoCenterY + companyBlockH / 2 - capH(T_CO)
   // Keep company name from rising above the page content top
   coNameBaseline = Math.min(coNameBaseline, CONTENT_TOP - capH(T_CO))
 
-  drawText(COMPANY.name, CO_X, coNameBaseline, { size: T_CO, bold: true })
+  let nameY = coNameBaseline
+  for (const line of nameLines) {
+    drawText(line, CO_X, nameY, { size: T_CO, bold: true })
+    nameY -= Math.round(T_CO * 1.2)
+  }
 
-  let detailY = coNameBaseline - dscH(T_CO) - SP_SM
+  let detailY = nameY - SP_XS
   for (const line of details) {
     drawText(truncate(line, DETAIL_MAX_W, T_DETAIL), CO_X, detailY, { size: T_DETAIL, color: LABEL_C })
     detailY -= STEP_DETAIL
