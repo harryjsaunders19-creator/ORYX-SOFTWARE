@@ -5,6 +5,7 @@ import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 import {
   countActiveOriginalJobs,
+  countActiveRevisions,
   overdueOriginalIds,
   tallyDeadlineStats,
 } from "../../modules/jobs/services/deadline-tallies.ts"
@@ -152,5 +153,26 @@ describe("countActiveOriginalJobs", () => {
       }),
     ]
     assert.equal(countActiveOriginalJobs(rows), 0)
+  })
+})
+
+describe("countActiveRevisions", () => {
+  it("counts only revision rows still in flight", () => {
+    const rows = [
+      row({ id: "p1", status: "ISSUED" }),
+      row({ id: "r1", parentJobId: "p1", revisionLetter: "A", status: "IN_DESIGN" }),
+      row({ id: "r2", parentJobId: "p1", revisionLetter: "B", status: "CHECKING" }),
+      row({ id: "r3", parentJobId: "p1", revisionLetter: "C", status: "READY_TO_SEND" }),
+      row({ id: "r4", parentJobId: "p1", revisionLetter: "D", status: "ISSUED" }),
+    ]
+    assert.equal(countActiveRevisions(rows), 2)
+  })
+
+  it("ignores original rows", () => {
+    const rows = [
+      row({ id: "p1", status: "IN_DESIGN" }),
+      row({ id: "p2", status: "NEW_REQUEST" }),
+    ]
+    assert.equal(countActiveRevisions(rows), 0)
   })
 })

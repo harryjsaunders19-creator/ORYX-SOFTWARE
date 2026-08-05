@@ -224,21 +224,21 @@ export const jobService = {
     byItemType:       { itemType: string; count: number }[]
     unassigned:       number
     totalActiveJobs:  number
-    totalRevisions:   number
+    activeRevisions:  number
     overdueCount:     number
     dueTodayCount:    number
     dueThisWeekCount: number
   }> {
-    const [byStatus, byItemType, unassigned, totalActiveJobs, totalRevisions, deadlines] =
+    const [byStatus, byItemType, unassigned, totalActiveJobs, activeRevisions, deadlines] =
       await Promise.all([
         jobDb.groupByStatus(),
         jobDb.groupByItemType(),
         jobDb.countWhere({ unassigned: true }),
         jobDb.countActiveOriginals(),
-        jobDb.countWhere({ onlyRevisions: true }),
+        jobDb.countActiveRevisions(),
         jobDb.deadlineStats(),
       ])
-    return { byStatus, byItemType, unassigned, totalActiveJobs, totalRevisions, ...deadlines }
+    return { byStatus, byItemType, unassigned, totalActiveJobs, activeRevisions, ...deadlines }
   },
 
   async totalQuotedValue(): Promise<number> {

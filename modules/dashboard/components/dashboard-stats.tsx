@@ -87,7 +87,7 @@ export function DashboardStats({
         checking={checking}
         invoicing={invoicing ?? 0}
         overdueCount={overdueCount}
-        totalRevisions={stats?.totalRevisions}
+        activeRevisions={stats?.activeRevisions}
         dueTodayCount={stats?.dueTodayCount}
         isAdmin={isAdmin}
       />

@@ -53,7 +53,7 @@ export function DashboardKpiGrid({
   checking,
   invoicing,
   overdueCount,
-  totalRevisions,
+  activeRevisions,
   dueTodayCount,
   isAdmin,
 }: {
@@ -62,7 +62,7 @@ export function DashboardKpiGrid({
   checking: number
   invoicing: number
   overdueCount: number
-  totalRevisions?: number
+  activeRevisions?: number
   dueTodayCount?: number
   isAdmin: boolean
 }) {
@@ -71,7 +71,7 @@ export function DashboardKpiGrid({
       <KpiCard
         label="Active Jobs"
         value={active}
-        sub={totalRevisions ? `+${totalRevisions} revisions` : "In flight"}
+        sub={activeRevisions ? `+${activeRevisions} active revisions` : "In flight"}
         subTone="primary"
         href="/jobs"
       />

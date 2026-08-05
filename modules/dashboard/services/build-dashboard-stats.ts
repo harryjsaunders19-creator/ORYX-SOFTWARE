@@ -11,7 +11,7 @@ export async function buildDashboardStats(opts: {
 }): Promise<StatsData> {
   const canView = canViewCommercialValues(opts.role)
   const {
-    byStatus, byItemType, recentJobs, unassigned, totalActiveJobs, totalRevisions,
+    byStatus, byItemType, recentJobs, unassigned, totalActiveJobs, activeRevisions,
     totalQuotedValue, totalIssuedValue, avgJobValue, handoffStats,
     holds, clientsOnHold, overdueJobs, weekEvents,
     deadlines, qStats,
@@ -26,7 +26,7 @@ export async function buildDashboardStats(opts: {
   const hasCalendar = Boolean(opts.calendarFrom && opts.calendarTo)
 
   return {
-    total, totalActiveJobs, totalRevisions,
+    total, totalActiveJobs, activeRevisions,
     newRequest: count("NEW_REQUEST"),
     inDesign:   count("IN_DESIGN"),
     checking:   count("CHECKING"),
