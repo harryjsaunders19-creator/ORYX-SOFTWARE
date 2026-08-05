@@ -181,7 +181,7 @@ export function worksTypeDisplayLabel(
   return works
 }
 
-// ── Job tags (multi-select labels independent of Type of Works) ───
+// ── Job tags (preset chips + free-text custom labels) ─────────────
 export const JOB_TAGS = [
   "Temporary Roof",
   "Access Scaffold",
@@ -204,19 +204,38 @@ export const JOB_TAGS = [
 
 export type JobTag = (typeof JOB_TAGS)[number]
 
+/** Max length for a single job tag (preset or custom). */
+export const JOB_TAG_MAX_LEN = 48
+
 export function isValidJobTag(value: string): value is JobTag {
   return (JOB_TAGS as readonly string[]).includes(value)
 }
 
-/** JOB_TAGS that fuzzy-match a search query (for filters and ranking). */
+/**
+ * Normalise a tag for storage: trim, collapse whitespace, length-check.
+ * Returns null when empty or too long.
+ */
+export function normalizeJobTag(value: string): string | null {
+  const tag = value.trim().replace(/\s+/g, " ")
+  if (!tag || tag.length > JOB_TAG_MAX_LEN) return null
+  return tag
+}
+
+/** JOB_TAGS (plus exact free-text query) that fuzzy-match a search query. */
 export function matchingJobTags(query: string): string[] {
-  const needle = query.trim().toLowerCase()
+  const raw = query.trim()
+  const needle = raw.toLowerCase()
   if (needle.length < 2) return []
-  return JOB_TAGS.filter(tag => {
+  const presets = JOB_TAGS.filter(tag => {
     const hay = tag.toLowerCase()
     if (hay === needle || hay.includes(needle) || needle.includes(hay)) return true
     return hay.split(/\s+/).some(tok => tok.startsWith(needle) || needle.startsWith(tok))
   })
+  // Exact custom-tag search: overlap filter needs the literal stored value.
+  if (raw && !presets.some(p => p.toLowerCase() === needle)) {
+    return [...presets, raw]
+  }
+  return [...presets]
 }
 
 /** Parse tags from DB (Postgres text[] or SQLite JSON text) into a string[]. */
@@ -236,15 +255,22 @@ export function parseJobTags(raw: unknown): string[] {
 }
 
 /**
- * Validate + dedupe an incoming tags payload. Returns null when the value
- * is not an array or contains unknown tags (caller should 422).
+ * Validate + dedupe an incoming tags payload (preset and custom).
+ * Returns null when the value is not an array or contains an invalid tag
+ * (caller should 422).
  */
 export function sanitizeJobTags(input: unknown): string[] | null {
   if (!Array.isArray(input)) return null
   const out: string[] = []
   for (const item of input) {
-    if (typeof item !== "string" || !isValidJobTag(item)) return null
-    if (!out.includes(item)) out.push(item)
+    if (typeof item !== "string") return null
+    const normalized = normalizeJobTag(item)
+    if (!normalized) return null
+    const key = normalized.toLowerCase()
+    if (out.some(t => t.toLowerCase() === key)) continue
+    // Prefer canonical preset spelling when it matches case-insensitively.
+    const preset = JOB_TAGS.find(p => p.toLowerCase() === key)
+    out.push(preset ?? normalized)
   }
   return out
 }

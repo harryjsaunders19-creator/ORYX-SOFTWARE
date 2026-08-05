@@ -19,7 +19,7 @@ export interface JobRow {
   dateCompleted: string | null
   notes: string | null
   designStandards: string | null
-  /** Controlled multi-select labels from JOB_TAGS. */
+  /** Multi-select labels — presets from JOB_TAGS plus optional custom tags. */
   tags: string[]
   quoteValue: number | null
   quoteReference: string | null
