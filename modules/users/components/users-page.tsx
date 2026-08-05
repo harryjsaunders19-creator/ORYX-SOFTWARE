@@ -204,7 +204,7 @@ function UsersPageInner() {
       {loading ? (
         <DataPanel>
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-14 border-b border-bd last:border-0 px-4 flex items-center">
+            <div key={i} className="h-16 border-b border-bd last:border-0 px-4 flex items-center">
               <div className="skeleton h-4 w-48 rounded" />
             </div>
           ))}
@@ -214,40 +214,40 @@ function UsersPageInner() {
           <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="bg-surface-low border-b border-bd text-xs">
-                <th className="px-4 py-2.5 text-left ">Name</th>
-                <th className="px-4 py-2.5 text-left ">Email</th>
-                <th className="px-4 py-2.5 text-left ">Role</th>
-                <th className="px-4 py-2.5 text-left ">Status</th>
-                <th className="px-4 py-2.5 text-left ">Added</th>
-                <th className="px-4 py-2.5 w-44" />
+                <th className="px-4 py-3 text-left align-middle">Name</th>
+                <th className="px-4 py-3 text-left align-middle">Email</th>
+                <th className="px-4 py-3 text-left align-middle">Role</th>
+                <th className="px-4 py-3 text-left align-middle">Status</th>
+                <th className="px-4 py-3 text-left align-middle">Added</th>
+                <th className="px-4 py-3 w-44 align-middle" />
               </tr>
             </thead>
             <tbody>
               {data?.users.map(u => (
                 <tr key={u.id} className={cn("border-b border-bd last:border-0 hover:bg-hover-surface", !u.active && "opacity-60")}>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-4 align-middle">
                     <span className="font-medium text-t1">{u.name}</span>
                     {me?.id === u.id && <span className="type-helper text-t4 ml-1.5">(you)</span>}
                   </td>
-                  <td className="px-4 py-3 text-xs text-t3">{u.email ?? "—"}</td>
-                  <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-4 align-middle text-xs text-t3">{u.email ?? "—"}</td>
+                  <td className="px-4 py-4 align-middle"><RoleBadge role={u.role} /></td>
+                  <td className="px-4 py-4 align-middle">
                     {u.active ? (
                       <span className="type-badge text-ok-tx">Active</span>
                     ) : (
                       <span className="type-badge text-t4">Disabled</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-t4 tabular-nums whitespace-nowrap">{format(new Date(u.createdAt), "d MMM yyyy")}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-4 align-middle text-xs text-t4 tabular-nums whitespace-nowrap">{format(new Date(u.createdAt), "d MMM yyyy")}</td>
+                  <td className="px-4 py-4 align-middle">
                     <div className="flex items-center gap-1 justify-end">
                       <Button variant="ghost" size="sm" onClick={() => setEditUser(u)}>Edit</Button>
                       {u.active ? (
-                        <Button variant="ghost" size="icon-sm" onClick={() => toggleActive(u)} title="Disable" className="text-t4 hover:text-dn">
+                        <Button variant="ghost" size="icon-sm" onClick={() => toggleActive(u)} title="Disable" className="h-8 w-8 text-t4 hover:text-dn">
                           <UserX className="h-3.5 w-3.5" />
                         </Button>
                       ) : (
-                        <Button variant="ghost" size="icon-sm" onClick={() => toggleActive(u)} title="Re-enable" className="text-t4 hover:text-ac">
+                        <Button variant="ghost" size="icon-sm" onClick={() => toggleActive(u)} title="Re-enable" className="h-8 w-8 text-t4 hover:text-ac">
                           <UserCheck className="h-3.5 w-3.5" />
                         </Button>
                       )}
@@ -255,12 +255,12 @@ function UsersPageInner() {
                         variant="ghost" size="icon-sm"
                         onClick={() => doResetPassword(u)}
                         title="Reset password"
-                        className="text-t4 hover:text-ac"
+                        className="h-8 w-8 text-t4 hover:text-ac"
                         disabled={resetting === u.id}
                       >
                         <KeyRound className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon-sm" onClick={() => setDeleteUser(u)} title="Delete" className="text-t4 hover:text-dn">
+                      <Button variant="ghost" size="icon-sm" onClick={() => setDeleteUser(u)} title="Delete" className="h-8 w-8 text-t4 hover:text-dn">
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
