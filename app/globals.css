@@ -1034,3 +1034,20 @@ html.stitch-layout .stitch-top-bar-title {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
+
+/* Dashboard home — restrained hierarchy polish (scoped; does not restyle the shell) */
+.cc-dashboard .cc-dashboard-stat {
+  font-size: 32px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+/* Dark mode: lift muted copy for scanability without brightening borders */
+html.dark .cc-dashboard .text-t3 {
+  color: color-mix(in srgb, var(--color-t2) 82%, var(--color-t3));
+}
+
+html.dark .cc-dashboard {
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.28), 0 4px 14px -6px rgb(0 0 0 / 0.4);
+}
+

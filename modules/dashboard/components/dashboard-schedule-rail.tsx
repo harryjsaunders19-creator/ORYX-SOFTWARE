@@ -3,7 +3,10 @@
 import { format, parseISO, isValid } from "date-fns"
 import Link from "next/link"
 import { Clock } from "lucide-react"
+import { cn } from "@/shared/utils/utils"
+import { Typography } from "@/shared/design/typography"
 import type { DashboardWeekEvent } from "../types/stats-types"
+import { DashboardEmptyState } from "./dashboard-stats-primitives"
 
 const SITE_VISIT_ID = "cat_site_visit"
 const TEAMS_MEETING_ID = "cat_teams_meeting"
@@ -33,112 +36,145 @@ function shortTime(e: DashboardWeekEvent): string {
   }
 }
 
+function assigneeInitials(name: string): string {
+  return name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase()
+}
+
 export function DashboardScheduleRail({ events }: { events: DashboardWeekEvent[] }) {
   const siteVisits = events.filter(e => e.categoryId === SITE_VISIT_ID)
   const teamsMeetings = events.filter(e => e.categoryId === TEAMS_MEETING_ID)
   const nextMeeting = teamsMeetings[0] ?? null
 
   return (
-    <div className="space-y-10 md:space-y-12">
-      <section>
-        <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-t3">
+    <div className="space-y-8 md:space-y-10">
+      <section aria-labelledby="dashboard-meetings-heading">
+        <h2
+          id="dashboard-meetings-heading"
+          className={cn(Typography.Label, "mb-3 font-semibold uppercase tracking-[0.16em] text-t2")}
+        >
           Upcoming Meetings
-        </h3>
+        </h2>
         {nextMeeting ? (
-          <div className="relative overflow-hidden rounded-2xl bg-black p-8 text-white">
-            <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/10 blur-3xl" />
-            <div className="relative z-10">
-              <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                Next Meeting
+          <div className="rounded-xl border border-bd border-l-[3px] border-l-t1 bg-sr p-5 shadow-card">
+            <span
+              className={cn(
+                Typography.Badge,
+                "inline-flex rounded-md bg-nested-surface px-2 py-0.5 font-semibold uppercase tracking-wide text-t2",
+              )}
+            >
+              Next meeting
+            </span>
+            <h3 className={cn(Typography.CardTitle, "mt-3 text-t1")}>
+              {nextMeeting.title}
+            </h3>
+            <div className={cn(Typography.Small, "mt-2 flex items-center gap-2 text-t2")}>
+              <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>
+                {eventTimeLabel(nextMeeting)}
+                {isValid(parseISO(nextMeeting.startDate)) && (
+                  <>
+                    <span className="text-t3"> · </span>
+                    {format(parseISO(nextMeeting.startDate), "EEE d MMM")}
+                  </>
+                )}
               </span>
-              <h4 className="type-section-heading mt-4 mb-2">{nextMeeting.title}</h4>
-              <div className="mb-6 flex items-center gap-2 text-base text-white/70">
-                <Clock className="h-4 w-4 shrink-0" aria-hidden />
-                <span>{eventTimeLabel(nextMeeting)}</span>
-              </div>
-              {nextMeeting.assignees.length > 0 && (
-                <div className="flex -space-x-2">
-                  {nextMeeting.assignees.slice(0, 2).map(a => (
+            </div>
+            {nextMeeting.assignees.length > 0 && (
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex -space-x-1.5" aria-hidden>
+                  {nextMeeting.assignees.slice(0, 3).map(a => (
                     <div
                       key={a.userId}
                       title={a.userName}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black bg-[#d9dadc] text-[10px] font-bold text-black"
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-sr bg-surface-low text-[10px] font-bold text-t1"
                     >
-                      {a.userName.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                      {assigneeInitials(a.userName)}
                     </div>
                   ))}
-                  {nextMeeting.assignees.length > 2 && (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black bg-[#eeeef0] text-[10px] font-bold text-black">
-                      +{nextMeeting.assignees.length - 2}
-                    </div>
-                  )}
                 </div>
+                <p className={cn(Typography.Helper, "truncate text-t2")}>
+                  {nextMeeting.assignees.map(a => a.userName).join(", ")}
+                </p>
+              </div>
+            )}
+            <Link
+              href="/calendar"
+              className={cn(
+                Typography.Helper,
+                "mt-4 inline-block font-medium text-t2 underline decoration-dotted underline-offset-4 transition-colors hover:text-t1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-t1/20 rounded-sm",
               )}
-              <Link
-                href="/calendar"
-                className="mt-6 inline-block text-xs font-medium text-white/70 underline decoration-dotted underline-offset-4 hover:text-white"
-              >
-                Open calendar
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-bd bg-sr p-8 shadow-card">
-            <p className="text-sm text-t3">No meetings scheduled this week.</p>
-            <Link href="/calendar" className="mt-3 inline-block text-xs font-semibold text-t2 underline decoration-dotted">
+            >
               Open calendar
             </Link>
           </div>
+        ) : (
+          <DashboardEmptyState message="No upcoming meetings" />
         )}
       </section>
 
-      <section>
-        <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-t3">
+      <section aria-labelledby="dashboard-site-visits-heading">
+        <h2
+          id="dashboard-site-visits-heading"
+          className={cn(Typography.Label, "mb-3 font-semibold uppercase tracking-[0.16em] text-t2")}
+        >
           Site Visits
-        </h3>
+        </h2>
         {siteVisits.length === 0 ? (
-          <p className="text-sm text-t3">No site visits scheduled this week.</p>
+          <DashboardEmptyState message="No upcoming site visits" />
         ) : (
-          <div className="space-y-0">
+          <ul className="overflow-hidden rounded-xl border border-bd bg-sr shadow-card">
             {siteVisits.slice(0, 5).map((e, i, arr) => {
               const isFirst = i === 0
-              const isLast = i === arr.length - 1
-              return (
-                <div key={e.id} className="flex gap-4 group">
-                  <div className="flex flex-col items-center">
+              const title = e.jobDrawingNumber || e.title
+              const subtitle = e.jobDrawingNumber
+                ? (e.location || e.clientName || e.title)
+                : (e.location || e.clientName || "Site visit")
+              const inner = (
+                <>
+                  <div className="flex flex-col items-center pt-1.5" aria-hidden>
                     <div
-                      className={
-                        isFirst
-                          ? "h-2 w-2 rounded-full bg-black ring-4 ring-black/10 dark:bg-t1 dark:ring-white/10"
-                          : "h-2 w-2 rounded-full bg-[#7e7576] dark:bg-t4"
-                      }
+                      className={cn(
+                        "h-2 w-2 rounded-full",
+                        isFirst ? "bg-t1 ring-4 ring-t1/10" : "bg-t3",
+                      )}
                     />
-                    {!isLast && <div className="my-2 w-px flex-1 bg-bd" />}
+                    {i < arr.length - 1 && <div className="mt-1 w-px flex-1 bg-bd" />}
                   </div>
-                  <div className={isLast ? "pb-0" : "pb-6"}>
-                    <p className={`text-sm font-medium ${isFirst ? "text-t1" : "text-t3"}`}>
+                  <div className="min-w-0 pb-4">
+                    <p className={cn(Typography.Helper, "font-medium text-t2")}>
                       {shortTime(e)}
-                      <span className="ml-2 font-normal text-t4">
+                      <span className="ml-2 font-normal text-t3">
                         {format(parseISO(e.startDate), "EEE d")}
                       </span>
                     </p>
-                    <h5 className="text-base font-semibold text-t1">
-                      {e.jobDrawingNumber && e.jobId ? (
-                        <Link href={`/jobs/${e.jobId}`} className="hover:underline">
-                          {e.jobDrawingNumber}
-                        </Link>
-                      ) : (
-                        e.title
-                      )}
-                    </h5>
-                    <p className="text-[13px] text-[#4c4546] dark:text-t3">
-                      {e.jobDrawingNumber ? e.title : (e.location || e.clientName || "Site visit")}
+                    <p className={cn(Typography.BodyLarge, "mt-0.5 truncate text-t1")}>
+                      {title}
+                    </p>
+                    <p className={cn(Typography.Helper, "mt-0.5 truncate text-t2")}>
+                      {subtitle}
                     </p>
                   </div>
-                </div>
+                </>
+              )
+
+              return (
+                <li key={e.id}>
+                  {e.jobId ? (
+                    <Link
+                      href={`/jobs/${e.jobId}`}
+                      className="grid grid-cols-[12px_1fr] gap-3 px-4 pt-4 transition-colors hover:bg-hover-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-t1/20"
+                    >
+                      {inner}
+                    </Link>
+                  ) : (
+                    <div className="grid grid-cols-[12px_1fr] gap-3 px-4 pt-4">
+                      {inner}
+                    </div>
+                  )}
+                </li>
               )
             })}
-          </div>
+          </ul>
         )}
       </section>
     </div>
