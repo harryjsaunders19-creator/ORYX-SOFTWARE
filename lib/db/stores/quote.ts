@@ -55,7 +55,16 @@ export const quoteDb = {
     ).all(...jobIds) as QuoteRow[]
   },
 
-  findMany(opts: { search?: string; status?: string; clientId?: string; skip?: number; take?: number; includeArchived?: boolean; onlyArchived?: boolean } = {}): QuoteRow[] {
+  findMany(opts: {
+    search?: string
+    status?: string
+    clientId?: string
+    jobIds?: string[]
+    skip?: number
+    take?: number
+    includeArchived?: boolean
+    onlyArchived?: boolean
+  } = {}): QuoteRow[] {
     const clauses: string[] = []
     const params: unknown[] = []
     if (opts.search) {
@@ -65,6 +74,11 @@ export const quoteDb = {
     }
     if (opts.status)   { clauses.push("status = ?");   params.push(opts.status) }
     if (opts.clientId) { clauses.push("clientId = ?"); params.push(opts.clientId) }
+    if (opts.jobIds?.length) {
+      const placeholders = opts.jobIds.map(() => "?").join(",")
+      clauses.push(`jobId IN (${placeholders})`)
+      params.push(...opts.jobIds)
+    }
     if (opts.onlyArchived)             { clauses.push("archivedAt IS NOT NULL") }
     else if (!opts.includeArchived)    { clauses.push("archivedAt IS NULL") }
     const w      = clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""
@@ -73,7 +87,14 @@ export const quoteDb = {
     return db.prepare(`SELECT * FROM Quote ${w} ORDER BY createdAt DESC ${limit} ${offset}`).all(...params) as QuoteRow[]
   },
 
-  count(opts: { search?: string; status?: string; clientId?: string; includeArchived?: boolean; onlyArchived?: boolean } = {}): number {
+  count(opts: {
+    search?: string
+    status?: string
+    clientId?: string
+    jobIds?: string[]
+    includeArchived?: boolean
+    onlyArchived?: boolean
+  } = {}): number {
     const clauses: string[] = []
     const params: unknown[] = []
     if (opts.search) {
@@ -83,6 +104,11 @@ export const quoteDb = {
     }
     if (opts.status)   { clauses.push("status = ?");   params.push(opts.status) }
     if (opts.clientId) { clauses.push("clientId = ?"); params.push(opts.clientId) }
+    if (opts.jobIds?.length) {
+      const placeholders = opts.jobIds.map(() => "?").join(",")
+      clauses.push(`jobId IN (${placeholders})`)
+      params.push(...opts.jobIds)
+    }
     if (opts.onlyArchived)             { clauses.push("archivedAt IS NOT NULL") }
     else if (!opts.includeArchived)    { clauses.push("archivedAt IS NULL") }
     const w = clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""

@@ -70,6 +70,7 @@ function applyQuoteFilters(q: QuoteQuery, opts: QuoteListOptionsExt): QuoteQuery
   }
   if (opts.status) q = q.eq("status", opts.status)
   if (opts.clientId) q = q.eq("client_id", opts.clientId)
+  if (opts.jobIds?.length) q = q.in("job_id", opts.jobIds)
   return q
 }
 

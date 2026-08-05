@@ -5,10 +5,7 @@ import { Input } from "@/shared/ui/input"
 import { Textarea } from "@/shared/ui/textarea"
 import { Field } from "@/shared/ui/field"
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/shared/ui/select"
-import {
-  JOB_STATUSES, CREATABLE_ITEM_TYPES, OTHER_WORKS_TYPE,
+  CREATABLE_ITEM_TYPES, OTHER_WORKS_TYPE,
   WORKS_TYPES, JOB_TAGS,
 } from "@/lib/constants"
 import { ClientCombobox } from "@/components/client-combobox"
@@ -22,7 +19,7 @@ import { addCustomWorksType, readCustomWorksTypes } from "./custom-works-types"
 import { worksTypeDisplayLabel } from "@/lib/constants"
 import { emptyJobForm, validate, FEATURED_WORKS } from "./job-form-constants"
 import type { FieldErrors } from "./job-form-constants"
-import { Section, Divider } from "./job-form-layout"
+import { Section, Divider, StatusField } from "./job-form-layout"
 import { JobFormItemType } from "./job-form-item-type"
 import { JobFormWorksType } from "./job-form-works-type"
 import { defaultRequiredByDate } from "@/shared/utils/utils"
@@ -291,7 +288,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Site name" hint="Building or site description">
+            <Field label="Site name" htmlFor="siteName" hint="Building or site description">
               <Input
                 className={controlClass}
                 style={controlStyle}
@@ -302,7 +299,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                 autoFocus={!job}
               />
             </Field>
-            <Field label="Site address" required error={errors.siteAddress} hint="Postal address for the site">
+            <Field label="Site address" htmlFor="siteAddress" required error={errors.siteAddress} hint="Postal address for the site">
               <Input
                 className={controlClass}
                 style={controlStyle}
@@ -400,8 +397,9 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
         question={isSiteVisit ? "Which client is this visit for?" : "Who is the client and who requested the work?"}
       >
         <div className={cn("grid grid-cols-1 gap-4", isSiteVisit ? "sm:grid-cols-1 sm:max-w-md" : "sm:grid-cols-2")}>
-          <Field label="Client" required error={errors.clientCompany}>
+          <Field label="Client" htmlFor="clientCompany" required error={errors.clientCompany}>
             <ClientCombobox
+              id="clientCompany"
               value={form.clientId}
               name={form.clientCompany}
               onChange={(clientId, clientName, onHold, _holdReason, contactName) => {
@@ -419,7 +417,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
             {errors.clientCompany && <p className="text-xs text-dn mt-0.5">{errors.clientCompany}</p>}
           </Field>
           {!isSiteVisit && (
-            <Field label="Requested by" required error={errors.requestedBy} hint="Defaults to the client contact when available">
+            <Field label="Requested by" htmlFor="requestedBy" required error={errors.requestedBy} hint="Defaults to the client contact when available">
               <Input
                 className={controlClass}
                 style={controlStyle}
@@ -431,7 +429,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
             </Field>
           )}
           {isSiteVisit && (
-            <Field label="Requested by" hint="Optional — defaults to the client contact when available">
+            <Field label="Requested by" htmlFor="requestedByOptional" hint="Optional — defaults to the client contact when available">
               <Input
                 className={controlClass}
                 style={controlStyle}
@@ -455,7 +453,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
           question={!job ? "When is the site visit? This also adds it to the calendar." : "When is the site visit required?"}
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Visit date" required error={errors.visitDate}>
+            <Field label="Visit date" htmlFor="visitDate" required error={errors.visitDate}>
               <Input
                 className={controlClass}
                 style={controlStyle}
@@ -468,8 +466,9 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                 }}
               />
             </Field>
-            <Field label="Assigned engineer" hint="Optional">
+            <Field label="Assigned engineer" htmlFor="assignedEngineer" hint="Optional">
               <DesignerCombobox
+                id="assignedEngineer"
                 value={form.designer}
                 onChange={v => setForm(f => ({ ...f, designer: v }))}
                 placeholder="Select an engineer…"
@@ -478,7 +477,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
             </Field>
             {!job && (
               <>
-                <Field label="Start time" required error={errors.visitStartTime}>
+                <Field label="Start time" htmlFor="visitStartTime" required error={errors.visitStartTime}>
                   <Input
                     className={controlClass}
                     style={controlStyle}
@@ -487,7 +486,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                     onChange={setF("visitStartTime")}
                   />
                 </Field>
-                <Field label="End time" required error={errors.visitEndTime}>
+                <Field label="End time" htmlFor="visitEndTime" required error={errors.visitEndTime}>
                   <Input
                     className={controlClass}
                     style={controlStyle}
@@ -499,7 +498,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
               </>
             )}
             {job && (
-              <Field label="Required by" hint="Visit / follow-up date">
+              <Field label="Required by" htmlFor="requiredByDateVisit" hint="Visit / follow-up date">
                 <Input
                   className={controlClass}
                   style={controlStyle}
@@ -510,16 +509,13 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
               </Field>
             )}
             {job && (
-              <Field label="Status">
-                <Select value={form.status} onValueChange={setSel("status")}>
-                  <SelectTrigger className={controlClass} style={controlStyle}><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {JOB_STATUSES.map(s => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+              <StatusField
+                htmlFor="jobStatusVisit"
+                value={form.status}
+                onValueChange={setSel("status")}
+                controlClass={controlClass}
+                controlStyle={controlStyle}
+              />
             )}
           </div>
           {!job && (
@@ -537,16 +533,18 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field
               label={isCatIii ? "Assigned checker" : "Assigned designer"}
+              htmlFor="assignedDesigner"
               hint="From the Users directory"
             >
               <DesignerCombobox
+                id="assignedDesigner"
                 value={form.designer}
                 onChange={v => setForm(f => ({ ...f, designer: v }))}
                 placeholder={isCatIii ? "Select a checker…" : "Select a designer…"}
                 designers={designers}
               />
             </Field>
-            <Field label="Required by" hint="Defaults to one week from today">
+            <Field label="Required by" htmlFor="requiredByDate" hint="Defaults to one week from today">
               <Input
                 className={controlClass}
                 style={controlStyle}
@@ -556,16 +554,13 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
               />
             </Field>
             {job && (
-              <Field label="Status">
-                <Select value={form.status} onValueChange={setSel("status")}>
-                  <SelectTrigger className={controlClass} style={controlStyle}><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {JOB_STATUSES.map(s => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+              <StatusField
+                htmlFor="jobStatus"
+                value={form.status}
+                onValueChange={setSel("status")}
+                controlClass={controlClass}
+                controlStyle={controlStyle}
+              />
             )}
           </div>
         </Section>
@@ -586,7 +581,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
         }
       >
         <div className="space-y-4">
-          <Field label="Notes" hint={isCatIii ? "Scope of check, drawings to review…" : undefined}>
+          <Field label="Notes" htmlFor="notes" hint={isCatIii ? "Scope of check, drawings to review…" : undefined}>
             <Textarea
               value={form.notes}
               onChange={setF("notes")}
@@ -603,9 +598,10 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
 
           <Field
             label="Tags"
+            htmlFor="jobTags"
             hint="Optional labels for search and filtering (scaffold type, site constraints)."
           >
-            <div className="flex flex-wrap gap-2">
+            <div id="jobTags" className="flex flex-wrap gap-2" role="group" aria-label="Tags">
               {JOB_TAGS.map(tag => {
                 const selected = form.tags.includes(tag)
                 return (
@@ -635,7 +631,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
 
           {(showCommercial || isDesign) && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Quote reference" hint="Optional operational reference">
+              <Field label="Quote reference" htmlFor="quoteReference" hint="Optional operational reference">
                 <Input
                   className={controlClass}
                   style={controlStyle}
@@ -646,7 +642,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                 />
               </Field>
               {!isSiteVisit && (
-                <Field label="Quote value (£)" hint="Optional">
+                <Field label="Quote value (£)" htmlFor="quoteValue" hint="Optional">
                   <Input
                     className={controlClass}
                     style={controlStyle}

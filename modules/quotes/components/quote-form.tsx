@@ -131,8 +131,9 @@ export function QuoteForm({ formId, initial, quoteId, onSubmit }: {
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Client" required error={clientError}>
+        <Field label="Client" htmlFor="quoteClient" required error={clientError}>
           <ClientCombobox
+            id="quoteClient"
             value={form.clientId}
             name={form.clientCompany}
             onChange={(clientId, clientName) => {
@@ -142,12 +143,12 @@ export function QuoteForm({ formId, initial, quoteId, onSubmit }: {
             onCreateNew={name => setQuickCreateName(name)}
           />
         </Field>
-        <Field label="Contact name">
+        <Field label="Contact name" htmlFor="quoteContactName">
           <Input value={form.contactName} onChange={setF("contactName")} placeholder="Jane Smith" />
         </Field>
       </div>
 
-      <Field label="Address" required error={addressError}>
+      <Field label="Address" htmlFor="quoteAddress" required error={addressError}>
         <Input
           value={form.address}
           onChange={e => { setAddressError(null); setF("address")(e) }}
@@ -156,8 +157,9 @@ export function QuoteForm({ formId, initial, quoteId, onSubmit }: {
         />
       </Field>
 
-      <Field label="Type of works" required error={worksError}>
+      <Field label="Type of works" htmlFor="quoteTypeOfWorks" required error={worksError}>
         <TypeOfWorksCombobox
+          id="quoteTypeOfWorks"
           value={form.typeOfWorks}
           onChange={v => { setTypeOfWorks(v); setWorksError(null) }}
           error={!!worksError}
@@ -165,7 +167,7 @@ export function QuoteForm({ formId, initial, quoteId, onSubmit }: {
       </Field>
 
       {form.typeOfWorks === OTHER_WORKS_TYPE && (
-        <Field label="Specify type of works" required error={customWorksError}>
+        <Field label="Specify type of works" htmlFor="quoteCustomWorks" required error={customWorksError}>
           <Input
             value={form.customTypeDescription}
             onChange={e => {
@@ -179,17 +181,17 @@ export function QuoteForm({ formId, initial, quoteId, onSubmit }: {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <Field label="Quote value (£)" required hint={form.lineItems.length > 0 ? "Set by the line items below" : undefined}>
+        <Field label="Quote value (£)" htmlFor="quoteValue" required hint={form.lineItems.length > 0 ? "Set by the line items below" : undefined}>
           <Input value={displayedQuoteValue} onChange={setF("quoteValue")} placeholder="e.g. 1850" inputMode="decimal" autoComplete="off"
             disabled={form.lineItems.length > 0} />
         </Field>
-        <Field label="VAT rate (%)" hint="Blank = no VAT breakdown on the PDF">
+        <Field label="VAT rate (%)" htmlFor="quoteVatRate" hint="Blank = no VAT breakdown on the PDF">
           <Input value={form.vatRate} onChange={setF("vatRate")} placeholder="e.g. 20" inputMode="decimal" autoComplete="off" />
         </Field>
-        <Field label="Quote date" required>
+        <Field label="Quote date" htmlFor="quoteDate" required>
           <Input type="date" value={form.quoteDate} onChange={handleQuoteDateChange} />
         </Field>
-        <Field label="Expiry date" hint={!expiryTouched ? "Defaults to 30 days out" : undefined}>
+        <Field label="Expiry date" htmlFor="quoteExpiryDate" hint={!expiryTouched ? "Defaults to 30 days out" : undefined}>
           <Input type="date" value={form.expiryDate} onChange={handleExpiryDateChange} />
         </Field>
       </div>

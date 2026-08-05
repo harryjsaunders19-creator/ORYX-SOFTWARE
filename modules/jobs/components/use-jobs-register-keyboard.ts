@@ -31,6 +31,15 @@ export function useJobsRegisterKeyboard({
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      // While a modal/dialog is open, don't steal shortcuts from it.
+      // Escape still reaches onCloseInspector only when not typing — but
+      // dialogs own Escape via Radix, so skip register Escape too when open.
+      const isModalOpen = Boolean(
+        document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"]'),
+      )
+      if (isModalOpen) return
+
       if (isTypingTarget(e.target)) {
         if (e.key === "Escape") onCloseInspector()
         return

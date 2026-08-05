@@ -52,8 +52,8 @@ export function JobFormWorksType({
   onCustomTypeDescriptionChange,
 }: JobFormWorksTypeProps) {
   return (
-    <Field label="Type of works" required={isDesign} error={errors.typeOfWorks}>
-      <div className="space-y-3">
+    <Field label="Type of works" htmlFor="typeOfWorks" required={isDesign} error={errors.typeOfWorks}>
+      <div id="typeOfWorks" className="space-y-3" role="group" aria-label="Type of works">
         <div className="flex flex-wrap gap-2">
           {FEATURED_WORKS.map(chip => {
             const selected = isWorksSelected(chip.value)
@@ -191,7 +191,7 @@ export function JobFormWorksType({
         )}
 
         {typeOfWorks === OTHER_WORKS_TYPE && !selectedNamedCustom && (
-          <Field label="Describe type of works" required error={errors.customTypeDescription}>
+          <Field label="Describe type of works" htmlFor="customTypeDescription" required error={errors.customTypeDescription}>
             <Input
               className={controlClass}
               style={controlStyle}

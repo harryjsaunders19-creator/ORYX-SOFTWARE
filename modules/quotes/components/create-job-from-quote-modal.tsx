@@ -76,15 +76,15 @@ export function CreateJobFromQuoteModal({ quote, onClose, onConverted }: {
             <p className="text-xs text-t2"><span className="text-t4">Quote value:</span> {formatGBP(quote.quoteValue)}</p>
             <p className="text-xs text-t2"><span className="text-t4">Quote ref:</span> {quote.quoteNumber}</p>
           </div>
-          <Field label="Drawing number">
-            <p className="text-xs text-t4 bg-nested-surface border border-bd rounded-md px-3 py-2">
+          <Field label="Drawing number" htmlFor="createJobDrawingNumber">
+            <p id="createJobDrawingNumber" className="text-xs text-t4 bg-nested-surface border border-bd rounded-md px-3 py-2">
               Generated automatically when the job is created
             </p>
           </Field>
-          <Field label="Designer">
-            <DesignerCombobox value={designer} onChange={setDesigner} placeholder="Select a user (optional)" autoFocus />
+          <Field label="Designer" htmlFor="createJobDesigner">
+            <DesignerCombobox id="createJobDesigner" value={designer} onChange={setDesigner} placeholder="Select a user (optional)" autoFocus />
           </Field>
-          <Field label="Required by date" hint="Defaults to 1 week from today if left blank">
+          <Field label="Required by date" htmlFor="createJobRequiredBy" hint="Defaults to 1 week from today if left blank">
             <Input type="date" value={requiredByDate} onChange={e => setRequiredByDate(e.target.value)} />
           </Field>
         </DialogBody>

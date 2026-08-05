@@ -10,6 +10,7 @@ interface Props {
   disabled?:  boolean
   className?: string
   error?:     boolean
+  id?:        string
 }
 
 /**
@@ -21,7 +22,7 @@ interface Props {
  * whatever was typed and reverts the visible text to the current value, so
  * a half-typed search can never accidentally become the stored value.
  */
-export function TypeOfWorksCombobox({ value, onChange, disabled, className, error }: Props) {
+export function TypeOfWorksCombobox({ value, onChange, disabled, className, error, id }: Props) {
   const [open,  setOpen]  = useState(false)
   const [query, setQuery] = useState("")
   const wrapRef  = useRef<HTMLDivElement>(null)
@@ -52,6 +53,7 @@ export function TypeOfWorksCombobox({ value, onChange, disabled, className, erro
     <div ref={wrapRef} className={cn("relative", className)}>
       <button
         type="button"
+        id={id}
         disabled={disabled}
         onClick={() => { setOpen(o => !o); requestAnimationFrame(() => inputRef.current?.focus()) }}
         className={cn(

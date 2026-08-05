@@ -21,25 +21,50 @@ export function Field({
   className?: string
   children: React.ReactNode
 }) {
+  const reactId = React.useId()
+  const controlId = htmlFor ?? reactId
+  const errorId = error ? `${controlId}-error` : undefined
+  const hintId = !error && hint ? `${controlId}-hint` : undefined
+  const describedBy = [errorId, hintId].filter(Boolean).join(" ") || undefined
+
+  const enhancedChildren = (() => {
+    if (!React.isValidElement(children)) return children
+    // Only wire when Field wraps a single control element (not fragments / siblings).
+    if (React.Children.count(children) !== 1) return children
+    const child = children as React.ReactElement<Record<string, unknown>>
+    const existingDescribedBy = typeof child.props["aria-describedby"] === "string"
+      ? child.props["aria-describedby"]
+      : undefined
+    const mergedDescribedBy = [existingDescribedBy, describedBy].filter(Boolean).join(" ") || undefined
+    return React.cloneElement(child, {
+      id: (typeof child.props.id === "string" && child.props.id) ? child.props.id : controlId,
+      "aria-invalid": error ? true : child.props["aria-invalid"],
+      ...(mergedDescribedBy ? { "aria-describedby": mergedDescribedBy } : {}),
+    })
+  })()
+
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <Label htmlFor={htmlFor}>
+      <Label htmlFor={controlId}>
         {label}
         {required && <span className="text-dn ml-0.5">*</span>}
       </Label>
-      {children}
-      {error ? <FieldError>{error}</FieldError> : hint ? (
-        <p className={cn(Typography.Helper, "text-t4")}>{hint}</p>
+      {enhancedChildren}
+      {error ? (
+        <FieldError id={errorId}>{error}</FieldError>
+      ) : hint ? (
+        <p id={hintId} className={cn(Typography.Helper, "text-t4")}>{hint}</p>
       ) : null}
     </div>
   )
 }
 
-export function FieldError({ children, className }: {
+export function FieldError({ children, className, id }: {
   children: React.ReactNode
   className?: string
+  id?: string
 }) {
-  return <p className={cn(Typography.Helper, "text-dn", className)}>{children}</p>
+  return <p id={id} className={cn(Typography.Helper, "text-dn", className)}>{children}</p>
 }
 
 /** Form-level error / alert banner. */

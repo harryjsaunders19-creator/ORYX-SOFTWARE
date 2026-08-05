@@ -157,9 +157,6 @@ export function JobsInspector({
   const jobKey = !workItemsModel ? `/api/jobs/${project.id}?include=parent,current` : null
   const revisionsKey = !workItemsModel ? `/api/jobs/${project.id}/revisions` : null
   const docsKey = secondaryReady ? `/api/jobs/${project.id}/documents?limit=40` : null
-  const quotesKey = secondaryReady
-    ? `/api/quotes?search=${encodeURIComponent(project.drawingNumber)}&page=1&limit=25`
-    : null
 
   const { data: parentDashRaw, isLoading: parentLoading, mutate: mutateParent } =
     useApi<ParentJobDashboard>(parentKey)
@@ -168,6 +165,31 @@ export function JobsInspector({
   const { data: revisionsDataRaw, mutate: mutateRevisions } =
     useApi<RevisionsResponse>(revisionsKey)
   const { data: docsData, mutate: mutateDocs } = useApi<DocumentsResponse>(docsKey, SECONDARY_SWR)
+
+  // Exact job_id filter (supports comma-separated parent + revision / legacy ids).
+  // Starts with project.id; expands once revision/work-item ids are known.
+  const quoteJobIds = useMemo(() => {
+    const ids = new Set<string>([project.id])
+    if (workItemsModel && parentDashRaw?.parent?.id === project.id) {
+      for (const wi of asSafeArray(parentDashRaw.workItems)) {
+        if (wi.legacyJobId) ids.add(wi.legacyJobId)
+      }
+    }
+    if (
+      !workItemsModel
+      && revisionsDataRaw
+      && (!revisionsDataRaw.parentId || revisionsDataRaw.parentId === project.id)
+    ) {
+      for (const r of asSafeArray(revisionsDataRaw.chain)) {
+        if (r.id) ids.add(r.id)
+      }
+    }
+    return [...ids].sort()
+  }, [project.id, workItemsModel, parentDashRaw, revisionsDataRaw])
+
+  const quotesKey = secondaryReady
+    ? `/api/quotes?jobId=${encodeURIComponent(quoteJobIds.join(","))}&page=1&limit=200`
+    : null
   const { data: quotesData, mutate: mutateQuotes } = useApi<QuotesListResponse>(quotesKey, SECONDARY_SWR)
 
   // Ignore keepPreviousData from a different job when switching selection.
@@ -379,6 +401,7 @@ export function JobsInspector({
 
   const originalQuote: QuoteCardItem | null = useMemo(() => {
     if (jobDetail?.currentQuote) return toQuoteCard(jobDetail.currentQuote)
+    // Prefer ACCEPTED among quotes already scoped to this job family by the API.
     const linkedToParent = asSafeArray(quotesData?.quotes).filter(q => q.jobId === project.id)
     const preferred =
       linkedToParent.find(q => q.status === "ACCEPTED")
@@ -391,6 +414,7 @@ export function JobsInspector({
 
   const revisionQuote: QuoteCardItem | null = useMemo(() => {
     if (!activeRevision?.legacyJobId) return null
+    // Attribute among the jobId-scoped result set (display preference, not discovery).
     const hit = asSafeArray(quotesData?.quotes).find(q => q.jobId === activeRevision.legacyJobId)
     if (!hit) return null
     return toQuoteCard(hit, activeRevision.letter ? `Rev ${activeRevision.letter}` : "Revision")
@@ -538,33 +562,44 @@ export function JobsInspector({
     || (currentWork.type === "original" ? (originalWorkItem?.designer || project.designer) : project.designer)
     || ""
 
-  const lastCompleted = useMemo(() => {
-    const issued = revisions
-      .filter(r => r.status === "ISSUED")
-      .map(r => r.createdAt)
-      .filter(Boolean)
-    if (issued.length === 0) {
-      return originalWorkItem?.completedAt
-        ?? jobDetail?.dateCompleted
-        ?? null
-    }
-    return issued.sort((a, b) => timeValue(b) - timeValue(a))[0] ?? null
-  }, [revisions, originalWorkItem, jobDetail])
-
-  const lastCompletedLabel = useMemo(() => {
-    const issued = revisions
+  const latestIssuedRevision = useMemo(() => {
+    return revisions
       .filter(r => r.status === "ISSUED")
       .slice()
-      .sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt))
-    const latest = issued[0]
-    if (!latest) {
-      if (originalWorkItem?.completedAt || jobDetail?.dateCompleted) return "Original"
-      return null
-    }
-    return latest.letter ? `Rev ${latest.letter}` : "Original"
-  }, [revisions, originalWorkItem, jobDetail])
+      .sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt))[0] ?? null
+  }, [revisions])
+  const lastCompleted = latestIssuedRevision?.createdAt
+    ?? originalWorkItem?.completedAt
+    ?? jobDetail?.dateCompleted
+    ?? null
+  const lastCompletedLabel = latestIssuedRevision
+    ? (latestIssuedRevision.letter ? `Rev ${latestIssuedRevision.letter}` : "Original")
+    : (originalWorkItem?.completedAt || jobDetail?.dateCompleted ? "Original" : null)
 
   const primaryQuote = revisionQuote ?? originalQuote
+
+  const currentRevisionProps = {
+    currentWork,
+    revLabel,
+    designer: drawingDesigner,
+    designers,
+    lastCompleted,
+    lastCompletedLabel,
+    descriptionOfWorks,
+    revisionReason: activeRevision?.reason ?? null,
+    revisionDate:
+      activeRevision?.createdAt
+      ?? originalWorkItem?.dateCreated
+      ?? jobDetail?.dateCreated
+      ?? parent?.createdAt
+      ?? null,
+    requiredByDate:
+      activeRevision?.requiredByDate
+      ?? currentWork.dueDate
+      ?? null,
+    patchUrl: currentWorkPatchUrl,
+    onChanged: () => { void refreshAll() },
+  }
 
   const openQuoteAction = () => {
     if (primaryQuote) {
@@ -720,9 +755,14 @@ export function JobsInspector({
           </button>
           <button
             type="button"
-            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-jobs-panel-btn-bd bg-transparent px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover disabled:opacity-40"
-            onClick={() => void handleCat2()}
-            disabled={cat2Busy || !canExportCat2}
+            className={cn(
+              "col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-jobs-panel-btn-bd bg-transparent px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover",
+              (cat2Busy || !canExportCat2) && "opacity-40 cursor-not-allowed",
+            )}
+            onClick={() => {
+              if (!cat2Busy && canExportCat2) void handleCat2()
+            }}
+            aria-disabled={cat2Busy || !canExportCat2}
             title={
               canExportCat2
                 ? `Create CATII Check for ${activeCat2Label}`
@@ -732,6 +772,11 @@ export function JobsInspector({
             <ShieldCheck className="h-4 w-4 shrink-0" />
             {cat2Busy ? "Creating…" : "CAT II Check"}
           </button>
+          {!canExportCat2 && (
+            <span className="sr-only" role="status">
+              CATII Check is available when original or a revision is complete
+            </span>
+          )}
         </section>
 
         <div className="border-t border-jobs-panel-divider" aria-hidden />
@@ -744,57 +789,11 @@ export function JobsInspector({
           <div className="space-y-5" aria-busy="true">
             <div className="h-14 skeleton rounded-lg" />
             <div className="h-14 skeleton rounded-lg" />
-            <CurrentRevisionSection
-              currentWork={currentWork}
-              revLabel={revLabel}
-              designer={drawingDesigner}
-              designers={designers}
-              lastCompleted={lastCompleted}
-              lastCompletedLabel={lastCompletedLabel}
-              descriptionOfWorks={descriptionOfWorks}
-              revisionReason={activeRevision?.reason ?? null}
-              revisionDate={
-                activeRevision?.createdAt
-                ?? originalWorkItem?.dateCreated
-                ?? jobDetail?.dateCreated
-                ?? parent?.createdAt
-                ?? null
-              }
-              requiredByDate={
-                activeRevision?.requiredByDate
-                ?? currentWork.dueDate
-                ?? null
-              }
-              patchUrl={currentWorkPatchUrl}
-              onChanged={() => { void refreshAll() }}
-            />
+            <CurrentRevisionSection {...currentRevisionProps} />
           </div>
         ) : (
           <RevisionTimeline revisions={revisions} jobKey={project.id}>
-            <CurrentRevisionSection
-              currentWork={currentWork}
-              revLabel={revLabel}
-              designer={drawingDesigner}
-              designers={designers}
-              lastCompleted={lastCompleted}
-              lastCompletedLabel={lastCompletedLabel}
-              descriptionOfWorks={descriptionOfWorks}
-              revisionReason={activeRevision?.reason ?? null}
-              revisionDate={
-                activeRevision?.createdAt
-                ?? originalWorkItem?.dateCreated
-                ?? jobDetail?.dateCreated
-                ?? parent?.createdAt
-                ?? null
-              }
-              requiredByDate={
-                activeRevision?.requiredByDate
-                ?? currentWork.dueDate
-                ?? null
-              }
-              patchUrl={currentWorkPatchUrl}
-              onChanged={() => { void refreshAll() }}
-            />
+            <CurrentRevisionSection {...currentRevisionProps} />
           </RevisionTimeline>
         )}
 
@@ -828,11 +827,12 @@ export function JobsInspector({
           </button>
           <button
             type="button"
-            className="flex-1 rounded-xl border border-dn/30 bg-transparent py-2.5 text-sm font-semibold text-dn transition-colors duration-150 hover:bg-dn/10"
+            className="flex-1 rounded-xl border border-jobs-panel-btn-bd bg-transparent py-2.5 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover"
+            // TODO: this navigates to the job page rather than performing a cancel action
             onClick={() => router.push(`/jobs/${project.id}`)}
-            title="Open project to cancel"
+            title="Open project page to cancel"
           >
-            Cancel Job
+            Open to Cancel
           </button>
         </div>
       ) : null}

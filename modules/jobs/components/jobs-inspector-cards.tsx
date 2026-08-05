@@ -742,12 +742,15 @@ function revisionTitle(rev: HistoryRevision, current = false): string {
 export function RevisionTimeline({
   revisions,
   jobKey,
-  onSelectRevision,
   children,
 }: {
   revisions: HistoryRevision[]
   /** Unused — kept for call-site compatibility when switching jobs. */
   jobKey?: string
+  /**
+   * @deprecated No inspector call site wires selection. Prior revisions are
+   * display-only; see job-detail JobRevisionOverview for selectable history.
+   */
   onSelectRevision?: (revision: HistoryRevision) => void
   children?: ReactNode
 }) {
@@ -774,14 +777,12 @@ export function RevisionTimeline({
       ) : (
         <div className="space-y-5">
           <div className="space-y-4 rounded-[12px] border border-jobs-panel-card-bd bg-jobs-panel-card p-5">
-            <button
-              type="button"
-              className={cn(
-                "w-full space-y-3 text-left",
-                "outline-none focus-visible:ring-2 focus-visible:ring-ac rounded-md",
-              )}
-              onClick={() => onSelectRevision?.(current)}
-            >
+            {/*
+              Current revision header is informational only. onSelectRevision is
+              optional and unused by JobsInspector — keep non-interactive so we
+              do not imply a selection action that is not wired.
+            */}
+            <div className="w-full space-y-3 text-left">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-bold text-t1">
                   {revisionTitle(current, true)}
@@ -801,7 +802,7 @@ export function RevisionTimeline({
                       : "No description has been entered.")}
                 </p>
               </div>
-            </button>
+            </div>
             {children ? (
               <div className="border-t border-jobs-panel-divider pt-4">
                 {children}
@@ -814,14 +815,13 @@ export function RevisionTimeline({
               {priors.map((rev) => (
                 <div key={rev.id}>
                   <div className="mb-3 h-px bg-jobs-panel-divider" aria-hidden />
-                  <button
-                    type="button"
-                    className={cn(
-                      "w-full text-left opacity-70 transition-opacity duration-150 hover:opacity-100",
-                      "outline-none focus-visible:ring-2 focus-visible:ring-ac rounded-md",
-                    )}
-                    onClick={() => onSelectRevision?.(rev)}
-                  >
+                  {/*
+                    Prior revisions are display-only in the register inspector.
+                    Job detail page has its own selection via JobRevisionOverview;
+                    no equivalent view-past-revision flow exists here, so do not
+                    render button semantics that call a no-op handler.
+                  */}
+                  <div className="w-full text-left opacity-70">
                     <div className="mb-1 flex items-center justify-between gap-3">
                       <span className="text-sm font-medium text-t2">
                         {revisionTitle(rev)}
@@ -835,7 +835,7 @@ export function RevisionTimeline({
                         || getDrawingStatusLabel(rev.status)
                         || "—"}
                     </p>
-                  </button>
+                  </div>
                 </div>
               ))}
             </div>

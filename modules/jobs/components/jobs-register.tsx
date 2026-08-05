@@ -475,6 +475,7 @@ export function JobsRegister({
                         onClick={() => setScope(s.id)}
                         className={cn(
                           "inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-all",
+                          "outline-none focus-visible:ring-2 focus-visible:ring-ac",
                           scope === s.id
                             ? "bg-t1 text-sr"
                             : "border border-bd bg-s1 text-t3 hover:border-t1 hover:text-t1",
@@ -573,8 +574,10 @@ export function JobsRegister({
                   key={p}
                   type="button"
                   onClick={() => setPage(p)}
+                  aria-current={p === page ? "page" : undefined}
                   className={cn(
                     "flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold tabular-nums transition-colors",
+                    "outline-none focus-visible:ring-2 focus-visible:ring-ac",
                     p === page
                       ? "bg-t1 text-sr"
                       : "text-t2 hover:bg-surface-low",
