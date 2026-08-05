@@ -36,6 +36,13 @@ import path from "path"
 import { BRAND_LOGO_DOCUMENT_PATH } from "@/shared/branding/branding"
 import { QUOTE_COMPANY, DEFAULT_QUOTE_TERMS } from "./company"
 import { mapQuoteRecordToQuotationPdfData } from "./map-quote-to-pdf-data"
+import {
+  firstLineBaselineY,
+  measureTableRowHeight,
+  wrapTextToWidth,
+  capH,
+  dscH,
+} from "./table-layout"
 import type { QuotationPdfData } from "./types"
 
 // ── Page geometry ─────────────────────────────────────────────────────────────
@@ -67,14 +74,6 @@ const T_TERMS    = 9     // terms text
 const T_TOTAL    = 12    // TOTAL row
 const T_FOOTER   = 8     // footer
 
-// Inter proportional metrics (approximate)
-const CAP = 0.72   // cap-height / em
-const DSC = 0.21   // descender depth / em
-
-// Convenience: rounds size × ratio to nearest point
-const capH = (size: number) => Math.round(size * CAP)
-const dscH = (size: number) => Math.round(size * DSC)
-
 // Line step helpers — slightly more open for calmer header/body rhythm
 const STEP_DETAIL = Math.round(T_DETAIL  * 1.75)
 const STEP_META   = 20
@@ -100,7 +99,8 @@ const COL_VAT_X   = Math.round(COL_PO_X  + CONTENT_W * 0.19)
 const COL_AMT_END = MARGIN_R
 
 const CELL_PAD_X     = 8    // horizontal cell padding — currency / text breathing room
-const CELL_PAD_Y     = 5    // vertical cell padding — balanced row proportions
+/** Vertical pad above first glyph / below last descender — multi-line rows expand around this. */
+const CELL_PAD_Y     = 6
 const DESC_W         = COL_PO_X - COL_DESC_X - CELL_PAD_X * 2
 const PO_W           = COL_VAT_X - COL_PO_X - CELL_PAD_X * 2
 
@@ -109,12 +109,13 @@ const HEADER_H       = 15.0
 const HEADER_PAD_X   = 8
 const HEADER_TRACK   = 0.75 // slight letter-spacing
 
-const TABLE_ROW_H    = 22   // minimum data row height — leaner rows, taller table presence
+/** Minimum data row height for one-line items — multi-line rows grow past this. */
+const TABLE_ROW_H    = 22
 const TABLE_ROW_STEP = STEP_BODY
 /** Filler rows extend the table so the page fills ~85–90% without grey blocks. */
 const TABLE_FILLER_MAX = 8
 
-// Reserve this many points below the last table row for totals + terms + footer
+/** Reserve space below the table for terms + totals + footer on the same page. */
 const FOOTER_RES = 205
 const PAGE_SAFE  = 40
 
@@ -158,23 +159,11 @@ function wrapText(
   size: number,
   maxWidth: number
 ): string[] {
-  const lines: string[] = []
-  for (const paragraph of text.split(/\n/)) {
-    const words = paragraph.split(/\s+/).filter(Boolean)
-    if (!words.length) { lines.push(""); continue }
-    let current = ""
-    for (const word of words) {
-      const trial = current ? `${current} ${word}` : word
-      if (font.widthOfTextAtSize(trial, size) > maxWidth && current) {
-        lines.push(current)
-        current = word
-      } else {
-        current = trial
-      }
-    }
-    if (current) lines.push(current)
-  }
-  return lines
+  return wrapTextToWidth(
+    text,
+    (s) => font.widthOfTextAtSize(s, size),
+    maxWidth,
+  )
 }
 
 function resolveLineItems(data: QuotationPdfData) {
@@ -455,44 +444,63 @@ export async function buildQuotePdfFromPayload(
   const secRuleY = csEnd - SP_SECTION
   drawHRule(secRuleY)
 
-  // ── SECTION 3: Item Table ─────────────────────────────────────────────────
-  let rowTop            = drawTableHeader(page, secRuleY - SP_SECTION)
+  // ── SECTION 3: Item Table (flow-based, content-driven row heights) ────────
+  //
+  // Each row measures its own height from wrapped description lines, then
+  // advances currentY. PO / VAT / Amount share the first-line baseline.
+  // Dividers are drawn at the measured row bottom — never through text.
+
+  const rowMetricsBase = {
+    fontSize: T_BODY,
+    lineStep: TABLE_ROW_STEP,
+    minRowHeight: TABLE_ROW_H,
+    cellPadY: CELL_PAD_Y,
+  } as const
+
+  /** Bottom of the charcoal header band — first row starts immediately below. */
+  let currentY = drawTableHeader(page, secRuleY - SP_SECTION)
   let paginationOccurred = false
-  let bandIndex         = 0
+  let bandIndex = 0
 
   for (const item of lineItems) {
     const descLines = wrapText(item.description, fontRegular, T_BODY, DESC_W)
-    const contentH  = descLines.length * TABLE_ROW_STEP
-    const rowH      = Math.max(TABLE_ROW_H, contentH + CELL_PAD_Y * 2)
+    const lineCount = Math.max(1, descLines.length)
+    const rowH = measureTableRowHeight({ ...rowMetricsBase, lineCount })
 
-    // Page overflow → new page
-    if (rowTop - rowH < PAGE_SAFE + FOOTER_RES) {
-      drawText("Continued on next page…", MARGIN_L, rowTop - SP_MD, {
+    // Page overflow → new page (keep terms/totals/footer reservation)
+    if (currentY - rowH < PAGE_SAFE + FOOTER_RES) {
+      drawText("Continued on next page…", MARGIN_L, currentY - SP_MD, {
         size: T_DETAIL, color: LABEL_C,
       })
-      page   = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
-      rowTop = drawTableHeader(page, PAGE_HEIGHT - SP_LG * 3)
+      page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
       drawText(
         `${COMPANY.name} — Quote ${data.quotationNumber} (continued)`,
         MARGIN_L, PAGE_HEIGHT - SP_LG, { size: T_DETAIL, color: LABEL_C }
       )
+      currentY = drawTableHeader(page, PAGE_HEIGHT - SP_LG * 3)
       paginationOccurred = true
-      bandIndex          = 0
+      bandIndex = 0
     }
+
+    const rowTop = currentY
+    const rowBottom = rowTop - rowH
 
     // Extremely subtle zebra — rules do the separation work
     if (bandIndex % 2 === 1) {
       page.drawRectangle({
-        x: MARGIN_L, y: rowTop - rowH, width: CONTENT_W, height: rowH, color: ROW_ALT,
+        x: MARGIN_L, y: rowBottom, width: CONTENT_W, height: rowH, color: ROW_ALT,
       })
     }
 
-    // Vertically centre single-line rows; top-pad multi-line rows
-    const topPad = descLines.length === 1
-      ? Math.round((rowH - capH(T_BODY)) / 2)
-      : CELL_PAD_Y
-    const textBase = rowTop - topPad
-    let   lineBase = textBase
+    // First-line baseline: centred for short rows, top-aligned for tall rows.
+    // PO / VAT / Amount use the same baseline so columns stay aligned.
+    const textBase = firstLineBaselineY(rowTop, rowH, {
+      lineCount,
+      fontSize: T_BODY,
+      cellPadY: CELL_PAD_Y,
+    })
+
+    let lineBase = textBase
     for (const line of descLines) {
       drawText(line, COL_DESC_X + CELL_PAD_X, lineBase, { size: T_BODY })
       lineBase -= TABLE_ROW_STEP
@@ -515,44 +523,58 @@ export async function buildQuotePdfFromPayload(
       size: T_BODY, align: "right",
     })
 
-    // Bottom rule — primary row separator
+    // Bottom rule — at the calculated row bottom, never through content
     page.drawLine({
-      start: { x: MARGIN_L, y: rowTop - rowH },
-      end:   { x: MARGIN_R, y: rowTop - rowH },
+      start: { x: MARGIN_L, y: rowBottom },
+      end:   { x: MARGIN_R, y: rowBottom },
       thickness: BORDER_W,
       color: RULE_C,
     })
 
-    rowTop    -= rowH
+    currentY = rowBottom
     bandIndex++
   }
 
   // Filler rows — fewer empties; rules only (no grey blocks)
   if (!paginationOccurred) {
-    while (bandIndex < TABLE_FILLER_MAX && rowTop - TABLE_ROW_H >= PAGE_SAFE + FOOTER_RES) {
+    while (bandIndex < TABLE_FILLER_MAX && currentY - TABLE_ROW_H >= PAGE_SAFE + FOOTER_RES) {
+      const fillerBottom = currentY - TABLE_ROW_H
       page.drawLine({
-        start: { x: MARGIN_L, y: rowTop - TABLE_ROW_H },
-        end:   { x: MARGIN_R, y: rowTop - TABLE_ROW_H },
+        start: { x: MARGIN_L, y: fillerBottom },
+        end:   { x: MARGIN_R, y: fillerBottom },
         thickness: BORDER_W, color: RULE_C,
       })
-      rowTop -= TABLE_ROW_H
+      currentY = fillerBottom
       bandIndex++
     }
   }
 
-  const tableBottom = rowTop
+  const tableBottom = currentY
 
   // ── SECTION 4: Terms and Conditions (lower left) ──────────────────────────
   //
   // Terms occupy the left ~55 % of content width.
   // Totals occupy the right ~45 % — x ranges never overlap.
+  // Both sections flow from the measured table bottom (never hard-coded Y).
 
   const TERMS_COL_W = Math.round(CONTENT_W * 0.54) - SP_SM
   const TERMS_RIGHT = MARGIN_L + TERMS_COL_W
 
-  let termsY     = tableBottom - SP_SECTION
+  // If the table left too little room, continue terms/totals on a fresh page.
+  const estimatedClosingH = 160
+  let closingTop = tableBottom - SP_SECTION
+  if (tableBottom - estimatedClosingH < FOOTER_RULE + SP_MD) {
+    page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
+    drawText(
+      `${COMPANY.name} — Quote ${data.quotationNumber} (continued)`,
+      MARGIN_L, PAGE_HEIGHT - SP_LG, { size: T_DETAIL, color: LABEL_C }
+    )
+    closingTop = PAGE_HEIGHT - SP_LG * 3
+  }
+
+  let termsY = closingTop
   const tBandBottom = drawBlackHeader("TERMS AND CONDITIONS", MARGIN_L, termsY, TERMS_COL_W)
-  termsY         = tBandBottom - SP_MD   // tighter padding below black header
+  termsY = tBandBottom - SP_MD   // tighter padding below black header
 
   for (let i = 0; i < terms.length; i++) {
     termsY = drawWrapped(
@@ -575,7 +597,7 @@ export async function buildQuotePdfFromPayload(
   const TOTALS_VAL_X = MARGIN_R
   const TOTALS_STEP  = SP_LG   // tighter totals rhythm
 
-  let totalsY = tableBottom - SP_SECTION
+  let totalsY = closingTop
 
   if (vatRate != null) {
     const subRows: [string, string][] = [
