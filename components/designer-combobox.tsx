@@ -22,6 +22,7 @@ interface Props {
   allowUnassigned?: boolean
   /** Pre-loaded Users-tab names. When provided and non-empty, skips fetch. */
   designers?: string[]
+  id?: string
 }
 
 /**
@@ -37,6 +38,7 @@ export function DesignerCombobox({
   autoFocus,
   allowUnassigned = true,
   designers: designersProp,
+  id,
 }: Props) {
   const [fetched, setFetched] = useState<string[]>([])
   // Prefer parent list when it has names; otherwise use / fall back to fetch.
@@ -68,6 +70,7 @@ export function DesignerCombobox({
       disabled={disabled}
     >
       <SelectTrigger
+        id={id}
         className={cn("h-8", className)}
         style={{ height: "32px" }}
         autoFocus={autoFocus}

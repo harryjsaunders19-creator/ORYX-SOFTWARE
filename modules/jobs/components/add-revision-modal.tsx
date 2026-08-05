@@ -89,7 +89,7 @@ export function AddRevisionModal({ job, onClose, onSubmit }: AddRevisionModalPro
         </DialogHeader>
         <DialogBody>
           <div className="space-y-4">
-            <Field label="Amendments Required" error={notesError}>
+            <Field label="Amendments Required" htmlFor="revisionNotes" error={notesError}>
               <Textarea
                 value={notes}
                 onChange={e => { setNotes(e.target.value); if (notesError) setNotesError(null) }}
@@ -99,8 +99,8 @@ export function AddRevisionModal({ job, onClose, onSubmit }: AddRevisionModalPro
               />
             </Field>
 
-            <Field label="Is there a cost involved?">
-              <div className="flex items-center gap-2">
+            <Field label="Is there a cost involved?" htmlFor="revisionChargeable">
+              <div id="revisionChargeable" className="flex items-center gap-2" role="group" aria-label="Is there a cost involved?">
                 <button
                   type="button"
                   onClick={() => handleChargeableChange(true)}
@@ -127,10 +127,11 @@ export function AddRevisionModal({ job, onClose, onSubmit }: AddRevisionModalPro
             </Field>
 
             {chargeable ? (
-              <Field label="Revision fee" error={feeError}>
+              <Field label="Revision fee" htmlFor="revisionFee" error={feeError}>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-t3 pointer-events-none">£</span>
                   <Input
+                    id="revisionFee"
                     value={fee}
                     onChange={e => { setFee(e.target.value); if (feeError) setFeeError(null) }}
                     placeholder="0.00"

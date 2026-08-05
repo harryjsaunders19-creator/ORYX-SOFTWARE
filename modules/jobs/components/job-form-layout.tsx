@@ -1,5 +1,11 @@
 "use client"
 
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/shared/ui/select"
+import { Field } from "@/shared/ui/field"
+import { JOB_STATUSES } from "@/lib/constants"
+
 export function Section({
   step,
   title,
@@ -29,4 +35,34 @@ export function Section({
 
 export function Divider() {
   return <div className="h-px bg-bd" role="separator" />
+}
+
+/** Shared job status select used by site-visit and default assignment sections. */
+export function StatusField({
+  htmlFor,
+  value,
+  onValueChange,
+  controlClass,
+  controlStyle,
+}: {
+  htmlFor: string
+  value: string
+  onValueChange: (v: string) => void
+  controlClass?: string
+  controlStyle?: React.CSSProperties
+}) {
+  return (
+    <Field label="Status" htmlFor={htmlFor}>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger id={htmlFor} className={controlClass} style={controlStyle}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {JOB_STATUSES.map(s => (
+            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  )
 }

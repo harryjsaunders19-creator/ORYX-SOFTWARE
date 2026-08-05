@@ -60,7 +60,7 @@ export function ExportModal({ ids, onClose, onExported }: {
             details across all selected items — and creates a numbered billing batch. Once exported, these items
             move to Cleared and won&rsquo;t reappear here.
           </p>
-          <Field label="Batch notes (optional)">
+          <Field label="Batch notes (optional)" htmlFor="billingBatchNotes">
             <Textarea
               value={notes} onChange={e => setNotes(e.target.value)}
               placeholder="e.g. Weekly handover for w/e 21 June"

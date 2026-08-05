@@ -47,8 +47,6 @@ export {
   type ParsedImportRow,
 } from "./import/import-jobs"
 
-export { JobsTable } from "./components/jobs-table"
-
 export {
   StatusBadge,
   TypeOfWorksBadge,

@@ -538,33 +538,44 @@ export function JobsInspector({
     || (currentWork.type === "original" ? (originalWorkItem?.designer || project.designer) : project.designer)
     || ""
 
-  const lastCompleted = useMemo(() => {
-    const issued = revisions
-      .filter(r => r.status === "ISSUED")
-      .map(r => r.createdAt)
-      .filter(Boolean)
-    if (issued.length === 0) {
-      return originalWorkItem?.completedAt
-        ?? jobDetail?.dateCompleted
-        ?? null
-    }
-    return issued.sort((a, b) => timeValue(b) - timeValue(a))[0] ?? null
-  }, [revisions, originalWorkItem, jobDetail])
-
-  const lastCompletedLabel = useMemo(() => {
-    const issued = revisions
+  const latestIssuedRevision = useMemo(() => {
+    return revisions
       .filter(r => r.status === "ISSUED")
       .slice()
-      .sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt))
-    const latest = issued[0]
-    if (!latest) {
-      if (originalWorkItem?.completedAt || jobDetail?.dateCompleted) return "Original"
-      return null
-    }
-    return latest.letter ? `Rev ${latest.letter}` : "Original"
-  }, [revisions, originalWorkItem, jobDetail])
+      .sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt))[0] ?? null
+  }, [revisions])
+  const lastCompleted = latestIssuedRevision?.createdAt
+    ?? originalWorkItem?.completedAt
+    ?? jobDetail?.dateCompleted
+    ?? null
+  const lastCompletedLabel = latestIssuedRevision
+    ? (latestIssuedRevision.letter ? `Rev ${latestIssuedRevision.letter}` : "Original")
+    : (originalWorkItem?.completedAt || jobDetail?.dateCompleted ? "Original" : null)
 
   const primaryQuote = revisionQuote ?? originalQuote
+
+  const currentRevisionProps = {
+    currentWork,
+    revLabel,
+    designer: drawingDesigner,
+    designers,
+    lastCompleted,
+    lastCompletedLabel,
+    descriptionOfWorks,
+    revisionReason: activeRevision?.reason ?? null,
+    revisionDate:
+      activeRevision?.createdAt
+      ?? originalWorkItem?.dateCreated
+      ?? jobDetail?.dateCreated
+      ?? parent?.createdAt
+      ?? null,
+    requiredByDate:
+      activeRevision?.requiredByDate
+      ?? currentWork.dueDate
+      ?? null,
+    patchUrl: currentWorkPatchUrl,
+    onChanged: () => { void refreshAll() },
+  }
 
   const openQuoteAction = () => {
     if (primaryQuote) {
@@ -720,9 +731,14 @@ export function JobsInspector({
           </button>
           <button
             type="button"
-            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-jobs-panel-btn-bd bg-transparent px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover disabled:opacity-40"
-            onClick={() => void handleCat2()}
-            disabled={cat2Busy || !canExportCat2}
+            className={cn(
+              "col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-jobs-panel-btn-bd bg-transparent px-3 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover",
+              (cat2Busy || !canExportCat2) && "opacity-40 cursor-not-allowed",
+            )}
+            onClick={() => {
+              if (!cat2Busy && canExportCat2) void handleCat2()
+            }}
+            aria-disabled={cat2Busy || !canExportCat2}
             title={
               canExportCat2
                 ? `Create CATII Check for ${activeCat2Label}`
@@ -732,6 +748,11 @@ export function JobsInspector({
             <ShieldCheck className="h-4 w-4 shrink-0" />
             {cat2Busy ? "Creating…" : "CAT II Check"}
           </button>
+          {!canExportCat2 && (
+            <span className="sr-only" role="status">
+              CATII Check is available when original or a revision is complete
+            </span>
+          )}
         </section>
 
         <div className="border-t border-jobs-panel-divider" aria-hidden />
@@ -744,57 +765,11 @@ export function JobsInspector({
           <div className="space-y-5" aria-busy="true">
             <div className="h-14 skeleton rounded-lg" />
             <div className="h-14 skeleton rounded-lg" />
-            <CurrentRevisionSection
-              currentWork={currentWork}
-              revLabel={revLabel}
-              designer={drawingDesigner}
-              designers={designers}
-              lastCompleted={lastCompleted}
-              lastCompletedLabel={lastCompletedLabel}
-              descriptionOfWorks={descriptionOfWorks}
-              revisionReason={activeRevision?.reason ?? null}
-              revisionDate={
-                activeRevision?.createdAt
-                ?? originalWorkItem?.dateCreated
-                ?? jobDetail?.dateCreated
-                ?? parent?.createdAt
-                ?? null
-              }
-              requiredByDate={
-                activeRevision?.requiredByDate
-                ?? currentWork.dueDate
-                ?? null
-              }
-              patchUrl={currentWorkPatchUrl}
-              onChanged={() => { void refreshAll() }}
-            />
+            <CurrentRevisionSection {...currentRevisionProps} />
           </div>
         ) : (
           <RevisionTimeline revisions={revisions} jobKey={project.id}>
-            <CurrentRevisionSection
-              currentWork={currentWork}
-              revLabel={revLabel}
-              designer={drawingDesigner}
-              designers={designers}
-              lastCompleted={lastCompleted}
-              lastCompletedLabel={lastCompletedLabel}
-              descriptionOfWorks={descriptionOfWorks}
-              revisionReason={activeRevision?.reason ?? null}
-              revisionDate={
-                activeRevision?.createdAt
-                ?? originalWorkItem?.dateCreated
-                ?? jobDetail?.dateCreated
-                ?? parent?.createdAt
-                ?? null
-              }
-              requiredByDate={
-                activeRevision?.requiredByDate
-                ?? currentWork.dueDate
-                ?? null
-              }
-              patchUrl={currentWorkPatchUrl}
-              onChanged={() => { void refreshAll() }}
-            />
+            <CurrentRevisionSection {...currentRevisionProps} />
           </RevisionTimeline>
         )}
 
@@ -828,11 +803,12 @@ export function JobsInspector({
           </button>
           <button
             type="button"
-            className="flex-1 rounded-xl border border-dn/30 bg-transparent py-2.5 text-sm font-semibold text-dn transition-colors duration-150 hover:bg-dn/10"
+            className="flex-1 rounded-xl border border-jobs-panel-btn-bd bg-transparent py-2.5 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover"
+            // TODO: this navigates to the job page rather than performing a cancel action
             onClick={() => router.push(`/jobs/${project.id}`)}
-            title="Open project to cancel"
+            title="Open project page to cancel"
           >
-            Cancel Job
+            Open to Cancel
           </button>
         </div>
       ) : null}

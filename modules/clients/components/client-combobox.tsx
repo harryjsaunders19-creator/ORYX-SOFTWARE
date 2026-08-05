@@ -13,9 +13,10 @@ interface Props {
   onCreateNew?: (name: string) => void
   disabled?:  boolean
   className?: string
+  id?: string
 }
 
-export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, className }: Props) {
+export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, className, id }: Props) {
   const [query,    setQuery]    = useState(name)      // text in the input
   const [results,  setResults]  = useState<ClientWithHold[]>([])
   const [open,     setOpen]     = useState(false)
@@ -105,6 +106,7 @@ export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, c
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-t4 pointer-events-none" />
         <input
           ref={inputRef}
+          id={id}
           type="text"
           value={query}
           onChange={handleInput}
