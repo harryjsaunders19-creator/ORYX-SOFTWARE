@@ -51,14 +51,14 @@ const SP_SECTION = 24
 // ── Typography scale (points) — fewer sizes, clearer hierarchy ────────────────
 const T_QUOT     = 40    // QUOTE title (hero)
 const T_CO       = 18    // company name
-const T_HEAD     = 10    // black section header labels
+const T_HEAD     = 9.5   // black section header labels
 const T_BODY     = 10    // body / table / customer / site
 const T_META_LBL = 8     // metadata labels
 const T_META_VAL = 10    // metadata values
 const T_QUOTE_NO = 12    // quote number in meta — more prominent
 const T_DETAIL   = 9     // company detail lines
 const T_TERMS    = 9     // terms text
-const T_TOTAL    = 14    // TOTAL row
+const T_TOTAL    = 12    // TOTAL row (emphasis via weight + space, not size)
 const T_FOOTER   = 8     // footer
 
 // Inter proportional metrics (approximate)
@@ -69,36 +69,41 @@ const DSC = 0.21   // descender depth / em
 const capH = (size: number) => Math.round(size * CAP)
 const dscH = (size: number) => Math.round(size * DSC)
 
-// Line step helpers — slightly increased leading for print readability
+// Line step helpers — consistent leading for print readability
 const STEP_DETAIL = Math.round(T_DETAIL  * 1.55)
 const STEP_META   = 18
-const STEP_BODY   = Math.round(T_BODY    * 1.6)
-const STEP_TERMS  = Math.round(T_TERMS   * 1.65)
+const STEP_BODY   = Math.round(T_BODY    * 1.58)
+const STEP_TERMS  = Math.round(T_TERMS   * 1.62)
 
-// ── Monochrome palette ────────────────────────────────────────────────────────
-const INK      = rgb(0.051, 0.051, 0.051)
-const CHARCOAL = rgb(0.165, 0.165, 0.165)
+// ── Monochrome palette — print-friendly, light fills ──────────────────────────
+const INK      = rgb(0.05, 0.05, 0.05)
+const CHARCOAL = rgb(0.14, 0.14, 0.14)
 const WHITE    = rgb(1, 1, 1)
-const RULE_C   = rgb(0.82, 0.82, 0.82)     // lighter 1pt rules
-const ROW_ALT  = rgb(0.975, 0.975, 0.975)  // subtler zebra
-const TOTAL_BG = rgb(0.92, 0.92, 0.92)
-const LABEL_C  = rgb(0.40, 0.40, 0.40)
+const RULE_C   = rgb(0.86, 0.86, 0.86)     // light 1pt rules
+const ROW_ALT  = rgb(0.988, 0.988, 0.988)  // #FCFCFC — barely-there zebra
+const TOTAL_BG = rgb(0.969, 0.969, 0.969)  // #F7F7F7 — soft TOTAL tint
+const LABEL_C  = rgb(0.42, 0.42, 0.42)
 
 /** Uniform border / rule thickness (1 pt). */
 const BORDER_W = 1
 
 // ── Table column widths (proportional) ───────────────────────────────────────
-// Description 60 % | Purchase Order 18 % | VAT 8 % | Amount 14 %
+// Description 58 % | Purchase Order 19 % | VAT 9 % | Amount 14 %
 const COL_DESC_X  = MARGIN_L
-const COL_PO_X    = Math.round(MARGIN_L + CONTENT_W * 0.60)   // ≈ 348
-const COL_VAT_X   = Math.round(COL_PO_X  + CONTENT_W * 0.18)  // ≈ 439
+const COL_PO_X    = Math.round(MARGIN_L + CONTENT_W * 0.58)
+const COL_VAT_X   = Math.round(COL_PO_X  + CONTENT_W * 0.19)
 const COL_AMT_END = MARGIN_R
 
-const CELL_PAD       = 12                                       // horizontal + vertical cell padding
-const DESC_W         = COL_PO_X - COL_DESC_X - CELL_PAD * 2
+const CELL_PAD_X     = 14   // horizontal cell padding
+const CELL_PAD_Y     = 11   // vertical cell padding
+const DESC_W         = COL_PO_X - COL_DESC_X - CELL_PAD_X * 2
 
-const TABLE_HDR_H    = 30   // charcoal header band height (matches section headers)
-const TABLE_ROW_H    = 32   // minimum data row height
+/** Shared black header height (~17% shorter than previous 30pt). */
+const HEADER_H       = 25
+const HEADER_PAD_X   = 16
+const HEADER_TRACK   = 0.9  // letter-spacing for black headers
+
+const TABLE_ROW_H    = 34   // minimum data row height
 const TABLE_ROW_STEP = STEP_BODY
 
 // Reserve this many points below the last table row for totals + terms + footer
@@ -302,21 +307,35 @@ export async function buildQuotePdfBuffer(
    * Black section header band — identical style for CUSTOMER / SITE / TERMS / table.
    * Returns the y at the bottom of the band (content starts below + padding).
    */
-  const drawBlackHeader = (label: string, x: number, topY: number, width: number): number => {
-    const bandBottom = topY - TABLE_HDR_H
-    page.drawRectangle({
-      x, y: bandBottom, width, height: TABLE_HDR_H, color: CHARCOAL,
-    })
-    const baseline = topY - TABLE_HDR_H + Math.round((TABLE_HDR_H - capH(T_HEAD)) / 2)
-    // Light letter-spacing via per-character draw
-    const gap = 0.55
-    let cx = x + CELL_PAD
-    for (const ch of label.split("")) {
-      page.drawText(ch, {
+  const drawSpacedHeaderText = (
+    p: typeof page,
+    label: string,
+    x: number,
+    baseline: number,
+    align: "left" | "right" = "left",
+  ) => {
+    const chars = label.split("")
+    let textW = 0
+    for (let i = 0; i < chars.length; i++) {
+      textW += fontBold.widthOfTextAtSize(chars[i]!, T_HEAD)
+      if (i < chars.length - 1) textW += HEADER_TRACK
+    }
+    let cx = align === "right" ? x - textW : x
+    for (const ch of chars) {
+      p.drawText(ch, {
         x: cx, y: baseline, size: T_HEAD, font: fontBold, color: WHITE,
       })
-      cx += fontBold.widthOfTextAtSize(ch, T_HEAD) + gap
+      cx += fontBold.widthOfTextAtSize(ch, T_HEAD) + HEADER_TRACK
     }
+  }
+
+  const drawBlackHeader = (label: string, x: number, topY: number, width: number): number => {
+    const bandBottom = topY - HEADER_H
+    page.drawRectangle({
+      x, y: bandBottom, width, height: HEADER_H, color: CHARCOAL,
+    })
+    const baseline = topY - HEADER_H + Math.round((HEADER_H - capH(T_HEAD)) / 2)
+    drawSpacedHeaderText(page, label, x + HEADER_PAD_X, baseline, "left")
     return bandBottom
   }
 
@@ -325,25 +344,14 @@ export async function buildQuotePdfBuffer(
    */
   const drawTableHeader = (p: typeof page, topY: number): number => {
     p.drawRectangle({
-      x: MARGIN_L, y: topY - TABLE_HDR_H, width: CONTENT_W, height: TABLE_HDR_H, color: CHARCOAL,
+      x: MARGIN_L, y: topY - HEADER_H, width: CONTENT_W, height: HEADER_H, color: CHARCOAL,
     })
-    const baseline = topY - TABLE_HDR_H + Math.round((TABLE_HDR_H - capH(T_HEAD)) / 2)
-    const hdr = (text: string, x: number, align: "left" | "right" = "left") => {
-      const w = fontBold.widthOfTextAtSize(text, T_HEAD)
-      p.drawText(text, {
-        x: align === "right" ? x - w : x,
-        y: baseline,
-        size: T_HEAD,
-        font: fontBold,
-        color: WHITE,
-      })
-    }
-    hdr("DESCRIPTION",    COL_DESC_X + CELL_PAD)
-    // Right-align within the PO cell end so the label can't overlap VAT
-    hdr("PURCHASE ORDER", COL_VAT_X - CELL_PAD, "right")
-    hdr("VAT",            COL_VAT_X  + CELL_PAD)
-    hdr("AMOUNT",         COL_AMT_END - CELL_PAD, "right")
-    return topY - TABLE_HDR_H
+    const baseline = topY - HEADER_H + Math.round((HEADER_H - capH(T_HEAD)) / 2)
+    drawSpacedHeaderText(p, "DESCRIPTION",    COL_DESC_X + HEADER_PAD_X, baseline, "left")
+    drawSpacedHeaderText(p, "PURCHASE ORDER", COL_VAT_X - CELL_PAD_X,    baseline, "right")
+    drawSpacedHeaderText(p, "VAT",            COL_VAT_X + CELL_PAD_X,    baseline, "left")
+    drawSpacedHeaderText(p, "AMOUNT",         COL_AMT_END - CELL_PAD_X,  baseline, "right")
+    return topY - HEADER_H
   }
 
   // ── SECTION 1: Header (three independent columns) ─────────────────────────
@@ -461,7 +469,8 @@ export async function buildQuotePdfBuffer(
 
   for (const item of lineItems) {
     const descLines = wrapText(item.description, fontRegular, T_BODY, DESC_W)
-    const rowH      = Math.max(TABLE_ROW_H, descLines.length * TABLE_ROW_STEP + CELL_PAD * 2)
+    const contentH  = descLines.length * TABLE_ROW_STEP
+    const rowH      = Math.max(TABLE_ROW_H, contentH + CELL_PAD_Y * 2)
 
     // Page overflow → new page
     if (rowTop - rowH < PAGE_SAFE + FOOTER_RES) {
@@ -478,30 +487,33 @@ export async function buildQuotePdfBuffer(
       bandIndex          = 0
     }
 
-    // Alternating row tint (subtle)
+    // Extremely subtle zebra — rules do the separation work
     if (bandIndex % 2 === 1) {
       page.drawRectangle({
         x: MARGIN_L, y: rowTop - rowH, width: CONTENT_W, height: rowH, color: ROW_ALT,
       })
     }
 
-    // Description (wraps) — top-padded
-    const textBase = rowTop - CELL_PAD
+    // Vertically centre single-line rows; top-pad multi-line rows
+    const topPad = descLines.length === 1
+      ? Math.round((rowH - capH(T_BODY)) / 2)
+      : CELL_PAD_Y
+    const textBase = rowTop - topPad
     let   lineBase = textBase
     for (const line of descLines) {
-      drawText(line, COL_DESC_X + CELL_PAD, lineBase, { size: T_BODY })
+      drawText(line, COL_DESC_X + CELL_PAD_X, lineBase, { size: T_BODY })
       lineBase -= TABLE_ROW_STEP
     }
     // VAT indicator
     if (item.vatApplicable) {
-      drawText("X", COL_VAT_X + CELL_PAD + 2, textBase, { size: T_BODY })
+      drawText("X", COL_VAT_X + CELL_PAD_X, textBase, { size: T_BODY })
     }
     // Amount right-aligned with consistent cell padding
-    drawText(fmtNumber(item.amount), COL_AMT_END - CELL_PAD, textBase, {
+    drawText(fmtNumber(item.amount), COL_AMT_END - CELL_PAD_X, textBase, {
       size: T_BODY, align: "right",
     })
 
-    // Bottom rule — uniform 1pt
+    // Bottom rule — primary row separator
     page.drawLine({
       start: { x: MARGIN_L, y: rowTop - rowH },
       end:   { x: MARGIN_R, y: rowTop - rowH },
@@ -513,16 +525,9 @@ export async function buildQuotePdfBuffer(
     bandIndex++
   }
 
-  // Filler rows — keep visual rhythm on short quotes
+  // Filler rows — rules only (no zebra blocks on empty space)
   if (!paginationOccurred) {
     while (bandIndex < 8 && rowTop - TABLE_ROW_H >= PAGE_SAFE + FOOTER_RES) {
-      if (bandIndex % 2 === 1) {
-        page.drawRectangle({
-          x: MARGIN_L, y: rowTop - TABLE_ROW_H,
-          width: CONTENT_W, height: TABLE_ROW_H,
-          color: ROW_ALT,
-        })
-      }
       page.drawLine({
         start: { x: MARGIN_L, y: rowTop - TABLE_ROW_H },
         end:   { x: MARGIN_R, y: rowTop - TABLE_ROW_H },
@@ -565,6 +570,8 @@ export async function buildQuotePdfBuffer(
   // never overlaps the terms text.
 
   const TOTALS_LBL_X = Math.round(MARGIN_R - CONTENT_W * 0.27)
+  const TOTALS_VAL_X = MARGIN_R
+  const TOTALS_STEP  = SP_LG + SP_SM   // consistent row rhythm
 
   let totalsY = tableBottom - SP_SECTION
 
@@ -577,23 +584,33 @@ export async function buildQuotePdfBuffer(
     ]
     for (const [label, value] of subRows) {
       drawText(label, TOTALS_LBL_X, totalsY, { size: T_BODY, align: "right", color: LABEL_C })
-      drawText(value, MARGIN_R,     totalsY, { size: T_BODY, align: "right" })
-      totalsY -= SP_LG + SP_SM   // ~24 pt step — clearer vertical rhythm
+      drawText(value, TOTALS_VAL_X, totalsY, { size: T_BODY, align: "right" })
+      totalsY -= TOTALS_STEP
     }
   }
 
-  // TOTAL row: extra gap above, stronger band, bold T_TOTAL text
-  totalsY -= SP_MD
+  // TOTAL: hairline + soft tinted band (not a heavy Excel block)
+  totalsY -= SP_SM
+  page.drawLine({
+    start: { x: Math.max(TERMS_RIGHT + SP_LG, TOTALS_LBL_X - SP_XL), y: totalsY + SP_MD },
+    end:   { x: MARGIN_R, y: totalsY + SP_MD },
+    thickness: BORDER_W,
+    color: RULE_C,
+  })
+  totalsY -= SP_XS
+
   const totalBandX = Math.max(TERMS_RIGHT + SP_LG, TOTALS_LBL_X - SP_XL)
-  const totalBandH = SP_XL + SP_MD   // ~36 pt band
+  const totalBandH = SP_XL + SP_SM   // ~32 pt — padded, not oversized
   page.drawRectangle({
-    x: totalBandX, y: totalsY - SP_SM,
+    x: totalBandX,
+    y: totalsY - SP_MD,
     width: MARGIN_R - totalBandX,
     height: totalBandH,
     color: TOTAL_BG,
   })
-  drawText("TOTAL",                TOTALS_LBL_X, totalsY + SP_SM, { size: T_TOTAL, bold: true, align: "right" })
-  drawText(`£ ${fmtNumber(total)}`, MARGIN_R,    totalsY + SP_SM, { size: T_TOTAL, bold: true, align: "right" })
+  const totalBaseline = totalsY - SP_MD + Math.round((totalBandH - capH(T_TOTAL)) / 2)
+  drawText("TOTAL",                 TOTALS_LBL_X, totalBaseline, { size: T_TOTAL, bold: true, align: "right" })
+  drawText(`£ ${fmtNumber(total)}`, TOTALS_VAL_X, totalBaseline, { size: T_TOTAL, bold: true, align: "right" })
 
   // ── SECTION 6: Footer ─────────────────────────────────────────────────────
   //
