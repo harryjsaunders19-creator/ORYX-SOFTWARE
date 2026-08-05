@@ -51,7 +51,7 @@ const SP_SECTION = 18
 // ── Typography scale (points) — fewer sizes, clearer hierarchy ────────────────
 const T_QUOT     = 40    // QUOTE title (hero)
 const T_CO       = 18    // company name
-const T_HEAD     = 9.5   // black section header labels
+const T_HEAD     = 11    // black section header labels (section labels, not banners)
 const T_BODY     = 10    // body / table / customer / site
 const T_META_LBL = 8     // metadata labels
 const T_META_VAL = 10    // metadata values
@@ -72,20 +72,20 @@ const dscH = (size: number) => Math.round(size * DSC)
 // Line step helpers — consistent leading for print readability
 const STEP_DETAIL = Math.round(T_DETAIL  * 1.55)
 const STEP_META   = 18
-const STEP_BODY   = Math.round(T_BODY    * 1.55)
-const STEP_TERMS  = Math.round(T_TERMS   * 1.58)
+const STEP_BODY   = Math.round(T_BODY    * 1.52)
+const STEP_TERMS  = Math.round(T_TERMS   * 1.55)
 
 // ── Monochrome palette — print-friendly, light fills ──────────────────────────
 const INK      = rgb(0.05, 0.05, 0.05)
-const CHARCOAL = rgb(0.14, 0.14, 0.14)
+const CHARCOAL = rgb(0.12, 0.12, 0.12)
 const WHITE    = rgb(1, 1, 1)
-const RULE_C   = rgb(0.86, 0.86, 0.86)     // light 1pt rules
-const ROW_ALT  = rgb(0.988, 0.988, 0.988)  // #FCFCFC — barely-there zebra
-const TOTAL_BG = rgb(0.969, 0.969, 0.969)  // #F7F7F7 — soft TOTAL tint
+const RULE_C   = rgb(0.88, 0.88, 0.88)     // light hairline rules
+const ROW_ALT  = rgb(0.973, 0.973, 0.973)  // #F8F8F8 — nearly invisible zebra
+const TOTAL_BG = rgb(0.973, 0.973, 0.973)  // #F8F8F8 — soft TOTAL highlight
 const LABEL_C  = rgb(0.42, 0.42, 0.42)
 
-/** Uniform border / rule thickness (1 pt). */
-const BORDER_W = 1
+/** Uniform border / rule thickness (~0.75 pt). */
+const BORDER_W = 0.75
 
 // ── Table column widths (proportional) ───────────────────────────────────────
 // Description 58 % | Purchase Order 19 % | VAT 9 % | Amount 14 %
@@ -94,30 +94,30 @@ const COL_PO_X    = Math.round(MARGIN_L + CONTENT_W * 0.58)
 const COL_VAT_X   = Math.round(COL_PO_X  + CONTENT_W * 0.19)
 const COL_AMT_END = MARGIN_R
 
-const CELL_PAD_X     = 12   // horizontal cell padding
-const CELL_PAD_Y     = 8    // vertical cell padding — denser rows
+const CELL_PAD_X     = 14   // horizontal cell padding
+const CELL_PAD_Y     = 6    // vertical cell padding — denser rows
 const DESC_W         = COL_PO_X - COL_DESC_X - CELL_PAD_X * 2
 
-/** Shared black header height. */
-const HEADER_H       = 25
-const HEADER_PAD_X   = 16
-const HEADER_TRACK   = 0.9  // letter-spacing for black headers
+/** Shared black header height (~38% shorter than 25pt) — section labels, not banners. */
+const HEADER_H       = 15.5
+const HEADER_PAD_X   = 12
+const HEADER_TRACK   = 0.7  // ~0.5–1px letter-spacing
 
-const TABLE_ROW_H    = 28   // minimum data row height
+const TABLE_ROW_H    = 24   // minimum data row height
 const TABLE_ROW_STEP = STEP_BODY
-/** Max empty filler rows on short quotes (keep density, avoid empty grey). */
-const TABLE_FILLER_MAX = 5
+/** Max empty filler rows on short quotes. */
+const TABLE_FILLER_MAX = 4
 
 // Reserve this many points below the last table row for totals + terms + footer
-const FOOTER_RES = 240
+const FOOTER_RES = 220
 const PAGE_SAFE  = 40
 
 // ── Header column widths ──────────────────────────────────────────────────────
-// Logo +18% — stronger anchor, same top-left position
-const LOGO_W      = 109.5
-const LOGO_H      = 67.1
-const QUOT_COL_W  = 200      // fixed right-column width for QUOTE + meta
-const CO_X        = MARGIN_L + LOGO_W + SP_LG   // breathing room between logo and company text
+// Logo +18% from prior size — stronger anchor, same top-left position
+const LOGO_W      = 129.2
+const LOGO_H      = 79.2
+const QUOT_COL_W  = 200
+const CO_X        = MARGIN_L + LOGO_W + SP_LG
 const QUOT_COL_X  = MARGIN_R - QUOT_COL_W
 
 // Meta alignment: labels right-align to META_LBL_X, values right-align to MARGIN_R
@@ -127,7 +127,7 @@ const META_LBL_X  = MARGIN_R - 118
 const DETAIL_MAX_W = QUOT_COL_X - CO_X - SP_MD
 
 // ── Page layout anchor ────────────────────────────────────────────────────────
-const CONTENT_TOP = PAGE_HEIGHT - 52
+const CONTENT_TOP = PAGE_HEIGHT - 50
 const FOOTER_Y    = 44
 const FOOTER_RULE = FOOTER_Y + SP_LG
 
@@ -217,12 +217,14 @@ export async function buildQuotePdfBuffer(
   doc.registerFontkit(fontkit)
   let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
 
-  const [regularBytes, boldBytes] = await Promise.all([
+  const [regularBytes, boldBytes, semiBoldBytes] = await Promise.all([
     fs.readFile(path.join(process.cwd(), "public", "fonts", "Inter-Regular.ttf")),
     fs.readFile(path.join(process.cwd(), "public", "fonts", "Inter-Bold.ttf")),
+    fs.readFile(path.join(process.cwd(), "public", "fonts", "Inter-SemiBold.ttf")),
   ])
   const fontRegular = await doc.embedFont(regularBytes)
   const fontBold    = await doc.embedFont(boldBytes)
+  const fontSemi    = await doc.embedFont(semiBoldBytes)
 
   const logoBytes = await fs.readFile(path.join(process.cwd(), BRAND_LOGO_DOCUMENT_PATH))
   const logoImage = await doc.embedJpg(logoBytes)
@@ -306,7 +308,7 @@ export async function buildQuotePdfBuffer(
     page.drawLine({ start: { x: x1, y }, end: { x: x2, y }, thickness: BORDER_W, color: RULE_C })
 
   /**
-   * Black section header band — identical style for CUSTOMER / SITE / TERMS / table.
+   * Black section header — SemiBold labels, identical height for all sections.
    * Returns the y at the bottom of the band (content starts below + padding).
    */
   const drawSpacedHeaderText = (
@@ -319,15 +321,15 @@ export async function buildQuotePdfBuffer(
     const chars = label.split("")
     let textW = 0
     for (let i = 0; i < chars.length; i++) {
-      textW += fontBold.widthOfTextAtSize(chars[i]!, T_HEAD)
+      textW += fontSemi.widthOfTextAtSize(chars[i]!, T_HEAD)
       if (i < chars.length - 1) textW += HEADER_TRACK
     }
     let cx = align === "right" ? x - textW : x
     for (const ch of chars) {
       p.drawText(ch, {
-        x: cx, y: baseline, size: T_HEAD, font: fontBold, color: WHITE,
+        x: cx, y: baseline, size: T_HEAD, font: fontSemi, color: WHITE,
       })
-      cx += fontBold.widthOfTextAtSize(ch, T_HEAD) + HEADER_TRACK
+      cx += fontSemi.widthOfTextAtSize(ch, T_HEAD) + HEADER_TRACK
     }
   }
 
@@ -606,7 +608,7 @@ export async function buildQuotePdfBuffer(
   totalsY -= SP_XS
 
   const totalBandX = Math.max(TERMS_RIGHT + SP_LG, TOTALS_LBL_X - SP_XL)
-  const totalBandH = SP_LG + SP_SM   // ~24 pt — subtle highlight, not a panel
+  const totalBandH = SP_MD + SP_SM   // ~20 pt — subtle highlight only
   page.drawRectangle({
     x: totalBandX,
     y: totalsY - SP_SM,
