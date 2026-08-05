@@ -39,6 +39,8 @@ import type { SavedSiteVisitCalculation, SiteVisitCalculationResult } from "../t
 import { buildSummaryText } from "../services/summary-text"
 import { AddressAutocomplete, type AddressSelection } from "./address-autocomplete"
 import { CalculationSummary } from "./calculation-summary"
+import { SiteVisitQuoteExportModal } from "./site-visit-quote-export-modal"
+import { validateSiteVisitResultForExport } from "../services/map-site-visit-estimate-to-quotation"
 
 export default function SiteVisitCalculatorPage() {
   const { toast } = useToast()
@@ -51,6 +53,7 @@ export default function SiteVisitCalculatorPage() {
   const [error, setError] = useState<string | null>(null)
   const [saveLabel, setSaveLabel] = useState("")
   const [showSaved, setShowSaved] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const hours = parseFloat(siteHours)
   const calcRef = useRef(0)
@@ -138,28 +141,13 @@ export default function SiteVisitCalculatorPage() {
     window.print()
   }
 
-  const exportPdf = async () => {
-    if (!result) return
-    try {
-      const res = await fetch("/api/site-visit-calculator/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ result }),
-      })
-      if (!res.ok) {
-        toast("PDF export failed", "error")
-        return
-      }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `site-visit-${new Date().toISOString().slice(0, 10)}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch {
-      toast("PDF export failed", "error")
+  const openExport = () => {
+    const invalid = validateSiteVisitResultForExport(result)
+    if (invalid) {
+      toast(invalid, "error")
+      return
     }
+    setExportOpen(true)
   }
 
   const saveCalculation = async () => {
@@ -352,7 +340,7 @@ export default function SiteVisitCalculatorPage() {
                   <Button variant="outline" size="sm" onClick={printSummary}>
                     <Printer className="h-4 w-4 mr-1.5" /> Print
                   </Button>
-                  <Button variant="outline" size="sm" onClick={exportPdf}>
+                  <Button variant="outline" size="sm" onClick={openExport}>
                     <Download className="h-4 w-4 mr-1.5" /> PDF
                   </Button>
                   <div className="flex flex-1 min-w-[200px] gap-2">
@@ -375,6 +363,14 @@ export default function SiteVisitCalculatorPage() {
         <div className="site-visit-print-only">
           <CalculationSummary result={result} printId="site-visit-summary-print" />
         </div>
+
+        {result && (
+          <SiteVisitQuoteExportModal
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            result={result}
+          />
+        )}
       </PageShell>
   )
 }
