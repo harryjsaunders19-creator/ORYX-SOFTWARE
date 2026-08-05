@@ -5,11 +5,12 @@ import {
   cn,
   getRevisionDueInfo,
 } from "@/shared/utils/utils"
-import { registerWorkTypeLabel, siteDisplay } from "./jobs-register-helpers"
+import { registerWorkTypeLabel, siteDisplay, completedWithActiveRevisionCaption } from "./jobs-register-helpers"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
 import { DesignerAssignmentSelector } from "./designer-assignment-selector"
 import { DrawingStatusCompleteLabel } from "./drawing-status-badge"
+import { isCompletedParentWithActiveRevision } from "@/modules/jobs/lib/current-work"
 
 type Props = {
   project: JobsRegisterProject
@@ -40,6 +41,7 @@ export const MobileJobCard = memo(function MobileJobCard({
     : undefined
   const workItemType = project.currentWorkType === "revision" ? "revision" : "original"
   const workType = registerWorkTypeLabel(project)
+  const dualStatus = isCompletedParentWithActiveRevision(project)
   const due = getRevisionDueInfo(project.requiredByDate, {
     completed: project.currentWorkType === "none",
   })
@@ -90,18 +92,28 @@ export const MobileJobCard = memo(function MobileJobCard({
           {project.currentWorkType === "none" ? (
             <DrawingStatusCompleteLabel detail={project.currentWorkDetail || "No active work"} />
           ) : (
-            <WorkItemStatusSelector
-              workItemType={workItemType}
-              workItemId={project.detailId}
-              currentStatus={project.currentStatus}
-              revisionLabel={
-                project.currentWorkType === "revision" ? project.currentWorkLabel : null
-              }
-              patchUrl={patchUrl}
-              size="md"
-              disabled={!canEdit}
-              onStatusChanged={() => onStatusChanged?.()}
-            />
+            <div className="min-w-0 text-right">
+              {dualStatus ? (
+                <p
+                  className="mb-0.5 truncate text-[10px] font-semibold uppercase tracking-wide text-ok-tx"
+                  title={`Completed · ${completedWithActiveRevisionCaption(project)}`}
+                >
+                  Completed · Active {project.currentWorkLabel || "Revision"}
+                </p>
+              ) : null}
+              <WorkItemStatusSelector
+                workItemType={workItemType}
+                workItemId={project.detailId}
+                currentStatus={project.currentStatus}
+                revisionLabel={
+                  project.currentWorkType === "revision" ? project.currentWorkLabel : null
+                }
+                patchUrl={patchUrl}
+                size="md"
+                disabled={!canEdit}
+                onStatusChanged={() => onStatusChanged?.()}
+              />
+            </div>
           )}
         </div>
       </div>

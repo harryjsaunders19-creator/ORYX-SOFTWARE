@@ -21,6 +21,13 @@ import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { enrichJobsWithLinkedQuotes } from "./enrich-linked-quotes"
 import { resolveDirectoryDesigner } from "../services/designer-directory"
 import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils/utils"
+import {
+  matchesJobsListScope,
+  parseJobsListScope,
+  tallyJobsListScopeCounts,
+  type JobsListScope,
+  isActiveStatus,
+} from "../lib/current-work"
 
 /**
  * Revision family flags. Also attaches *display* fields for the current
@@ -80,12 +87,12 @@ function flagRevisions<T extends {
         currentDesigner: job.designer,
         currentRequiredByDate: job.requiredByDate ?? null,
         currentQuoteValue: job.quoteValue ?? null,
-        currentWorkType: job.status === "ISSUED" ? "none" : "revision",
+        currentWorkType: isActiveStatus(job.status) ? "revision" : "none",
       }
     }
 
     const revs = byParent.get(job.id) ?? []
-    const activeRevs = revs.filter(r => r.status && r.status !== "ISSUED")
+    const activeRevs = revs.filter(r => isActiveStatus(r.status))
     let current: (typeof source)[number] | null = null
     if (activeRevs.length > 0) {
       current = [...activeRevs].sort((a, b) => {
@@ -108,7 +115,7 @@ function flagRevisions<T extends {
       }
     }
 
-    if (job.status && job.status !== "ISSUED") {
+    if (isActiveStatus(job.status)) {
       return {
         ...job,
         currentStatus: job.status,
@@ -244,9 +251,14 @@ export async function GET(req: NextRequest) {
     const sortDir        = (sp.get("sortDir")      === "desc" ? "desc" : "asc") as "asc" | "desc"
 
     const clientId = sp.get("clientId") ?? ""
+    const scope = parseJobsListScope(sp.get("scope"))
+    const includeCounts = sp.get("includeCounts") === "true"
 
     // Status / deadline / unassigned apply to the *current* revision when listing parents.
     const needsCurrentFilter = onlyOriginals && !!(status || unassigned || overdue || dueToday || dueThisWeek)
+    const needsScopeFilter = onlyOriginals && scope !== "all"
+    // Scope / current-work filters need the revision overlay before paging.
+    const needsBulkEnrich = onlyOriginals && (needsCurrentFilter || needsScopeFilter || includeCounts)
 
     const baseWhere = {
       ...(search        && { search }),
@@ -259,11 +271,25 @@ export async function GET(req: NextRequest) {
 
     const where = {
       ...baseWhere,
-      ...(!needsCurrentFilter && status && { status }),
-      ...(!needsCurrentFilter && unassigned && { unassigned: true }),
-      ...(!needsCurrentFilter && overdue && { overdue: true }),
-      ...(!needsCurrentFilter && dueToday && { dueToday: true }),
-      ...(!needsCurrentFilter && dueThisWeek && { dueThisWeek: true }),
+      ...(!needsCurrentFilter && !needsScopeFilter && status && { status }),
+      ...(!needsCurrentFilter && !needsScopeFilter && unassigned && { unassigned: true }),
+      ...(!needsCurrentFilter && !needsScopeFilter && overdue && { overdue: true }),
+      ...(!needsCurrentFilter && !needsScopeFilter && dueToday && { dueToday: true }),
+      ...(!needsCurrentFilter && !needsScopeFilter && dueThisWeek && { dueThisWeek: true }),
+    }
+
+    const orderBy = { field: sortBy, dir: sortDir }
+
+    function applyScopeAndCounts<T extends {
+      parentJobId: string | null
+      currentWorkType?: "original" | "revision" | "none"
+    }>(jobs: T[], listScope: JobsListScope) {
+      const parents = jobs.filter(j => j.parentJobId === null)
+      const scopeCounts = tallyJobsListScopeCounts(parents)
+      const scoped = needsScopeFilter
+        ? parents.filter(j => matchesJobsListScope(j.currentWorkType, listScope))
+        : parents
+      return { scoped, scopeCounts }
     }
 
     if (exportAll) {
@@ -273,40 +299,54 @@ export async function GET(req: NextRequest) {
         return rateLimitedResponse(3600)
       }
       const { jobs: rawJobs, total, allForRevisions } = await jobService.findManyWithCount({
-        where: needsCurrentFilter ? baseWhere : where,
-        orderBy: { field: sortBy, dir: sortDir },
+        where: needsBulkEnrich ? baseWhere : where,
+        orderBy,
         take: MAX_JOB_LIST_EXPORT_ROWS,
       })
       let jobs = flagRevisions(rawJobs, allForRevisions)
       if (needsCurrentFilter) {
         jobs = filterByCurrentDisplay(jobs, { status, unassigned, overdue, dueToday, dueThisWeek })
       }
+      if (needsScopeFilter) {
+        jobs = jobs.filter(j =>
+          j.parentJobId === null && matchesJobsListScope(j.currentWorkType, scope),
+        )
+      }
       const enrichedExport = await enrichJobsWithLinkedQuotes(jobs)
       return listResponse({
         jobs: enrichedExport,
-        total: needsCurrentFilter ? jobs.length : total,
+        total: needsBulkEnrich ? jobs.length : total,
         exported: jobs.length,
-        truncated: !needsCurrentFilter && total > jobs.length,
+        truncated: !needsBulkEnrich && total > jobs.length,
       })
     }
 
-    if (needsCurrentFilter) {
+    if (needsBulkEnrich) {
       const { jobs: rawJobs, allForRevisions } = await jobService.findManyWithCount({
         where: baseWhere,
-        orderBy: { field: sortBy, dir: sortDir },
+        orderBy,
         take: MAX_JOB_LIST_EXPORT_ROWS,
       })
       let enriched = flagRevisions(rawJobs, allForRevisions)
-      enriched = filterByCurrentDisplay(enriched, { status, unassigned, overdue, dueToday, dueThisWeek })
-      const total = enriched.length
-      const paged = enriched.slice((page - 1) * limit, page * limit)
+      if (needsCurrentFilter) {
+        enriched = filterByCurrentDisplay(enriched, { status, unassigned, overdue, dueToday, dueThisWeek })
+      }
+      const { scoped, scopeCounts } = applyScopeAndCounts(enriched, scope)
+      const total = scoped.length
+      const paged = scoped.slice((page - 1) * limit, page * limit)
       const jobs = await enrichJobsWithLinkedQuotes(paged)
-      return listResponse({ jobs, total, page, limit })
+      return listResponse({
+        jobs,
+        total,
+        page,
+        limit,
+        ...(includeCounts ? { scopeCounts } : {}),
+      })
     }
 
     const { jobs: rawJobs, total, allForRevisions } = await jobService.findManyWithCount({
       where,
-      orderBy: { field: sortBy, dir: sortDir },
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
     })

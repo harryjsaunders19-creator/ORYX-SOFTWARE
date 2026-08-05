@@ -12,13 +12,8 @@ import {
 } from "@/shared/ui/dropdown-menu"
 import { cn } from "@/shared/utils/utils"
 import type { JobsRegisterScope } from "./jobs-register-types"
-
-const MOBILE_SCOPES: { id: JobsRegisterScope; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "active", label: "Active" },
-  { id: "with_active_revision", label: "Active Revision" },
-  { id: "completed", label: "Completed" },
-]
+import { JOBS_REGISTER_SCOPES } from "./jobs-register-types"
+import type { JobsListScopeCounts } from "@/modules/jobs/lib/current-work"
 
 type Props = {
   title: string
@@ -28,6 +23,7 @@ type Props = {
   searchRef?: RefObject<HTMLInputElement | null>
   scope: JobsRegisterScope
   onScopeChange: (scope: JobsRegisterScope) => void
+  scopeCounts?: JobsListScopeCounts | null
   showProjectActions: boolean
   canCreate: boolean
   canImport: boolean
@@ -46,6 +42,7 @@ export function MobileJobsHeader({
   searchRef,
   scope,
   onScopeChange,
+  scopeCounts = null,
   showProjectActions,
   canCreate,
   canImport,
@@ -140,23 +137,36 @@ export function MobileJobsHeader({
           role="tablist"
           aria-label="Project scope"
         >
-          {MOBILE_SCOPES.map(s => (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              aria-selected={scope === s.id}
-              onClick={() => onScopeChange(s.id)}
-              className={cn(
-                "inline-flex h-10 shrink-0 items-center rounded-md px-3.5 text-sm font-medium whitespace-nowrap transition-colors",
-                scope === s.id
-                  ? "bg-ac text-on-ac"
-                  : "border border-bd bg-surface-low text-t3",
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
+          {JOBS_REGISTER_SCOPES.map(s => {
+            const count = scopeCounts?.[s.id] ?? null
+            return (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={scope === s.id}
+                onClick={() => onScopeChange(s.id)}
+                className={cn(
+                  "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md px-3.5 text-sm font-medium whitespace-nowrap transition-colors",
+                  scope === s.id
+                    ? "bg-ac text-on-ac"
+                    : "border border-bd bg-surface-low text-t3",
+                )}
+              >
+                <span>{s.label}</span>
+                {count != null ? (
+                  <span
+                    className={cn(
+                      "tabular-nums text-[11px] font-semibold",
+                      scope === s.id ? "text-on-ac/80" : "text-t4",
+                    )}
+                  >
+                    {count.toLocaleString()}
+                  </span>
+                ) : null}
+              </button>
+            )
+          })}
         </div>
       )}
 

@@ -6,6 +6,7 @@
  * row, or the KPI drifts from /jobs?deadline=overdue.
  */
 import { buildRevisionFamilyIndex, type RevisionChainRow } from "@/lib/revision-chain"
+import { isRevisionActive } from "@/modules/jobs/lib/current-work"
 import { addDaysToIsoDate, todayIsoDate } from "@/shared/utils/utils"
 
 export type DeadlineTallyRow = {
@@ -28,11 +29,15 @@ export const DASHBOARD_ACTIVE_STATUSES = new Set([
   "IN_DESIGN",
 ])
 
-/** Revision rows still in flight — not sent (Ready to Send) or Complete. */
+/**
+ * @deprecated Prefer {@link isRevisionActive} — kept for call sites that need a Set.
+ * Active = any status except Complete (ISSUED), including READY_TO_SEND.
+ */
 export const DASHBOARD_ACTIVE_REVISION_STATUSES = new Set([
   "NEW_REQUEST",
   "IN_DESIGN",
   "CHECKING",
+  "READY_TO_SEND",
 ])
 
 function dayOnly(value: string | null | undefined): string | null {
@@ -114,7 +119,7 @@ export function countActiveRevisions(rows: DeadlineTallyRow[]): number {
   let n = 0
   for (const row of rows) {
     if (row.parentJobId == null) continue
-    if (DASHBOARD_ACTIVE_REVISION_STATUSES.has(row.status)) n += 1
+    if (isRevisionActive(row)) n += 1
   }
   return n
 }

@@ -165,7 +165,7 @@ describe("countActiveRevisions", () => {
       row({ id: "r3", parentJobId: "p1", revisionLetter: "C", status: "READY_TO_SEND" }),
       row({ id: "r4", parentJobId: "p1", revisionLetter: "D", status: "ISSUED" }),
     ]
-    assert.equal(countActiveRevisions(rows), 2)
+    assert.equal(countActiveRevisions(rows), 3)
   })
 
   it("ignores original rows", () => {

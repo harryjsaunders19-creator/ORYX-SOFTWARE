@@ -320,6 +320,13 @@ export interface JobsResponse {
   total: number
   page:  number
   limit: number
+  /** Parent-job tallies for Job List workflow tabs (when includeCounts=true). */
+  scopeCounts?: {
+    all: number
+    active: number
+    revisions: number
+    completed: number
+  }
 }
 
 export type { StatsData } from "@/modules/dashboard"

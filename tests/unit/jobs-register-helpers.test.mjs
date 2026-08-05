@@ -8,6 +8,12 @@ import {
   pickLatestActiveRevision,
   statusChangeTitle,
   revisionsFromListOverlay,
+  isRevisionActive,
+  hasActiveRevision,
+  matchesJobsListScope,
+  tallyJobsListScopeCounts,
+  parseJobsListScope,
+  isCompletedParentWithActiveRevision,
 } from "../../modules/jobs/lib/current-work.ts"
 import {
   deriveNextAction,
@@ -23,8 +29,8 @@ import {
 
 describe("jobs-register-helpers", () => {
   it("formats revision badges", () => {
-    assert.equal(revisionBadgeLabel(null), "Rev 0")
-    assert.equal(revisionBadgeLabel("C"), "Rev C")
+    assert.equal(revisionBadgeLabel(null), "REV 0")
+    assert.equal(revisionBadgeLabel("C"), "REV C")
     assert.equal(revisionBadgeLabel("Rev B"), "REV B")
   })
 
@@ -78,7 +84,7 @@ describe("jobs-register-helpers", () => {
         currentWorkType: "revision",
         revisionCount: 3,
       }),
-      "Rev E",
+      "REV E",
     )
     assert.equal(
       drawingNumberContext({
@@ -147,15 +153,15 @@ describe("designer assignment titles", () => {
     )
     assert.equal(
       designerAssignmentTitle("original"),
-      "Assign design engineer to original drawing",
+      "Change designer for original drawing",
     )
     assert.equal(
       designerAssignmentTitle("revision", "REV E"),
-      "Assign design engineer to REV E",
+      "Change designer for REV E",
     )
     assert.equal(
       designerAssignmentTitle("revision", "E"),
-      "Assign design engineer to Rev E",
+      "Change designer for Rev E",
     )
   })
 })
@@ -327,5 +333,104 @@ describe("current-work helpers", () => {
     assert.equal(revs.length, 1)
     assert.equal(revs[0].id, "r1")
     assert.equal(revs[0].status, "CHECKING")
+  })
+})
+
+describe("jobs-list-scope filters", () => {
+  it("classifies the seven workflow edge cases", () => {
+    const cases = [
+      // 1. Active parent, no revisions
+      { type: "original", active: true, revisions: false, completed: false },
+      // 2. Completed parent, no revisions
+      { type: "none", active: false, revisions: false, completed: true },
+      // 3. Completed parent + active revision
+      { type: "revision", active: true, revisions: true, completed: false },
+      // 4. Completed parent + only completed revisions → none
+      { type: "none", active: false, revisions: false, completed: true },
+      // 5. Active parent + active revision
+      { type: "revision", active: true, revisions: true, completed: false },
+    ]
+
+    for (const c of cases) {
+      assert.equal(matchesJobsListScope(c.type, "all"), true)
+      assert.equal(matchesJobsListScope(c.type, "active"), c.active)
+      assert.equal(matchesJobsListScope(c.type, "revisions"), c.revisions)
+      assert.equal(matchesJobsListScope(c.type, "completed"), c.completed)
+    }
+  })
+
+  it("treats non-ISSUED revision statuses as active", () => {
+    for (const status of ["NEW_REQUEST", "IN_DESIGN", "CHECKING", "READY_TO_SEND"]) {
+      assert.equal(isRevisionActive(status), true)
+      assert.equal(isRevisionActive({ status }), true)
+    }
+    assert.equal(isRevisionActive("ISSUED"), false)
+    assert.equal(hasActiveRevision([{ status: "ISSUED" }, { status: "CHECKING" }]), true)
+    assert.equal(hasActiveRevision([{ status: "ISSUED" }]), false)
+  })
+
+  it("completed parent with active revision is dual-status, not rewritten as Active", () => {
+    assert.equal(
+      isCompletedParentWithActiveRevision({
+        projectStatus: "ISSUED",
+        currentWorkType: "revision",
+      }),
+      true,
+    )
+    assert.equal(
+      isCompletedParentWithActiveRevision({
+        projectStatus: "IN_DESIGN",
+        currentWorkType: "revision",
+      }),
+      false,
+    )
+    assert.equal(
+      isCompletedParentWithActiveRevision({
+        projectStatus: "ISSUED",
+        currentWorkType: "none",
+      }),
+      false,
+    )
+  })
+
+  it("tallies scope counts without double-counting parents", () => {
+    const counts = tallyJobsListScopeCounts([
+      { currentWorkType: "original" },
+      { currentWorkType: "revision" },
+      { currentWorkType: "none" },
+      { currentWorkType: "revision" },
+      { currentWorkType: "none" },
+    ])
+    assert.deepEqual(counts, {
+      all: 5,
+      active: 3,
+      revisions: 2,
+      completed: 2,
+    })
+  })
+
+  it("maps legacy with_active_revision scope id to revisions", () => {
+    assert.equal(parseJobsListScope("with_active_revision"), "revisions")
+    assert.equal(parseJobsListScope("revisions"), "revisions")
+    assert.equal(parseJobsListScope("active"), "active")
+  })
+
+  it("returns job to Completed when active revision becomes issued", () => {
+    const parent = { id: "p1", status: "ISSUED" }
+    const open = getCurrentWorkItem(parent, [
+      { id: "r1", revisionLetter: "C", status: "IN_DESIGN" },
+    ])
+    assert.equal(open.type, "revision")
+    assert.equal(matchesJobsListScope(open.type, "active"), true)
+    assert.equal(matchesJobsListScope(open.type, "revisions"), true)
+    assert.equal(matchesJobsListScope(open.type, "completed"), false)
+
+    const closed = getCurrentWorkItem(parent, [
+      { id: "r1", revisionLetter: "C", status: "ISSUED" },
+    ])
+    assert.equal(closed.type, "none")
+    assert.equal(matchesJobsListScope(closed.type, "active"), false)
+    assert.equal(matchesJobsListScope(closed.type, "revisions"), false)
+    assert.equal(matchesJobsListScope(closed.type, "completed"), true)
   })
 })

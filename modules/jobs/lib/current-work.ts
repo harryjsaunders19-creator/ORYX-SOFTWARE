@@ -52,8 +52,98 @@ export function isCompleteStatus(status: string | null | undefined): boolean {
   return status === COMPLETE_STATUS
 }
 
+/**
+ * Any non-complete engineering status is active work.
+ * Shared across Job List tabs, counts, badges, and dashboard revision KPIs.
+ * Statuses treated as active: NEW_REQUEST, IN_DESIGN, CHECKING, READY_TO_SEND
+ * (everything except ISSUED / Complete).
+ */
 export function isActiveStatus(status: string | null | undefined): boolean {
   return Boolean(status) && !isCompleteStatus(status)
+}
+
+/** Alias for revision rows — same rule as {@link isActiveStatus}. */
+export function isRevisionActive(
+  revision: { status: string | null | undefined } | string | null | undefined,
+): boolean {
+  const status = typeof revision === "string" || revision == null
+    ? revision
+    : revision.status
+  return isActiveStatus(status)
+}
+
+export function hasActiveRevision(
+  revisions: Array<{ status: string | null | undefined }>,
+): boolean {
+  return revisions.some(r => isRevisionActive(r))
+}
+
+/** Job List / Register workflow tabs. */
+export type JobsListScope = "all" | "active" | "revisions" | "completed"
+
+export type JobsListScopeCounts = Record<JobsListScope, number>
+
+/**
+ * Classify a parent row for Job List tabs from derived current-work type.
+ *
+ * - all: every parent
+ * - active: parent still open OR at least one active revision (`currentWorkType !== "none"`)
+ * - revisions: at least one active/incomplete revision (`currentWorkType === "revision"`)
+ * - completed: parent complete AND no active revisions (`currentWorkType === "none"`)
+ */
+export function matchesJobsListScope(
+  currentWorkType: CurrentWorkType | string | null | undefined,
+  scope: JobsListScope,
+): boolean {
+  const type = (currentWorkType ?? "none") as CurrentWorkType | string
+  switch (scope) {
+    case "all":
+      return true
+    case "active":
+      return type !== "none"
+    case "revisions":
+      return type === "revision"
+    case "completed":
+      return type === "none"
+    default:
+      return true
+  }
+}
+
+export function tallyJobsListScopeCounts(
+  rows: Array<{ currentWorkType?: string | null }>,
+): JobsListScopeCounts {
+  const counts: JobsListScopeCounts = {
+    all: 0,
+    active: 0,
+    revisions: 0,
+    completed: 0,
+  }
+  for (const row of rows) {
+    counts.all += 1
+    const type = row.currentWorkType ?? "none"
+    if (type !== "none") counts.active += 1
+    if (type === "revision") counts.revisions += 1
+    if (type === "none") counts.completed += 1
+  }
+  return counts
+}
+
+export function parseJobsListScope(raw: string | null | undefined): JobsListScope {
+  if (raw === "active" || raw === "revisions" || raw === "completed" || raw === "all") {
+    return raw
+  }
+  // Legacy tab id from older clients
+  if (raw === "with_active_revision") return "revisions"
+  return "all"
+}
+
+/** Parent historically complete while a revision still needs engineering. */
+export function isCompletedParentWithActiveRevision(input: {
+  projectStatus?: string | null
+  currentWorkType?: string | null
+}): boolean {
+  return isCompleteStatus(input.projectStatus) && input.currentWorkType === "revision"
 }
 
 function revisionLabel(letter: string | null | undefined): string {

@@ -33,7 +33,9 @@ import {
 } from "./jobs-register-helpers"
 import { exportJobsToCsv } from "./job-csv-export"
 import type { JobsRegisterProject, JobsRegisterScope } from "./jobs-register-types"
+import { JOBS_REGISTER_SCOPES } from "./jobs-register-types"
 import { useJobsRegisterKeyboard } from "./use-jobs-register-keyboard"
+import { matchesJobsListScope } from "@/modules/jobs/lib/current-work"
 
 const JobsDialogs = lazy(() =>
   import("./jobs-dialogs").then(m => ({ default: m.JobsDialogs })),
@@ -72,7 +74,7 @@ export function JobsRegister({
   const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
   const [search, setSearch] = useState(searchParams.get("search") ?? "")
   const debouncedSearch = useDebouncedValue(search, 280)
-  const [scope, setScope] = useState<JobsRegisterScope>("all")
+  const [scope, setScope] = useState<JobsRegisterScope>("active")
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("selected"))
   const [isInspectorOpen, setIsInspectorOpen] = useState(!!searchParams.get("selected"))
@@ -99,9 +101,8 @@ export function JobsRegister({
 
   const classicStatus = useMemo(() => {
     if (isChecking) return "CHECKING"
-    if (scope === "completed") return "ISSUED"
     return "ALL"
-  }, [isChecking, scope])
+  }, [isChecking])
 
 
   const classicQs = useMemo(() => {
@@ -109,11 +110,13 @@ export function JobsRegister({
     p.set("page", String(page))
     p.set("limit", String(LIMIT))
     p.set("onlyOriginals", "true")
+    p.set("includeCounts", "true")
+    if (!isChecking) p.set("scope", scope)
     if (debouncedSearch.trim()) p.set("search", debouncedSearch.trim())
     if (classicStatus && classicStatus !== "ALL") p.set("status", classicStatus)
     if (filterClientId) p.set("clientId", filterClientId)
     return p.toString()
-  }, [page, debouncedSearch, classicStatus, filterClientId])
+  }, [page, debouncedSearch, classicStatus, filterClientId, isChecking, scope])
 
   const workQs = useMemo(() => {
     const p = new URLSearchParams()
@@ -121,10 +124,9 @@ export function JobsRegister({
     p.set("limit", String(LIMIT))
     if (debouncedSearch.trim()) p.set("search", debouncedSearch.trim())
     if (isChecking) p.set("status", "CHECKING")
-    else if (scope === "completed") p.set("status", "ISSUED")
     if (filterClientId) p.set("clientId", filterClientId)
     return p.toString()
-  }, [page, debouncedSearch, isChecking, scope, filterClientId])
+  }, [page, debouncedSearch, isChecking, filterClientId])
 
   const classicKey = !workItemsModel ? `/api/jobs?${classicQs}` : null
   const workKey = workItemsModel ? `/api/work-items?${workQs}` : null
@@ -147,32 +149,27 @@ export function JobsRegister({
         seen.add(row.id)
         deduped.push(row)
       }
-      if (scope === "active") return deduped.filter(p => p.currentWorkType !== "none")
-      if (scope === "with_active_revision") {
-        return deduped.filter(p => p.currentWorkType === "revision")
-      }
-      if (scope === "completed") {
-        return deduped.filter(p => p.currentWorkType === "none")
-      }
-      return deduped
+      if (isChecking) return deduped
+      return deduped.filter(p => matchesJobsListScope(p.currentWorkType, scope))
     }
 
+    // Classic list applies scope server-side; keep a defensive client filter.
     let mapped = (classicData?.jobs ?? []).filter(Boolean).map(jobToRegisterProject)
-    if (scope === "active") mapped = mapped.filter(p => p.currentWorkType !== "none")
-    if (scope === "with_active_revision") {
-      mapped = mapped.filter(p => p.currentWorkType === "revision")
+    if (!isChecking) {
+      mapped = mapped.filter(p => matchesJobsListScope(p.currentWorkType, scope))
     }
-    if (scope === "completed") mapped = mapped.filter(p => p.currentWorkType === "none")
     return mapped
-  }, [workItemsModel, workData, classicData, scope])
+  }, [workItemsModel, workData, classicData, scope, isChecking])
 
+  const scopeCounts = classicData?.scopeCounts
   const total = workItemsModel ? (workData?.total ?? 0) : (classicData?.total ?? 0)
   const pages = workItemsModel
     ? (workData?.pages ?? 1)
     : Math.max(1, Math.ceil(total / LIMIT))
   const loading = workItemsModel ? workLoading : classicLoading
   const selected = projects.find(p => p.id === selectedId) ?? null
-  const activeRevisions = projects.filter(p => p.currentWorkType === "revision").length
+  const activeRevisions = scopeCounts?.revisions
+    ?? projects.filter(p => p.currentWorkType === "revision").length
 
   useEffect(() => {
     if (selectedId && !projects.some(p => p.id === selectedId)) {
@@ -289,12 +286,12 @@ export function JobsRegister({
     void handleStatusChanged()
   }, [handleStatusChanged])
 
-  const scopes: { id: JobsRegisterScope; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "active", label: "Active" },
-    { id: "with_active_revision", label: "With Active Revision" },
-    { id: "completed", label: "Completed" },
-  ]
+  const scopes = JOBS_REGISTER_SCOPES
+
+  const scopeCountValue = (id: JobsRegisterScope): number | null => {
+    if (!scopeCounts) return null
+    return scopeCounts[id] ?? null
+  }
 
   const inspectorVisible = Boolean(selected) && isInspectorOpen
   // Prefer CSS breakpoint for chrome; mount only one inspector to avoid duplicate fetches.
@@ -346,7 +343,7 @@ export function JobsRegister({
     )
   }
 
-  const summaryLabel = `${total.toLocaleString()} project${total === 1 ? "" : "s"} · ${activeRevisions} active revision${activeRevisions === 1 ? "" : "s"}`
+  const summaryLabel = `${total.toLocaleString()} project${total === 1 ? "" : "s"} · ${activeRevisions.toLocaleString()} active revision${activeRevisions === 1 ? "" : "s"}`
 
   const title = isChecking ? "Checking queue" : "Job List"
   const mobileTitle = isChecking ? "Checking queue" : "Job Registry"
@@ -465,23 +462,36 @@ export function JobsRegister({
 
               {!isChecking && (
                 <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Project scope">
-                  {scopes.map(s => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={scope === s.id}
-                      onClick={() => setScope(s.id)}
-                      className={cn(
-                        "inline-flex h-8 items-center rounded-md px-3 text-sm font-medium transition-all",
-                        scope === s.id
-                          ? "bg-t1 text-sr"
-                          : "border border-bd bg-s1 text-t3 hover:border-t1 hover:text-t1",
-                      )}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
+                  {scopes.map(s => {
+                    const count = scopeCountValue(s.id)
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={scope === s.id}
+                        onClick={() => setScope(s.id)}
+                        className={cn(
+                          "inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-all",
+                          scope === s.id
+                            ? "bg-t1 text-sr"
+                            : "border border-bd bg-s1 text-t3 hover:border-t1 hover:text-t1",
+                        )}
+                      >
+                        <span>{s.label}</span>
+                        {count != null ? (
+                          <span
+                            className={cn(
+                              "tabular-nums text-[11px] font-semibold",
+                              scope === s.id ? "text-sr/80" : "text-t4",
+                            )}
+                          >
+                            {count.toLocaleString()}
+                          </span>
+                        ) : null}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
 
@@ -616,6 +626,7 @@ export function JobsRegister({
           searchRef={mobileSearchRef}
           scope={scope}
           onScopeChange={setScope}
+          scopeCounts={scopeCounts}
           showProjectActions={!isChecking}
           canCreate={isAdmin}
           canImport={isAdmin}

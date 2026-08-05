@@ -3,7 +3,10 @@
 import { memo } from "react"
 import { ChevronRight } from "lucide-react"
 import { cn } from "@/shared/utils/utils"
-import { registerWorkTypeLabel } from "./jobs-register-helpers"
+import {
+  completedWithActiveRevisionCaption,
+  registerWorkTypeLabel,
+} from "./jobs-register-helpers"
 import type { JobsRegisterProject } from "./jobs-register-types"
 import { REGISTER_ROW_H } from "./jobs-register-types"
 import { WorkItemStatusSelector } from "./work-item-status-selector"
@@ -14,6 +17,7 @@ import {
   getDrawingStatusColour,
   getDrawingStatusLabel,
 } from "@/modules/jobs/lib/drawing-status-colours"
+import { isCompletedParentWithActiveRevision } from "@/modules/jobs/lib/current-work"
 
 export const REGISTER_GRID =
   "grid grid-cols-[minmax(9rem,1.2fr)_minmax(8rem,1.1fr)_minmax(8rem,1.1fr)_minmax(8rem,1fr)_minmax(7rem,0.9fr)_2.5rem]"
@@ -46,6 +50,63 @@ function StatusPill({ status }: { status: string }) {
       <span className="truncate">{getDrawingStatusLabel(status)}</span>
     </span>
   )
+}
+
+function StatusCell({
+  project,
+  canEdit,
+  patchUrl,
+  onStatusChanged,
+}: {
+  project: JobsRegisterProject
+  canEdit: boolean
+  patchUrl?: string
+  onStatusChanged?: (projectId: string, nextStatus: string) => void
+}) {
+  const dual = isCompletedParentWithActiveRevision(project)
+
+  if (canEdit) {
+    return (
+      <div className="min-w-0">
+        {dual ? (
+          <p
+            className="mb-0.5 truncate text-[10px] font-semibold uppercase tracking-wide text-ok-tx"
+            title={`Completed · ${completedWithActiveRevisionCaption(project)}`}
+          >
+            Completed · Active {project.currentWorkLabel || "Revision"}
+          </p>
+        ) : null}
+        <WorkItemStatusSelector
+          workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
+          workItemId={project.detailId}
+          currentStatus={project.currentStatus}
+          revisionLabel={
+            project.currentWorkType === "revision" ? project.currentWorkLabel : null
+          }
+          patchUrl={patchUrl}
+          size="md"
+          onStatusChanged={next => onStatusChanged?.(project.id, next)}
+        />
+      </div>
+    )
+  }
+
+  if (project.currentWorkType === "none") {
+    return <DrawingStatusCompleteLabel />
+  }
+
+  if (dual) {
+    return (
+      <div className="min-w-0">
+        <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok-tx">
+          Completed
+        </p>
+        <StatusPill status={project.currentStatus} />
+      </div>
+    )
+  }
+
+  return <StatusPill status={project.currentStatus} />
 }
 
 export const JobsRegisterRow = memo(function JobsRegisterRow({
@@ -121,23 +182,12 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
-        {canEdit ? (
-          <WorkItemStatusSelector
-            workItemType={project.currentWorkType === "revision" ? "revision" : "original"}
-            workItemId={project.detailId}
-            currentStatus={project.currentStatus}
-            revisionLabel={
-              project.currentWorkType === "revision" ? project.currentWorkLabel : null
-            }
-            patchUrl={patchUrl}
-            size="md"
-            onStatusChanged={next => onStatusChanged?.(project.id, next)}
-          />
-        ) : project.currentWorkType === "none" ? (
-          <DrawingStatusCompleteLabel />
-        ) : (
-          <StatusPill status={project.currentStatus} />
-        )}
+        <StatusCell
+          project={project}
+          canEdit={canEdit}
+          patchUrl={patchUrl}
+          onStatusChanged={onStatusChanged}
+        />
       </div>
 
       <div

@@ -66,4 +66,11 @@ export interface JobsRegisterProject {
   } | null
 }
 
-export type JobsRegisterScope = "all" | "active" | "completed" | "with_active_revision"
+export type JobsRegisterScope = "all" | "active" | "revisions" | "completed"
+
+export const JOBS_REGISTER_SCOPES: { id: JobsRegisterScope; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "active", label: "Active" },
+  { id: "revisions", label: "Revisions" },
+  { id: "completed", label: "Completed" },
+]

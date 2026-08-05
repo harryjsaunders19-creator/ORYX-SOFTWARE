@@ -293,18 +293,38 @@ export function registerWorkTypeLabel(project: {
   currentWorkType: CurrentWorkType | string
   currentWorkLabel?: string | null
   currentRevisionLetter?: string | null
+  projectStatus?: string | null
 }): string {
   if (project.currentWorkType === "revision") {
     const fromLabel = project.currentWorkLabel?.trim()
-    if (fromLabel) {
-      return fromLabel.toUpperCase().startsWith("REV")
+    const rev = fromLabel
+      ? (fromLabel.toUpperCase().startsWith("REV")
         ? fromLabel.toUpperCase()
-        : revisionBadgeLabel(fromLabel)
+        : revisionBadgeLabel(fromLabel))
+      : revisionBadgeLabel(project.currentRevisionLetter ?? null)
+    if (isCompleteStatus(project.projectStatus)) {
+      return `${rev} · Active`
     }
-    return revisionBadgeLabel(project.currentRevisionLetter ?? null)
+    return rev
   }
   if (project.currentWorkType === "original") return "Original"
   return "Complete"
+}
+
+/** Compact dual-status line when parent is complete but a revision is open. */
+export function completedWithActiveRevisionCaption(project: {
+  currentWorkLabel?: string | null
+  currentRevisionLetter?: string | null
+  currentStatus?: string | null
+}): string {
+  const fromLabel = project.currentWorkLabel?.trim()
+  const rev = fromLabel
+    ? (fromLabel.toUpperCase().startsWith("REV")
+      ? fromLabel
+      : revisionBadgeLabel(fromLabel))
+    : revisionBadgeLabel(project.currentRevisionLetter ?? null)
+  const status = shortStatusLabel(project.currentStatus)
+  return `${rev} — ${status}`
 }
 
 /**
