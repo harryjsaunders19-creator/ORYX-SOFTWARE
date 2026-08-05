@@ -21,11 +21,14 @@ export { ensureJobInSqlite as ensureJobInSqliteForBilling }
 export const jobService = {
   ensureJobInSqlite,
 
-  async findManyWithCount(opts: FindManyOptions = {}): Promise<{
+  async findManyWithCount(opts: FindManyOptions & {
+    projection?: "list" | "scope-slim"
+  } = {}): Promise<{
     jobs: JobRow[]
     total: number
     allForRevisions?: { id: string; parentJobId: string | null; revisionLetter?: string | null }[]
   }> {
+    void opts.projection
     const w = opts.where ?? {}
     const {
       onlyOriginals: _o,

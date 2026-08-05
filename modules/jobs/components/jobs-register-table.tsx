@@ -17,7 +17,10 @@ interface JobsRegisterTableProps {
   designers: string[]
   highlightQuery?: string
   onStatusChanged?: (projectId: string, nextStatus: string) => void
+  onOptimisticStatus?: (projectId: string, nextStatus: string) => void
+  onStatusFailed?: (projectId: string, previous: string) => void
   onDesignerChanged?: (projectId: string, nextDesigner: string) => void
+  onPrefetch?: (id: string) => void
   loading?: boolean
   className?: string
 }
@@ -40,7 +43,10 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   designers,
   highlightQuery,
   onStatusChanged,
+  onOptimisticStatus,
+  onStatusFailed,
   onDesignerChanged,
+  onPrefetch,
   loading,
   className,
 }: JobsRegisterTableProps) {
@@ -126,7 +132,10 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
                   onSelect={onSelectStable}
                   onOpenWorkspace={onOpenStable}
                   onStatusChanged={onStatusChanged}
+                  onOptimisticStatus={onOptimisticStatus}
+                  onStatusFailed={onStatusFailed}
                   onDesignerChanged={onDesignerChanged}
+                  onPrefetch={onPrefetch}
                   style={{
                     position: "absolute",
                     top: 0,

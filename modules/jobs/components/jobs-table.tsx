@@ -26,6 +26,8 @@ import { exportJobsToCsv } from "./job-csv-export"
 import { JobsDialogs } from "./jobs-dialogs"
 import { AddRevisionModal } from "./add-revision-modal"
 
+const EMPTY_DESIGNERS: string[] = []
+
 /** Filter keys persisted to sessionStorage per user. */
 interface JobsFilterState {
   search: string
@@ -188,7 +190,7 @@ export function JobsTable({ mode = "default" }: { mode?: "default" | "checking" 
     () => new Set(holdData?.holds.map(h => h.clientId) ?? []),
     [holdData],
   )
-  const designers = designersData?.designers ?? []
+  const designers = designersData?.designers ?? EMPTY_DESIGNERS
 
   const loading = isLoading && !data
   const refreshing = isValidating && !!data

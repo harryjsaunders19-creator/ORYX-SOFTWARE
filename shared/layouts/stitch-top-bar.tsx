@@ -1,11 +1,11 @@
 "use client"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
+import dynamic from "next/dynamic"
 import { Search, HelpCircle, Menu, ExternalLink } from "lucide-react"
 import { NotificationsMenu } from "@/components/notifications-menu"
 import { UserProfileMenu } from "@/components/user-profile-menu"
 import { SettingsMenu } from "@/shared/layouts/settings-menu"
-import { CommandPalette } from "@/modules/search/components/command-palette"
 import { MODULES } from "@/shared/auth/permissions"
 import { useUser } from "@/shared/providers/user-context"
 import {
@@ -15,6 +15,11 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+
+const CommandPalette = dynamic(
+  () => import("@/modules/search/components/command-palette").then(m => m.CommandPalette),
+  { ssr: false },
+)
 
 function looksLikeId(segment: string): boolean {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(segment)) {
@@ -168,7 +173,9 @@ export function StitchTopBar({ onMenuClick }: Props) {
         </div>
       </header>
 
-      <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
+      {searchOpen ? (
+        <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
+      ) : null}
     </>
   )
 }
