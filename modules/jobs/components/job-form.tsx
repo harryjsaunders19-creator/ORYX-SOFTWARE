@@ -25,6 +25,7 @@ import type { FieldErrors } from "./job-form-constants"
 import { Section, Divider } from "./job-form-layout"
 import { JobFormItemType } from "./job-form-item-type"
 import { JobFormWorksType } from "./job-form-works-type"
+import { defaultRequiredByDate } from "@/shared/utils/utils"
 
 export interface JobFormProps {
   job?: Job
@@ -59,6 +60,9 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       variationFees: job.variationFees != null ? String(job.variationFees) : "",
       additionalCharges: job.additionalCharges != null ? String(job.additionalCharges) : "",
       requiredByDate: job.requiredByDate ?? "",
+      visitDate: job.requiredByDate ?? defaultRequiredByDate(),
+      visitStartTime: "09:00",
+      visitEndTime: "10:00",
     } : emptyJobForm(),
   )
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -69,6 +73,9 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const [addingType, setAddingType] = useState(false)
   const [newTypeLabel, setNewTypeLabel] = useState("")
   const [showMoreTypes, setShowMoreTypes] = useState(false)
+  const [showVisitWorks, setShowVisitWorks] = useState(
+    () => Boolean(job?.itemType === "SITE_VISIT" && job.typeOfWorks?.trim()),
+  )
 
   useEffect(() => {
     const saved = readCustomWorksTypes()
@@ -95,6 +102,8 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const isSiteVisit = form.itemType === "SITE_VISIT"
   const isCatIii = form.itemType === "CATIII_DESIGN_CHECK"
   const needsTypeOfWorks = isDesign || form.itemType === "REVISION"
+  /** Site visits can optionally record type of works when known. */
+  const showOptionalWorks = isSiteVisit
   const showCommercial = isDesign || (!isSiteVisit && !isCatIii) || !!job
 
   const selectedWorksLabel = useMemo(() => {
@@ -243,11 +252,23 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                   ...(itemType !== "DESIGN"
                     ? { typeOfWorks: "", customTypeDescription: "" }
                     : {}),
+                  ...(itemType === "SITE_VISIT"
+                    ? {
+                        visitDate: f.visitDate || defaultRequiredByDate(),
+                        visitStartTime: f.visitStartTime || "09:00",
+                        visitEndTime: f.visitEndTime || "10:00",
+                      }
+                    : {}),
                 }))
+                setShowVisitWorks(false)
                 setErrors(prev => ({
                   ...prev,
                   typeOfWorks: undefined,
                   customTypeDescription: undefined,
+                  visitDate: undefined,
+                  visitStartTime: undefined,
+                  visitEndTime: undefined,
+                  requestedBy: undefined,
                 }))
               }}
             />
@@ -259,11 +280,13 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       {/* 2 · Project information */}
       <Section
         step={job ? 1 : 2}
-        title="Project information"
+        title={isSiteVisit ? "Location" : "Project information"}
         question={
           needsTypeOfWorks
             ? "Where is the work and what type of scaffold is involved?"
-            : "Where is the work taking place?"
+            : isSiteVisit
+              ? "Where is the visit taking place?"
+              : "Where is the work taking place?"
         }
       >
         <div className="space-y-4">
@@ -313,6 +336,58 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
               onCustomTypeDescriptionChange={setF("customTypeDescription")}
             />
           )}
+
+          {showOptionalWorks && (
+            <div className="space-y-3">
+              {!showVisitWorks ? (
+                <button
+                  type="button"
+                  onClick={() => setShowVisitWorks(true)}
+                  className="text-sm font-medium text-t2 underline-offset-2 hover:text-t1 hover:underline"
+                >
+                  + Add type of works (optional)
+                </button>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-t3">
+                      Type of works <span className="font-normal normal-case tracking-normal">(optional)</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowVisitWorks(false)
+                        setForm(f => ({ ...f, typeOfWorks: "", customTypeDescription: "" }))
+                      }}
+                      className="text-xs font-medium text-t3 hover:text-t1"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <JobFormWorksType
+                    isDesign={false}
+                    typeOfWorks={form.typeOfWorks}
+                    customTypeDescription={form.customTypeDescription}
+                    customTypes={customTypes}
+                    addingType={addingType}
+                    newTypeLabel={newTypeLabel}
+                    showMoreTypes={showMoreTypes}
+                    errors={errors}
+                    selectedWorksLabel={selectedWorksLabel}
+                    selectedNamedCustom={selectedNamedCustom}
+                    moreTypes={moreTypes}
+                    isWorksSelected={isWorksSelected}
+                    onSelectWorksType={selectWorksType}
+                    onSetAddingType={setAddingType}
+                    onSetNewTypeLabel={setNewTypeLabel}
+                    onCommitNewType={commitNewType}
+                    onToggleShowMoreTypes={() => setShowMoreTypes(v => !v)}
+                    onCustomTypeDescriptionChange={setF("customTypeDescription")}
+                  />
+                </>
+              )}
+            </div>
+          )}
         </div>
       </Section>
 
@@ -322,9 +397,9 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       <Section
         step={job ? 2 : 3}
         title="Client information"
-        question="Who is the client and who requested the work?"
+        question={isSiteVisit ? "Which client is this visit for?" : "Who is the client and who requested the work?"}
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className={cn("grid grid-cols-1 gap-4", isSiteVisit ? "sm:grid-cols-1 sm:max-w-md" : "sm:grid-cols-2")}>
           <Field label="Client" required error={errors.clientCompany}>
             <ClientCombobox
               value={form.clientId}
@@ -343,62 +418,158 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
             />
             {errors.clientCompany && <p className="text-xs text-dn mt-0.5">{errors.clientCompany}</p>}
           </Field>
-          <Field label="Requested by" required error={errors.requestedBy} hint="Defaults to the client contact when available">
-            <Input
-              className={controlClass}
-              style={controlStyle}
-              value={form.requestedBy}
-              onChange={setF("requestedBy")}
-              placeholder="e.g. James Carter"
-              autoComplete="off"
-            />
-          </Field>
+          {!isSiteVisit && (
+            <Field label="Requested by" required error={errors.requestedBy} hint="Defaults to the client contact when available">
+              <Input
+                className={controlClass}
+                style={controlStyle}
+                value={form.requestedBy}
+                onChange={setF("requestedBy")}
+                placeholder="e.g. James Carter"
+                autoComplete="off"
+              />
+            </Field>
+          )}
+          {isSiteVisit && (
+            <Field label="Requested by" hint="Optional — defaults to the client contact when available">
+              <Input
+                className={controlClass}
+                style={controlStyle}
+                value={form.requestedBy}
+                onChange={setF("requestedBy")}
+                placeholder="e.g. James Carter"
+                autoComplete="off"
+              />
+            </Field>
+          )}
         </div>
       </Section>
 
       <Divider />
 
-      {/* 4 · Assignment */}
-      <Section
-        step={job ? 3 : 4}
-        title="Assignment & scheduling"
-        question={isCatIii ? "Who is checking this, and when is it required?" : "Who is completing the work, and when is it required?"}
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field
-            label={isCatIii ? "Assigned checker" : "Assigned designer"}
-            hint="From the Users directory"
-          >
-            <DesignerCombobox
-              value={form.designer}
-              onChange={v => setForm(f => ({ ...f, designer: v }))}
-              placeholder={isCatIii ? "Select a checker…" : "Select a designer…"}
-              designers={designers}
-            />
-          </Field>
-          <Field label="Required by" hint="Defaults to one week from today">
-            <Input
-              className={controlClass}
-              style={controlStyle}
-              type="date"
-              value={form.requiredByDate}
-              onChange={setF("requiredByDate")}
-            />
-          </Field>
-          {job && (
-            <Field label="Status">
-              <Select value={form.status} onValueChange={setSel("status")}>
-                <SelectTrigger className={controlClass} style={controlStyle}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {JOB_STATUSES.map(s => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* 4 · Assignment / Visit schedule */}
+      {isSiteVisit ? (
+        <Section
+          step={job ? 3 : 4}
+          title="Visit schedule"
+          question={!job ? "When is the site visit? This also adds it to the calendar." : "When is the site visit required?"}
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Visit date" required error={errors.visitDate}>
+              <Input
+                className={controlClass}
+                style={controlStyle}
+                type="date"
+                value={form.visitDate ?? ""}
+                onChange={e => {
+                  const visitDate = e.target.value
+                  setForm(f => ({ ...f, visitDate, requiredByDate: visitDate }))
+                  if (errors.visitDate) setErrors(prev => ({ ...prev, visitDate: undefined }))
+                }}
+              />
             </Field>
+            <Field label="Assigned engineer" hint="Optional">
+              <DesignerCombobox
+                value={form.designer}
+                onChange={v => setForm(f => ({ ...f, designer: v }))}
+                placeholder="Select an engineer…"
+                designers={designers}
+              />
+            </Field>
+            {!job && (
+              <>
+                <Field label="Start time" required error={errors.visitStartTime}>
+                  <Input
+                    className={controlClass}
+                    style={controlStyle}
+                    type="time"
+                    value={form.visitStartTime ?? "09:00"}
+                    onChange={setF("visitStartTime")}
+                  />
+                </Field>
+                <Field label="End time" required error={errors.visitEndTime}>
+                  <Input
+                    className={controlClass}
+                    style={controlStyle}
+                    type="time"
+                    value={form.visitEndTime ?? "10:00"}
+                    onChange={setF("visitEndTime")}
+                  />
+                </Field>
+              </>
+            )}
+            {job && (
+              <Field label="Required by" hint="Visit / follow-up date">
+                <Input
+                  className={controlClass}
+                  style={controlStyle}
+                  type="date"
+                  value={form.requiredByDate}
+                  onChange={setF("requiredByDate")}
+                />
+              </Field>
+            )}
+            {job && (
+              <Field label="Status">
+                <Select value={form.status} onValueChange={setSel("status")}>
+                  <SelectTrigger className={controlClass} style={controlStyle}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {JOB_STATUSES.map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+          </div>
+          {!job && (
+            <p className="mt-3 text-xs text-t3">
+              Creating this site visit will also add a calendar event linked to the job.
+            </p>
           )}
-        </div>
-      </Section>
+        </Section>
+      ) : (
+        <Section
+          step={job ? 3 : 4}
+          title="Assignment & scheduling"
+          question={isCatIii ? "Who is checking this, and when is it required?" : "Who is completing the work, and when is it required?"}
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field
+              label={isCatIii ? "Assigned checker" : "Assigned designer"}
+              hint="From the Users directory"
+            >
+              <DesignerCombobox
+                value={form.designer}
+                onChange={v => setForm(f => ({ ...f, designer: v }))}
+                placeholder={isCatIii ? "Select a checker…" : "Select a designer…"}
+                designers={designers}
+              />
+            </Field>
+            <Field label="Required by" hint="Defaults to one week from today">
+              <Input
+                className={controlClass}
+                style={controlStyle}
+                type="date"
+                value={form.requiredByDate}
+                onChange={setF("requiredByDate")}
+              />
+            </Field>
+            {job && (
+              <Field label="Status">
+                <Select value={form.status} onValueChange={setSel("status")}>
+                  <SelectTrigger className={controlClass} style={controlStyle}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {JOB_STATUSES.map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+          </div>
+        </Section>
+      )}
 
       <Divider />
 

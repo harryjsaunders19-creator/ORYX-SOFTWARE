@@ -28,6 +28,10 @@ import {
   type JobsListScope,
   isActiveStatus,
 } from "../lib/current-work"
+import {
+  parseSiteVisitSchedule,
+  syncSiteVisitToCalendar,
+} from "../services/sync-site-visit-calendar"
 
 /**
  * Revision family flags. Also attaches *display* fields for the current
@@ -222,6 +226,9 @@ const createJobBodySchema = z.object({
   additionalCharges: z.union([z.string(), z.number(), z.null()]).optional(),
   requestedDate: z.union([z.string(), z.null()]).optional(),
   requiredByDate: z.union([z.string(), z.null()]).optional(),
+  visitDate: z.string().optional(),
+  visitStartTime: z.string().optional(),
+  visitEndTime: z.string().optional(),
 }).passthrough()
 
 export async function GET(req: NextRequest) {
@@ -405,7 +412,9 @@ export async function POST(req: NextRequest) {
 
     for (const [field, message] of [
       ["clientCompany", "Client company is required"],
-      ["requestedBy",   "Requested by is required"],
+      ...(itemType === "SITE_VISIT"
+        ? []
+        : [["requestedBy", "Requested by is required"] as [string, string]]),
     ] as [string, string][]) {
       if (!body[field] || String(body[field]).trim() === "") {
         return NextResponse.json({ error: message, field }, { status: 422 })
@@ -413,6 +422,16 @@ export async function POST(req: NextRequest) {
     }
     if (!address) {
       return NextResponse.json({ error: "Site name or address is required", field: "siteAddress" }, { status: 422 })
+    }
+
+    const siteVisitSchedule = itemType === "SITE_VISIT"
+      ? parseSiteVisitSchedule(body)
+      : null
+    if (itemType === "SITE_VISIT" && !siteVisitSchedule) {
+      return NextResponse.json({
+        error: "Visit date is required for site visits",
+        field: "visitDate",
+      }, { status: 422 })
     }
 
     // typeOfWorks only required for Design — and once provided, must be one
@@ -424,6 +443,14 @@ export async function POST(req: NextRequest) {
       if (!body.typeOfWorks || String(body.typeOfWorks).trim() === "") {
         return NextResponse.json({ error: "Type of works is required for Design items", field: "typeOfWorks" }, { status: 422 })
       }
+      if (!isValidWorksType(String(body.typeOfWorks).trim())) {
+        return NextResponse.json({ error: "Type of works must be one of the approved values", field: "typeOfWorks" }, { status: 422 })
+      }
+      if (String(body.typeOfWorks).trim() === OTHER_WORKS_TYPE && (!body.customTypeDescription || String(body.customTypeDescription).trim() === "")) {
+        return NextResponse.json({ error: "Please specify the type of works", field: "customTypeDescription" }, { status: 422 })
+      }
+    } else if (body.typeOfWorks && String(body.typeOfWorks).trim()) {
+      // Optional works on site visits / other types — still must be an approved value when set.
       if (!isValidWorksType(String(body.typeOfWorks).trim())) {
         return NextResponse.json({ error: "Type of works must be one of the approved values", field: "typeOfWorks" }, { status: 422 })
       }
@@ -498,6 +525,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const requestedBy = String(body.requestedBy ?? "").trim()
+      || (itemType === "SITE_VISIT" ? "Site visit" : "")
+
+    const requiredByDate = itemType === "SITE_VISIT" && siteVisitSchedule
+      ? siteVisitSchedule.visitDate
+      : resolveRequiredByDate(body.requiredByDate ? String(body.requiredByDate) : null)
+
     const job = await jobService.create({
       id,
       drawingNumber,
@@ -510,7 +544,7 @@ export async function POST(req: NextRequest) {
         ? String(body.customTypeDescription).trim() : null,
       clientCompany:   resolvedClientCompany,
       clientId:        resolvedClientId,
-      requestedBy:     String(body.requestedBy).trim(),
+      requestedBy,
       status:          "NEW_REQUEST",
       designer,
       dateCompleted:   body.dateCompleted ? String(body.dateCompleted) : null,
@@ -524,11 +558,19 @@ export async function POST(req: NextRequest) {
       variationFees: commercial.variationFees as number | null | undefined,
       additionalCharges: commercial.additionalCharges as number | null | undefined,
       requestedDate:   body.requestedDate   ? String(body.requestedDate)            : null,
-      requiredByDate:  resolveRequiredByDate(body.requiredByDate ? String(body.requiredByDate) : null),
+      requiredByDate,
       parentJobId:     null,
       revisionLetter:  null,
       changedBy,
     })
+
+    if (itemType === "SITE_VISIT" && siteVisitSchedule) {
+      await syncSiteVisitToCalendar({
+        job,
+        schedule: siteVisitSchedule,
+        createdBy: auth.user.id,
+      })
+    }
 
     return NextResponse.json(job, { status: 201 })
   } catch (err) {

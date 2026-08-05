@@ -312,6 +312,10 @@ export interface JobFormData {
   variationFees: string
   additionalCharges: string
   requiredByDate:  string
+  /** Site visit schedule — used to create the linked calendar event. */
+  visitDate?: string
+  visitStartTime?: string
+  visitEndTime?: string
   proceedDespiteHold?: boolean
 }
 

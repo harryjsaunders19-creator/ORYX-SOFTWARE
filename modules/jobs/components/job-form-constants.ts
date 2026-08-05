@@ -47,6 +47,9 @@ export function emptyJobForm(): JobFormData {
     quoteValue: "", quoteReference: "", quoteDate: "", commercialNotes: "",
     variationFees: "", additionalCharges: "",
     requiredByDate: defaultRequiredByDate(),
+    visitDate: defaultRequiredByDate(),
+    visitStartTime: "09:00",
+    visitEndTime: "10:00",
   }
 }
 
@@ -58,12 +61,28 @@ export function validate(f: JobFormData): FieldErrors {
     e.siteAddress = "Enter a site name or address"
   }
   if (!f.clientCompany.trim()) e.clientCompany = "Select a client"
-  if (!f.requestedBy.trim()) e.requestedBy = "Enter who requested the work"
+
+  const isSiteVisit = f.itemType === "SITE_VISIT"
+  if (!isSiteVisit && !f.requestedBy.trim()) {
+    e.requestedBy = "Enter who requested the work"
+  }
   if (f.itemType === "DESIGN" && !f.typeOfWorks.trim()) {
     e.typeOfWorks = "Select a type of works"
   }
   if (f.typeOfWorks === OTHER_WORKS_TYPE && !f.customTypeDescription.trim()) {
     e.customTypeDescription = "Describe the type of works"
+  }
+  if (isSiteVisit) {
+    if (!f.visitDate?.trim()) e.visitDate = "Enter the visit date"
+    if (!f.visitStartTime?.trim()) e.visitStartTime = "Enter a start time"
+    if (!f.visitEndTime?.trim()) e.visitEndTime = "Enter an end time"
+    if (
+      f.visitStartTime?.trim()
+      && f.visitEndTime?.trim()
+      && f.visitEndTime.trim() <= f.visitStartTime.trim()
+    ) {
+      e.visitEndTime = "End time must be after start time"
+    }
   }
   return e
 }
