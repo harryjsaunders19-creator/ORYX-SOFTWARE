@@ -116,7 +116,7 @@ export function StitchTopBar({ onMenuClick }: Props) {
           >
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-t3" />
             <span className="truncate text-sm font-medium text-t3">
-              Search projects, CAD files, or clients...
+              Search drawings, clients, sites or CAD files...
             </span>
             <kbd className="ml-auto rounded border border-bd bg-sr px-1.5 py-0.5 type-badge text-t4">
               Ctrl K

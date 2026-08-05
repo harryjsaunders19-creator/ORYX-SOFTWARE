@@ -8,6 +8,7 @@ import { useUser } from "@/shared/providers/user-context"
 import { useApi } from "@/shared/hooks/use-api"
 import type { StatsData, DashboardWeekEvent } from "../types/stats-types"
 import type { Job, ClientHoldWithClient } from "@/lib/types"
+import { DashboardHeading } from "./dashboard-heading"
 import { DashboardKpiGrid } from "./dashboard-kpi-grid"
 import { DashboardOverduePanel } from "./dashboard-overdue-panel"
 import { DashboardHoldsPanel } from "./dashboard-holds-panel"
@@ -21,7 +22,7 @@ export function DashboardStats({
   fallbackStats?: StatsData | null
   userName?: string
 } = {}) {
-  const { isAdmin } = useUser()
+  const { isAdmin, userName } = useUser()
 
   const statsKey = useMemo(() => {
     if (statsKeyProp) return statsKeyProp
@@ -55,7 +56,7 @@ export function DashboardStats({
     return (
       <div className="space-y-3 rounded-xl border border-dn-bd bg-dn-bg p-4 text-sm text-dn-tx">
         <p className="font-medium">Failed to load dashboard data.</p>
-        <p className="text-xs text-t3">{error}</p>
+        <p className="text-xs text-t2">{error}</p>
         <Button variant="outline" size="sm" onClick={() => void mutate()}>
           <RefreshCw className="h-3.5 w-3.5" /> Retry
         </Button>
@@ -65,15 +66,16 @@ export function DashboardStats({
 
   if (isLoading && !stats) {
     return (
-      <div className="space-y-10">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+      <div className="cc-dashboard space-y-6">
+        <div className="h-12 max-w-md rounded-lg skeleton" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-28 rounded-xl skeleton" />
+            <div key={i} className="h-[104px] rounded-xl skeleton" />
           ))}
         </div>
-        <div className="grid grid-cols-12 gap-8">
-          <div className="col-span-12 h-72 rounded-xl skeleton lg:col-span-8" />
-          <div className="col-span-12 h-72 rounded-xl skeleton lg:col-span-4" />
+        <div className="grid grid-cols-12 gap-6">
+          <div className="col-span-12 h-56 rounded-xl skeleton lg:col-span-8" />
+          <div className="col-span-12 h-56 rounded-xl skeleton lg:col-span-4" />
         </div>
       </div>
     )
@@ -81,6 +83,15 @@ export function DashboardStats({
 
   return (
     <div className="cc-dashboard">
+      <DashboardHeading
+        userName={userName}
+        overdueCount={overdueCount}
+        checking={checking}
+        dueWeek={dueWeek}
+        invoicing={invoicing}
+        isAdmin={isAdmin}
+      />
+
       <DashboardKpiGrid
         active={active}
         dueWeek={dueWeek}
@@ -92,8 +103,8 @@ export function DashboardStats({
         isAdmin={isAdmin}
       />
 
-      <div className="grid grid-cols-12 items-start gap-8">
-        <div className="col-span-12 space-y-10 lg:col-span-8 lg:space-y-12">
+      <div className="grid grid-cols-12 items-start gap-6">
+        <div className="col-span-12 flex flex-col gap-6 lg:col-span-8">
           <DashboardOverduePanel
             overdueJobs={overdueJobs}
             overdueCount={overdueCount}

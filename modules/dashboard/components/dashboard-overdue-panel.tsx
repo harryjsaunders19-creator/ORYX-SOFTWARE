@@ -2,22 +2,25 @@
 
 import Link from "next/link"
 import { format, parseISO, differenceInCalendarDays } from "date-fns"
-import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react"
+import { AlertTriangle, ChevronRight } from "lucide-react"
+import { cn } from "@/shared/utils/utils"
+import { Typography } from "@/shared/design/typography"
 import { getJobDeadlineInfo } from "@/shared/utils/utils"
 import type { Job } from "@/lib/types"
+import { DashboardEmptyState, DashboardSectionHeader } from "./dashboard-stats-primitives"
 
-function dueCellLabel(job: Job): string {
+function dueCellLabel(job: Job): { date: string; overdue: string | null } {
   const dl = getJobDeadlineInfo(job)
-  if (!job.requiredByDate) return dl.label
+  if (!job.requiredByDate) return { date: dl.label, overdue: null }
   try {
     const due = parseISO(job.requiredByDate)
     const days = differenceInCalendarDays(new Date(), due)
     const datePart = format(due, "d MMM")
-    if (days > 0) return `${datePart} (Overdue ${days}d)`
-    if (days === 0) return `Today`
-    return datePart
+    if (days > 0) return { date: datePart, overdue: `${days}d overdue` }
+    if (days === 0) return { date: "Today", overdue: null }
+    return { date: datePart, overdue: null }
   } catch {
-    return dl.label
+    return { date: dl.label, overdue: null }
   }
 }
 
@@ -29,69 +32,94 @@ export function DashboardOverduePanel({
   overdueCount: number
 }) {
   return (
-    <section>
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 fill-[#ba1a1a] text-[#ba1a1a]" aria-hidden />
-          <h3 className="type-section-heading text-t1">Overdue Jobs</h3>
-          {overdueCount > 0 && (
-            <span className="rounded-md bg-[var(--stitch-error-container,#ffdad6)] px-2 py-0.5 text-xs font-bold text-[var(--stitch-on-error-container,#93000a)] tabular-nums">
-              {overdueCount}
-            </span>
-          )}
-        </div>
-        <Link
-          href="/jobs?deadline=overdue"
-          className="text-xs font-semibold text-[#4c4546] underline decoration-dotted underline-offset-4 transition-colors hover:text-black dark:text-t3 dark:hover:text-t1"
-        >
-          View All Overdue
-        </Link>
-      </div>
+    <section aria-labelledby="dashboard-overdue-heading">
+      <DashboardSectionHeader
+        as="h2"
+        id="dashboard-overdue-heading"
+        title="Overdue Jobs"
+        count={overdueCount}
+        countTone="overdue"
+        icon={AlertTriangle}
+        viewAllHref="/jobs?deadline=overdue"
+        viewAllLabel="View all overdue"
+      />
 
-      <div className="overflow-hidden rounded-xl border border-bd bg-sr shadow-card">
-        {overdueJobs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 px-6 py-12">
-            <CheckCircle2 className="h-5 w-5 text-t4" aria-hidden />
-            <p className="text-sm text-t3">Nothing overdue — operations are on track.</p>
-          </div>
-        ) : (
+      {overdueJobs.length === 0 ? (
+        <DashboardEmptyState
+          message="No overdue jobs"
+          detail="Everything is up to date."
+        />
+      ) : (
+        <div className="cc-dashboard-panel cc-dashboard-surface overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="border-b border-bd bg-surface-low">
+            <table className="w-full min-w-[520px] text-left">
+              <thead className="bg-surface-low">
                 <tr>
-                  <th className="px-6 py-4 text-sm font-medium text-t3">Job ID</th>
-                  <th className="px-6 py-4 text-sm font-medium text-t3">Description</th>
-                  <th className="px-6 py-4 text-sm font-medium text-t3">Due Date</th>
-                  <th className="px-6 py-4 text-right text-sm font-medium text-t3">Action</th>
+                  <th className={cn(Typography.TableHead, "px-4 py-2.5 text-t2 sm:px-5")}>
+                    Drawing
+                  </th>
+                  <th className={cn(Typography.TableHead, "px-4 py-2.5 text-t2 sm:px-5")}>
+                    Description
+                  </th>
+                  <th className={cn(Typography.TableHead, "px-4 py-2.5 text-t2 sm:px-5")}>
+                    Due
+                  </th>
+                  <th className={cn(Typography.TableHead, "px-4 py-2.5 text-right text-t2 sm:px-5")}>
+                    <span className="sr-only">Open</span>
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-bd-subtle">
-                {overdueJobs.map(job => {
+              <tbody>
+                {overdueJobs.map((job, i) => {
                   const description =
                     [job.typeOfWorks, job.address || job.siteAddress, job.clientCompany]
                       .filter(Boolean)
                       .join(" — ") || "—"
+                  const due = dueCellLabel(job)
                   return (
-                    <tr key={job.id} className="group transition-colors hover:bg-hover-surface">
-                      <td className="px-6 py-5">
-                        <span className="rounded bg-[var(--stitch-error-container,#ffdad6)] px-3 py-1 font-mono text-[13px] font-bold text-[var(--stitch-on-error-container,#93000a)]">
+                    <tr
+                      key={job.id}
+                      className={cn(
+                        "group relative",
+                        i > 0 && "border-t border-bd-subtle",
+                      )}
+                    >
+                      <td className="px-4 py-3 sm:px-5">
+                        <Link
+                          href={`/jobs/${job.id}`}
+                          className="absolute inset-0 z-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-t1/25"
+                          aria-label={`Open job ${job.drawingNumber}`}
+                        />
+                        <span
+                          className={cn(
+                            Typography.DrawingNumber,
+                            Typography.Table,
+                            "relative z-10 inline-flex rounded-md bg-dn-bg px-2 py-0.5 font-bold text-dn-tx",
+                          )}
+                        >
                           {job.drawingNumber}
                         </span>
                       </td>
-                      <td className="max-w-[280px] truncate px-6 py-5 text-base text-t1">
-                        {description}
+                      <td className="relative z-10 max-w-[220px] truncate px-4 py-3 text-t1 pointer-events-none sm:max-w-[280px] sm:px-5">
+                        <span className={Typography.Table}>{description}</span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-5 text-t3">
-                        {dueCellLabel(job)}
+                      <td className="relative z-10 whitespace-nowrap px-4 py-3 pointer-events-none sm:px-5">
+                        <div className="flex flex-col gap-0.5">
+                          <span className={cn(Typography.Table, "text-t1")}>{due.date}</span>
+                          {due.overdue && (
+                            <span className={cn(Typography.Helper, "font-medium text-dn-tx")}>
+                              {due.overdue}
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-6 py-5 text-right">
-                        <Link
-                          href={`/jobs/${job.id}`}
-                          className="inline-flex rounded-full p-2 opacity-0 transition-opacity hover:bg-nested-surface group-hover:opacity-100 focus-visible:opacity-100"
-                          aria-label={`Open ${job.drawingNumber}`}
+                      <td className="relative z-10 px-4 py-3 text-right pointer-events-none sm:px-5">
+                        <span
+                          className="inline-flex rounded-md p-1 text-t3 transition-colors group-hover:bg-nested-surface group-hover:text-t1"
+                          aria-hidden
                         >
-                          <ExternalLink className="h-4 w-4 text-t2" />
-                        </Link>
+                          <ChevronRight className="h-4 w-4" />
+                        </span>
                       </td>
                     </tr>
                   )
@@ -99,8 +127,8 @@ export function DashboardOverduePanel({
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   )
 }

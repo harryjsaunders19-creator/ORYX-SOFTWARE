@@ -28,7 +28,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <PageShell className="max-w-[1440px] pt-8 pb-16 md:px-6 md:pt-10" wide>
+    <PageShell className="max-w-[1440px] pt-6 pb-12 md:px-6 md:pt-8" wide>
       <DashboardStats
         statsKey={statsKey}
         fallbackStats={fallbackStats}

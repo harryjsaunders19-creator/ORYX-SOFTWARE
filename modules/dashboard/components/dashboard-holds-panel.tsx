@@ -1,8 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { Ban, CheckCircle2, ChevronRight } from "lucide-react"
+import { differenceInCalendarDays, parseISO, isValid } from "date-fns"
+import { Ban, ChevronRight } from "lucide-react"
+import { cn } from "@/shared/utils/utils"
+import { Typography } from "@/shared/design/typography"
 import type { ClientHoldWithClient } from "@/lib/types"
+import { DashboardEmptyState, DashboardSectionHeader } from "./dashboard-stats-primitives"
 
 function clientInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -12,6 +16,19 @@ function clientInitials(name: string): string {
   return (name.trim().slice(0, 2) || "?").toUpperCase()
 }
 
+function daysOnHoldLabel(addedAt: string): string | null {
+  try {
+    const added = parseISO(addedAt)
+    if (!isValid(added)) return null
+    const days = differenceInCalendarDays(new Date(), added)
+    if (days < 0) return null
+    if (days === 0) return "Added today"
+    return `${days} day${days === 1 ? "" : "s"} on hold`
+  } catch {
+    return null
+  }
+}
+
 export function DashboardHoldsPanel({
   holds,
   clientsOnHold,
@@ -19,57 +36,69 @@ export function DashboardHoldsPanel({
   holds: ClientHoldWithClient[]
   clientsOnHold?: number
 }) {
+  const total = clientsOnHold ?? holds.length
+
   return (
-    <section>
-      <div className="mb-6 flex items-center gap-3">
-        <Ban className="h-5 w-5 text-[#4c4546] dark:text-t3" aria-hidden />
-        <h3 className="type-section-heading text-t1">Clients on Hold</h3>
-        {(clientsOnHold ?? holds.length) > 0 && (
-          <span className="rounded-md bg-[var(--stitch-search-bg,#f3f3f5)] px-2 py-0.5 text-xs font-bold text-t2 tabular-nums">
-            {clientsOnHold ?? holds.length}
-          </span>
-        )}
-      </div>
+    <section aria-labelledby="dashboard-holds-heading">
+      <DashboardSectionHeader
+        as="h2"
+        id="dashboard-holds-heading"
+        title="Clients on Hold"
+        count={total}
+        countTone="hold"
+        icon={Ban}
+        viewAllHref={total > holds.length ? "/clients/hold-list" : undefined}
+        viewAllLabel="View all on hold"
+      />
 
       {holds.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-bd bg-sr px-6 py-12 shadow-card">
-          <CheckCircle2 className="h-5 w-5 text-t4" aria-hidden />
-          <p className="text-sm text-t3">No clients are currently on hold.</p>
-        </div>
+        <DashboardEmptyState message="No clients currently on hold" />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {holds.map(hold => (
-            <Link
-              key={hold.id}
-              href={`/clients/${hold.clientId}`}
-              className="group flex items-center justify-between rounded-xl border border-bd bg-sr p-5 shadow-card transition-shadow hover:shadow-sm"
-            >
-              <div className="flex min-w-0 items-center gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-nested-surface text-sm font-bold text-t1">
-                  {clientInitials(hold.clientName)}
-                </div>
-                <div className="min-w-0">
-                  <h4 className="truncate text-sm font-medium text-t1">{hold.clientName}</h4>
-                  <p className="text-[12px] text-t3">
-                    Status:{" "}
-                    <span className="font-medium text-[#ba1a1a]">{hold.reason || "On hold"}</span>
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-t4 opacity-0 transition-opacity group-hover:opacity-100" />
-            </Link>
-          ))}
-        </div>
-      )}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {holds.map(hold => {
+            const daysLabel = daysOnHoldLabel(hold.addedAt)
+            const jobsLabel =
+              hold.activeJobCount > 0
+                ? `${hold.activeJobCount} active job${hold.activeJobCount === 1 ? "" : "s"}`
+                : null
+            const meta = [daysLabel, jobsLabel].filter(Boolean).join(" · ")
 
-      {(clientsOnHold ?? 0) > holds.length && (
-        <div className="mt-4">
-          <Link
-            href="/clients/hold-list"
-            className="text-xs font-semibold text-[#4c4546] underline decoration-dotted underline-offset-4 hover:text-black dark:text-t3"
-          >
-            View all on hold
-          </Link>
+            return (
+              <Link
+                key={hold.id}
+                href={`/clients/${hold.clientId}`}
+                className={cn(
+                  "cc-dashboard-surface group flex items-start justify-between gap-3 p-4",
+                  "transition-colors duration-150 hover:border-bd hover:bg-hover-surface",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-t1/20",
+                )}
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <div
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-wn-bg text-[11px] font-bold text-wn-tx"
+                    aria-hidden
+                  >
+                    {clientInitials(hold.clientName)}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className={cn(Typography.BodyLarge, "truncate text-t1")}>
+                      {hold.clientName}
+                    </h3>
+                    <p className={cn(Typography.Small, "mt-0.5 text-wn-tx")}>
+                      {hold.reason || "On hold"}
+                    </p>
+                    {meta && (
+                      <p className={cn(Typography.Helper, "mt-1 text-t3")}>{meta}</p>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight
+                  className="mt-0.5 h-4 w-4 shrink-0 text-t3 transition-colors group-hover:text-t1"
+                  aria-hidden
+                />
+              </Link>
+            )
+          })}
         </div>
       )}
     </section>

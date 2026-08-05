@@ -60,7 +60,7 @@ function NavLink({ item, active, collapsed, onNavigate, compact }: NavLinkProps)
       className={cn(
         "stitch-nav-link group flex items-center gap-3 rounded-lg transition-colors duration-200 outline-none",
         "focus-visible:ring-2 focus-visible:ring-[color:var(--stitch-sidebar-text)]/25 focus-visible:ring-inset",
-        compact ? "px-4 py-2" : "px-4 py-3",
+        compact ? "px-4 py-2" : "px-4 py-2.5",
         collapsed ? "justify-center mx-2 px-0" : "mx-0",
       )}
     >
@@ -114,11 +114,11 @@ function SideNavContent({
 
   return (
     <>
-      <div className={cn(collapsed ? "px-2 pt-2" : "px-6 pt-4")}>
+      <div className={cn(collapsed ? "px-2 pt-3" : "px-5 pt-5 pb-1")}>
         <Link
           href="/"
           className={cn(
-            "mb-8 block transition-opacity hover:opacity-90",
+            "mb-6 block transition-opacity hover:opacity-90",
             collapsed && "flex justify-center",
           )}
           onClick={() => onNavigate?.()}
@@ -136,8 +136,8 @@ function SideNavContent({
             </div>
           ) : (
             <>
-              <OryxLogo variant="menu" className="mb-3 max-w-[160px]" />
-              <h1 className="stitch-sidebar-brand-title type-section-heading">
+              <OryxLogo variant="menu" className="mb-2 max-w-[140px] opacity-90" />
+              <h1 className="stitch-sidebar-brand-title type-card-title">
                 ORYX OS
               </h1>
             </>

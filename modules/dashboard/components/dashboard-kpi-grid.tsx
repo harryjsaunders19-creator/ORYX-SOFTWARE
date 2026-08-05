@@ -2,46 +2,54 @@
 
 import Link from "next/link"
 import { cn } from "@/shared/utils/utils"
-
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n)
-}
+import { Typography } from "@/shared/design/typography"
+import { TONE, type ToneKey } from "./dashboard-stats-primitives"
 
 function KpiCard({
   label,
   value,
-  displayValue,
   sub,
-  subTone = "muted",
+  tone,
   href,
+  emphasize,
 }: {
   label: string
   value: number
-  displayValue?: string
   sub: string
-  subTone?: "muted" | "critical" | "primary" | "secondary"
+  tone: ToneKey
   href: string
+  emphasize?: boolean
 }) {
+  const t = TONE[tone]
   const subClass =
-    subTone === "critical"
-      ? "text-[#ba1a1a]"
-      : subTone === "primary"
-        ? "text-black"
-        : subTone === "secondary"
-          ? "text-[#5e5e5e]"
-          : "text-[#4c4546]"
+    emphasize && (tone === "due" || tone === "overdue")
+      ? "text-dn-tx"
+      : emphasize && tone === "checking"
+        ? "text-wn-tx"
+        : "text-t3"
 
   return (
     <Link
       href={href}
-      className="block rounded-xl border border-bd bg-sr p-6 shadow-card transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 max-md:p-4"
+      className={cn(
+        "cc-dashboard-kpi cc-dashboard-surface group relative flex min-h-[104px] flex-col px-4 py-4",
+        "transition-colors duration-150 hover:border-bd hover:bg-hover-surface",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-t1/20",
+      )}
     >
-      <p className="mb-2 text-sm font-medium text-[#4c4546] dark:text-t3">{label}</p>
-      <div className="flex items-baseline gap-2">
-        <h2 className="type-stat text-t1 tabular-nums">
-          {displayValue ?? value}
-        </h2>
-        <span className={cn("text-[12px] font-bold", subClass)}>{sub}</span>
+      <span
+        className="absolute inset-y-3 left-0 w-0.5 rounded-full"
+        style={{ backgroundColor: t.accent, opacity: emphasize ? 1 : 0.4 }}
+        aria-hidden
+      />
+      <p className={cn(Typography.Label, "min-h-4 font-medium text-t2")}>{label}</p>
+      <div className="mt-3 flex flex-1 flex-col justify-end">
+        <p className={cn(Typography.Stat, "cc-dashboard-stat tabular-nums text-t1")}>
+          {value}
+        </p>
+        <p className={cn(Typography.Helper, "mt-1.5 font-medium", subClass)}>
+          {sub}
+        </p>
       </div>
     </Link>
   )
@@ -67,45 +75,49 @@ export function DashboardKpiGrid({
   isAdmin: boolean
 }) {
   return (
-    <section className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4 md:mb-12">
+    <section
+      aria-label="Dashboard summary"
+      className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4"
+    >
       <KpiCard
         label="Active Jobs"
         value={active}
         sub={activeRevisions ? `+${activeRevisions} active revisions` : "In flight"}
-        subTone="primary"
+        tone="active"
         href="/jobs"
       />
       <KpiCard
         label="Due This Week"
         value={dueWeek}
-        displayValue={pad2(dueWeek)}
         sub={dueWeek > 0 ? (dueTodayCount ? `${dueTodayCount} due today` : "Critical") : "Clear"}
-        subTone={dueWeek > 0 ? "critical" : "muted"}
+        tone="due"
         href="/jobs?deadline=this_week"
+        emphasize={dueWeek > 0}
       />
       <KpiCard
         label="Requires Check"
         value={checking}
         sub={checking > 0 ? "Pending" : "Queue clear"}
-        subTone={checking > 0 ? "secondary" : "muted"}
+        tone="checking"
         href="/jobs/checking"
+        emphasize={checking > 0}
       />
       {isAdmin ? (
         <KpiCard
           label="Ready to Invoice"
           value={invoicing}
           sub={invoicing > 0 ? "Awaiting handoff" : "Nothing queued"}
-          subTone="muted"
+          tone="invoicing"
           href="/billing"
         />
       ) : (
         <KpiCard
           label="Overdue"
           value={overdueCount}
-          displayValue={pad2(overdueCount)}
           sub={overdueCount > 0 ? "Needs attention" : "Clear"}
-          subTone={overdueCount > 0 ? "critical" : "muted"}
+          tone="overdue"
           href="/jobs?deadline=overdue"
+          emphasize={overdueCount > 0}
         />
       )}
     </section>
