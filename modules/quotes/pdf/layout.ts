@@ -85,11 +85,10 @@ export const TABLE = {
   rowPadY: 14,
   rowPadX: 10,
   /** Description dominates. */
-  colDesc: 0.50,
-  colQty: 0.08,
-  colRate: 0.15,
+  colDesc: 0.56,
+  colPo: 0.20,
   colVat: 0.10,
-  colTotal: 0.17,
+  colAmount: 0.14,
 } as const
 
 export function lineStep(size: number, leading: number = LEADING.body): number {

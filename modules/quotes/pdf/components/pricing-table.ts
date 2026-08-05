@@ -1,5 +1,5 @@
 import type { QuotePdfLineItem } from "../types"
-import { fmtMoney, fmtQuantity } from "../format"
+import { fmtMoney } from "../format"
 import {
   COLOR,
   CONTENT_LEFT,
@@ -24,18 +24,16 @@ interface ColumnSpec {
 
 function tableColumns(): ColumnSpec[] {
   const descW = CONTENT_WIDTH * TABLE.colDesc
-  const qtyW = CONTENT_WIDTH * TABLE.colQty
-  const rateW = CONTENT_WIDTH * TABLE.colRate
+  const poW = CONTENT_WIDTH * TABLE.colPo
   const vatW = CONTENT_WIDTH * TABLE.colVat
-  const totalW = CONTENT_WIDTH * TABLE.colTotal
+  const amountW = CONTENT_WIDTH * TABLE.colAmount
 
   let x = CONTENT_LEFT
   const cols: ColumnSpec[] = [
     { label: "Description", x, width: descW, align: "left" },
-    { label: "Quantity", x: (x += descW), width: qtyW, align: "right" },
-    { label: "Unit Rate", x: (x += qtyW), width: rateW, align: "right" },
-    { label: "VAT", x: (x += rateW), width: vatW, align: "right" },
-    { label: "Line Total", x: (x += vatW), width: totalW, align: "right" },
+    { label: "Purchase Order", x: (x += descW), width: poW, align: "left" },
+    { label: "VAT", x: (x += poW), width: vatW, align: "right" },
+    { label: "Amount", x: (x += vatW), width: amountW, align: "right" },
   ]
   return cols
 }
@@ -80,7 +78,6 @@ function drawDataRow(
   topY: number,
   rowH: number,
   showVatAmounts: boolean,
-  alt: boolean,
 ): void {
   const cols = tableColumns()
   const descCol = cols[0]!
@@ -95,20 +92,25 @@ function drawDataRow(
     lineY -= lineStep(TYPE.table)
   }
 
-  const values: { col: ColumnSpec; text: string }[] = [
-    { col: cols[1]!, text: fmtQuantity(item.quantity) },
-    { col: cols[2]!, text: fmtMoney(item.unitRate) },
-    {
-      col: cols[3]!,
-      text:
-        showVatAmounts && item.vatAmount != null ? fmtMoney(item.vatAmount) : "",
-    },
-    { col: cols[4]!, text: fmtMoney(item.lineTotal) },
-  ]
+  if (item.purchaseOrder) {
+    const poCol = cols[1]!
+    ctx.drawText(item.purchaseOrder, poCol.x + TABLE.rowPadX, textTop, {
+      size: TYPE.table,
+      align: "left",
+    })
+  }
 
-  for (const { col, text } of values) {
-    if (!text) continue
-    ctx.drawText(text, col.x + col.width - TABLE.rowPadX, textTop, {
+  if (showVatAmounts && item.vatAmount != null) {
+    const vatCol = cols[2]!
+    ctx.drawText(fmtMoney(item.vatAmount), vatCol.x + vatCol.width - TABLE.rowPadX, textTop, {
+      size: TYPE.table,
+      align: "right",
+    })
+  }
+
+  if (item.amount != null) {
+    const amountCol = cols[3]!
+    ctx.drawText(fmtMoney(item.amount), amountCol.x + amountCol.width - TABLE.rowPadX, textTop, {
       size: TYPE.table,
       align: "right",
     })
@@ -153,13 +155,14 @@ export function drawPricingTable(
   headingY -= SP.lg
   const tableTopForHeight = headingY
   let rowTop = drawTableHeaderRow(ctx, headingY)
-  let bandIndex = 0
   let paginationOccurred = false
+  const commercialRowCount = items.filter(i => i.amount != null).length
+  const narrativeRowCount = items.length - commercialRowCount
 
   // Data-driven density: if there are multiple line items, aim for the table
   // (including header) to occupy ~40–50% of the remaining page.
   const usableHeight = ctx.cursorY - MIN_CONTENT_Y
-  const targetFraction = items.length >= 2 ? 0.45 : 0.30
+  const targetFraction = commercialRowCount >= 2 ? 0.45 : 0.30
   const targetTableHeight = usableHeight * targetFraction
 
   for (const item of items) {
@@ -176,17 +179,15 @@ export function drawPricingTable(
         ctx.cursorY -= SP.lg
       }
       rowTop = drawTableHeaderRow(ctx, ctx.cursorY)
-      bandIndex = 0
     }
 
-    drawDataRow(ctx, item, rowTop, rowH, showVatAmounts, bandIndex % 2 === 1)
+    drawDataRow(ctx, item, rowTop, rowH, showVatAmounts)
     rowTop -= rowH
-    bandIndex++
   }
 
   // If the table stayed on a single page, add subtle filler rows so the table
   // becomes the visual centrepiece (template-inspired density).
-  if (!paginationOccurred && items.length >= 2) {
+  if (!paginationOccurred && commercialRowCount >= 2 && narrativeRowCount === 0) {
     let usedHeight = tableTopForHeight - rowTop
     while (usedHeight < targetTableHeight && rowTop - TABLE.minRowHeight >= MIN_CONTENT_Y) {
       const emptyH = TABLE.minRowHeight
@@ -199,7 +200,6 @@ export function drawPricingTable(
       })
       rowTop = bottom
       usedHeight = tableTopForHeight - rowTop
-      bandIndex++
     }
   }
 

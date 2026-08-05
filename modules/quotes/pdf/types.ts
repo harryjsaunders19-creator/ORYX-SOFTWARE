@@ -1,11 +1,12 @@
 /** Normalised data passed into the quote PDF layout components. */
 export interface QuotePdfLineItem {
   description: string
-  quantity: number
-  unitRate: number
-  vatApplicable: boolean
-  lineTotal: number
+  /** Optional per-row purchase order reference (not always available). */
+  purchaseOrder?: string | null
+  /** Per-row VAT value (blank when null). */
   vatAmount: number | null
+  /** Per-row amount (blank when null). */
+  amount: number | null
 }
 
 export interface QuotePdfClientFields {

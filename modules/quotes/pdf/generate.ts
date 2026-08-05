@@ -15,17 +15,16 @@ import fs from "fs/promises"
 import path from "path"
 import { BRAND_LOGO_DOCUMENT_PATH } from "@/shared/branding/branding"
 import { quoteWorksDisplayLabel } from "../quote-works"
-import { DEFAULT_QUOTE_TERMS, QUOTE_COMPANY } from "./company"
+import { DEFAULT_QUOTE_TERMS } from "./company"
 import { QuotePdfContext } from "./context"
 import { fmtPdfDate } from "./format"
-import { MIN_CONTENT_Y, SP } from "./layout"
+import { MIN_CONTENT_Y } from "./layout"
 import type { QuotePdfLineItem, QuotePdfPayload } from "./types"
 import { drawQuoteHeader } from "./components/header"
 import { drawQuoteTitleBlock } from "./components/title-block"
 import { drawClientInformation } from "./components/client-info"
-import { drawScopeOfWorks } from "./components/project-description"
 import { drawPricingTable } from "./components/pricing-table"
-import { drawTotalsSummary, measureTotalsBoxHeight } from "./components/totals"
+import { drawTotalsSummary } from "./components/totals"
 import { drawTermsSection, termsSectionMinHeight } from "./components/terms"
 import { drawFooters } from "./components/footer"
 
@@ -66,7 +65,7 @@ function buildQuotePayload(
   const vatRate = quote.vatRate
   const showVat = vatRate != null
 
-  const rawItems = realLineItems.length
+  const commercialSources = realLineItems.length
     ? realLineItems.map(li => ({
         description: li.description,
         amount: li.amount,
@@ -74,26 +73,10 @@ function buildQuotePayload(
       }))
     : [{ description: quote.description, amount: quote.quoteValue, vatApplicable: true }]
 
-  const lineItems: QuotePdfLineItem[] = rawItems.map(item => {
-    const quantity = 1
-    const unitRate = item.amount
-    const lineTotal = item.amount
-    const vatAmount =
-      showVat && item.vatApplicable ? lineTotal * (vatRate! / 100) : null
-    return {
-      description: item.description,
-      quantity,
-      unitRate,
-      vatApplicable: item.vatApplicable,
-      lineTotal,
-      vatAmount,
-    }
-  })
-
-  const subtotal = lineItems.reduce((sum, li) => sum + li.lineTotal, 0)
-  const taxable = lineItems
+  const subtotal = commercialSources.reduce((sum, li) => sum + li.amount, 0)
+  const taxable = commercialSources
     .filter(li => li.vatApplicable)
-    .reduce((sum, li) => sum + li.lineTotal, 0)
+    .reduce((sum, li) => sum + li.amount, 0)
   const vatDue = showVat ? taxable * (vatRate! / 100) : null
   const grandTotal = showVat ? subtotal + (vatDue ?? 0) : subtotal
 
@@ -110,6 +93,55 @@ function buildQuotePayload(
     billingAddress.toLowerCase() !== siteAddress.toLowerCase()
 
   const notes = quote.notes?.trim() || null
+
+  // Table rows: when explicit line items exist, ORYX shows the scope + notes
+  // *inside* the table as narrative rows without amounts.
+  const hasRealLineItems = realLineItems.length > 0
+  const tableRows: QuotePdfLineItem[] = []
+
+  if (hasRealLineItems) {
+    if (quote.description?.trim()) {
+      tableRows.push({
+        description: quote.description.trim(),
+        purchaseOrder: null,
+        vatAmount: null,
+        amount: null,
+      })
+    }
+    if (notes) {
+      tableRows.push({
+        description: notes,
+        purchaseOrder: null,
+        vatAmount: null,
+        amount: null,
+      })
+    }
+
+    tableRows.push(
+      ...commercialSources.map(item => ({
+        description: item.description,
+        purchaseOrder: null,
+        vatAmount: showVat && item.vatApplicable ? item.amount * (vatRate! / 100) : null,
+        amount: item.amount,
+      })),
+    )
+  } else {
+    // No explicit breakdown: the quote description is the single priced row.
+    tableRows.push({
+      description: quote.description.trim(),
+      purchaseOrder: null,
+      vatAmount: showVat ? quote.quoteValue * (vatRate! / 100) : null,
+      amount: quote.quoteValue,
+    })
+    if (notes) {
+      tableRows.push({
+        description: notes,
+        purchaseOrder: null,
+        vatAmount: null,
+        amount: null,
+      })
+    }
+  }
 
   return {
     meta: {
@@ -128,7 +160,7 @@ function buildQuotePayload(
     },
     scope: quote.description?.trim() || null,
     quotationNotes: notes,
-    lineItems,
+    lineItems: tableRows,
     totals: {
       subtotal,
       vat: vatDue,
@@ -144,8 +176,8 @@ async function renderQuotePdf(payload: QuotePdfPayload): Promise<Uint8Array> {
   doc.registerFontkit(fontkit)
 
   const [regularBytes, boldBytes, logoBytes] = await Promise.all([
-    fs.readFile(path.join(process.cwd(), "public", "fonts", "LiberationSans-Regular.ttf")),
-    fs.readFile(path.join(process.cwd(), "public", "fonts", "LiberationSans-Bold.ttf")),
+    fs.readFile(path.join(process.cwd(), "public", "fonts", "Inter-Regular.ttf")),
+    fs.readFile(path.join(process.cwd(), "public", "fonts", "Inter-Bold.ttf")),
     fs.readFile(path.join(process.cwd(), BRAND_LOGO_DOCUMENT_PATH)),
   ])
 
@@ -158,7 +190,6 @@ async function renderQuotePdf(payload: QuotePdfPayload): Promise<Uint8Array> {
   ctx.cursorY = drawQuoteHeader(ctx)
   ctx.cursorY = drawQuoteTitleBlock(ctx, payload.meta)
   ctx.cursorY = drawClientInformation(ctx, payload.client)
-  ctx.cursorY = drawScopeOfWorks(ctx, payload.scope, payload.quotationNotes)
 
   const continuation = `Quotation Items (continued) · ${payload.meta.quoteNumber}`
   const { endY: tableEndY } = drawPricingTable(
