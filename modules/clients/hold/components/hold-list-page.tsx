@@ -130,7 +130,7 @@ export default function HoldListPage() {
       </Link>
 
       <PageHeader
-        title="Hold List"
+        title="Client Hold List"
         description={`${data?.total ?? 0} client${data?.total !== 1 ? "s" : ""} currently on hold`}
         actions={
           <Button variant="danger" size="sm" onClick={() => {
