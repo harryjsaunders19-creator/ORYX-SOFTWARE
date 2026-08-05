@@ -62,11 +62,10 @@ type Props = {
 export function StitchTopBar({ onMenuClick }: Props) {
   const pathname = usePathname()
   const [searchOpen, setSearchOpen] = useState(false)
-  const { user, role } = useUser()
+  const { user } = useUser()
 
   const { section, trail } = useMemo(() => routeContext(pathname), [pathname])
   const isDashboard = pathname === "/"
-  const roleLabel = role === "ADMIN" ? "Chief Engineer" : "Engineer"
 
   const openSearch = useCallback(() => setSearchOpen(true), [])
 
@@ -160,10 +159,9 @@ export function StitchTopBar({ onMenuClick }: Props) {
 
           <div className="flex items-center gap-3 pl-0.5">
             {user && (
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium leading-none text-t1">{user.name}</p>
-                <p className="mt-1 text-[10px] font-medium text-t3">{roleLabel}</p>
-              </div>
+              <p className="hidden text-sm font-medium leading-none text-t1 sm:block">
+                {user.name}
+              </p>
             )}
             <UserProfileMenu />
           </div>
