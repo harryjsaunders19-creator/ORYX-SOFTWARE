@@ -765,7 +765,7 @@ export const supabaseJobRepo = {
       }
       throw error
     }
-    return (data ?? []).map(toJobRow)
+    return (data ?? []).map(row => toJobRow(row as SupabaseJobRow))
   },
 
   async groupByStatus(): Promise<{ status: string; count: number }[]> {
@@ -812,7 +812,7 @@ export const supabaseJobRepo = {
     byItemType:       { itemType: string; count: number }[]
     unassigned:       number
     totalActiveJobs:  number
-    totalRevisions:   number
+    activeRevisions:  number
     overdueCount:     number
     dueTodayCount:    number
     dueThisWeekCount: number
@@ -827,7 +827,7 @@ export const supabaseJobRepo = {
         byItemType:      Array.isArray(raw.byItemType) ? raw.byItemType : [],
         unassigned:      Number(raw.unassigned) || 0,
         totalActiveJobs: Number(raw.totalActiveJobs) || 0,
-        totalRevisions:  Number(raw.totalRevisions) || 0,
+        activeRevisions: Number(raw.activeRevisions ?? raw.totalRevisions) || 0,
         overdueCount:    Number(raw.overdueCount) || 0,
         dueTodayCount:   Number(raw.dueTodayCount) || 0,
         dueThisWeekCount: Number(raw.dueThisWeekCount) || 0,
@@ -842,7 +842,7 @@ export const supabaseJobRepo = {
     byItemType:       { itemType: string; count: number }[]
     unassigned:       number
     totalActiveJobs:  number
-    totalRevisions:   number
+    activeRevisions:  number
     overdueCount:     number
     dueTodayCount:    number
     dueThisWeekCount: number
