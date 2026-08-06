@@ -70,6 +70,9 @@ jobs:
           FORCE_SUPABASE_ONLY: true
           AUTH_SECRET: e2e-auth-secret-not-for-production
           ALLOW_BOOTSTRAP_TEST_ACCOUNTS: "true"
+          TEST_ADMIN_PASSWORD: admin123
+          TEST_ACCOUNTS_PASSWORD: accounts123
+          TEST_ENGINEER_PASSWORD: engineer123
 
       - name: Stop Supabase
         if: always()

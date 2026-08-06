@@ -138,6 +138,9 @@ const envBody = [
   `NODE_ENV=test`,
   `AUTH_SECRET=${authSecret}`,
   `ALLOW_BOOTSTRAP_TEST_ACCOUNTS=true`,
+  `TEST_ADMIN_PASSWORD=admin123`,
+  `TEST_ACCOUNTS_PASSWORD=accounts123`,
+  `TEST_ENGINEER_PASSWORD=engineer123`,
   "",
 ].join("\n")
 

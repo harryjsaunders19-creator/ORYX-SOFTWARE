@@ -47,6 +47,9 @@ export default defineConfig({
       ...process.env,
       E2E: "true",
       ALLOW_BOOTSTRAP_TEST_ACCOUNTS: "true",
+      TEST_ADMIN_PASSWORD: process.env.TEST_ADMIN_PASSWORD || "admin123",
+      TEST_ACCOUNTS_PASSWORD: process.env.TEST_ACCOUNTS_PASSWORD || "accounts123",
+      TEST_ENGINEER_PASSWORD: process.env.TEST_ENGINEER_PASSWORD || "engineer123",
       ...(supabaseE2e
         ? {
             FORCE_SUPABASE_ONLY: "true",

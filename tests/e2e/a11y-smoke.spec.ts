@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright"
-import { test, expect, loginAsAdmin } from "./helpers"
+import { test, expect, loginAsAdmin, assertTestAuthReady } from "./helpers"
 
 async function expectNoCriticalAxe(page: import("@playwright/test").Page) {
   const results = await new AxeBuilder({ page })
@@ -15,6 +15,10 @@ async function expectNoCriticalAxe(page: import("@playwright/test").Page) {
  * modules get a11y polish.
  */
 test.describe("Accessibility smoke", () => {
+  test.beforeAll(async ({ request }) => {
+    await assertTestAuthReady(request)
+  })
+
   test("login page has no critical axe violations", async ({ page }) => {
     await page.goto("/login")
     await expectNoCriticalAxe(page)

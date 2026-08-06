@@ -1,6 +1,10 @@
-import { test, expect, loginAsAdmin, loginAsEngineer, loginAsAccounts, loginApi } from "./helpers"
+import { test, expect, loginAsAdmin, loginAsEngineer, loginAsAccounts, loginApi, assertTestAuthReady } from "./helpers"
 
 test.describe("Job cancellation", () => {
+  test.beforeAll(async ({ request }) => {
+    await assertTestAuthReady(request)
+  })
+
   test("admin can cancel a job with a required reason", async ({ page }) => {
     await loginAsAdmin(page)
     const stamp = Date.now()
@@ -53,7 +57,7 @@ test.describe("Job cancellation", () => {
   })
 
   test("engineer receives 403 when calling cancel endpoint", async ({ request }) => {
-    await loginApi(request, "admin@test.com", "Admin1234")
+    await loginApi(request, "admin@test.com")
     const createRes = await request.post("/api/jobs", {
       data: {
         clientCompany: `Engineer Block ${Date.now()}`,
@@ -67,7 +71,7 @@ test.describe("Job cancellation", () => {
     expect(createRes.status()).toBe(201)
     const job = await createRes.json() as { id: string }
 
-    await loginApi(request, "engineer@test.com", "engineer123")
+    await loginApi(request, "engineer@test.com")
     const cancelRes = await request.delete(`/api/jobs/${job.id}`, {
       data: { reason: "Should be blocked" },
     })
@@ -108,8 +112,11 @@ test.describe("Job cancellation", () => {
     const job = await createRes.json() as { id: string; drawingNumber: string }
 
     await page.goto(`/jobs?job=${job.id}`)
-    await page.getByRole("button", { name: "Cancel Job" }).click()
+    const cancelBtn = page.getByRole("button", { name: "Cancel Job" })
+    await cancelBtn.waitFor({ state: "visible", timeout: 30_000 })
+    await cancelBtn.click()
     await expect(page.getByRole("dialog", { name: "Cancel job" })).toBeVisible()
+    await page.waitForSelector("#jobs-cancel-reason", { timeout: 30_000 })
     await expect(page.locator("#jobs-cancel-reason")).toBeVisible()
 
     const confirm = page.getByRole("button", { name: "Cancel job" })
