@@ -1,6 +1,12 @@
 export function isNavItemActive(path: string, key: string, href: string): boolean {
   if (key === "dashboard") return path === "/"
-  const prefixMatch = key === "hold-list" || key === "billing" || key === "clients" || key === "jobs" || key === "employees" || key === "password-vault" || key === "job-map" || key === "site-visit-calculator"
+  // Hold list lives under /clients/hold-list but is its own nav item — don't
+  // also light up Clients when that route (or a nested path) is active.
+  if (key === "clients") {
+    if (path === "/clients/hold-list" || path.startsWith("/clients/hold-list/")) return false
+    return path === "/clients" || path.startsWith("/clients/")
+  }
+  const prefixMatch = key === "hold-list" || key === "billing" || key === "jobs" || key === "employees" || key === "password-vault" || key === "job-map" || key === "site-visit-calculator"
   return prefixMatch ? path.startsWith(href) : path === href
 }
 

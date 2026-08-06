@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { Input } from "@/shared/ui/input"
-import { Label } from "@/shared/ui/label"
 import { Textarea } from "@/shared/ui/textarea"
+import { Field } from "@/shared/ui/field"
 import type { Client } from "@/lib/types"
 import type { ClientContactInput } from "../types/client-contact-types"
 import { contactsFromClient, emptyContact } from "../types/client-contact-types"
@@ -40,24 +40,20 @@ export function ClientForm({ formId, initial, initialContacts, onSubmit, saving:
   return (
     <form id={formId} onSubmit={submit} className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-2 flex flex-col gap-1.5">
-          <Label>Company name *</Label>
-          <Input value={name} onChange={e => setName(e.target.value)} autoFocus required placeholder="Acme Scaffolding Ltd" />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Customer ID</Label>
-          <Input value={accountCode} onChange={e => setAccountCode(e.target.value)} placeholder="e.g. ACME01" />
-        </div>
+        <Field label="Company name" required htmlFor="client-form-name" className="col-span-2">
+          <Input id="client-form-name" value={name} onChange={e => setName(e.target.value)} autoFocus required placeholder="Acme Scaffolding Ltd" />
+        </Field>
+        <Field label="Customer ID" htmlFor="client-form-account-code">
+          <Input id="client-form-account-code" value={accountCode} onChange={e => setAccountCode(e.target.value)} placeholder="e.g. ACME01" />
+        </Field>
       </div>
       <ClientContactsFields contacts={contacts} onChange={setContacts} />
-      <div className="flex flex-col gap-1.5">
-        <Label>Billing address</Label>
-        <Textarea value={addr} onChange={e => setAddr(e.target.value)} rows={2} placeholder="14 Industrial Way, Bristol" />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label>Notes</Label>
-        <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Terms, preferences…" />
-      </div>
+      <Field label="Billing address" htmlFor="client-form-billing-address">
+        <Textarea id="client-form-billing-address" value={addr} onChange={e => setAddr(e.target.value)} rows={2} placeholder="14 Industrial Way, Bristol" />
+      </Field>
+      <Field label="Notes" htmlFor="client-form-notes">
+        <Textarea id="client-form-notes" value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Terms, preferences…" />
+      </Field>
     </form>
   )
 }

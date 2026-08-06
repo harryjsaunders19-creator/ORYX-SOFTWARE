@@ -13,6 +13,12 @@ describe("isNavItemActive", () => {
 
   it("uses prefix matching for section routes", () => {
     assert.equal(isNavItemActive("/jobs/abc", "jobs", "/jobs"), true)
-    assert.equal(isNavItemActive("/clients/hold-list", "clients", "/clients"), true)
+    assert.equal(isNavItemActive("/clients/abc", "clients", "/clients"), true)
+  })
+
+  it("does not mark Clients active on Client Hold List", () => {
+    assert.equal(isNavItemActive("/clients/hold-list", "clients", "/clients"), false)
+    assert.equal(isNavItemActive("/clients/hold-list/", "clients", "/clients"), false)
+    assert.equal(isNavItemActive("/clients/hold-list", "hold-list", "/clients/hold-list"), true)
   })
 })
