@@ -5,6 +5,7 @@ import path from "node:path"
 import type { JobRow } from "../types/job-types"
 import { BRAND_LOGO_DOCUMENT_PATH } from "@/shared/branding/branding"
 import { worksTypeDisplayLabel } from "@/lib/constants"
+import { baseDrawingNumber } from "@/lib/revision-chain"
 
 const PAGE_W = 595.32
 const PAGE_H = 841.92
@@ -60,12 +61,16 @@ export function cat2ExportFilename(drawingNumber: string): string {
   return `${safeDrawing}-CATII Check Certificate.pdf`
 }
 
-/** Display reference without .pdf — includes revision when present. */
-export function cat2DocumentReference(drawingNumber: string, revisionLetter?: string | null): string {
-  const safeDrawing = drawingNumber.replace(/[\\/:*?"<>|]/g, "-").trim() || "drawing"
-  const rev = (revisionLetter ?? "").trim()
-  const revPart = rev ? ` Rev ${rev}` : ""
-  return `${safeDrawing}${revPart}-CATII Check Certificate`
+/**
+ * Document reference for the control band — base drawing number only.
+ * Revision belongs in the dedicated REVISION field, never in this string
+ * (drawing numbers for revisions already include " Rev X", which used to
+ * duplicate when we also appended revisionLetter).
+ */
+export function cat2DocumentReference(drawingNumber: string, _revisionLetter?: string | null): string {
+  const base = baseDrawingNumber(drawingNumber).trim() || drawingNumber.trim() || "drawing"
+  const safeDrawing = base.replace(/[\\/:*?"<>|]/g, "-").trim() || "drawing"
+  return `${safeDrawing}-CATII Check Certificate`
 }
 
 function wrapText(text: string, width: number, font: PDFFont, size: number): string[] {

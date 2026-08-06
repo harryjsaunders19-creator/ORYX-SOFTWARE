@@ -12,7 +12,7 @@ export interface ParentJobRow {
   customTypeDescription: string | null
   legacyTypeOfWorks: string | null
   description: string | null
-  /** Controlled multi-select labels from JOB_TAGS. */
+  /** Multi-select labels — presets from JOB_TAGS plus optional custom tags. */
   tags: string[]
   requestedBy: string
   itemType: string

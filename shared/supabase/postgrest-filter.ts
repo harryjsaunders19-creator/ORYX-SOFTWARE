@@ -23,8 +23,9 @@ export function postgrestOrIlike(columns: string[], term: string): string | null
 }
 
 /**
- * PostgREST overlap filter for text[] tags using controlled JOB_TAGS values
- * that match the query. Example: tags.ov.{"Listed Building","Gantry"}
+ * PostgREST overlap filter for text[] tags using values that match the query
+ * (preset JOB_TAGS and/or an exact free-text needle for custom tags).
+ * Example: tags.ov.{"Listed Building","Gantry"}
  */
 export function postgrestTagsOverlap(column: string, matchingTags: string[]): string | null {
   if (!matchingTags.length) return null

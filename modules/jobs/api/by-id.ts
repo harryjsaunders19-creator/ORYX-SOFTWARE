@@ -173,7 +173,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (body.tags !== undefined) {
       const sanitized = sanitizeJobTags(body.tags)
       if (sanitized === null) {
-        return NextResponse.json({ error: "One or more tags are not in the approved list", field: "tags" }, { status: 422 })
+        return NextResponse.json({ error: "Invalid tags — each tag must be 1–48 characters", field: "tags" }, { status: 422 })
       }
       data.tags = sanitized
     }

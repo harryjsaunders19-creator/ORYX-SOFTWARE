@@ -6,7 +6,7 @@ import { Textarea } from "@/shared/ui/textarea"
 import { Field } from "@/shared/ui/field"
 import {
   CREATABLE_ITEM_TYPES, OTHER_WORKS_TYPE,
-  WORKS_TYPES, JOB_TAGS,
+  WORKS_TYPES, JOB_TAGS, JOB_TAG_MAX_LEN, normalizeJobTag,
 } from "@/lib/constants"
 import { ClientCombobox } from "@/components/client-combobox"
 import { DesignerCombobox } from "@/components/designer-combobox"
@@ -73,6 +73,9 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
   const [showVisitWorks, setShowVisitWorks] = useState(
     () => Boolean(job?.itemType === "SITE_VISIT" && job.typeOfWorks?.trim()),
   )
+  const [addingTag, setAddingTag] = useState(false)
+  const [newTagLabel, setNewTagLabel] = useState("")
+  const [tagError, setTagError] = useState<string | null>(null)
 
   useEffect(() => {
     const saved = readCustomWorksTypes()
@@ -224,6 +227,32 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       ...f,
       tags: f.tags.includes(tag) ? f.tags.filter(t => t !== tag) : [...f.tags, tag],
     }))
+    setTagError(null)
+  }
+
+  const customTags = form.tags.filter(
+    tag => !(JOB_TAGS as readonly string[]).includes(tag),
+  )
+
+  const commitNewTag = () => {
+    const normalized = normalizeJobTag(newTagLabel)
+    if (!normalized) {
+      setTagError(newTagLabel.trim() ? `Tag must be 1–${JOB_TAG_MAX_LEN} characters` : "Enter a tag name")
+      return
+    }
+    const existing = form.tags.find(t => t.toLowerCase() === normalized.toLowerCase())
+    if (existing) {
+      // Already selected — just close the adder.
+      setAddingTag(false)
+      setNewTagLabel("")
+      setTagError(null)
+      return
+    }
+    const preset = JOB_TAGS.find(p => p.toLowerCase() === normalized.toLowerCase())
+    setForm(f => ({ ...f, tags: [...f.tags, preset ?? normalized] }))
+    setAddingTag(false)
+    setNewTagLabel("")
+    setTagError(null)
   }
 
   return (
@@ -599,7 +628,8 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
           <Field
             label="Tags"
             htmlFor="jobTags"
-            hint="Optional labels for search and filtering (scaffold type, site constraints)."
+            hint="Optional labels for search and filtering — pick presets or add your own."
+            error={tagError ?? undefined}
           >
             <div id="jobTags" className="flex flex-wrap gap-2" role="group" aria-label="Tags">
               {JOB_TAGS.map(tag => {
@@ -621,6 +651,65 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                   </button>
                 )
               })}
+              {customTags.map(tag => (
+                <button
+                  key={`custom-${tag}`}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  aria-pressed={true}
+                  className="rounded-lg border border-rs-bd bg-rs-bg px-3 py-2 text-sm font-medium text-rs-tx transition-colors duration-150"
+                  title="Click to remove"
+                >
+                  {tag}
+                </button>
+              ))}
+              {!addingTag ? (
+                <button
+                  type="button"
+                  onClick={() => { setAddingTag(true); setTagError(null) }}
+                  className="rounded-lg border border-dashed border-bd bg-sr px-3 py-2 text-sm font-medium text-t3 transition-colors duration-150 hover:border-bds hover:text-t1"
+                >
+                  + Add tag
+                </button>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    className="h-10 w-44"
+                    style={{ height: "40px" }}
+                    value={newTagLabel}
+                    onChange={e => { setNewTagLabel(e.target.value); setTagError(null) }}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        commitNewTag()
+                      }
+                      if (e.key === "Escape") {
+                        setAddingTag(false)
+                        setNewTagLabel("")
+                        setTagError(null)
+                      }
+                    }}
+                    placeholder="Custom tag"
+                    maxLength={JOB_TAG_MAX_LEN}
+                    autoFocus
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={commitNewTag}
+                    className="rounded-lg border border-rs-bd bg-rs-bg px-3 py-2 text-sm font-medium text-rs-tx"
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAddingTag(false); setNewTagLabel(""); setTagError(null) }}
+                    className="rounded-lg border border-bd bg-sr px-3 py-2 text-sm font-medium text-t3"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
             {form.tags.length > 0 && (
               <p className="mt-2 text-xs text-t3">
