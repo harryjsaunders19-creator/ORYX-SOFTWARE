@@ -19,6 +19,18 @@ export async function loginAsAdmin(page: Page) {
   await completeForcedPasswordChange(page, "Admin1234")
 }
 
+export async function loginAsAccounts(page: Page) {
+  await page.context().clearCookies()
+  await page.goto("/login")
+  await page.locator("#email").fill("accounts@test.com")
+  await page.locator("#password").fill("accounts123")
+  await page.locator('button[type="submit"]').click()
+  await page.waitForURL(url => url.pathname === "/" || url.pathname === "/set-password", {
+    timeout: 30_000,
+  })
+  await completeForcedPasswordChange(page, "Accounts1234")
+}
+
 export async function loginAsEngineer(page: Page) {
   // Clear any prior session so role switches in the same test are reliable.
   await page.context().clearCookies()

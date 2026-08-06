@@ -173,7 +173,7 @@ export const jobDb = {
       "address", "siteName", "siteAddress", "typeOfWorks", "customTypeDescription", "clientCompany", "clientId",
       "requestedBy", "status", "designer", "dateCompleted", "notes", "designStandards", "tags", "quoteValue",
       "quoteReference", "quoteDate", "commercialNotes", "variationFees", "additionalCharges",
-      "requestedDate", "requiredByDate", "billable",
+      "requestedDate", "requiredByDate", "billable", "parentJobId", "revisionLetter", "itemType",
     ])
     const fields: string[] = []; const params: unknown[] = []
     for (const [key, val] of Object.entries(patch)) {

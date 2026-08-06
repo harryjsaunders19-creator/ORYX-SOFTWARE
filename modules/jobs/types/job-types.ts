@@ -104,5 +104,8 @@ export interface UpdateJobData {
   requestedDate?: string | null
   requiredByDate?: string | null
   billable?: boolean
+  parentJobId?: string | null
+  revisionLetter?: string | null
+  itemType?: string
   changedBy?: string
 }

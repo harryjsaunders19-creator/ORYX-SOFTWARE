@@ -32,7 +32,20 @@ npm run test:e2e:supabase
 CI starts a local Supabase stack, seeds `admin@test.com` / `engineer@test.com`,
 and runs Playwright with `FORCE_SUPABASE_ONLY=true`.
 
-CI runs typecheck, unit tests, lint, build, and Supabase e2e on every push to `main`.
+CI runs typecheck, unit tests, backup-restore round-trip, lint, security audit, build, and Supabase e2e on every push to `main`.
+
+### Pre-release gate
+
+A deployment is **not releasable** until both are green:
+
+1. `npm run release:check` locally or in your release pipeline
+2. Required GitHub Actions checks on `main`
+
+```bash
+npm run release:check
+```
+
+Runs, in order: `lint`, `typecheck`, `test:unit`, `test:backup-restore`, `build`, `test:e2e`, `npm audit --audit-level=high`. Stops on the first failure. E2E requires the isolated Supabase stack (`npm run test:e2e:supabase` or CI-equivalent setup).
 
 ## Production on Vercel + Supabase
 
@@ -53,11 +66,27 @@ See `docs/supabase-migration-numbering.md` before adding or renaming migration f
 
 > **Do not use** deprecated `setup-vercel.sql` — it stops at migration 017.
 
-Bootstrap seeds `admin@test.com` and `engineer@test.com` with **must-change-password** on first login. Re-running bootstrap **does not reset** existing user passwords. For production, sync real users from SQLite:
+Production bootstrap (`01-bootstrap.sql`) does **not** create test users. Provision the first real administrator once:
+
+```bash
+ADMIN_PROVISION_EMAIL=you@company.com ADMIN_PROVISION_PASSWORD='YourSecurePass1' npm run admin:provision
+```
+
+Requirements:
+
+- Run manually — never during normal app startup
+- Refuses if an active admin already exists (unless `ADMIN_PROVISION_FORCE_RECOVERY=true` for explicit recovery)
+- Password must meet strength rules; the password is never logged
+- Records a `FIRST_ADMIN_PROVISIONED` audit entry
+- Remove `ADMIN_PROVISION_PASSWORD` from your shell history and secret stores immediately afterward
+
+For migrating existing SQLite users instead:
 
 ```bash
 npm run supabase:sync-users
 ```
+
+E2E/CI only: `supabase/seed-e2e-users.sql` creates `admin@test.com`, `engineer@test.com`, and `accounts@test.com` when the fail-closed test-environment guard passes.
 
 ### 2. Vercel environment variables (required)
 
@@ -71,6 +100,7 @@ npm run supabase:sync-users
 | `BACKUP_DOWNLOAD_SECRET` | Signed backup download links |
 | `COOKIE_SECURE` | Set `true` on HTTPS |
 | `ORS_API_KEY` | Site visit routing ([OpenRouteService](https://openrouteservice.org/)) — **required in production**. Missing key: boot logs a warning on Vercel; the calculate route returns a clear `UNAVAILABLE` error (not a silent empty route). |
+| `ORYX_PRODUCTION_SUPABASE_PROJECT_REF` | Production Supabase project ref — required on Vercel for test-user guard fail-closed behaviour |
 
 Optional but recommended:
 
@@ -130,7 +160,7 @@ npm run supabase:verify-all
 Local SQLite filesystem dumps **do not run** when Supabase is the data store. For production recovery:
 
 1. **Supabase project backups / PITR** — full database restore (primary).
-2. **Admin → Backups → Export full data** — portable JSON of Users (with password hashes), Clients, Jobs, and Quotes; re-import with **Import JSON**.
+2. **Admin → Backups → Export full data** — portable JSON v2 of Users (no password hashes), Clients, Jobs, and Quotes with sha256 checksum; re-import with **Import JSON**.
 3. **Export / Import Excel** — same entities for spreadsheet workflows (Users without password hashes; restored accounts must set a new password).
 
 ### Experimental modules (off in production)

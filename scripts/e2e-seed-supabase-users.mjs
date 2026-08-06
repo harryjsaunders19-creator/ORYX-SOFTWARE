@@ -50,6 +50,16 @@ const users = [
     password_hash: "$2b$12$NWRIw4dbY47HJRDhOZStaOuY7s4Js.emZPm9QMHJysvYgj1gOrB7u",
     must_change_password: false,
   },
+  {
+    id: "bootstrap-accounts-00000001",
+    name: "Accounts",
+    email: "accounts@test.com",
+    email_lower: "accounts@test.com",
+    role: "ACCOUNTS",
+    active: true,
+    password_hash: "$2b$12$y4FKWqQ3EowvFLvSe99i5escOcfGfO/8b7aLmEq5g9s/gePyWMTMy",
+    must_change_password: false,
+  },
 ]
 
 const now = new Date().toISOString()

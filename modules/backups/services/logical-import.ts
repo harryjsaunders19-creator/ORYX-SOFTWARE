@@ -3,6 +3,7 @@
  * Upserts Users → Clients → Jobs → Quotes so jobs can relink to clients
  * and performance attribution (Users + designer) is restored.
  */
+import fs from "fs"
 import { createId } from "@paralleldrive/cuid2"
 import { hashPassword, generateTempPassword } from "@/shared/auth/password"
 import { coerceRole } from "@/shared/types/role"
@@ -44,6 +45,44 @@ export type LogicalImportResult = {
 
 function emptyResult(): LogicalSheetResult {
   return { created: 0, updated: 0, skipped: 0, errors: [] }
+}
+
+/** Copy SQLite files so a failed import can restore the pre-import state. */
+function sqliteImportSnapshot(): { restore: () => void; dispose: () => void } {
+  // Lazy require — avoid opening SQLite on Supabase-only runtimes.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { DB_PATH } = require("@/lib/db/connection") as typeof import("@/lib/db/connection")
+  const stamp = `${process.pid}-${Date.now()}`
+  const base = `${DB_PATH}.pre-import-${stamp}`
+  const paths = [DB_PATH, `${DB_PATH}-wal`, `${DB_PATH}-shm`]
+  const snaps = paths
+    .filter(p => fs.existsSync(p))
+    .map(p => {
+      const snap = `${base}${p === DB_PATH ? "" : p.slice(DB_PATH.length)}`
+      fs.copyFileSync(p, snap)
+      return { src: p, snap }
+    })
+
+  return {
+    restore() {
+      for (const { src, snap } of snaps) {
+        fs.copyFileSync(snap, src)
+      }
+    },
+    dispose() {
+      for (const { snap } of snaps) {
+        try { fs.unlinkSync(snap) } catch { /* ignore */ }
+      }
+    },
+  }
+}
+
+async function runLogicalImport(pack: LogicalBackupPack): Promise<LogicalImportResult> {
+  const users = await importUsers((pack.tables.users ?? []) as LogicalBackupPack["tables"]["users"])
+  const clients = await importClients((pack.tables.clients ?? []) as LogicalBackupPack["tables"]["clients"])
+  const jobs = await importJobs((pack.tables.jobs ?? []) as LogicalBackupPack["tables"]["jobs"])
+  const quotes = await importQuotes((pack.tables.quotes ?? []) as LogicalBackupPack["tables"]["quotes"])
+  return { users, clients, jobs, quotes }
 }
 
 async function importUsers(
@@ -322,6 +361,13 @@ async function importJobs(
 
   if (!built.length) return result
 
+  // Parents must exist before revisions (FK on parentJobId).
+  built.sort((a, b) => {
+    if (a.parentJobId && !b.parentJobId) return 1
+    if (!a.parentJobId && b.parentJobId) return -1
+    return 0
+  })
+
   if (isSupabaseOnly()) {
     try {
       await bulkImportJobs(built)
@@ -353,6 +399,9 @@ async function importJobs(
           requiredByDate: job.requiredByDate,
           dateCompleted: job.dateCompleted,
           notes: job.notes,
+          parentJobId: job.parentJobId ?? null,
+          revisionLetter: job.revisionLetter ?? null,
+          itemType: job.itemType,
           changedBy: "JSON Backup Import",
         })
         result.updated++
@@ -375,6 +424,8 @@ async function importJobs(
           dateCompleted: job.dateCompleted,
           notes: job.notes,
           requiredByDate: job.requiredByDate,
+          parentJobId: job.parentJobId ?? undefined,
+          revisionLetter: job.revisionLetter ?? undefined,
           changedBy: "JSON Backup Import",
         })
         result.created++
@@ -551,10 +602,18 @@ export async function importLogicalBackupPack(
     }
   }
 
-  const users = await importUsers((pack.tables.users ?? []) as LogicalBackupPack["tables"]["users"])
-  const clients = await importClients((pack.tables.clients ?? []) as LogicalBackupPack["tables"]["clients"])
-  const jobs = await importJobs((pack.tables.jobs ?? []) as LogicalBackupPack["tables"]["jobs"])
-  const quotes = await importQuotes((pack.tables.quotes ?? []) as LogicalBackupPack["tables"]["quotes"])
+  if (isSupabaseOnly()) {
+    return runLogicalImport(pack as LogicalBackupPack)
+  }
 
-  return { users, clients, jobs, quotes }
+  const snapshot = sqliteImportSnapshot()
+  try {
+    const result = await runLogicalImport(pack as LogicalBackupPack)
+    snapshot.dispose()
+    return result
+  } catch (err) {
+    snapshot.restore()
+    snapshot.dispose()
+    throw err
+  }
 }

@@ -6,6 +6,7 @@ export type IdentitySwitchAction =
   | "IMPERSONATION_ENDED"
   | "IMPERSONATION_REJECTED"
   | "LOGOUT"
+  | "FIRST_ADMIN_PROVISIONED"
 
 export interface IdentitySwitchLogRow {
   id: string

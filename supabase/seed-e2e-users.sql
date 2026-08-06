@@ -31,6 +31,18 @@ insert into public.app_users (
     false,
     now(),
     now()
+  ),
+  (
+    'bootstrap-accounts-00000001',
+    'Accounts',
+    'accounts@test.com',
+    'accounts@test.com',
+    'ACCOUNTS',
+    true,
+    '$2b$12$y4FKWqQ3EowvFLvSe99i5escOcfGfO/8b7aLmEq5g9s/gePyWMTMy',
+    false,
+    now(),
+    now()
   )
 on conflict (email_lower) do update set
   name = excluded.name,
