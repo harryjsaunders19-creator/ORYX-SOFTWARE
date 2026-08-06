@@ -11,7 +11,8 @@ import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { useDebouncedValue } from "@/shared/hooks/use-debounced-value"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
-import { useApi } from "@/shared/hooks/use-api"
+import { useApi, optimisticListPrepend, apiFetch } from "@/shared/hooks/use-api"
+import { preload } from "swr"
 import { useToast } from "@/shared/ui/toast"
 import { useUser } from "@/shared/providers/user-context"
 import { cn } from "@/shared/utils/utils"
@@ -19,7 +20,6 @@ import { ClientCombobox } from "@/components/client-combobox"
 import type { Job, JobFormData, JobsResponse } from "@/lib/types"
 import type { MixedWorkloadRow } from "@/modules/jobs/services/mixed-workload-service"
 import { JobsRegisterTable } from "./jobs-register-table"
-import { JobsInspector } from "./jobs-inspector"
 import { JobsInspectorErrorBoundary } from "./jobs-inspector-error-boundary"
 import {
   JobsInspectorReopenHandle,
@@ -40,8 +40,34 @@ import { matchesJobsListScope } from "@/modules/jobs/lib/current-work"
 const JobsDialogs = lazy(() =>
   import("./jobs-dialogs").then(m => ({ default: m.JobsDialogs })),
 )
+const JobsInspector = lazy(() =>
+  import("./jobs-inspector").then(m => ({ default: m.JobsInspector })),
+)
 
 const LIMIT = 100
+/** Stable empty designers list — avoids breaking row memo when SWR is still loading. */
+const EMPTY_DESIGNERS: string[] = []
+
+function prefetchJobDetails(projectId: string, workItemsModel: boolean) {
+  if (workItemsModel) {
+    void preload(`/api/parent-jobs/${projectId}`, (url: string) =>
+      apiFetch(url).then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      }),
+    )
+    return
+  }
+  const detailUrl = `/api/jobs/${projectId}?include=parent,current`
+  const revisionsUrl = `/api/jobs/${projectId}/revisions`
+  const fetcher = (url: string) =>
+    apiFetch(url).then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      return r.json()
+    })
+  void preload(detailUrl, fetcher)
+  void preload(revisionsUrl, fetcher)
+}
 
 interface WorkItemsResponse {
   workItems: MixedWorkloadRow[]
@@ -75,7 +101,7 @@ export function JobsRegister({
   const savedMobileListScroll = useRef(0)
   const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
   const [search, setSearch] = useState(searchParams.get("search") ?? "")
-  const debouncedSearch = useDebouncedValue(search, 280)
+  const debouncedSearch = useDebouncedValue(search, 200)
   const [scope, setScope] = useState<JobsRegisterScope>("active")
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("selected"))
@@ -138,7 +164,7 @@ export function JobsRegister({
   const { data: workData, isLoading: workLoading, mutate: mutateWork } =
     useApi<WorkItemsResponse>(workKey)
   const { data: designersData } = useApi<{ designers: string[] }>("/api/jobs/designers")
-  const designers = designersData?.designers ?? []
+  const designers = designersData?.designers ?? EMPTY_DESIGNERS
 
   const projects: JobsRegisterProject[] = useMemo(() => {
     if (workItemsModel) {
@@ -250,7 +276,7 @@ export function JobsRegister({
         const body = await res.json() as { parent?: { id: string } }
         toast("Project created", "success")
         setCreateOpen(false)
-        await mutateWork()
+        void mutateWork()
         if (body.parent?.id) {
           setSelectedId(body.parent.id)
           setIsInspectorOpen(true)
@@ -271,7 +297,7 @@ export function JobsRegister({
       const job = await res.json() as Job
       toast(`${job.drawingNumber} created`, "success")
       setCreateOpen(false)
-      await mutateClassic()
+      void optimisticListPrepend(mutateClassic, "jobs", job)
       setSelectedId(job.id)
       setIsInspectorOpen(true)
     } finally {
@@ -279,14 +305,86 @@ export function JobsRegister({
     }
   }
 
-  const handleStatusChanged = useCallback(async () => {
-    if (workItemsModel) await mutateWork()
-    else await mutateClassic()
+  const patchClassicJobFields = useCallback((
+    projectId: string,
+    patch: { currentStatus?: string; currentDesigner?: string; designer?: string; status?: string },
+  ) => {
+    void mutateClassic(
+      (current) => {
+        if (!current?.jobs) return current
+        let changed = false
+        const jobs = current.jobs.map(j => {
+          if (j.id !== projectId) return j
+          changed = true
+          return { ...j, ...patch }
+        })
+        return changed ? { ...current, jobs } : current
+      },
+      { revalidate: false },
+    )
+  }, [mutateClassic])
+
+  const patchWorkItemFields = useCallback((
+    projectId: string,
+    patch: { status?: string; designer?: string },
+  ) => {
+    void mutateWork(
+      (current) => {
+        if (!current?.workItems) return current
+        let changed = false
+        const workItems = current.workItems.map(w => {
+          if (w.parentJobId !== projectId && w.id !== projectId) return w
+          changed = true
+          return { ...w, ...patch }
+        })
+        return changed ? { ...current, workItems } : current
+      },
+      { revalidate: false },
+    )
+  }, [mutateWork])
+
+  const onStatusOptimistic = useCallback((projectId: string, nextStatus: string) => {
+    if (workItemsModel) patchWorkItemFields(projectId, { status: nextStatus })
+    else patchClassicJobFields(projectId, { currentStatus: nextStatus, status: nextStatus })
+  }, [workItemsModel, patchClassicJobFields, patchWorkItemFields])
+
+  const onStatusFailed = useCallback((projectId: string, previous: string) => {
+    if (workItemsModel) patchWorkItemFields(projectId, { status: previous })
+    else patchClassicJobFields(projectId, { currentStatus: previous, status: previous })
+  }, [workItemsModel, patchClassicJobFields, patchWorkItemFields])
+
+  const onDesignerOptimistic = useCallback((projectId: string, nextDesigner: string) => {
+    if (workItemsModel) patchWorkItemFields(projectId, { designer: nextDesigner })
+    else {
+      patchClassicJobFields(projectId, {
+        currentDesigner: nextDesigner,
+        designer: nextDesigner,
+      })
+    }
+  }, [workItemsModel, patchClassicJobFields, patchWorkItemFields])
+
+  /** Confirmed update — soft background revalidate without blanking the list. */
+  const softRevalidateList = useCallback(() => {
+    if (workItemsModel) void mutateWork(undefined, { revalidate: true })
+    else void mutateClassic(undefined, { revalidate: true })
   }, [workItemsModel, mutateWork, mutateClassic])
 
-  const onStatusChangedCb = useCallback(() => {
-    void handleStatusChanged()
-  }, [handleStatusChanged])
+  const onStatusChangedCb = useCallback((_projectId: string, _next: string) => {
+    softRevalidateList()
+  }, [softRevalidateList])
+
+  const onInspectorStatusChanged = useCallback(() => {
+    softRevalidateList()
+  }, [softRevalidateList])
+
+  const onDesignerChangedCb = useCallback((projectId: string, nextDesigner: string) => {
+    onDesignerOptimistic(projectId, nextDesigner)
+    softRevalidateList()
+  }, [onDesignerOptimistic, softRevalidateList])
+
+  const onPrefetchProject = useCallback((id: string) => {
+    prefetchJobDetails(id, workItemsModel)
+  }, [workItemsModel])
 
   const scopes = JOBS_REGISTER_SCOPES
 
@@ -305,6 +403,9 @@ export function JobsRegister({
   const showDesktopInspector = Boolean(
     inspectorVisible && selected && mediaReady && !isMobile,
   )
+  // After breakpoint is known, mount only the active layout tree.
+  const mountDesktopChrome = !mediaReady || !isMobile
+  const mountMobileChrome = !mediaReady || isMobile
 
   // Lock background scroll while the mobile full-screen detail is open.
   useEffect(() => {
@@ -367,6 +468,7 @@ export function JobsRegister({
   return (
     <div className="-mx-8 -mt-8 -mb-8 flex h-[calc(100dvh-var(--stitch-top-bar-h,64px))] min-h-0 flex-col max-md:-mx-4 max-md:-mt-4 max-md:-mb-4">
       {/* ── Desktop layout — floating Job Detail workspace ───────── */}
+      {mountDesktopChrome ? (
       <div
         className={cn(
           "hidden md:flex min-h-0 flex-1 overflow-hidden bg-s0",
@@ -539,7 +641,10 @@ export function JobsRegister({
             designers={designers}
             highlightQuery={debouncedSearch}
             onStatusChanged={onStatusChangedCb}
-            onDesignerChanged={onStatusChangedCb}
+            onOptimisticStatus={onStatusOptimistic}
+            onStatusFailed={onStatusFailed}
+            onDesignerChanged={onDesignerChangedCb}
+            onPrefetch={onPrefetchProject}
             loading={loading}
           />
 
@@ -602,16 +707,26 @@ export function JobsRegister({
         {showDesktopInspector && selected && (
           <JobsInspectorShell>
             <JobsInspectorErrorBoundary projectLabel={selected.id}>
-              <JobsInspector
-                project={selected}
-                workItemsModel={workItemsModel}
-                designers={designers}
-                onStatusChanged={onStatusChangedCb}
-                onCollapse={collapseInspector}
-                collapseVariant="close"
-                presentation="panel"
-                onEdit={() => openWorkspaceById(selected.id)}
-              />
+              <Suspense
+                fallback={
+                  <div className="flex h-full min-h-[12rem] flex-col gap-3 p-4" aria-busy>
+                    <div className="h-8 w-2/3 skeleton rounded-md" />
+                    <div className="h-24 skeleton rounded-md" />
+                    <div className="h-40 skeleton rounded-md" />
+                  </div>
+                }
+              >
+                <JobsInspector
+                  project={selected}
+                  workItemsModel={workItemsModel}
+                  designers={designers}
+                  onStatusChanged={onInspectorStatusChanged}
+                  onCollapse={collapseInspector}
+                  collapseVariant="close"
+                  presentation="panel"
+                  onEdit={() => openWorkspaceById(selected.id)}
+                />
+              </Suspense>
             </JobsInspectorErrorBoundary>
           </JobsInspectorShell>
         )}
@@ -620,8 +735,10 @@ export function JobsRegister({
           <JobsInspectorReopenHandle onOpen={reopenInspector} />
         )}
       </div>
+      ) : null}
 
       {/* ── Mobile layout ────────────────────────────────────────── */}
+      {mountMobileChrome ? (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-s0 md:hidden">
         <MobileJobsHeader
           title={mobileTitle}
@@ -652,7 +769,9 @@ export function JobsRegister({
           highlightQuery={debouncedSearch}
           onSelect={selectProject}
           onStatusChanged={onStatusChangedCb}
-          onDesignerChanged={onStatusChangedCb}
+          onOptimisticStatus={onStatusOptimistic}
+          onStatusFailed={onStatusFailed}
+          onDesignerChanged={onDesignerChangedCb}
         />
 
         {pages > 1 && (
@@ -682,6 +801,7 @@ export function JobsRegister({
           </div>
         )}
       </div>
+      ) : null}
 
       {/* Mobile full-screen job details — single scroll owner for content */}
       {showMobileInspector && selected && (
@@ -697,16 +817,26 @@ export function JobsRegister({
           }}
         >
           <JobsInspectorErrorBoundary projectLabel={selected.id}>
-            <JobsInspector
-              project={selected}
-              workItemsModel={workItemsModel}
-              designers={designers}
-              onStatusChanged={onStatusChangedCb}
-              onCollapse={collapseInspector}
-              collapseVariant="close"
-              presentation="drawer"
-              onEdit={() => openWorkspaceById(selected.id)}
-            />
+            <Suspense
+              fallback={
+                <div className="flex flex-1 flex-col gap-3 p-4" aria-busy>
+                  <div className="h-8 w-2/3 skeleton rounded-md" />
+                  <div className="h-24 skeleton rounded-md" />
+                  <div className="h-40 skeleton rounded-md" />
+                </div>
+              }
+            >
+              <JobsInspector
+                project={selected}
+                workItemsModel={workItemsModel}
+                designers={designers}
+                onStatusChanged={onInspectorStatusChanged}
+                onCollapse={collapseInspector}
+                collapseVariant="close"
+                presentation="drawer"
+                onEdit={() => openWorkspaceById(selected.id)}
+              />
+            </Suspense>
           </JobsInspectorErrorBoundary>
         </div>
       )}

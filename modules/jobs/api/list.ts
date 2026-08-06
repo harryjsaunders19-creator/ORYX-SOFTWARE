@@ -261,6 +261,8 @@ export async function GET(req: NextRequest) {
     const scope = parseJobsListScope(sp.get("scope"))
     const includeCounts = sp.get("includeCounts") === "true"
 
+    const includeQuotes = sp.get("includeQuotes") === "true"
+
     // Status / deadline / unassigned apply to the *current* revision when listing parents.
     const needsCurrentFilter = onlyOriginals && !!(status || unassigned || overdue || dueToday || dueThisWeek)
     const needsScopeFilter = onlyOriginals && scope !== "all"
@@ -286,6 +288,11 @@ export async function GET(req: NextRequest) {
     }
 
     const orderBy = { field: sortBy, dir: sortDir }
+
+    async function maybeEnrichQuotes<T extends { id: string }>(jobs: T[]) {
+      if (!includeQuotes) return jobs
+      return enrichJobsWithLinkedQuotes(jobs)
+    }
 
     function applyScopeAndCounts<T extends {
       parentJobId: string | null
@@ -319,6 +326,7 @@ export async function GET(req: NextRequest) {
           j.parentJobId === null && matchesJobsListScope(j.currentWorkType, scope),
         )
       }
+      // CSV export always includes quote summaries when available.
       const enrichedExport = await enrichJobsWithLinkedQuotes(jobs)
       return listResponse({
         jobs: enrichedExport,
@@ -329,10 +337,12 @@ export async function GET(req: NextRequest) {
     }
 
     if (needsBulkEnrich) {
+      // Slim overlay: avoid shipping full list columns for every candidate parent.
       const { jobs: rawJobs, allForRevisions } = await jobService.findManyWithCount({
         where: baseWhere,
         orderBy,
         take: MAX_JOB_LIST_EXPORT_ROWS,
+        projection: "scope-slim",
       })
       let enriched = flagRevisions(rawJobs, allForRevisions)
       if (needsCurrentFilter) {
@@ -340,8 +350,12 @@ export async function GET(req: NextRequest) {
       }
       const { scoped, scopeCounts } = applyScopeAndCounts(enriched, scope)
       const total = scoped.length
-      const paged = scoped.slice((page - 1) * limit, page * limit)
-      const jobs = await enrichJobsWithLinkedQuotes(paged)
+      const pageIds = scoped.slice((page - 1) * limit, page * limit).map(j => j.id)
+      const fullPage = pageIds.length
+        ? await jobService.findManyByIds(pageIds)
+        : []
+      const paged = flagRevisions(fullPage, allForRevisions)
+      const jobs = await maybeEnrichQuotes(paged)
       return listResponse({
         jobs,
         total,
@@ -358,7 +372,7 @@ export async function GET(req: NextRequest) {
       take: limit,
     })
     const paged = flagRevisions(rawJobs, allForRevisions)
-    const jobs = await enrichJobsWithLinkedQuotes(paged)
+    const jobs = await maybeEnrichQuotes(paged)
     return listResponse({ jobs, total, page, limit })
   } catch (err) {
     return apiInternalError("jobs.list.get", err)

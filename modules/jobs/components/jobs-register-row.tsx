@@ -34,7 +34,10 @@ interface JobsRegisterRowProps {
   onSelect: (id: string) => void
   onOpenWorkspace: (id: string) => void
   onStatusChanged?: (projectId: string, nextStatus: string) => void
+  onOptimisticStatus?: (projectId: string, nextStatus: string) => void
+  onStatusFailed?: (projectId: string, previous: string) => void
   onDesignerChanged?: (projectId: string, nextDesigner: string) => void
+  onPrefetch?: (id: string) => void
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -57,11 +60,15 @@ function StatusCell({
   canEdit,
   patchUrl,
   onStatusChanged,
+  onOptimisticStatus,
+  onStatusFailed,
 }: {
   project: JobsRegisterProject
   canEdit: boolean
   patchUrl?: string
   onStatusChanged?: (projectId: string, nextStatus: string) => void
+  onOptimisticStatus?: (projectId: string, nextStatus: string) => void
+  onStatusFailed?: (projectId: string, previous: string) => void
 }) {
   const dual = isCompletedParentWithActiveRevision(project)
 
@@ -86,6 +93,8 @@ function StatusCell({
           patchUrl={patchUrl}
           size="md"
           onStatusChanged={next => onStatusChanged?.(project.id, next)}
+          onOptimisticStatus={next => onOptimisticStatus?.(project.id, next)}
+          onStatusFailed={prev => onStatusFailed?.(project.id, prev)}
         />
       </div>
     )
@@ -120,7 +129,10 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
   onSelect,
   onOpenWorkspace,
   onStatusChanged,
+  onOptimisticStatus,
+  onStatusFailed,
   onDesignerChanged,
+  onPrefetch,
 }: JobsRegisterRowProps) {
   void _highlightQuery
   const site = (project.siteName?.trim() || project.address?.trim() || "—")
@@ -140,6 +152,8 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
       style={{ ...style, height: REGISTER_ROW_H }}
       onClick={() => onSelect(project.id)}
       onDoubleClick={() => onOpenWorkspace(project.id)}
+      onPointerEnter={() => onPrefetch?.(project.id)}
+      onFocus={() => onPrefetch?.(project.id)}
       onKeyDown={e => {
         if (e.key === " " || e.key === "Enter") {
           e.preventDefault()
@@ -187,6 +201,8 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
           canEdit={canEdit}
           patchUrl={patchUrl}
           onStatusChanged={onStatusChanged}
+          onOptimisticStatus={onOptimisticStatus}
+          onStatusFailed={onStatusFailed}
         />
       </div>
 

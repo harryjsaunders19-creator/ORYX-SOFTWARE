@@ -19,8 +19,10 @@ type Props = {
   designers: string[]
   highlightQuery?: string
   onSelect: (id: string) => void
-  onStatusChanged?: () => void
-  onDesignerChanged?: () => void
+  onStatusChanged?: (projectId: string, next: string) => void
+  onOptimisticStatus?: (projectId: string, next: string) => void
+  onStatusFailed?: (projectId: string, previous: string) => void
+  onDesignerChanged?: (projectId: string, next: string) => void
 }
 
 export const MobileJobCard = memo(function MobileJobCard({
@@ -31,6 +33,8 @@ export const MobileJobCard = memo(function MobileJobCard({
   highlightQuery: _highlightQuery,
   onSelect,
   onStatusChanged,
+  onOptimisticStatus,
+  onStatusFailed,
   onDesignerChanged,
 }: Props) {
   void _highlightQuery
@@ -111,7 +115,9 @@ export const MobileJobCard = memo(function MobileJobCard({
                 patchUrl={patchUrl}
                 size="md"
                 disabled={!canEdit}
-                onStatusChanged={() => onStatusChanged?.()}
+                onStatusChanged={next => onStatusChanged?.(project.id, next)}
+                onOptimisticStatus={next => onOptimisticStatus?.(project.id, next)}
+                onStatusFailed={prev => onStatusFailed?.(project.id, prev)}
               />
             </div>
           )}
@@ -144,7 +150,7 @@ export const MobileJobCard = memo(function MobileJobCard({
               patchUrl={patchUrl}
               compact
               unassignedLabel="Unassigned"
-              onDesignerChanged={() => onDesignerChanged?.()}
+              onDesignerChanged={next => onDesignerChanged?.(project.id, next)}
             />
           ) : (
             <p className="truncate text-sm text-t1">

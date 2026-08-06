@@ -57,18 +57,42 @@ const JOB_LIST_SELECT_COLUMNS = [
   "variation_fees", "additional_charges", "invoice_id", "billing_status", "billing_batch_id",
   "requested_date", "required_by_date", "parent_job_id", "revision_letter", "billable",
   "tags", "archived_at", "archived_by", "created_at", "updated_at",
+  "site_name", "site_address",
 ]
+
+/**
+ * Slim projection for scope / current-work overlay: enough for flagRevisions + sort,
+ * without shipping full list columns for every candidate parent (up to export cap).
+ */
+const JOB_SCOPE_OVERLAY_SELECT_COLUMNS = [
+  "id", "drawing_number", "parent_job_id", "revision_letter", "status", "designer",
+  "required_by_date", "updated_at", "date_completed", "quote_value",
+  "list_sort_key", "created_at",
+]
+
+export type JobListProjection = "list" | "scope-slim"
 
 /** Omitted after PostgREST "column not found" — remote schema may lag migrations. */
 const jobListSelectOmitted = new Set<string>()
 
-function buildJobListSelect(): string {
-  return JOB_LIST_SELECT_COLUMNS.filter(c => !jobListSelectOmitted.has(c)).join(",")
+function buildJobListSelect(projection: JobListProjection = "list"): string {
+  const cols = projection === "scope-slim"
+    ? JOB_SCOPE_OVERLAY_SELECT_COLUMNS
+    : JOB_LIST_SELECT_COLUMNS
+  return cols.filter(c => !jobListSelectOmitted.has(c)).join(",")
 }
 
 function noteJobListSelectMissingColumn(error: { code?: string; message?: string } | null): boolean {
   const missing = missingColumnFromError(error)
-  if (!missing || !JOB_LIST_SELECT_COLUMNS.includes(missing)) return false
+  if (
+    !missing
+    || (
+      !JOB_LIST_SELECT_COLUMNS.includes(missing)
+      && !JOB_SCOPE_OVERLAY_SELECT_COLUMNS.includes(missing)
+    )
+  ) {
+    return false
+  }
   jobListSelectOmitted.add(missing)
   return true
 }
@@ -78,9 +102,10 @@ type JobListQueryResult<T> = { data: T | null; error: { code?: string; message?:
 /** List reads retry without columns missing on Supabase (same idea as upsertJobRow). */
 async function runJobListSelectQuery<T>(
   build: (select: string) => PromiseLike<JobListQueryResult<T>>,
+  projection: JobListProjection = "list",
 ): Promise<JobListQueryResult<T>> {
   for (let attempt = 0; attempt < 16; attempt++) {
-    const result = await build(buildJobListSelect())
+    const result = await build(buildJobListSelect(projection))
     if (!result.error) return result
     if (!noteJobListSelectMissingColumn(result.error)) return result
   }
@@ -370,7 +395,10 @@ async function findManyDrawingSortInMemory(opts: FindManyOptions): Promise<{
 }
 
 /** Paginated drawing-number sort via list_sort_key (migration 023). */
-async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
+async function findManyDrawingSortPaginated(
+  opts: FindManyOptions,
+  projection: JobListProjection = "list",
+): Promise<{
   jobs: JobRow[]
   total: number
   allForRevisions: RevisionSidecarRow[]
@@ -387,7 +415,7 @@ async function findManyDrawingSortPaginated(opts: FindManyOptions): Promise<{
       q = q.limit(opts.take)
     }
     return await q
-  })
+  }, projection)
   if (error) {
     if (isMissingColumnError(error, "list_sort_key")) {
       return findManyDrawingSortInMemory(opts)
@@ -413,16 +441,19 @@ export const supabaseJobRepo = {
    *
    * For all other sort fields Supabase handles ordering natively.
    */
-  async findManyWithCount(opts: FindManyOptions = {}): Promise<{
+  async findManyWithCount(
+    opts: FindManyOptions & { projection?: JobListProjection } = {},
+  ): Promise<{
     jobs: JobRow[]
     total: number
     allForRevisions?: { id: string; parentJobId: string | null }[]
   }> {
     const field = opts.orderBy?.field ?? "drawingNumber"
     const dir   = opts.orderBy?.dir   ?? "asc"
+    const projection = opts.projection ?? "list"
 
     if (isDrawingNumberListSort(field)) {
-      return findManyDrawingSortPaginated({ ...opts, orderBy: { field, dir } })
+      return findManyDrawingSortPaginated({ ...opts, orderBy: { field, dir } }, projection)
     }
 
     const col = sortColumn(field)
@@ -435,7 +466,7 @@ export const supabaseJobRepo = {
         q = q.limit(opts.take)
       }
       return await q
-    })
+    }, projection)
     if (error) throw error
     const jobs = ((data ?? []) as SupabaseJobRow[]).map(toJobRow)
     const allForRevisions = await fetchRevisionRowsForParents(collectRevisionParentIds(jobs))
@@ -594,9 +625,15 @@ export const supabaseJobRepo = {
 
   async findManyByIds(ids: string[]): Promise<JobRow[]> {
     if (!ids.length) return []
-    const { data, error } = await table().select("*").in("id", ids)
+    const { data, error } = await runJobListSelectQuery(async select =>
+      await table().select(select).in("id", ids),
+    )
     if (error) throw error
-    return (data ?? []).map(toJobRow)
+    const byId = new Map(
+      ((data ?? []) as unknown as SupabaseJobRow[]).map(r => [r.id, toJobRow(r)]),
+    )
+    // Preserve caller order (important after slim overlay paging).
+    return ids.map(id => byId.get(id)).filter((j): j is JobRow => j != null)
   },
 
   /** Slim fetch for calendar enrichment — only fields needed for drawing-number labels. */

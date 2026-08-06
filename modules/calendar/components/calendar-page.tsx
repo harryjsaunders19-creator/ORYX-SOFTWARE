@@ -113,7 +113,9 @@ export default function CalendarPage() {
 
   const { data: eventsData, error: eventsError, isLoading, mutate } = useApi<{ events: CalendarEvent[] }>(eventsKey)
   const { data: categoriesData } = useApi<{ categories: Category[] }>("/api/calendar/categories")
-  const { data: usersData } = useApi<{ users: UserOption[] }>("/api/users")
+  const { data: usersData } = useApi<{ users: UserOption[] }>(
+    canFilterStaff ? "/api/users" : null,
+  )
   const { data: employeesData } = useApi<{ departments: string[] }>(
     LEAVE_ENABLED ? "/api/employees?limit=1" : null,
   )

@@ -18,8 +18,10 @@ type Props = {
   loading?: boolean
   highlightQuery?: string
   onSelect: (id: string) => void
-  onStatusChanged?: () => void
-  onDesignerChanged?: () => void
+  onStatusChanged?: (projectId: string, next: string) => void
+  onOptimisticStatus?: (projectId: string, next: string) => void
+  onStatusFailed?: (projectId: string, previous: string) => void
+  onDesignerChanged?: (projectId: string, next: string) => void
   className?: string
 }
 
@@ -32,6 +34,8 @@ export const MobileJobsList = forwardRef<HTMLDivElement, Props>(function MobileJ
   highlightQuery,
   onSelect,
   onStatusChanged,
+  onOptimisticStatus,
+  onStatusFailed,
   onDesignerChanged,
   className,
 }, ref) {
@@ -97,6 +101,8 @@ export const MobileJobsList = forwardRef<HTMLDivElement, Props>(function MobileJ
                   highlightQuery={highlightQuery}
                   onSelect={onSelect}
                   onStatusChanged={onStatusChanged}
+                  onOptimisticStatus={onOptimisticStatus}
+                  onStatusFailed={onStatusFailed}
                   onDesignerChanged={onDesignerChanged}
                 />
               </li>

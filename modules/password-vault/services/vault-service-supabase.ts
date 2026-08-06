@@ -56,7 +56,11 @@ export const passwordVaultService = {
     /** When true, decrypt passwords (admin export only). Default: omit. */
     revealPasswords?: boolean
   } = {}): Promise<PasswordVaultEntry[]> {
-    const rows = await supabasePasswordVaultRepo.findMany(opts)
+    const rows = await supabasePasswordVaultRepo.findMany({
+      search: opts.search,
+      sort: opts.sort,
+      includePasswordEnc: opts.revealPasswords,
+    })
     return rows.map(opts.revealPasswords ? toPublic : toListPublic)
   },
 
