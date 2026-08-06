@@ -6,7 +6,7 @@ import { formatDisplayDate } from "@/shared/utils/utils"
 import type { BillingExportBatch } from "@/lib/types"
 import { downloadResponse } from "./billing-download"
 
-export function BatchRow({ batch }: { batch: BillingExportBatch }) {
+function useBatchDownload(batch: BillingExportBatch) {
   const { toast } = useToast()
   const [downloading, setDownloading] = useState(false)
   const redownload = async () => {
@@ -21,9 +21,13 @@ export function BatchRow({ batch }: { batch: BillingExportBatch }) {
       await downloadResponse(res, `${batch.batchNumber}.xlsx`)
     } catch (err) {
       toast(err instanceof Error ? err.message : "Network error", "error")
-    }
-    finally { setDownloading(false) }
+    } finally { setDownloading(false) }
   }
+  return { downloading, redownload }
+}
+
+export function BatchRow({ batch }: { batch: BillingExportBatch }) {
+  const { downloading, redownload } = useBatchDownload(batch)
   return (
     <tr className="hover:bg-hover-surface">
       <td className="px-4 py-3 type-drawing-number text-ac whitespace-nowrap font-semibold">{batch.batchNumber}</td>
@@ -42,23 +46,7 @@ export function BatchRow({ batch }: { batch: BillingExportBatch }) {
 }
 
 export function BatchMobileCard({ batch }: { batch: BillingExportBatch }) {
-  const { toast } = useToast()
-  const [downloading, setDownloading] = useState(false)
-  const redownload = async () => {
-    setDownloading(true)
-    try {
-      const res = await fetch(`/api/billing-handoffs/batches/${batch.id}/xlsx`)
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string }
-        toast(body.error ?? "Failed to download", "error")
-        return
-      }
-      await downloadResponse(res, `${batch.batchNumber}.xlsx`)
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Network error", "error")
-    }
-    finally { setDownloading(false) }
-  }
+  const { downloading, redownload } = useBatchDownload(batch)
 
   return (
     <div className="rounded-xl border border-bd bg-sr shadow-card p-3.5 space-y-2">

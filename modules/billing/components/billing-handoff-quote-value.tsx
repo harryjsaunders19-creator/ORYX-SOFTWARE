@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { memo, useState } from "react"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { useToast } from "@/shared/ui/toast"
@@ -8,7 +8,7 @@ import type { BillingHandoff } from "@/lib/types"
 
 export type View = "awaiting" | "cleared" | "history"
 
-export function HandoffQuoteValue({ item, view, onQuoteSaved }: {
+export const HandoffQuoteValue = memo(function HandoffQuoteValue({ item, view, onQuoteSaved }: {
   item: BillingHandoff
   view: View
   onQuoteSaved?: () => void
@@ -66,4 +66,4 @@ export function HandoffQuoteValue({ item, view, onQuoteSaved }: {
     )
   }
   return <span>—</span>
-}
+})

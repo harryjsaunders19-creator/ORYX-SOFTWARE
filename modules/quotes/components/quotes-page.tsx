@@ -1,5 +1,5 @@
 "use client"
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Plus, FileText, Trash2 } from "lucide-react"
 import { Button } from "@/shared/ui/button"
@@ -70,6 +70,14 @@ function QuotesInner() {
   const [clearing, setClearing] = useState(false)
   const [archiveQuote, setArchiveQuote] = useState<Quote | null>(null)
   const [archiving,    setArchiving]    = useState(false)
+
+  // Guard PDF poll setState/toast/mutate after navigate-away. Network polls are left
+  // to finish so the PDF can still land in cache; we only skip UI updates.
+  const isMountedRef = useRef(true)
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
 
   // Prepopulate from URL params when navigated from "Create quote for job"
   const [createInitial, setCreateInitial] = useState<Partial<QuoteFormData> & { jobId?: string }>({})
@@ -160,10 +168,12 @@ function QuotesInner() {
   }, [mutate, toast])
 
   const generatePdf = useCallback(async (quote: Quote) => {
+    if (!isMountedRef.current) return
     setPdfGenerating(quote.id)
     try {
       const res = await fetch(`/api/quotes/${quote.id}/pdf`, { method: "POST" })
       const body = await res.json() as { status?: string; pdfPath?: string; error?: string }
+      if (!isMountedRef.current) return
       if (!res.ok) { toast(body.error ?? "PDF generation failed", "error"); return }
 
       if (body.status === "ready" && body.pdfPath) {
@@ -176,7 +186,9 @@ function QuotesInner() {
       const pollForPdf = async (): Promise<string | null> => {
         for (let attempt = 0; attempt < 60; attempt++) {
           await new Promise(r => setTimeout(r, 500))
+          if (!isMountedRef.current) return null
           const pollRes = await fetch(`/api/quotes/${quote.id}/pdf`)
+          if (!isMountedRef.current) return null
           const pollBody = await pollRes.json() as { status: string; pdfPath?: string; error?: string }
           if (!pollRes.ok) return pollBody.error ?? null
           if (pollBody.status === "ready" && pollBody.pdfPath) return pollBody.pdfPath
@@ -185,12 +197,17 @@ function QuotesInner() {
       }
 
       const pdfPath = await pollForPdf()
+      if (!isMountedRef.current) return
       if (!pdfPath) { toast("PDF generation timed out", "error"); return }
       window.open(pdfPath, "_blank")
       toast(`PDF generated for ${quote.quoteNumber}`, "success")
       mutate()
-    } catch { toast("Network error", "error") }
-    finally { setPdfGenerating(null) }
+    } catch {
+      if (isMountedRef.current) toast("Network error", "error")
+    }
+    finally {
+      if (isMountedRef.current) setPdfGenerating(null)
+    }
   }, [mutate, toast])
 
   const clearExpired = async () => {

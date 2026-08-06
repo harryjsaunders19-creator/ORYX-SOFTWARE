@@ -1,4 +1,5 @@
 "use client"
+import { memo } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { ArrowUpRight } from "lucide-react"
@@ -8,7 +9,7 @@ import { formatDisplayDate } from "@/shared/utils/utils"
 import type { BillingHandoff } from "@/lib/types"
 import { HandoffQuoteValue, type View } from "./billing-handoff-quote-value"
 
-export function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
+export const HandoffRow = memo(function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
   item: BillingHandoff; view: View; selected: boolean; onToggle: (id: string) => void
   onQuoteSaved?: () => void
 }) {
@@ -50,9 +51,9 @@ export function HandoffRow({ item, view, selected, onToggle, onQuoteSaved }: {
       </td>
     </tr>
   )
-}
+})
 
-export function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved }: {
+export const HandoffMobileCard = memo(function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved }: {
   item: BillingHandoff
   view: View
   selected: boolean
@@ -102,4 +103,4 @@ export function HandoffMobileCard({ item, view, selected, onToggle, onQuoteSaved
       )}
     </div>
   )
-}
+})
