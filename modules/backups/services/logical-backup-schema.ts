@@ -6,8 +6,10 @@ const maybeNumber = z.number().nullable().optional()
 export const logicalBackupPackSchema = z.object({
   kind: z.literal("oryx-logical-backup"),
   version: z.number().int().nonnegative(),
-  exportedAt: z.string().optional(),
+  exportedAt: z.string().min(1).optional(),
   source: z.enum(["supabase", "sqlite"]).optional(),
+  checksumAlgorithm: z.literal("sha256").optional(),
+  checksum: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
   counts: z.record(z.string(), z.number()).optional(),
   tables: z.object({
     users: z.array(z.object({
@@ -16,6 +18,7 @@ export const logicalBackupPackSchema = z.object({
       email: maybeString,
       role: maybeString,
       active: z.number().optional(),
+      // Accepted on legacy v1 packs only — never written by v2+ exporters.
       passwordHash: maybeString,
       mustChangePassword: z.number().optional(),
       createdAt: maybeString,

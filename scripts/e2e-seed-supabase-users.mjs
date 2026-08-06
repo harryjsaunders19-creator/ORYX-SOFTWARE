@@ -2,11 +2,20 @@
 /**
  * Upsert e2e test users into Supabase (stable passwords, must_change=false).
  * Requires NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_* aliases).
+ * Fail-closed: refused outside an approved test environment.
  *
  * Usage:
- *   node scripts/e2e-seed-supabase-users.mjs
+ *   E2E=true ALLOW_BOOTSTRAP_TEST_ACCOUNTS=true node scripts/e2e-seed-supabase-users.mjs
  */
 import { createClient } from "@supabase/supabase-js"
+import { assertTestEnvironment } from "./lib/assert-test-environment.mjs"
+
+try {
+  assertTestEnvironment("e2e-seed-supabase-users")
+} catch (err) {
+  console.error(err instanceof Error ? err.message : err)
+  process.exit(1)
+}
 
 const url =
   process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
@@ -58,8 +67,8 @@ for (const u of users) {
     { onConflict: "email_lower" },
   )
   if (error) {
-    console.error(`[e2e-seed] Failed to upsert ${u.email}:`, error.message)
+    console.error(`[e2e-seed] Failed to upsert user role=${u.role}:`, error.message)
     process.exit(1)
   }
-  console.log(`[e2e-seed] Upserted ${u.email}`)
+  console.log(`[e2e-seed] Upserted test user role=${u.role}`)
 }

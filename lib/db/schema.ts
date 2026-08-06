@@ -1312,37 +1312,28 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
 
 // Ensure the admin@test.com and engineer@test.com accounts always exist
 // with working passwords. Runs on every startup — idempotent.
-// Skipped in production unless ALLOW_BOOTSTRAP_TEST_ACCOUNTS=true.
+// Fail-closed: only when isTestUserProvisioningAllowed() (test/E2E + flag,
+// never production runtime or production Supabase project).
 ;(function bootstrapAccounts() {
-  if (process.env.NODE_ENV === "production" && process.env.ALLOW_BOOTSTRAP_TEST_ACCOUNTS !== "true") {
+  /* eslint-disable @typescript-eslint/no-require-imports -- sync startup IIFE; dynamic require keeps test hashes out of cold path when denied */
+  const { isTestUserProvisioningAllowed, logTestProvisioningBlocked, testUserProvisioningDenialReason } =
+    require("@/shared/auth/test-environment") as typeof import("@/shared/auth/test-environment")
+  const denial = testUserProvisioningDenialReason()
+  if (denial) {
+    // Quiet skip in production; structured warn only when someone enabled the flag wrongly.
+    if (process.env.ALLOW_BOOTSTRAP_TEST_ACCOUNTS === "true") {
+      logTestProvisioningBlocked(denial, "lib/db/schema.bootstrapAccounts")
+    }
     return
   }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { hashPassword } = require("@/shared/auth/password") as typeof import("@/shared/auth/password")
-  const now = nowIso()
+  if (!isTestUserProvisioningAllowed()) return
 
-  // Pre-computed bcrypt hashes (cost=12) for the bootstrap passwords.
-  // Using constants avoids running bcrypt on every cold start, which saves
-  // ~500ms per container boot on serverless hosts like Vercel.
-  const accounts = [
-    // Fixed IDs ensure cross-container session continuity on stateless hosts (e.g. Vercel).
-    // Every fresh container creates the same user with the same ID, so session cookies
-    // remain valid regardless of which container handles the request.
-    {
-      id: "bootstrap-admin-00000001",
-      email: "admin@test.com",
-      name: "Admin",
-      role: "ADMIN",
-      passwordHash: "$2b$12$92nRgb8jPt20D4.fPVhIOudgpnPaAozVDOxbw32dArHspiSFy2OGS", // admin123
-    },
-    {
-      id: "bootstrap-engineer-00000001",
-      email: "engineer@test.com",
-      name: "Engineer",
-      role: "ENGINEER",
-      passwordHash: "$2b$12$NWRIw4dbY47HJRDhOZStaOuY7s4Js.emZPm9QMHJysvYgj1gOrB7u", // engineer123
-    },
-  ]
+  const { hashPassword } = require("@/shared/auth/password") as typeof import("@/shared/auth/password")
+  const { TEST_BOOTSTRAP_ACCOUNTS } =
+    require("@/shared/auth/test-bootstrap-accounts") as typeof import("@/shared/auth/test-bootstrap-accounts")
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  const now = nowIso()
+  const accounts = TEST_BOOTSTRAP_ACCOUNTS
 
   for (const acct of accounts) {
     const existing = db.prepare("SELECT id, passwordHash FROM User WHERE emailLower = ?").get(acct.email) as { id: string; passwordHash: string | null } | undefined
@@ -1353,14 +1344,14 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
         INSERT INTO User (id,name,email,emailLower,role,active,passwordHash,mustChangePassword,createdAt,updatedAt)
         VALUES (?,?,?,?,?,1,?,?,?,?)
       `).run(acct.id, acct.name, acct.email, acct.email, acct.role, acct.passwordHash, mustChange, now, now)
-      console.log(`[bootstrapAccounts] Created ${acct.email}`)
+      console.log(`[bootstrapAccounts] Created test account role=${acct.role}`)
     } else if (process.env.E2E === "true") {
       db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 0, active = 1 WHERE id = ?")
         .run(acct.passwordHash, existing.id)
     } else if (!existing.passwordHash) {
       db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?")
         .run(acct.passwordHash, existing.id)
-      console.log(`[bootstrapAccounts] Set password for ${acct.email}`)
+      console.log(`[bootstrapAccounts] Set password for test account role=${acct.role}`)
     }
   }
 
@@ -1371,6 +1362,6 @@ if ((db.prepare("SELECT COUNT(*) as n FROM sqlite_master WHERE type='table' AND 
   for (const u of noPassword) {
     db.prepare("UPDATE User SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?")
       .run(hashPassword("changeme"), u.id)
-    console.log(`[bootstrapAccounts] Set temp password for ${u.name} (must change on login)`)
+    console.log(`[bootstrapAccounts] Set temp password for user (must change on login)`)
   }
 })()

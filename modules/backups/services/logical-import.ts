@@ -23,6 +23,7 @@ import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { MAX_IMPORT_LOOKUP_ROWS } from "@/modules/import-export/constants"
 import {
   LOGICAL_BACKUP_VERSION,
+  computeLogicalBackupChecksum,
   type LogicalBackupPack,
 } from "./logical-export"
 import { logicalBackupPackSchema } from "./logical-backup-schema"
@@ -81,19 +82,10 @@ async function importUsers(
 
     const matched = byId.get(id) ?? (email ? byEmail.get(email) : undefined)
 
-    let passwordHash =
-      typeof row.passwordHash === "string" && row.passwordHash.trim()
-        ? row.passwordHash.trim()
-        : null
-    let mustChangePassword =
-      row.mustChangePassword === 1 || row.mustChangePassword === 0
-        ? row.mustChangePassword
-        : matched?.mustChangePassword ?? 0
-
-    if (!passwordHash && !matched?.passwordHash) {
-      passwordHash = hashPassword(generateTempPassword())
-      mustChangePassword = 1
-    }
+    // Never restore password hashes from backup packs — always issue a temp
+    // password so secrets cannot round-trip through export/import.
+    const passwordHash = hashPassword(generateTempPassword())
+    const mustChangePassword = 1
 
     try {
       if (matched) {
@@ -534,17 +526,35 @@ export async function importLogicalBackupPack(
       "Invalid backup file. Expected an ORYX logical backup JSON (Export full data).",
     )
   }
-  const pack = parsed.data as LogicalBackupPack
+  const pack = parsed.data
   if (pack.version > LOGICAL_BACKUP_VERSION) {
     throw new Error(
       `This backup format (v${pack.version}) is newer than the app supports (v${LOGICAL_BACKUP_VERSION}).`,
     )
   }
 
-  const users = await importUsers(pack.tables.users ?? [])
-  const clients = await importClients(pack.tables.clients ?? [])
-  const jobs = await importJobs(pack.tables.jobs ?? [])
-  const quotes = await importQuotes(pack.tables.quotes ?? [])
+  // v2+ packs must include a matching sha256 checksum.
+  if (pack.version >= 2) {
+    if (pack.checksumAlgorithm !== "sha256" || !pack.checksum) {
+      throw new Error("Backup checksum missing — refuse to import.")
+    }
+    const expected = computeLogicalBackupChecksum({
+      kind: pack.kind,
+      version: pack.version,
+      exportedAt: pack.exportedAt ?? "",
+      source: pack.source ?? "sqlite",
+      counts: pack.counts ?? {},
+      tables: pack.tables,
+    })
+    if (expected.toLowerCase() !== pack.checksum.toLowerCase()) {
+      throw new Error("Backup checksum mismatch — file may be corrupted or tampered with.")
+    }
+  }
+
+  const users = await importUsers((pack.tables.users ?? []) as LogicalBackupPack["tables"]["users"])
+  const clients = await importClients((pack.tables.clients ?? []) as LogicalBackupPack["tables"]["clients"])
+  const jobs = await importJobs((pack.tables.jobs ?? []) as LogicalBackupPack["tables"]["jobs"])
+  const quotes = await importQuotes((pack.tables.quotes ?? []) as LogicalBackupPack["tables"]["quotes"])
 
   return { users, clients, jobs, quotes }
 }

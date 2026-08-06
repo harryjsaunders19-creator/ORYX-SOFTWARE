@@ -1,0 +1,100 @@
+/**
+ * Fail-closed guard for test-user provisioning (admin@test.com / engineer@test.com).
+ *
+ * Allowed only when ALL of:
+ *  1. NODE_ENV === "test" OR E2E === "true"
+ *  2. ALLOW_BOOTSTRAP_TEST_ACCOUNTS === "true"
+ *  3. Not a production runtime (NODE_ENV / VERCEL_ENV)
+ *  4. Not pointed at the configured production Supabase project
+ */
+export type TestProvisioningDenialReason =
+  | "missing_test_or_e2e_env"
+  | "flag_disabled"
+  | "production_runtime"
+  | "production_supabase_project"
+
+export function isProductionRuntime(): boolean {
+  if (process.env.NODE_ENV === "production") return true
+  if (process.env.VERCEL_ENV === "production") return true
+  return false
+}
+
+/** Extract the Supabase project ref from a URL like https://abcd.supabase.co */
+export function supabaseProjectRefFromUrl(url: string | undefined | null): string | null {
+  if (!url) return null
+  try {
+    const host = new URL(url).hostname
+    const match = /^([a-z0-9-]+)\.supabase\.co$/i.exec(host)
+    return match?.[1]?.toLowerCase() ?? null
+  } catch {
+    return null
+  }
+}
+
+export function isProductionSupabaseProject(): boolean {
+  const productionRef = (process.env.ORYX_PRODUCTION_SUPABASE_PROJECT_REF ?? "").trim().toLowerCase()
+  if (!productionRef) return false
+  const current =
+    supabaseProjectRefFromUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
+    ?? supabaseProjectRefFromUrl(process.env.SUPABASE_URL)
+  if (!current) return false
+  return current === productionRef
+}
+
+export function isTestOrE2EEnvironment(): boolean {
+  return process.env.NODE_ENV === "test" || process.env.E2E === "true"
+}
+
+export function isTestUserProvisioningFlagEnabled(): boolean {
+  return process.env.ALLOW_BOOTSTRAP_TEST_ACCOUNTS === "true"
+}
+
+export function testUserProvisioningDenialReason(): TestProvisioningDenialReason | null {
+  if (!isTestOrE2EEnvironment()) return "missing_test_or_e2e_env"
+  if (!isTestUserProvisioningFlagEnabled()) return "flag_disabled"
+  if (isProductionRuntime()) return "production_runtime"
+  if (isProductionSupabaseProject()) return "production_supabase_project"
+  return null
+}
+
+export function isTestUserProvisioningAllowed(): boolean {
+  return testUserProvisioningDenialReason() === null
+}
+
+const REASON_MESSAGES: Record<TestProvisioningDenialReason, string> = {
+  missing_test_or_e2e_env:
+    "Test-user provisioning requires NODE_ENV=test or E2E=true",
+  flag_disabled:
+    "Test-user provisioning requires ALLOW_BOOTSTRAP_TEST_ACCOUNTS=true",
+  production_runtime:
+    "Test-user provisioning is forbidden in production runtimes",
+  production_supabase_project:
+    "Test-user provisioning is forbidden against the production Supabase project",
+}
+
+/** Structured security log — never includes passwords or hashes. */
+export function logTestProvisioningBlocked(reason: TestProvisioningDenialReason, context?: string): void {
+  console.warn(JSON.stringify({
+    level: "security",
+    event: "test_user_provisioning_blocked",
+    reason,
+    message: REASON_MESSAGES[reason],
+    context: context ?? null,
+    nodeEnv: process.env.NODE_ENV ?? null,
+    vercelEnv: process.env.VERCEL_ENV ?? null,
+    e2e: process.env.E2E === "true",
+    flag: process.env.ALLOW_BOOTSTRAP_TEST_ACCOUNTS === "true",
+    at: new Date().toISOString(),
+  }))
+}
+
+/**
+ * Abort immediately if test-user provisioning is not allowed.
+ * Throws an Error with a clear message (no secrets).
+ */
+export function assertTestEnvironment(context?: string): void {
+  const reason = testUserProvisioningDenialReason()
+  if (!reason) return
+  logTestProvisioningBlocked(reason, context)
+  throw new Error(`${REASON_MESSAGES[reason]}${context ? ` (${context})` : ""}`)
+}

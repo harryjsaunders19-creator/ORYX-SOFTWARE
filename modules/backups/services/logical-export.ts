@@ -4,7 +4,10 @@
  * Unlike SQLite filesystem dumps, this works when Supabase is the primary
  * store on Vercel — it reads through the service layer and returns a single
  * JSON pack an admin can download and later re-import.
+ *
+ * v2: no password hashes / secrets; includes sha256 checksum of the data body.
  */
+import { createHash } from "crypto"
 import { format } from "date-fns"
 import { jobService } from "@/modules/jobs"
 import { clientService } from "@/modules/clients"
@@ -13,26 +16,30 @@ import { userService } from "@/modules/users"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { MAX_GLOBAL_EXPORT_ROWS } from "@/modules/import-export/constants"
 
-export const LOGICAL_BACKUP_VERSION = 1 as const
+export const LOGICAL_BACKUP_VERSION = 2 as const
+export const LOGICAL_BACKUP_CHECKSUM_ALGORITHM = "sha256" as const
+
+export type LogicalBackupUserRow = {
+  id: string
+  name: string
+  email: string | null
+  role: string
+  active: number
+  mustChangePassword: number
+  createdAt: string
+  updatedAt: string
+}
 
 export type LogicalBackupPack = {
   version: typeof LOGICAL_BACKUP_VERSION
   kind: "oryx-logical-backup"
   exportedAt: string
   source: "supabase" | "sqlite"
+  checksumAlgorithm: typeof LOGICAL_BACKUP_CHECKSUM_ALGORITHM
+  checksum: string
   counts: Record<string, number>
   tables: {
-    users: Array<{
-      id: string
-      name: string
-      email: string | null
-      role: string
-      active: number
-      passwordHash: string | null
-      mustChangePassword: number
-      createdAt: string
-      updatedAt: string
-    }>
+    users: LogicalBackupUserRow[]
     clients: Array<{
       id: string
       name: string
@@ -90,6 +97,38 @@ export type LogicalBackupPack = {
   }
 }
 
+/** Canonical body used for checksum — excludes checksum fields themselves. */
+export function logicalBackupChecksumPayload(pack: {
+  kind: string
+  version: number
+  exportedAt: string
+  source: string
+  counts: Record<string, number>
+  tables: unknown
+}): string {
+  return JSON.stringify({
+    kind: pack.kind,
+    version: pack.version,
+    exportedAt: pack.exportedAt,
+    source: pack.source,
+    counts: pack.counts,
+    tables: pack.tables,
+  })
+}
+
+export function computeLogicalBackupChecksum(pack: {
+  kind: string
+  version: number
+  exportedAt: string
+  source: string
+  counts: Record<string, number>
+  tables: unknown
+}): string {
+  return createHash("sha256")
+    .update(logicalBackupChecksumPayload(pack), "utf8")
+    .digest("hex")
+}
+
 export async function buildLogicalBackupPack(): Promise<LogicalBackupPack> {
   const [users, clients, jobs, quotes] = await Promise.all([
     userService.findMany(),
@@ -101,11 +140,11 @@ export async function buildLogicalBackupPack(): Promise<LogicalBackupPack> {
     quoteService.findMany({ take: MAX_GLOBAL_EXPORT_ROWS }),
   ])
 
-  const pack: LogicalBackupPack = {
+  const draft = {
     version: LOGICAL_BACKUP_VERSION,
-    kind: "oryx-logical-backup",
+    kind: "oryx-logical-backup" as const,
     exportedAt: new Date().toISOString(),
-    source: isSupabaseOnly() ? "supabase" : "sqlite",
+    source: (isSupabaseOnly() ? "supabase" : "sqlite") as "supabase" | "sqlite",
     counts: {
       users: users.length,
       clients: clients.length,
@@ -113,14 +152,14 @@ export async function buildLogicalBackupPack(): Promise<LogicalBackupPack> {
       quotes: quotes.length,
     },
     tables: {
+      // Never export password hashes or vault secrets.
       users: users.map(u => ({
         id: u.id,
         name: u.name,
         email: u.email,
         role: u.role,
         active: u.active,
-        passwordHash: u.passwordHash,
-        mustChangePassword: u.mustChangePassword,
+        mustChangePassword: 1,
         createdAt: u.createdAt,
         updatedAt: u.updatedAt,
       })),
@@ -181,7 +220,12 @@ export async function buildLogicalBackupPack(): Promise<LogicalBackupPack> {
     },
   }
 
-  return pack
+  const checksum = computeLogicalBackupChecksum(draft)
+  return {
+    ...draft,
+    checksumAlgorithm: LOGICAL_BACKUP_CHECKSUM_ALGORITHM,
+    checksum,
+  }
 }
 
 export function logicalBackupFilename(exportedAt = new Date()): string {

@@ -130,6 +130,20 @@ export const jobService = {
     if (!remote) return null
     const ok = await supabaseJobRepo.archive(id, archiverId, now)
     if (!ok) return null
+    // Soft-cancel: retract uncleared Ready-for-Invoicing rows only. Cleared /
+    // exported commercial history is preserved (same rule as ISSUED→revert).
+    try {
+      const { useSupabaseBilling } = await import("@/shared/supabase/feature-flags")
+      if (useSupabaseBilling()) {
+        const { supabaseBillingRepo } = await import("@/modules/billing/supabase/repository")
+        const active = await supabaseBillingRepo.findBySourceJobId(id)
+        if (active && !active.clearedByAccountsAt) {
+          await supabaseBillingRepo.deleteHandoff(active.id)
+        }
+      }
+    } catch (err) {
+      console.error("[jobService.archive] billing handoff cleanup failed:", err)
+    }
     const updated = await supabaseJobRepo.findUnique(id)
     await logArchive({
       entityId: id,

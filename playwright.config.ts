@@ -46,6 +46,7 @@ export default defineConfig({
     env: {
       ...process.env,
       E2E: "true",
+      ALLOW_BOOTSTRAP_TEST_ACCOUNTS: "true",
       ...(supabaseE2e
         ? {
             FORCE_SUPABASE_ONLY: "true",

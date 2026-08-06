@@ -144,6 +144,8 @@ export const jobService = {
     const job = jobDb.findUnique(id)
     if (!job) return null
     jobDb.archive(id, archiverId, now)
+    // Soft-cancel: drop uncleared billing queue rows; keep cleared history.
+    jobDb._retractBillingHandoffOnRevert(id)
     const updated = jobDb.findUnique(id)
     archiveLogService.log({
       entityType: "job", entityId: id,

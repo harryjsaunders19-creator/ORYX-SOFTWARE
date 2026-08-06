@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState, lazy, Suspense } from "react"
+import { useEffect, useMemo, useState, lazy, Suspense, useCallback } from "react"
 import {
   Plus, ShieldCheck, ChevronLeft, FilePlus2, Paperclip,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useApi } from "@/shared/hooks/use-api"
 import { useToast } from "@/shared/ui/toast"
+import { useUser } from "@/shared/providers/user-context"
 import { cn, defaultRequiredByDate } from "@/shared/utils/utils"
 import type { Job, LinkedQuoteSummary, Quote } from "@/lib/types"
 import type { ParentJobDashboard } from "@/modules/jobs/types/parent-dashboard-types"
@@ -40,6 +41,7 @@ import {
   type Cat2Summary,
 } from "./jobs-inspector-cards"
 import { JobsInspectorCollapseButton } from "./jobs-inspector-shell"
+import { JobsCancelDialog } from "./jobs-cancel-dialog"
 
 const AddRevisionModal = lazy(() =>
   import("./add-revision-modal").then(m => ({ default: m.AddRevisionModal })),
@@ -135,6 +137,7 @@ export function JobsInspector({
 }: JobsInspectorProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const { isAdmin } = useUser()
   const [addRevOpen, setAddRevOpen] = useState(false)
   const [wiRevOpen, setWiRevOpen] = useState(false)
   const [wiRevReason, setWiRevReason] = useState("")
@@ -146,6 +149,10 @@ export function JobsInspector({
   const [cat2Busy, setCat2Busy] = useState(false)
   // Defer documents/quotes one frame so the panel paints list data first.
   const [secondaryReady, setSecondaryReady] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelReason, setCancelReason] = useState("")
+  const [cancelNotes, setCancelNotes] = useState("")
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     setSecondaryReady(false)
@@ -479,6 +486,55 @@ export function JobsInspector({
     await Promise.all([mutateDocs(), mutateQuotes()])
     onStatusChanged?.()
   }
+
+  const cancelJobStub = useMemo((): Job => ({
+    id: project.id,
+    drawingNumber,
+    clientCompany: client,
+    address: siteAddress,
+    status: project.currentStatus || project.projectStatus,
+  } as Job), [project.id, drawingNumber, client, siteAddress, project.currentStatus, project.projectStatus])
+
+  const closeCancelDialog = useCallback(() => {
+    if (cancelling) return
+    setCancelOpen(false)
+    setCancelReason("")
+    setCancelNotes("")
+  }, [cancelling])
+
+  const handleCancelConfirm = useCallback(async () => {
+    const reason = cancelReason.trim()
+    if (reason.length < 3) {
+      toast("Please enter a cancellation reason (at least 3 characters)", "error")
+      return
+    }
+    setCancelling(true)
+    try {
+      const res = await fetch(`/api/jobs/${project.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason,
+          notes: cancelNotes.trim() || undefined,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        toast(body.error ?? "Cancel failed", "error")
+        return
+      }
+      toast("Job moved to Archive", "info")
+      setCancelOpen(false)
+      setCancelReason("")
+      setCancelNotes("")
+      onCollapse?.()
+      onStatusChanged?.()
+    } catch {
+      toast("Network error", "error")
+    } finally {
+      setCancelling(false)
+    }
+  }, [cancelReason, cancelNotes, project.id, toast, onCollapse, onStatusChanged])
 
   const currentWorkPatchUrl = workItemsModel && currentWork.id
     ? `/api/work-items/${currentWork.id}`
@@ -825,17 +881,41 @@ export function JobsInspector({
           >
             Edit
           </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="flex-1 rounded-xl border border-dn-bd bg-transparent py-2.5 text-sm font-semibold text-dn-tx transition-colors duration-150 hover:bg-dn-bg"
+              onClick={() => setCancelOpen(true)}
+            >
+              Cancel Job
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isDrawer && isAdmin ? (
+        <div className="flex shrink-0 border-t border-jobs-panel-divider bg-jobs-panel px-4 py-3">
           <button
             type="button"
-            className="flex-1 rounded-xl border border-jobs-panel-btn-bd bg-transparent py-2.5 text-sm font-semibold text-t1 transition-colors duration-150 hover:bg-jobs-panel-hover"
-            // TODO: this navigates to the job page rather than performing a cancel action
-            onClick={() => router.push(`/jobs/${project.id}`)}
-            title="Open project page to cancel"
+            className="w-full rounded-xl border border-dn-bd bg-transparent py-2.5 text-sm font-semibold text-dn-tx transition-colors duration-150 hover:bg-dn-bg"
+            onClick={() => setCancelOpen(true)}
           >
-            Open to Cancel
+            Cancel Job
           </button>
         </div>
       ) : null}
+
+      <JobsCancelDialog
+        job={cancelJobStub}
+        open={cancelOpen}
+        deleting={cancelling}
+        cancelReason={cancelReason}
+        cancelNotes={cancelNotes}
+        onReasonChange={setCancelReason}
+        onNotesChange={setCancelNotes}
+        onClose={closeCancelDialog}
+        onConfirm={handleCancelConfirm}
+      />
 
       <Suspense fallback={null}>
         {!workItemsModel && addRevOpen && jobDetail && (

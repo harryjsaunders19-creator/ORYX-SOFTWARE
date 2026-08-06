@@ -27,11 +27,16 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      - name: Backup restore verification
+        run: npm run test:backup-restore
+
       - name: Lint
         run: npm run lint
 
       - name: Security audit
         # Fail on high+ so transitive advisories stay visible in CI.
+        # Known transitive brace-expansion advisory may fail until upstream patches;
+        # keep the gate — do not silence with || true.
         run: npm audit --audit-level=high
 
       - name: Build

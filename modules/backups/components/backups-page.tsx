@@ -206,9 +206,9 @@ function BackupsInner() {
                 Supabase dashboard — restores the full live database.
               </li>
               <li>
-                <strong className="text-t1">Full data (JSON):</strong> downloads Users (with password
-                hashes), Clients, Jobs, and Quotes from live data — use this for portable recovery
-                on Vercel.
+                <strong className="text-t1">Full data (JSON):</strong> versioned pack of Users (no password
+                hashes), Clients, Jobs, and Quotes — includes a sha256 checksum. Restored users get a
+                temporary password and must set a new one on next login.
               </li>
               <li>
                 <strong className="text-t1">Excel:</strong> human-readable export/import including

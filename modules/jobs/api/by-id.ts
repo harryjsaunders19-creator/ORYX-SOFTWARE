@@ -232,7 +232,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       return NextResponse.json({ error: "This job is already cancelled" }, { status: 409 })
     }
 
-    let body: { reason?: string } = {}
+    let body: { reason?: string; notes?: string } = {}
     try { body = await req.json() } catch { /* empty body */ }
 
     const reason = typeof body.reason === "string" ? body.reason.trim() : ""
@@ -242,11 +242,13 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
         { status: 422 },
       )
     }
+    const notes = typeof body.notes === "string" ? body.notes.trim() : ""
+    const archiveReason = notes ? `${reason}\n\nNotes: ${notes}` : reason
 
     const archiverId   = auth.user.id
     const archiverName = auth.user.name
 
-    const archived = await jobService.archive(id, archiverId, archiverName, reason)
+    const archived = await jobService.archive(id, archiverId, archiverName, archiveReason)
     if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json({ ok: true, archived: true, job: archived })
   } catch (err) {

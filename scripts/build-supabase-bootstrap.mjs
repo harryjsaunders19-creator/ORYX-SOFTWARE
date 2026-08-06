@@ -104,12 +104,9 @@ for (const name of MIGRATION_ORDER) {
 
 parts.push("notify pgrst, 'reload schema';\n\n")
 
-const seedAdmin = path.join(root, "supabase", "seed-admin.sql")
-if (fs.existsSync(seedAdmin)) {
-  parts.push(`-- ─── seed-admin.sql (default logins) ───\n`)
-  parts.push(fs.readFileSync(seedAdmin, "utf8").trim())
-  parts.push("\n\nnotify pgrst, 'reload schema';\n")
-}
+// Intentionally NOT embedding seed-admin.sql — known test logins must never
+// land in a production bootstrap. E2E applies supabase/seed-e2e-users.sql via
+// scripts/e2e-supabase-up.mjs after assertTestEnvironment().
 
 fs.writeFileSync(outFile, parts.join(""))
-console.log("Wrote", path.relative(root, outFile), `(${MIGRATION_ORDER.length} migrations + seed-admin)`)
+console.log("Wrote", path.relative(root, outFile), `(${MIGRATION_ORDER.length} migrations, no seed-admin)`)

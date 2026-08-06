@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : "Import failed"
-    if (/Invalid backup|newer than the app/i.test(message)) {
+    if (/Invalid backup|newer than the app|checksum/i.test(message)) {
       return NextResponse.json({ error: message }, { status: 422 })
     }
     return apiInternalError("backups.api.import_data", err)

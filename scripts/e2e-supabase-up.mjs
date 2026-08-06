@@ -112,6 +112,13 @@ try {
   sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${dropSql}"`, { stdio: "inherit" })
   sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${bootSql}"`, { stdio: "inherit" })
   sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${grantsSql}"`, { stdio: "inherit" })
+  // Seed only after env proves this is an approved E2E environment.
+  process.env.E2E = "true"
+  process.env.ALLOW_BOOTSTRAP_TEST_ACCOUNTS = "true"
+  if (process.env.NODE_ENV === "production") {
+    // Local supabase is never production; force a non-prod NODE_ENV for the guard.
+    process.env.NODE_ENV = "test"
+  }
   sh(`psql "${dbUrl}" -v ON_ERROR_STOP=1 -f "${seedSql}"`, { stdio: "inherit" })
 } catch (err) {
   restoreMigrations()
@@ -128,6 +135,7 @@ const envBody = [
   `SUPABASE_SERVICE_ROLE_KEY=${serviceKey}`,
   `FORCE_SUPABASE_ONLY=true`,
   `E2E=true`,
+  `NODE_ENV=test`,
   `AUTH_SECRET=${authSecret}`,
   `ALLOW_BOOTSTRAP_TEST_ACCOUNTS=true`,
   "",
