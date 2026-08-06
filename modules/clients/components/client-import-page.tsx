@@ -110,17 +110,16 @@ function ImportClientsInner() {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             className={cn("border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors", dragOver ? "border-ac bg-ac-bg" : "border-bd hover:border-bds hover:bg-hover-surface")}
-            style={{ borderWidth: "2px", borderStyle: "dashed", borderRadius: "16px", padding: "48px", textAlign: "center", cursor: "pointer" }}
           >
             <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} className="hidden" />
             {uploading ? (
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="h-5 w-5 text-ac" style={{ animation: "spin 1s linear infinite" }} />
+                <Loader2 className="h-5 w-5 animate-spin text-ac" />
                 <p className="text-sm font-medium text-t1">Parsing {selectedFile?.name}…</p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: "var(--color-ac-bg)" }}>
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-ac-bg">
                   <Upload className="h-5 w-5 text-ac" />
                 </div>
                 <p className="text-sm font-medium text-t1">Drop your spreadsheet here, or <span className="text-ac">browse</span></p>
@@ -128,7 +127,7 @@ function ImportClientsInner() {
               </div>
             )}
           </div>
-          <div className="bg-sr border border-bd rounded-md px-5 py-4 flex items-start gap-3" style={{ borderRadius: "14px" }}>
+          <div className="flex items-start gap-3 rounded-xl border border-bd bg-sr px-5 py-4">
             <Info className="h-4 w-4 text-ac shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-t1 mb-1">Preparing your spreadsheet</p>
@@ -146,7 +145,7 @@ function ImportClientsInner() {
       {/* Preview */}
       {step === "preview" && preview && (
         <div className="space-y-4">
-          <div className="bg-sr border border-bd rounded-md px-5 py-3 flex items-center gap-4 flex-wrap" style={{ borderRadius: "14px" }}>
+          <div className="flex flex-wrap items-center gap-4 rounded-xl border border-bd bg-sr px-5 py-3">
             <div className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4 text-ac" /><span className="text-sm font-medium text-t1">{preview.filename}</span></div>
             <span className="h-4 w-px bg-bd" />
             <span className="text-xs text-t3"><span className="font-semibold text-t2">{preview.summary.total}</span> rows</span>
@@ -157,12 +156,12 @@ function ImportClientsInner() {
           </div>
 
           {preview.requiredFieldsMissing && (
-            <div className="p-3 rounded-md text-xs font-medium" style={{ backgroundColor: "var(--color-dn-bg)", border: "1px solid var(--color-dn-bd)", color: "var(--color-dn-tx)", borderRadius: "14px" }}>
-              <XCircle className="h-3.5 w-3.5 inline mr-1" /> Required column "Company Name" not detected.
+            <div className="rounded-xl border border-dn-bd bg-dn-bg p-3 text-xs font-medium text-dn-tx">
+              <XCircle className="h-3.5 w-3.5 inline mr-1" /> Required column &quot;Company Name&quot; not detected.
             </div>
           )}
 
-          <div className="bg-sr border border-bd rounded-md overflow-hidden" style={{ borderRadius: "14px" }}>
+          <div className="overflow-hidden rounded-xl border border-bd bg-sr">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -182,8 +181,14 @@ function ImportClientsInner() {
                     const hasErrors = row.errors.length > 0
                     const hasWarnings = row.warnings.length > 0
                     return (
-                      <tr key={row.rowIndex} className={cn("border-b border-bd last:border-0", hasErrors ? "" : hasWarnings ? "" : "")}
-                        style={hasErrors ? { backgroundColor: "rgba(253,241,239,0.4)" } : hasWarnings ? { backgroundColor: "rgba(255,251,235,0.4)" } : undefined}>
+                      <tr
+                        key={row.rowIndex}
+                        className={cn(
+                          "border-b border-bd last:border-0",
+                          hasErrors && "bg-dn-bg/40",
+                          !hasErrors && hasWarnings && "bg-wn-bg/40",
+                        )}
+                      >
                         <td className="px-3 py-2.5 text-xs text-t4 tabular-nums">{row.rowIndex}</td>
                         <td className="px-3 py-2.5">
                           {hasErrors ? <XCircle className="h-3.5 w-3.5 text-dn" /> : hasWarnings ? <AlertTriangle className="h-3.5 w-3.5 text-wn" /> : <CheckCircle2 className="h-3.5 w-3.5 text-ok-ic" />}
@@ -206,7 +211,7 @@ function ImportClientsInner() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-4 bg-sr border border-bd rounded-md px-5 py-4" style={{ borderRadius: "14px" }}>
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-bd bg-sr px-5 py-4">
             <p className="text-sm text-t2">
               {preview.summary.valid === 0
                 ? <span className="text-dn-tx font-medium">No valid rows. Fix errors and re-upload.</span>
@@ -226,7 +231,7 @@ function ImportClientsInner() {
       {/* Importing */}
       {step === "importing" && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Loader2 className="h-5 w-5 text-ac mb-4" style={{ animation: "spin 1s linear infinite" }} />
+          <Loader2 className="mb-4 h-5 w-5 animate-spin text-ac" />
           <p className="text-sm font-medium text-t1">Importing clients…</p>
         </div>
       )}
@@ -234,16 +239,16 @@ function ImportClientsInner() {
       {/* Done */}
       {step === "done" && result && (
         <div className="space-y-4">
-          <div className="p-6 text-center rounded-md" style={{ backgroundColor: "var(--color-ok-bg)", border: "1px solid var(--color-ok-bd)", borderRadius: "14px" }}>
-            <CheckCircle2 className="h-5 w-5 mx-auto mb-3" style={{ color: "var(--color-ok-ic)" }} />
-            <p className="text-base font-semibold" style={{ color: "var(--color-ok-tx)" }}>
+          <div className="rounded-xl border border-ok-bd bg-ok-bg p-6 text-center">
+            <CheckCircle2 className="mx-auto mb-3 h-5 w-5 text-ok-ic" />
+            <p className="text-base font-semibold text-ok-tx">
               {result.imported} client{result.imported !== 1 ? "s" : ""} imported
             </p>
-            {result.skipped > 0 && <p className="text-sm mt-1" style={{ color: "var(--color-wn-tx)" }}>{result.skipped} skipped</p>}
+            {result.skipped > 0 && <p className="mt-1 text-sm text-wn-tx">{result.skipped} skipped</p>}
           </div>
 
           {result.importedClients.length > 0 && (
-            <div className="bg-sr border border-bd rounded-md overflow-hidden" style={{ borderRadius: "14px" }}>
+            <div className="overflow-hidden rounded-xl border border-bd bg-sr">
               <div className="px-4 py-3 border-b border-bd"><p className="type-label text-t3">Created clients</p></div>
               <div className="max-h-[250px] overflow-y-auto thin-scroll">
                 <table className="w-full text-sm"><tbody>
@@ -259,13 +264,13 @@ function ImportClientsInner() {
           )}
 
           {result.skippedDetails.length > 0 && (
-            <div className="bg-sr border border-bd rounded-md overflow-hidden" style={{ borderRadius: "14px" }}>
-              <div className="px-4 py-3 border-b border-bd"><p className="text-xs font-semibold" style={{ color: "var(--color-dn-tx)" }}>Skipped</p></div>
+            <div className="overflow-hidden rounded-xl border border-bd bg-sr">
+              <div className="border-b border-bd px-4 py-3"><p className="text-xs font-semibold text-dn-tx">Skipped</p></div>
               <div className="max-h-[150px] overflow-y-auto thin-scroll divide-y divide-bd">
                 {result.skippedDetails.map((s, i) => (
                   <div key={i} className="px-4 py-2.5">
                     <span className="text-xs font-medium text-t2">Row {s.rowIndex}</span>
-                    <span className="text-xs ml-2" style={{ color: "var(--color-dn-tx)" }}>{s.reasons.join("; ")}</span>
+                    <span className="ml-2 text-xs text-dn-tx">{s.reasons.join("; ")}</span>
                   </div>
                 ))}
               </div>

@@ -1,5 +1,5 @@
 "use client"
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Plus, Building2, Upload } from "lucide-react"
@@ -36,6 +36,7 @@ function ClientsInner() {
   const [dupError,   setDupError]   = useState<{ msg: string; existing: Client } | null>(null)
   const [archiveClient, setArchiveClient] = useState<ClientWithMeta | null>(null)
   const [archiving,     setArchiving]     = useState(false)
+  const editRequestId = useRef(0)
 
   useEffect(() => {
     if (searchParams.get("new") !== "1") return
@@ -64,6 +65,7 @@ function ClientsInner() {
   const { matches: isMobile, ready: mediaReady } = useClientMediaQuery("(max-width: 767px)")
 
   const handleEditOpen = useCallback((c: ClientWithMeta) => {
+    const requestId = ++editRequestId.current
     setEditClient(c)
     setDupError(null)
     setEditContacts(null)
@@ -71,20 +73,21 @@ function ClientsInner() {
     fetch(`/api/clients/${c.id}`)
       .then(r => r.json() as Promise<{ contacts?: ClientContactRow[] }>)
       .then(data => {
+        if (requestId !== editRequestId.current) return // stale — a newer edit was opened
         setEditContacts(
           data.contacts?.length
             ? data.contacts.map(row => ({
-                id: row.id,
-                name: row.name,
-                email: row.email,
-                phone: row.phone,
-                role: row.role,
+                id: row.id, name: row.name, email: row.email, phone: row.phone, role: row.role,
               }))
             : contactsFromClient(c),
         )
       })
-      .catch(() => setEditContacts(contactsFromClient(c)))
-      .finally(() => setEditContactsLoading(false))
+      .catch(() => {
+        if (requestId === editRequestId.current) setEditContacts(contactsFromClient(c))
+      })
+      .finally(() => {
+        if (requestId === editRequestId.current) setEditContactsLoading(false)
+      })
   }, [])
   const handleArchiveOpen = useCallback((c: ClientWithMeta) => setArchiveClient(c), [])
 

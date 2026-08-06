@@ -7,7 +7,7 @@ import { Mail, Phone, MapPin, FileText, AlertTriangle, ShieldOff, BarChart3 } fr
 import { Button }            from "@/shared/ui/button"
 import { Input }             from "@/shared/ui/input"
 import { Textarea }          from "@/shared/ui/textarea"
-import { Label }             from "@/shared/ui/label"
+import { Field }             from "@/shared/ui/field"
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogBody } from "@/shared/ui/dialog"
 import { StatusBadge }       from "@/modules/jobs/components/badges/status-badge"
 import { WorkItemTypeBadge } from "@/modules/jobs/components/badges/work-item-type-badge"
@@ -381,14 +381,12 @@ export default function ClientDetailPage() {
           <DialogBody>
             <p className="text-xs text-t3 mb-3">{detail?.client.name}</p>
             <div className="space-y-3">
-              <div className="flex flex-col gap-1.5">
-                <Label>Reason *</Label>
-                <Input value={holdReason} onChange={e => setHoldReason(e.target.value)} autoFocus placeholder="e.g. Outstanding debt, dispute in progress" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Notes (optional)</Label>
-                <Textarea value={holdNotes} onChange={e => setHoldNotes(e.target.value)} rows={2} placeholder="Additional context…" />
-              </div>
+              <Field label="Reason" required htmlFor="client-detail-add-hold-reason">
+                <Input id="client-detail-add-hold-reason" value={holdReason} onChange={e => setHoldReason(e.target.value)} autoFocus placeholder="e.g. Outstanding debt, dispute in progress" />
+              </Field>
+              <Field label="Notes (optional)" htmlFor="client-detail-add-hold-notes">
+                <Textarea id="client-detail-add-hold-notes" value={holdNotes} onChange={e => setHoldNotes(e.target.value)} rows={2} placeholder="Additional context…" />
+              </Field>
             </div>
           </DialogBody>
           <DialogFooter>
@@ -406,10 +404,9 @@ export default function ClientDetailPage() {
           </DialogHeader>
           <DialogBody>
             <p className="text-xs text-t3 mb-3">{detail?.client.name}</p>
-            <div className="flex flex-col gap-1.5">
-              <Label>Reason for removal (optional)</Label>
-              <Input value={removeReason} onChange={e => setRemoveReason(e.target.value)} autoFocus placeholder="e.g. Debt settled, issue resolved" />
-            </div>
+            <Field label="Reason for removal (optional)" htmlFor="client-detail-remove-hold-reason">
+              <Input id="client-detail-remove-hold-reason" value={removeReason} onChange={e => setRemoveReason(e.target.value)} autoFocus placeholder="e.g. Debt settled, issue resolved" />
+            </Field>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setRemoveOpen(false); setRemoveReason("") }} disabled={holdSaving}>Cancel</Button>

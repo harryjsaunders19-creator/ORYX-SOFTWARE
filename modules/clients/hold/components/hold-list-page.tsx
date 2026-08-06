@@ -10,6 +10,7 @@ import { Button }   from "@/shared/ui/button"
 import { Input }    from "@/shared/ui/input"
 import { Label }    from "@/shared/ui/label"
 import { Textarea } from "@/shared/ui/textarea"
+import { Field }    from "@/shared/ui/field"
 import {
   Dialog, DialogContent, DialogHeader, DialogFooter,
   DialogTitle, DialogBody,
@@ -223,7 +224,7 @@ export default function HoldListPage() {
           </DialogHeader>
           <DialogBody className="space-y-3">
             <div className="flex flex-col gap-1.5">
-              <Label>Client *</Label>
+              <Label htmlFor="hold-list-add-client-search">Client <span className="text-dn ml-0.5">*</span></Label>
               {selectedClient ? (
                 <div className="flex items-center gap-2 px-3 py-2 bg-pg border border-bd rounded-md">
                   <Building2 className="h-3.5 w-3.5 text-t4" />
@@ -234,6 +235,7 @@ export default function HoldListPage() {
               ) : (
                 <div className="relative">
                   <Input
+                    id="hold-list-add-client-search"
                     value={clientSearch} onChange={e => setClientSearch(e.target.value)}
                     placeholder="Search clients…" autoFocus
                   />
@@ -253,16 +255,14 @@ export default function HoldListPage() {
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Reason *</Label>
-              <Input value={reason} onChange={e => setReason(e.target.value)}
+            <Field label="Reason" required htmlFor="hold-list-add-reason">
+              <Input id="hold-list-add-reason" value={reason} onChange={e => setReason(e.target.value)}
                 placeholder="e.g. Outstanding debt, dispute in progress" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Notes (optional)</Label>
-              <Textarea value={notes} onChange={e => setNotes(e.target.value)}
+            </Field>
+            <Field label="Notes (optional)" htmlFor="hold-list-add-notes">
+              <Textarea id="hold-list-add-notes" value={notes} onChange={e => setNotes(e.target.value)}
                 rows={2} placeholder="Additional context…" />
-            </div>
+            </Field>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)} disabled={saving}>Cancel</Button>
@@ -281,14 +281,12 @@ export default function HoldListPage() {
             <DialogTitle>Edit hold — {editItem?.clientName}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Reason *</Label>
-              <Input value={editReason} onChange={e => setEditReason(e.target.value)} autoFocus />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Notes (optional)</Label>
-              <Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} />
-            </div>
+            <Field label="Reason" required htmlFor="hold-list-edit-reason">
+              <Input id="hold-list-edit-reason" value={editReason} onChange={e => setEditReason(e.target.value)} autoFocus />
+            </Field>
+            <Field label="Notes (optional)" htmlFor="hold-list-edit-notes">
+              <Textarea id="hold-list-edit-notes" value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} />
+            </Field>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditItem(null)} disabled={saving}>Cancel</Button>
@@ -311,11 +309,10 @@ export default function HoldListPage() {
               Remove <strong>{removeItem?.clientName}</strong> from the hold list?
               The hold record will be retained for audit purposes.
             </p>
-            <div className="flex flex-col gap-1.5">
-              <Label>Reason for removal (optional)</Label>
-              <Input value={removeReason} onChange={e => setRemoveReason(e.target.value)}
+            <Field label="Reason for removal (optional)" htmlFor="hold-list-remove-reason">
+              <Input id="hold-list-remove-reason" value={removeReason} onChange={e => setRemoveReason(e.target.value)}
                 autoFocus placeholder="e.g. Debt settled, issue resolved" />
-            </div>
+            </Field>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRemoveItem(null)} disabled={saving}>Cancel</Button>
