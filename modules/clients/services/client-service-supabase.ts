@@ -23,13 +23,14 @@ async function batchClientMeta(
   }
   if (!clientIds.length) return map
 
-  const counts = await supabaseJobRepo.activeJobCountsForClients(clientIds)
+  const [counts, holdRows] = await Promise.all([
+    supabaseJobRepo.activeJobCountsForClients(clientIds),
+    supabaseHoldRepo.activeHoldReasonsFor(clientIds),
+  ])
   for (const [clientId, n] of counts) {
     const entry = map.get(clientId)
     if (entry) entry.activeJobCount = n
   }
-
-  const holdRows = await supabaseHoldRepo.activeHoldReasonsFor(clientIds)
   for (const row of holdRows) {
     const entry = map.get(row.clientId)
     if (entry) entry.onHold = true

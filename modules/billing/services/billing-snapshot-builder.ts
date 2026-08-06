@@ -167,8 +167,7 @@ export async function buildAccountsHandoverSnapshotsBatch(
     const { supabaseWorkItemRepo } = await import("@/modules/jobs/supabase/work-item-repository")
     workItems = await supabaseWorkItemRepo.findManyByIds(workItemIds)
     const parentIds = [...new Set(workItems.map(w => w.parentJobId))]
-    const allForParents = await Promise.all(parentIds.map(id => supabaseWorkItemRepo.findByParent(id)))
-    workItemsByParent = new Map(parentIds.map((id, i) => [id, allForParents[i] ?? []]))
+    workItemsByParent = await supabaseWorkItemRepo.findByParents(parentIds)
   }
   const workItemById = new Map(workItems.map(w => [w.id, w]))
 
@@ -185,23 +184,15 @@ export async function buildAccountsHandoverSnapshotsBatch(
     ...workItems.map(w => w.legacyJobId).filter((id): id is string => !!id),
   ]
 
-  const [clients, historyByJob, quotes, revisionsByParent] = await Promise.all([
+  const [clients, historyByJob, quotes, revisionsByParent, historyByWorkItem] = await Promise.all([
     supabaseClientRepo.findManyByIds(clientIds),
     supabaseStatusHistoryRepo.forJobs([...new Set(historyIds)]),
     supabaseQuoteRepo.findManyByNumbers(quoteNumbers),
     supabaseJobRepo.revisionsForJobs(jobIds),
+    workItemIds.length
+      ? supabaseStatusHistoryRepo.forWorkItems(workItemIds)
+      : Promise.resolve(new Map<string, StatusHistoryRow[]>()),
   ])
-
-  // Also pull status history keyed by work_item_id where available
-  const historyByWorkItem = new Map<string, StatusHistoryRow[]>()
-  if (workItemIds.length) {
-    for (const wiId of workItemIds) {
-      try {
-        const rows = await supabaseStatusHistoryRepo.forWorkItem(wiId)
-        historyByWorkItem.set(wiId, rows)
-      } catch { /* optional */ }
-    }
-  }
 
   const clientById = new Map(clients.map(c => [c.id, c]))
   const quoteByNumber = new Map(quotes.map(q => [q.quoteNumber, q]))

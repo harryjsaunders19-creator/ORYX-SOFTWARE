@@ -51,11 +51,14 @@ export async function filterLeaveEventsForViewer(
 
   if (isSupabaseOnly()) {
     const { supabaseEmployeeRepo } = await import("@/modules/employees/supabase/repository")
-    reports = await supabaseEmployeeRepo.directReportIds(viewer.id)
-    if (needsDeptCheck) {
-      const profile = await supabaseEmployeeRepo.findProfile(viewer.id)
-      viewerDepartment = profile?.department ?? null
-    }
+    const [reportIds, profile] = await Promise.all([
+      supabaseEmployeeRepo.directReportIds(viewer.id),
+      needsDeptCheck
+        ? supabaseEmployeeRepo.findProfile(viewer.id)
+        : Promise.resolve(null),
+    ])
+    reports = reportIds
+    viewerDepartment = profile?.department ?? null
   } else {
     const { employeeProfileDb } = await import("@/lib/db/stores")
     reports = employeeProfileDb.directReportIds(viewer.id)

@@ -40,6 +40,25 @@ export const supabaseWorkItemRepo = {
     return ((data as unknown as SupabaseWorkItemRow[] | null) ?? []).map(toWorkItemRow)
   },
 
+  /** Bulk siblings for many parents — one query instead of N findByParent calls. */
+  async findByParents(parentJobIds: string[]): Promise<Map<string, DesignWorkItemRow[]>> {
+    const map = new Map<string, DesignWorkItemRow[]>()
+    if (!parentJobIds.length) return map
+    for (const id of parentJobIds) map.set(id, [])
+    const { data, error } = await table()
+      .select(COLS)
+      .in("parent_job_id", parentJobIds)
+      .order("date_created", { ascending: true })
+    if (error) throw new Error(error.message)
+    for (const row of ((data as unknown as SupabaseWorkItemRow[] | null) ?? [])) {
+      const item = toWorkItemRow(row)
+      const list = map.get(item.parentJobId) ?? []
+      list.push(item)
+      map.set(item.parentJobId, list)
+    }
+    return map
+  },
+
   async findActive(opts: {
     search?: string
     status?: string

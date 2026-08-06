@@ -56,16 +56,38 @@ export const holdService = {
     return enrichAllWithClientStats(holds)
   },
 
+  /** Job-list badge set — client ids only, no enrichment. */
+  async allActiveClientIds(): Promise<{ clientId: string }[]> {
+    return supabaseHoldRepo.allActiveClientIds()
+  },
+
   /**
    * Dashboard preview: client names only (no per-client job stats), capped.
    * Use activeCount() for the badge total.
    */
   async allActivePreview(take = 5): Promise<ClientHoldWithClientRow[]> {
-    const holds = (await supabaseHoldRepo.allActiveHolds()).slice(0, take)
+    const holds = await supabaseHoldRepo.allActiveHoldsPreview(take)
     if (!holds.length) return []
     const clientIds = [...new Set(holds.map(h => h.clientId).filter(Boolean))]
-    const clients = await supabaseClientRepo.findManyByIds(clientIds)
-    const clientNameById = new Map(clients.filter(Boolean).map(c => [c!.id, c!.name]))
+    const clients = await supabaseClientRepo.findNamesByIds(clientIds)
+    const clientNameById = new Map(clients.map(c => [c.id, c.name]))
+    return holds.map(hold => ({
+      ...hold,
+      clientName: clientNameById.get(hold.clientId) ?? "",
+      activeJobCount: 0,
+      quoteValueTotal: 0,
+    }))
+  },
+
+  /**
+   * Notifications / bell — client names + reasons only (no per-client job stats).
+   */
+  async allActiveWithNames(): Promise<ClientHoldWithClientRow[]> {
+    const holds = await supabaseHoldRepo.allActiveHolds()
+    if (!holds.length) return []
+    const clientIds = [...new Set(holds.map(h => h.clientId).filter(Boolean))]
+    const clients = await supabaseClientRepo.findNamesByIds(clientIds)
+    const clientNameById = new Map(clients.map(c => [c.id, c.name]))
     return holds.map(hold => ({
       ...hold,
       clientName: clientNameById.get(hold.clientId) ?? "",

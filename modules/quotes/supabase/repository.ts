@@ -49,6 +49,11 @@ const QUOTE_LIST_SELECT = [
   "created_at", "updated_at",
 ].join(",")
 
+/** Perf: job-list enrich only needs id/number/value/status/job linkage. */
+const QUOTE_JOB_LINK_SELECT = [
+  "id", "quote_number", "quote_value", "status", "job_id", "updated_at", "archived_at",
+].join(",")
+
 export interface QuoteListOptionsExt extends QuoteListOptions {
   includeArchived?: boolean
   onlyArchived?: boolean
@@ -135,11 +140,11 @@ export const supabaseQuoteRepo = {
 
   async findByJobIds(jobIds: string[]): Promise<QuoteRow[]> {
     if (!jobIds.length) return []
-    let q = quotesTable().select("*").in("job_id", jobIds).order("updated_at", { ascending: false })
+    let q = quotesTable().select(QUOTE_JOB_LINK_SELECT).in("job_id", jobIds).order("updated_at", { ascending: false })
     if (quotesArchivedFilterEnabled()) q = q.is("archived_at", null)
     const { data, error } = await q
     if (error) throw error
-    return (data ?? []).map(toQuoteRow)
+    return ((data ?? []) as unknown as SupabaseQuoteRow[]).map(toQuoteRow)
   },
 
   async setJobId(quoteId: string, jobId: string | null): Promise<QuoteRow | null> {

@@ -54,7 +54,10 @@ export default function ParentJobDashboardPage({
 
   const { data, error, isLoading, mutate } = useApi<ParentJobDashboard>(
     parentId ? `/api/parent-jobs/${parentId}` : null,
-    { fallbackData: fallback ?? undefined },
+    {
+      fallbackData: fallback ?? undefined,
+      ...(fallback ? { revalidateIfStale: false, revalidateOnMount: false } : {}),
+    },
   )
 
   const [revOpen, setRevOpen] = useState(false)

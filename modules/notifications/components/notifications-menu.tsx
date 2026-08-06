@@ -81,8 +81,8 @@ export function NotificationsMenu() {
     const now = Date.now()
     setClearedAtMs(now)
     try { localStorage.setItem(CLEAR_KEY, String(now)) } catch { /* ignore */ }
-    void mutate()
-  }, [mutate])
+    // Visible list is local-filtered via clearedAtMs — no full refetch needed.
+  }, [])
 
   useEffect(() => {
     const onVisibility = () => {
@@ -93,8 +93,9 @@ export function NotificationsMenu() {
   }, [load])
 
   useEffect(() => {
-    if (open) load()
-  }, [open, load])
+    // Only refresh on open when the cache is still empty (poll covers freshness).
+    if (open && !data) load()
+  }, [open, data, load])
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>

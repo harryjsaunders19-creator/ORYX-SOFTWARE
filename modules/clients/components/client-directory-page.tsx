@@ -113,7 +113,18 @@ function ClientsInner() {
       const body = await res.json() as Client & { error?: string; existing?: Client }
       if (res.status === 409) { setDupError({ msg: body.error ?? "Duplicate", existing: body.existing! }); return }
       if (!res.ok) { toast(body.error ?? "Failed", "error"); return }
-      toast("Saved", "success"); setEditClient(null); mutate()
+      toast("Saved", "success"); setEditClient(null)
+      await mutate(
+        current => current
+          ? {
+              ...current,
+              clients: current.clients.map(c => c.id === editClient.id
+                ? { ...c, ...body, activeJobCount: c.activeJobCount, onHold: c.onHold }
+                : c),
+            }
+          : current,
+        { revalidate: false },
+      )
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }

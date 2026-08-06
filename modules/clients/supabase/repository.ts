@@ -70,6 +70,14 @@ export const supabaseClientRepo = {
     return (data ?? []).map(toClientRow)
   },
 
+  /** Name enrich for holds/notifications — id + name only. */
+  async findNamesByIds(ids: string[]): Promise<{ id: string; name: string }[]> {
+    if (!ids.length) return []
+    const { data, error } = await table().select("id, name").in("id", ids)
+    if (error) throw error
+    return (data ?? []).map(r => ({ id: r.id as string, name: String(r.name ?? "") }))
+  },
+
   async findByName(name: string): Promise<ClientRow | null> {
     const { data, error } = await table().select("*").eq("name_lower", name.trim().toLowerCase()).maybeSingle()
     if (error) throw error

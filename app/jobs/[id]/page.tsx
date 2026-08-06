@@ -15,6 +15,11 @@ type JobDetailFallback = Job & {
   parentJob?: Job | null
   billingHandoff?: BillingHandoff | null
   cancelRecord?: unknown
+  currentRevision?: Job | null
+  currentRevisionId?: string | null
+  currentRevisionLetter?: string | null
+  hasRevisions?: boolean
+  revisionCount?: number
 }
 
 async function loadClassicJobFallback(
@@ -25,21 +30,41 @@ async function loadClassicJobFallback(
   const job = await jobService.findUnique(id)
   if (!job) return null
 
-  const [cancelRecord, parentJob, billingHandoff] = await Promise.all([
-    job.archivedAt ? cancelRecordForJob(id) : Promise.resolve(undefined),
+  const payload = job.archivedAt
+    ? { ...job, cancelRecord: await cancelRecordForJob(id) }
+    : job
+
+  const { enrichJobsWithLinkedQuotes } = await import("@/modules/jobs/api/enrich-linked-quotes")
+  const needsCurrent = !job.parentJobId
+
+  const [enrichedList, parentJob, latest, revisionCount] = await Promise.all([
+    enrichJobsWithLinkedQuotes([payload]),
     opts.includeParent && job.parentJobId
       ? jobService.findUnique(job.parentJobId)
       : Promise.resolve(null),
-    user.role === "ADMIN"
-      ? billingHandoffService.findBySourceJobId(id)
-      : Promise.resolve(null),
+    needsCurrent ? jobService.findLatestRevisionForParent(job.id) : Promise.resolve(null),
+    needsCurrent ? jobService.countRevisionsForParent(job.id) : Promise.resolve(0),
   ])
+  const enriched = enrichedList[0] ?? payload
+
+  const currentRevisionId = latest?.id ?? (needsCurrent ? job.id : undefined)
+  const billingHandoff = user.role === "ADMIN"
+    ? await billingHandoffService.findBySourceJobId(currentRevisionId ?? id)
+    : null
 
   return {
-    ...job,
-    ...(job.archivedAt ? { cancelRecord } : {}),
+    ...enriched,
     parentJob: opts.includeParent ? parentJob : null,
     billingHandoff: billingHandoff as BillingHandoff | null,
+    ...(needsCurrent
+      ? {
+          currentRevision: latest,
+          currentRevisionId: currentRevisionId ?? job.id,
+          currentRevisionLetter: latest?.revisionLetter ?? null,
+          hasRevisions: revisionCount > 0,
+          revisionCount,
+        }
+      : {}),
   }
 }
 

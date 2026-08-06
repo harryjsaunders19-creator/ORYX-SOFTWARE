@@ -25,8 +25,10 @@ const createRevisionBodySchema = z.object({
 }).passthrough()
 
 async function resolveParentIdForWorkItems(id: string): Promise<string | null> {
-  const dash = await parentJobService.getDashboard(id)
-  if (dash) return dash.parent.id
+  // Cheap existence check — avoid loading the full dashboard twice.
+  const { supabaseParentJobRepo } = await import("../supabase/parent-job-repository")
+  const parent = await supabaseParentJobRepo.findUnique(id)
+  if (parent) return parent.id
   const wi = await workItemService.findUnique(id)
   return wi?.parentJobId ?? null
 }

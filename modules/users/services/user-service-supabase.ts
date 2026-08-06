@@ -29,6 +29,10 @@ export const userService = {
     return supabaseUserRepo.findMany(opts)
   },
 
+  async findActiveNames(): Promise<string[]> {
+    return supabaseUserRepo.findActiveNames()
+  },
+
   async findUnique(id: string): Promise<UserRow | null> {
     return supabaseUserRepo.findUnique(id)
   },

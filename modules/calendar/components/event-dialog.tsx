@@ -44,14 +44,19 @@ interface EventDialogProps {
   event?: CalendarEvent | null
   defaultDate?: string
   defaultCategoryId?: string
+  /** When provided by calendar page, skip a duplicate /api/users fetch. */
+  users?: UserOption[]
 }
 
-export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaultCategoryId }: EventDialogProps) {
+export function EventDialog({
+  open, onClose, onSaved, event, defaultDate, defaultCategoryId, users: usersProp,
+}: EventDialogProps) {
   const { toast } = useToast()
   const { isAdmin } = useUser()
   const isEdit = !!event
 
-  const [users, setUsers]               = useState<UserOption[]>([])
+  const [usersLocal, setUsersLocal]     = useState<UserOption[]>([])
+  const users = usersProp ?? usersLocal
   const [saving, setSaving]             = useState(false)
   const [deleting, setDeleting]         = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -67,12 +72,12 @@ export function EventDialog({ open, onClose, onSaved, event, defaultDate, defaul
   const [assigneeIds, setAssigneeIds] = useState<string[]>([])
 
   useEffect(() => {
-    if (!open) return
+    if (!open || usersProp) return
     fetch("/api/users")
       .then(r => r.ok ? r.json() as Promise<{ users: (UserOption & { active?: number })[] }> : null)
-      .then(d => { if (d) setUsers(d.users.filter(u => u.active !== 0)) })
+      .then(d => { if (d) setUsersLocal(d.users.filter(u => u.active !== 0)) })
       .catch(() => {})
-  }, [open])
+  }, [open, usersProp])
 
   useEffect(() => {
     if (!open) { setConfirmDelete(false); return }

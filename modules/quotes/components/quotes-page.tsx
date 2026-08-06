@@ -149,22 +149,51 @@ function QuotesInner() {
       if (!res.ok) { toast(body.error ?? "Failed to save", "error"); return }
       toast("Quote updated", "success")
       setEditQuote(null)
-      mutate()
+      await mutate(
+        current => current
+          ? {
+              ...current,
+              quotes: current.quotes.map(q => q.id === editQuote.id ? { ...q, ...body } : q),
+            }
+          : current,
+        { revalidate: false },
+      )
     } catch { toast("Network error", "error") }
     finally { setSaving(false) }
   }
 
   const setStatus = useCallback(async (quote: Quote, status: string) => {
+    await mutate(
+      current => current
+        ? { ...current, quotes: current.quotes.map(q => q.id === quote.id ? { ...q, status } : q) }
+        : current,
+      { revalidate: false },
+    )
     try {
       const res = await fetch(`/api/quotes/${quote.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       })
-      const body = await res.json() as { error?: string }
-      if (!res.ok) { toast(body.error ?? "Failed to update status", "error"); return }
+      const body = await res.json() as Quote & { error?: string }
+      if (!res.ok) {
+        toast(body.error ?? "Failed to update status", "error")
+        await mutate()
+        return
+      }
       toast(`${quote.quoteNumber} marked ${statusMeta(status).label}`, status === "ACCEPTED" ? "success" : "info")
-      mutate()
-    } catch { toast("Network error", "error") }
+      await mutate(
+        current => current
+          ? {
+              ...current,
+              quotes: current.quotes.map(q => q.id === quote.id ? { ...q, ...body, status } : q),
+            }
+          : current,
+        { revalidate: false },
+      )
+    } catch {
+      toast("Network error", "error")
+      await mutate()
+    }
   }, [mutate, toast])
 
   const generatePdf = useCallback(async (quote: Quote) => {
