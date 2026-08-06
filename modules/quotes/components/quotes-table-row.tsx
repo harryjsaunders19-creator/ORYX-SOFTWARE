@@ -50,10 +50,10 @@ export function QuoteRowActions({ quote: q, isPdfBusy, onGeneratePdf, onEdit, on
       {(q.status === "DRAFT" || q.status === "SENT")
         && getQuoteExpiryInfo(q.expiryDate, q.status).severity !== "expired" && (
         <>
-          <Button variant="ghost" size="sm" className="text-ok-tx hover:bg-ok-bg" onClick={() => onSetStatus(q, "ACCEPTED")}>
+          <Button variant="ghost" size="sm" className="text-ok-tx hover:bg-ok-bg" onClick={() => onSetStatus(q, "ACCEPTED")} aria-label={`Mark ${q.quoteNumber} as accepted`}>
             <CheckCircle2 className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="sm" className="text-dn hover:bg-dn-bg" onClick={() => onSetStatus(q, "REJECTED")}>
+          <Button variant="ghost" size="sm" className="text-dn hover:bg-dn-bg" onClick={() => onSetStatus(q, "REJECTED")} aria-label={`Mark ${q.quoteNumber} as rejected`}>
             <XCircle className="h-3.5 w-3.5" />
           </Button>
         </>

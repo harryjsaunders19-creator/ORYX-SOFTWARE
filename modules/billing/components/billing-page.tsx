@@ -5,7 +5,7 @@ import { Button } from "@/shared/ui/button"
 import { useToast } from "@/shared/ui/toast"
 import { RequireRole } from "@/components/require-role"
 import { PageHeader, PageShell, DataPanel, KpiTile, TabBar, TablePagination } from "@/shared/layouts/page-layout"
-import { formatGBP } from "@/shared/utils/utils"
+import { cn, formatGBP } from "@/shared/utils/utils"
 import { useClientMediaQuery } from "@/shared/hooks/use-media-query"
 import { useApi } from "@/shared/hooks/use-api"
 import type { BillingHandoff, BillingExportBatch } from "@/lib/types"
@@ -22,7 +22,10 @@ function BillingPageInner() {
   // Perf: SWR key includes view+page so awaiting/cleared/history share the cache correctly.
   const listKey = view === "history" ? null : `/api/billing-handoffs?view=${view}&limit=${PAGE_SIZE}&page=${page}`
   const historyKey = view === "history" ? "/api/billing-handoffs/batches" : null
-  const { data: listData, error: listError, isLoading: listLoading, mutate: mutateList } = useApi<{
+  const {
+    data: listData, error: listError, isLoading: listLoading,
+    isValidating: listValidating, mutate: mutateList,
+  } = useApi<{
     handoffs?: BillingHandoff[]
     awaitingCount?: number
     awaitingValue?: number
@@ -33,21 +36,46 @@ function BillingPageInner() {
     limit?: number
     error?: string
   }>(listKey)
-  const { data: historyData, error: historyError, isLoading: historyLoading, mutate: mutateHistory } = useApi<{
+  const {
+    data: historyData, error: historyError, isLoading: historyLoading,
+    isValidating: historyValidating, mutate: mutateHistory,
+  } = useApi<{
     batches?: BillingExportBatch[]
     error?: string
   }>(historyKey)
 
-  const items = view === "history" ? null : (listData?.handoffs ?? (listLoading ? null : []))
-  const batches = view === "history" ? (historyData?.batches ?? (historyLoading ? null : [])) : null
+  // keepPreviousData can leave the previous tab's rows under the new headers while
+  // the new key loads. Track which key the settled payload belongs to so we only
+  // render rows that match the active view; same-view revalidation keeps rows and
+  // uses a light opacity treatment (quotes-page pattern) instead of a spinner flash.
+  const [settledListKey, setSettledListKey] = useState<string | null>(null)
+  const [settledHistoryKey, setSettledHistoryKey] = useState<string | null>(null)
+  useEffect(() => {
+    if (listKey && !listValidating && listData) setSettledListKey(listKey)
+  }, [listKey, listValidating, listData])
+  useEffect(() => {
+    if (historyKey && !historyValidating && historyData) setSettledHistoryKey(historyKey)
+  }, [historyKey, historyValidating, historyData])
+
+  const listBelongsToView = listKey != null && settledListKey === listKey
+  const historyBelongsToView = historyKey != null && settledHistoryKey === historyKey
+  const listRefreshing = listBelongsToView && listValidating && !!listData
+  const historyRefreshing = historyBelongsToView && historyValidating && !!historyData
+
+  const items = view === "history"
+    ? null
+    : (!listBelongsToView || (listLoading && !listData) ? null : (listData?.handoffs ?? []))
+  const batches = view === "history"
+    ? (!historyBelongsToView || (historyLoading && !historyData) ? null : (historyData?.batches ?? []))
+    : null
   const stats = listData ? {
     awaitingCount: listData.awaitingCount ?? 0,
     awaitingValue: listData.awaitingValue ?? 0,
     clearedCount: listData.clearedCount ?? 0,
   } : null
   const loadError = !!(listError || historyError ||
-    (listData && !Array.isArray(listData.handoffs) && view !== "history") ||
-    (historyData && !Array.isArray(historyData.batches) && view === "history"))
+    (listData && !Array.isArray(listData.handoffs) && view !== "history" && listBelongsToView) ||
+    (historyData && !Array.isArray(historyData.batches) && view === "history" && historyBelongsToView))
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
@@ -59,13 +87,20 @@ function BillingPageInner() {
     if (historyError) toast(historyError.message || "Failed to load export history", "error")
   }, [historyError, toast])
 
-  const load = useCallback((v: View) => {
+  // Switching tabs: reset page + selection, then fetch
+  const switchView = useCallback((v: View) => {
     setView(v)
     setPage(1)
     setSelected(new Set())
     if (v === "history") void mutateHistory()
     else void mutateList()
   }, [mutateHistory, mutateList])
+
+  // Just refreshing the current view's data — do NOT touch page or selection
+  const refresh = useCallback(() => {
+    if (view === "history") void mutateHistory()
+    else void mutateList()
+  }, [view, mutateHistory, mutateList])
 
   useEffect(() => { setSelected(new Set()) }, [view, page])
 
@@ -75,11 +110,12 @@ function BillingPageInner() {
   const totalPages = Math.max(1, Math.ceil(viewTotal / PAGE_SIZE))
   const truncated = !!listData?.truncated
 
-  const toggle = (id: string) => setSelected(prev => {
+  const toggle = useCallback((id: string) => setSelected(prev => {
     const next = new Set(prev)
     if (next.has(id)) next.delete(id); else next.add(id)
     return next
-  })
+  }), [])
+  // Not passed into memoized rows — only the select-all control. Leave unstable.
   const toggleAll = () => setSelected(prev =>
     items && prev.size === items.length ? new Set() : new Set(items?.map(i => i.id) ?? [])
   )
@@ -102,7 +138,7 @@ function BillingPageInner() {
 
       <TabBar
         active={view}
-        onChange={v => load(v as View)}
+        onChange={v => switchView(v as View)}
         trailing={
           view === "awaiting" && selected.size > 0 ? (
             <Button size="sm" variant="primary" onClick={() => setExporting(true)}>
@@ -143,7 +179,7 @@ function BillingPageInner() {
 
       {view === "history" ? (
         showMobile ? (
-          <div className="space-y-2.5">
+          <div className={cn("space-y-2.5 transition-opacity", historyRefreshing && "opacity-60")}>
             {batches === null ? (
               <DataPanel className="px-4 py-10 text-center text-t4">
                 <Loader2 className="h-4 w-4 animate-spin inline" />
@@ -155,7 +191,7 @@ function BillingPageInner() {
             )}
           </div>
         ) : (
-        <DataPanel className="overflow-x-auto">
+        <DataPanel className={cn("overflow-x-auto transition-opacity", historyRefreshing && "opacity-60")}>
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-pg border-b border-bd">
@@ -180,7 +216,7 @@ function BillingPageInner() {
         </DataPanel>
         )
       ) : showMobile ? (
-        <div className="space-y-2.5">
+        <div className={cn("space-y-2.5 transition-opacity", listRefreshing && "opacity-60")}>
           {view === "awaiting" && items && items.length > 0 && (
             <label className="flex items-center gap-2 text-xs text-t3 px-1 min-h-11">
               <input
@@ -209,13 +245,13 @@ function BillingPageInner() {
                 view={view}
                 selected={selected.has(item.id)}
                 onToggle={toggle}
-                onQuoteSaved={() => load(view)}
+                onQuoteSaved={refresh}
               />
             ))
           )}
         </div>
       ) : (
-        <DataPanel className="overflow-x-auto">
+        <DataPanel className={cn("overflow-x-auto transition-opacity", listRefreshing && "opacity-60")}>
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-pg border-b border-bd">
@@ -262,7 +298,7 @@ function BillingPageInner() {
                     view={view}
                     selected={selected.has(item.id)}
                     onToggle={toggle}
-                    onQuoteSaved={() => load(view)}
+                    onQuoteSaved={refresh}
                   />
                 ))
               )}
@@ -275,7 +311,7 @@ function BillingPageInner() {
         <ExportModal
           ids={[...selected]}
           onClose={() => setExporting(false)}
-          onExported={() => { setExporting(false); load("awaiting") }}
+          onExported={() => { setExporting(false); switchView("awaiting") }}
         />
       )}
     </PageShell>
