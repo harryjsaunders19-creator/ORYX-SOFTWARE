@@ -30,10 +30,12 @@ function looksLikeId(segment: string): boolean {
 function routeContext(pathname: string): { section: string; trail: string } {
   if (pathname === "/") return { section: "ORYX OS", trail: "Dashboard" }
 
-  const mod = MODULES.find(m => {
-    if (m.href === "/") return false
-    return pathname === m.href || pathname.startsWith(`${m.href}/`)
-  })
+  // Prefer the longest href match so /clients/hold-list resolves to Hold List,
+  // not Clients (which also prefix-matches).
+  const mod = MODULES
+    .filter(m => m.href !== "/")
+    .filter(m => pathname === m.href || pathname.startsWith(`${m.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]
 
   if (mod) {
     const rest = pathname.slice(mod.href.length).replace(/^\//, "")
