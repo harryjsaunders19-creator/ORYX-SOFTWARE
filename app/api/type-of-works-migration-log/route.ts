@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { typeOfWorksMigrationLogDb } from "@/lib/db"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 
 export async function GET(req: NextRequest) {

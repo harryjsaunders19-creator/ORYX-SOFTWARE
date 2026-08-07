@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireModuleAccess, requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireModuleAccess, requireFullAccess } from "@/shared/auth/auth"
 import type { UpdateCalendarEventData } from "../types/calendar-types"
 import { calendarService } from "../services/calendar-service"
 import { userService } from "@/modules/users"

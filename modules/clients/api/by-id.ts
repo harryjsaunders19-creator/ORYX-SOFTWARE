@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { clientService } from "../services/client-service"
-import { requireModuleAccess, requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireModuleAccess, requireFullAccess } from "@/shared/auth/auth"
 import { canViewCommercialValues, canViewClientAnalytics } from "@/shared/auth/permissions"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { apiInternalError } from "@/shared/api-errors"

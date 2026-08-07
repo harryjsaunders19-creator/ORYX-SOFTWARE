@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { jobService } from "../services/job-service"
 import { historyService } from "../services/history-service"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"

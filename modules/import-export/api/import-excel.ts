@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { importFromExcelBuffer } from "../services/excel-import"
 
 /** Large imports batch-upsert to Supabase — allow up to 60s on Vercel (see vercel.json). */

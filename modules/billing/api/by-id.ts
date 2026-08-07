@@ -3,7 +3,7 @@ import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { billingHandoffService } from "../services/billing-handoff-service"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { parseOptionalMoney } from "@/shared/utils/utils"
 
 type Ctx = { params: Promise<{ id: string }> }

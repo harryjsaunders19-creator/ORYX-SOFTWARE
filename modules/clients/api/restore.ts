@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { clientService } from "../services/client-service"
 
 type Ctx = { params: Promise<{ id: string }> }

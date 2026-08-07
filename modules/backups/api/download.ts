@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { backupRecordService } from "../services/backup-record-service"
 import { backupDataFilePath } from "../backup-service"
 import fs from "fs"

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { quoteService } from "../services/quote-service"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 
 export async function DELETE() {

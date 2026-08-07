@@ -1,4 +1,4 @@
-import { test, expect, loginAsAdmin, loginAsEngineer, loginAsAccounts, loginApi, assertTestAuthReady } from "./helpers"
+import { test, expect, loginAsAdmin, loginAsAccounts, loginApi, assertTestAuthReady } from "./helpers"
 
 test.describe("Job cancellation", () => {
   test.beforeAll(async ({ request }) => {

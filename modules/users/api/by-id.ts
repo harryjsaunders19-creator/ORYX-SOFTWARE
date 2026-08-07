@@ -3,7 +3,7 @@ import { apiInternalError } from "@/shared/api-errors"
 
 import { userService } from "../services/user-service"
 import { toPublicUser } from "../types/user-types"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { isValidRole, normalizeModuleAccess, serializeModuleAccess, hasFullAccess, parseModuleAccessJson } from "@/shared/auth/permissions"
 import type { Role } from "@/shared/types/role"
 

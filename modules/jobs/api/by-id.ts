@@ -3,7 +3,7 @@ import { z } from "zod"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/modules/clients"
 import { VALID_STATUSES, isValidWorksType, OTHER_WORKS_TYPE, sanitizeJobTags, type JobStatusValue } from "@/lib/constants"
-import { requireModuleAccess, requireRole, requireFullAccess, actorName } from "@/shared/auth/auth"
+import { requireModuleAccess, requireFullAccess, actorName } from "@/shared/auth/auth"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
 import { resourceResponse } from "@/shared/utils/api-cache"
 import { cancelRecordForJob } from "@/modules/archive/cancel-record"
@@ -257,7 +257,14 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     const archiverName = auth.user.name
 
     const archived = await jobService.archive(id, archiverId, archiverName, archiveReason)
-    if (!archived) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    if (!archived) {
+      // Distinguish concurrent archive (409) from missing row (404).
+      const again = await jobService.findUnique(id)
+      if (again?.archivedAt) {
+        return NextResponse.json({ error: "This job is already cancelled" }, { status: 409 })
+      }
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
     return NextResponse.json({ ok: true, archived: true, job: archived })
   } catch (err) {
     return apiInternalError("jobs.by_id.delete", err)

@@ -3,8 +3,7 @@ import { apiInternalError } from "@/shared/api-errors"
 
 import { billingHandoffService } from "../services/billing-handoff-service"
 import { buildAccountsHandoverWorkbook, workbookToBuffer } from "../billing-export"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
-
+import { requireFullAccess } from "@/shared/auth/auth"
 export const maxDuration = 60
 
 type Ctx = { params: Promise<{ id: string }> }

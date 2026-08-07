@@ -5,7 +5,7 @@
  * and which modules are actively reading from Supabase at runtime.
  */
 import { NextResponse } from "next/server"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { buildSupabaseStatusReport } from "@/shared/supabase/status-report"
 
 export async function GET() {

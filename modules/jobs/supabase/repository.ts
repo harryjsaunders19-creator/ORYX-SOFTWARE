@@ -741,6 +741,7 @@ export const supabaseJobRepo = {
     const { error, count } = await table()
       .update({ archived_at: archivedAt, archived_by: archivedBy, updated_at: archivedAt }, { count: "exact" })
       .eq("id", id)
+      .is("archived_at", null)
     if (error) throw error
     return (count ?? 0) > 0
   },

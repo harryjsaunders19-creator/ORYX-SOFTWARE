@@ -121,7 +121,7 @@ export default function CalendarPage() {
   )
 
   const events = useMemo(() => eventsData?.events ?? [], [eventsData?.events])
-  const categories = categoriesData?.categories ?? []
+  const categories = useMemo(() => categoriesData?.categories ?? [], [categoriesData?.categories])
   const users = usersData?.users ?? []
   const departments = employeesData?.departments ?? []
   const loading = isLoading && !eventsData

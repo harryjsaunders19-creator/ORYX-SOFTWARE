@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { importLogicalBackupPack } from "../services/logical-import"
 import { backupRecordService } from "../services/backup-record-service"
 import { logicalBackupPackSchema } from "../services/logical-backup-schema"

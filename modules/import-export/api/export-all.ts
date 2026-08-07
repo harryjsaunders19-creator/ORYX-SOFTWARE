@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { format } from "date-fns"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { globalExportToBuffer } from "../services/global-export"
 import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth/rate-limit"
 

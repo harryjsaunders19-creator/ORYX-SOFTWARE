@@ -12,11 +12,8 @@
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
 import {
   hasFullAccess,
-  isAdminRole,
-  isAccountsRole,
   isDesignerEligibleRole,
   isValidRole,
-  roleDisplayLabel,
   type Role,
 } from "@/shared/types/role"
 

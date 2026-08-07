@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { jobService } from "@/modules/jobs"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { DRAWING_SEQUENCE_KEY } from "@/lib/drawing-number"
 

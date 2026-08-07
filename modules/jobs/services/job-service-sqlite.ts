@@ -158,7 +158,8 @@ export const jobService = {
     const now = nowIso()
     const job = jobDb.findUnique(id)
     if (!job) return null
-    jobDb.archive(id, archiverId, now)
+    const ok = jobDb.archive(id, archiverId, now)
+    if (!ok) return null
     // Soft-cancel: drop uncleared billing queue rows; keep cleared history.
     jobDb._retractBillingHandoffOnRevert(id)
     const updated = jobDb.findUnique(id)

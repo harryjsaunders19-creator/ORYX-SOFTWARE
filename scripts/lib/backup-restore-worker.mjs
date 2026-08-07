@@ -6,7 +6,6 @@
  * Commands: seed | export | import | counts | verify
  */
 import fs from "node:fs"
-import path from "node:path"
 import { pathToFileURL } from "node:url"
 
 const cmd = process.argv[2]
@@ -268,7 +267,6 @@ async function verify(expectedPath) {
   const { quoteService } = await tsImport(
     new URL("../../modules/quotes/services/quote-service.ts", import.meta.url).pathname,
   )
-  const { db } = await loadDb()
 
   const errors = []
 

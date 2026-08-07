@@ -2,8 +2,7 @@ import { NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { billingHandoffService } from "../services/billing-handoff-service"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
-
+import { requireFullAccess } from "@/shared/auth/auth"
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: Request, { params }: Ctx) {

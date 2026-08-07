@@ -18,7 +18,7 @@ import { z } from "zod"
 import { apiInternalError } from "@/shared/api-errors"
 import { logError } from "@/shared/logger"
 
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { jobService } from "../services/job-service"
 import { clientService } from "@/modules/clients"
 import { allocateDrawingNumberAsync, nextRefNumberAsync } from "@/shared/supabase/sequence-service"

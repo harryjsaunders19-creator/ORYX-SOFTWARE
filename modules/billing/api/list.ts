@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { billingHandoffService } from "../services/billing-handoff-service"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { enrichHandoffsWithLinkedQuoteValues } from "../enrich-handoff-quote-values"

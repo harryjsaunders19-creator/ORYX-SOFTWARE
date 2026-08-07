@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 import { logError } from "@/shared/logger"
 
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { clientService } from "../services/client-service"
 import { createId } from "@paralleldrive/cuid2"
 import {

@@ -472,7 +472,7 @@ export const jobDb = {
 
   archive(id: string, archivedBy: string, archivedAt: string): boolean {
     return db.prepare(
-      "UPDATE Job SET archivedAt = ?, archivedBy = ?, updatedAt = ? WHERE id = ?"
+      "UPDATE Job SET archivedAt = ?, archivedBy = ?, updatedAt = ? WHERE id = ? AND archivedAt IS NULL"
     ).run(archivedAt, archivedBy, archivedAt, id).changes > 0
   },
 

@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs"
 import type { AccountsHandoverSnapshot } from "@/lib/db"
+import { sanitizeSpreadsheetCell } from "@/shared/utils/spreadsheet-sanitize"
 
 const GBP_FMT = '"£"#,##0.00'
 
@@ -37,15 +38,15 @@ export async function buildAccountsHandoverWorkbook(
 
     const row = sheet.addRow([
       null,
-      s.project.drawingNumber,
+      sanitizeSpreadsheetCell(s.project.drawingNumber),
       null,
-      s.project.siteAddress,
-      typeOfWorks,
-      s.client.clientName,
-      s.commercial.agreedFee ?? s.commercial.quotedFee,
-      s.request.requestedBy ?? "",
-      s.project.completionDate || "",
-      s.design.assignedDesigner ?? "",
+      sanitizeSpreadsheetCell(s.project.siteAddress),
+      sanitizeSpreadsheetCell(typeOfWorks),
+      sanitizeSpreadsheetCell(s.client.clientName),
+      sanitizeSpreadsheetCell(s.commercial.agreedFee ?? s.commercial.quotedFee),
+      sanitizeSpreadsheetCell(s.request.requestedBy ?? ""),
+      sanitizeSpreadsheetCell(s.project.completionDate || ""),
+      sanitizeSpreadsheetCell(s.design.assignedDesigner ?? ""),
     ])
 
     const quoteCell = row.getCell(7)

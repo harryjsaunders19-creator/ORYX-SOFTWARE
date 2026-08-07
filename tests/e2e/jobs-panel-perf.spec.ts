@@ -45,7 +45,6 @@ test.describe("Jobs panel request budget", () => {
     // Allow secondary fetches to settle.
     await page.waitForTimeout(1500)
 
-    // eslint-disable-next-line no-console
     console.log("jobs-panel-open-request-counts", counts)
 
     // Single inspector mount → one request each (SWR may revalidate once; allow ≤2).

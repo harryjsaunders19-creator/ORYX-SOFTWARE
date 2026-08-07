@@ -6,7 +6,7 @@
  */
 import { NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import {
   buildLogicalBackupPack,
   logicalBackupFilename,

@@ -4,7 +4,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import { userService } from "../services/user-service"
 import { toPublicUser } from "../types/user-types"
 import { createId } from "@paralleldrive/cuid2"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
 import { isValidRole, DEFAULT_ROLE, normalizeModuleAccess, serializeModuleAccess, hasFullAccess } from "@/shared/auth/permissions"
 import { generateTempPassword, hashPassword } from "@/shared/auth/password"
 

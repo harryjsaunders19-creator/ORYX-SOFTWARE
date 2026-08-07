@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import ExcelJS from "exceljs"
 import { PDFDocument, StandardFonts } from "pdf-lib"
 import { apiInternalError } from "@/shared/api-errors"
-import { requireRole, requireFullAccess } from "@/shared/auth/auth"
+import { requireFullAccess } from "@/shared/auth/auth"
+import { sanitizeSpreadsheetCell } from "@/shared/utils/spreadsheet-sanitize"
 import { buildPerformancePayload, resolvePerformanceFilters, resolvePerformancePeriod } from "../services/performance-service"
 
-function csvEscape(value: string | number | null | undefined): string {
-  const text = value == null ? "" : String(value)
+function csvEscape(value: string | number | boolean | Date | null | undefined): string {
+  const sanitized = sanitizeSpreadsheetCell(value)
+  const text = sanitized == null ? "" : String(sanitized)
   if (!/[,"\n]/.test(text)) return text
   return `"${text.replace(/"/g, "\"\"")}"`
 }
@@ -45,21 +47,27 @@ async function toExcel(payload: Awaited<ReturnType<typeof buildPerformancePayloa
   const kpi = workbook.addWorksheet("KPI Summary")
   kpi.addRow(["Metric", "Value", "Previous", "Delta", "Delta %"])
   for (const metric of payload.kpis) {
-    kpi.addRow([metric.label, metric.value, metric.previousValue, metric.delta, metric.deltaPct ?? ""])
+    kpi.addRow([
+      sanitizeSpreadsheetCell(metric.label),
+      sanitizeSpreadsheetCell(metric.value),
+      sanitizeSpreadsheetCell(metric.previousValue),
+      sanitizeSpreadsheetCell(metric.delta),
+      sanitizeSpreadsheetCell(metric.deltaPct ?? ""),
+    ])
   }
   const jobs = workbook.addWorksheet("Jobs")
   jobs.addRow(["Drawing Number", "Client", "Engineer", "Status", "Type", "Created", "Completed", "Required By", "Tags"])
   for (const job of payload.jobs) {
     jobs.addRow([
-      job.drawingNumber,
-      job.clientCompany,
-      job.designer,
-      job.status,
-      job.itemType,
-      job.createdDate,
-      job.completedDate ?? "",
-      job.requiredByDate ?? "",
-      job.tags.join(", "),
+      sanitizeSpreadsheetCell(job.drawingNumber),
+      sanitizeSpreadsheetCell(job.clientCompany),
+      sanitizeSpreadsheetCell(job.designer),
+      sanitizeSpreadsheetCell(job.status),
+      sanitizeSpreadsheetCell(job.itemType),
+      sanitizeSpreadsheetCell(job.createdDate),
+      sanitizeSpreadsheetCell(job.completedDate ?? ""),
+      sanitizeSpreadsheetCell(job.requiredByDate ?? ""),
+      sanitizeSpreadsheetCell(job.tags.join(", ")),
     ])
   }
   const buf = await workbook.xlsx.writeBuffer()
