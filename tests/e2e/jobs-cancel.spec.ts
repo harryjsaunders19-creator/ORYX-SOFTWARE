@@ -36,7 +36,7 @@ test.describe("Job cancellation", () => {
   })
 
   test("accounts can cancel where intended", async ({ page }) => {
-    await loginAsAccounts(page)
+    await loginApi(page.request, "accounts@test.com")
     const stamp = Date.now()
     const createRes = await page.request.post("/api/jobs", {
       data: {
@@ -111,13 +111,12 @@ test.describe("Job cancellation", () => {
     })
     const job = await createRes.json() as { id: string; drawingNumber: string }
 
-    await page.goto(`/jobs?job=${job.id}`)
+    await page.goto(`/jobs/${job.id}`)
     const cancelBtn = page.getByRole("button", { name: "Cancel Job" })
     await cancelBtn.waitFor({ state: "visible", timeout: 30_000 })
     await cancelBtn.click()
-    await expect(page.getByRole("dialog", { name: "Cancel job" })).toBeVisible()
-    await page.waitForSelector("#jobs-cancel-reason", { timeout: 30_000 })
-    await expect(page.locator("#jobs-cancel-reason")).toBeVisible()
+    await expect(page.getByRole("dialog")).toBeVisible()
+    await expect(page.locator("#jobs-cancel-reason")).toBeVisible({ timeout: 15_000 })
 
     const confirm = page.getByRole("button", { name: "Cancel job" })
     await expect(confirm).toBeDisabled()

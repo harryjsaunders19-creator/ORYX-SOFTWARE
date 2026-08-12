@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
-import { listResponse } from "@/shared/utils/api-cache"
+import { listResponse, resourceResponse } from "@/shared/utils/api-cache"
 import { requireFullAccess } from "@/shared/auth/auth"
 import { passwordVaultService } from "../services/vault-service"
 import { parseCreateBody, parseSortOrder } from "./validation"
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     const entry = await passwordVaultService.create(parsed.data)
-    return NextResponse.json({ entry }, { status: 201 })
+    return resourceResponse({ entry }, 201)
   } catch (err) {
     return apiInternalError("password-vault.api.list", err)
   }

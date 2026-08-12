@@ -36,6 +36,7 @@ export async function GET() {
         "Content-Disposition": `attachment; filename="${filename}"`,
         "Content-Length": String(Buffer.byteLength(body, "utf8")),
         "X-Oryx-Backup-Counts": JSON.stringify(pack.counts),
+        "Cache-Control": "private, no-store, must-revalidate",
       },
     })
   } catch (err) {

@@ -42,6 +42,20 @@ function yieldToEventLoop(): Promise<void> {
   return new Promise(resolve => setImmediate(resolve))
 }
 
+/** Strip credential material from filesystem dumps — logical export already omits these. */
+const BACKUP_REDACT_COLUMNS: Record<string, readonly string[]> = {
+  User: ["passwordHash"],
+  PasswordVaultEntry: ["passwordEnc"],
+}
+
+function redactRowForBackup(table: string, row: Record<string, unknown>): Record<string, unknown> {
+  const cols = BACKUP_REDACT_COLUMNS[table]
+  if (!cols?.length) return row
+  const out = { ...row }
+  for (const col of cols) delete out[col]
+  return out
+}
+
 /** Every real, persistent table — enumerated from sqlite_master rather than
  *  hand-maintained, so a newly added table is automatically included without
  *  anyone needing to remember to update a list here. Excludes SQLite's own
@@ -86,7 +100,8 @@ async function streamExportData(filePath: string): Promise<{ rowCounts: Record<s
     const cursor = db.prepare(`SELECT * FROM "${table}"`).iterate()
     let rowsSinceYield = 0
     for (const row of cursor) {
-      await write(`${first ? "" : ","}\n  ${JSON.stringify(row)}`)
+      const safeRow = redactRowForBackup(table, row as Record<string, unknown>)
+      await write(`${first ? "" : ","}\n  ${JSON.stringify(safeRow)}`)
       first = false
       count++
       rowsSinceYield++

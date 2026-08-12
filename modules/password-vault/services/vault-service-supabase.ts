@@ -86,7 +86,7 @@ export const passwordVaultService = {
       updatedAt: now,
     }
     await supabasePasswordVaultRepo.upsert(row)
-    return toPublic(row)
+    return toListPublic(row)
   },
 
   async update(id: string, input: UpdatePasswordVaultInput): Promise<PasswordVaultEntry | null> {
@@ -108,7 +108,7 @@ export const passwordVaultService = {
       updatedAt: nowIso(),
     }
     await supabasePasswordVaultRepo.upsert(row)
-    return toPublic(row)
+    return toListPublic(row)
   },
 
   async delete(id: string): Promise<boolean> {

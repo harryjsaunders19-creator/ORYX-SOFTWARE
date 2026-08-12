@@ -120,10 +120,11 @@ export function JobDetailDialogs({
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
-            <label className="block text-xs font-medium text-t2 mb-2">
+            <label className="block text-xs font-medium text-t2 mb-2" htmlFor="jobs-cancel-reason">
               Reason for cancellation <span className="text-dn">*</span>
             </label>
             <Textarea
+              id="jobs-cancel-reason"
               value={cancelReason}
               onChange={e => onCancelReasonChange(e.target.value)}
               placeholder="e.g. Client withdrew, duplicate entry…"

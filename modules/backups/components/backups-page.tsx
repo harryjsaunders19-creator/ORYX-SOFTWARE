@@ -118,8 +118,14 @@ function BackupsInner() {
     setImportResult(data)
     const sheets = [data.clients, data.jobs, data.quotes, data.users].filter(Boolean) as SheetResult[]
     const total = sheets.reduce((n, s) => n + sheetTotal(s), 0)
+    const errorCount = sheets.reduce((n, s) => n + s.errors.length, 0)
     if (total === 0) {
       toast("Import finished but no records were created or updated — check errors below", "error")
+    } else if (errorCount > 0) {
+      toast(
+        `Import partially completed — ${total.toLocaleString()} records, ${errorCount} error(s). See details below.`,
+        "error",
+      )
     } else {
       toast(`Import complete — ${total.toLocaleString()} records`, "success")
     }

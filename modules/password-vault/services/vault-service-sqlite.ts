@@ -70,7 +70,7 @@ export const passwordVaultService = {
       category: input.category,
       notes: input.notes,
     })
-    return toPublic(row)
+    return toListPublic(row)
   },
 
   async update(id: string, input: UpdatePasswordVaultInput): Promise<PasswordVaultEntry | null> {
@@ -83,7 +83,7 @@ export const passwordVaultService = {
       ...(input.notes !== undefined && { notes: input.notes }),
     })
     if (!row) return null
-    return toPublic(row)
+    return toListPublic(row)
   },
 
   async delete(id: string): Promise<boolean> {

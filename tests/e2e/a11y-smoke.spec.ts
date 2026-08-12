@@ -34,7 +34,7 @@ test.describe("Accessibility smoke", () => {
   test("jobs list has no critical axe violations", async ({ page }) => {
     await loginAsAdmin(page)
     await page.goto("/jobs")
-    await expect(page.locator("#jobs-search")).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole("textbox", { name: "Search projects" })).toBeVisible({ timeout: 15_000 })
     await expectNoCriticalAxe(page)
   })
 

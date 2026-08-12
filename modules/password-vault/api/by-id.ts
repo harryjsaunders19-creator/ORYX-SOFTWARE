@@ -2,19 +2,24 @@ import { NextRequest, NextResponse } from "next/server"
 import { apiInternalError } from "@/shared/api-errors"
 
 import { requireFullAccess } from "@/shared/auth/auth"
+import { resourceResponse } from "@/shared/utils/api-cache"
 import { passwordVaultService } from "../services/vault-service"
 import { parseUpdateBody } from "./validation"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireFullAccess()
-  if (auth instanceof NextResponse) return auth
+  try {
+    const auth = await requireFullAccess()
+    if (auth instanceof NextResponse) return auth
 
-  const { id } = await params
-  const entry = await passwordVaultService.findUnique(id)
-  if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  return NextResponse.json({ entry })
+    const { id } = await params
+    const entry = await passwordVaultService.findUnique(id)
+    if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    return resourceResponse({ entry })
+  } catch (err) {
+    return apiInternalError("password-vault.api.by-id", err)
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
@@ -37,7 +42,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const entry = await passwordVaultService.update(id, parsed.data)
     if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    return NextResponse.json({ entry })
+    return resourceResponse({ entry })
   } catch (err) {
     return apiInternalError("password-vault.api.by-id", err)
   }

@@ -69,32 +69,33 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
         className,
       )}
     >
-      <div
-        role="row"
-        className={cn(
-          REGISTER_GRID,
-          "sticky top-0 z-20 shrink-0 items-center border-b border-jobs-table-header-bd bg-jobs-table-header",
-        )}
-      >
-        {HEADERS.map((label, i) => (
-          <div
-            key={label || `overflow-${i}`}
-            role="columnheader"
-            className={cn(
-              "px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-t3",
-            )}
-          >
-            {label}
-          </div>
-        ))}
-      </div>
+      <div role="table" aria-label="Job list" className="flex min-h-0 flex-1 flex-col">
+        <div
+          role="row"
+          className={cn(
+            REGISTER_GRID,
+            "sticky top-0 z-20 shrink-0 items-center border-b border-jobs-table-header-bd bg-jobs-table-header",
+          )}
+        >
+          {HEADERS.map((label, i) => (
+            <div
+              key={label || `overflow-${i}`}
+              role="columnheader"
+              className={cn(
+                "px-6 py-4 text-[11px] font-semibold uppercase tracking-wider text-t3",
+              )}
+            >
+              {label}
+            </div>
+          ))}
+        </div>
 
-      <div
-        ref={parentRef}
-        role="rowgroup"
-        className="min-h-0 flex-1 overflow-auto"
-        aria-busy={loading || undefined}
-      >
+        <div
+          ref={parentRef}
+          role="rowgroup"
+          className="min-h-0 flex-1 overflow-auto"
+          aria-busy={loading || undefined}
+        >
         {loading && projects.length === 0 ? (
           <div className="space-y-2 p-4">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -113,8 +114,6 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
           </div>
         ) : (
           <div
-            role="table"
-            aria-label="Job list"
             style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}
           >
             {virtualizer.getVirtualItems().map(item => {
@@ -148,6 +147,7 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
             })}
           </div>
         )}
+        </div>
       </div>
     </div>
   )

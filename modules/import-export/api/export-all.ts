@@ -22,6 +22,7 @@ export async function GET() {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "private, no-store, must-revalidate",
       },
     })
   } catch (err) {

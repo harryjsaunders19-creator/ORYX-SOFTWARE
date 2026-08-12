@@ -54,6 +54,7 @@ export async function GET() {
         "Content-Type":        "application/json",
         "Content-Disposition": `attachment; filename="${filename}"`,
         "Content-Length":      String(fileBuffer.length),
+        "Cache-Control":       "private, no-store, must-revalidate",
       },
     })
   } catch (err) {

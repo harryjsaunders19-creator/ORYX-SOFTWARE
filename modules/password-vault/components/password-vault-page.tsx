@@ -124,7 +124,7 @@ function PasswordCell({
     if (revealed) return revealed
     setLoading(true)
     try {
-      const res = await fetch(`/api/password-vault/${entryId}`)
+      const res = await fetch(`/api/password-vault/${entryId}`, { cache: "no-store" })
       if (!res.ok) throw new Error()
       const entry = await res.json() as PasswordVaultEntry
       setRevealed(entry.password)
