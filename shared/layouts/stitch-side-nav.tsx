@@ -4,7 +4,6 @@ import { createElement, useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  CircleHelp,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -198,20 +197,6 @@ function SideNavContent({
         )}
 
         <div className="space-y-1 border-t border-[color:var(--stitch-sidebar-border)] pt-4">
-          <a
-            href="https://www.oryxdesignltd.co.uk/"
-            target="_blank"
-            rel="noopener noreferrer"
-            title={collapsed ? "Support" : undefined}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-4 py-2 text-[color:var(--stitch-sidebar-text-muted)] transition-colors hover:bg-[color:var(--stitch-sidebar-hover)]",
-              collapsed && "justify-center px-0",
-            )}
-          >
-            <CircleHelp className="h-5 w-5 shrink-0" aria-hidden />
-            {!collapsed && <span className="text-sm font-medium">Support</span>}
-            {collapsed && <span className="sr-only">Support</span>}
-          </a>
           {archived && (
             <NavLink
               item={{ ...archived, label: "Archive" }}
