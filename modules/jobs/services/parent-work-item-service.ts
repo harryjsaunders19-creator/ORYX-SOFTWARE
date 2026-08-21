@@ -433,6 +433,8 @@ export const workItemService = {
   async findActiveList(opts: {
     search?: string
     status?: string
+    statuses?: string[]
+    workType?: "ORIGINAL" | "REVISION"
     designer?: string
     unassigned?: boolean
     skip?: number

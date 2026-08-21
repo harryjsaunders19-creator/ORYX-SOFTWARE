@@ -6,6 +6,7 @@ import { apiInternalError } from "@/shared/api-errors"
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { VALID_STATUSES } from "@/lib/constants"
 import { mixedWorkloadService } from "@/modules/jobs/services/mixed-workload-service"
+import { parseJobsListScope } from "@/modules/jobs/lib/current-work"
 
 function modelDisabled() {
   return NextResponse.json(
@@ -15,7 +16,8 @@ function modelDisabled() {
 }
 
 /**
- * GET — active design work items + standalone non-design jobs (site visits, etc.).
+ * GET — design work items + standalone non-design jobs (site visits, etc.).
+ * Supports the same Jobs Register `scope` tabs as classic `/api/jobs`.
  */
 export async function GET(req: NextRequest) {
   const auth = await requireModuleAccess("jobs")
@@ -30,16 +32,18 @@ export async function GET(req: NextRequest) {
     const status = sp.get("status") ?? undefined
     const designer = sp.get("designer") ?? undefined
     const unassigned = sp.get("unassigned") === "true"
+    const scope = parseJobsListScope(sp.get("scope"))
 
     if (status && !VALID_STATUSES.includes(status as typeof VALID_STATUSES[number])) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 })
     }
 
-    const { rows, total } = await mixedWorkloadService.findActive({
+    const { rows, total, scopeCounts } = await mixedWorkloadService.findActive({
       search,
       status,
       designer,
       unassigned: unassigned || undefined,
+      scope,
       skip: (page - 1) * limit,
       take: limit,
     })
@@ -50,6 +54,7 @@ export async function GET(req: NextRequest) {
       page,
       limit,
       pages: Math.max(1, Math.ceil(total / limit)),
+      scopeCounts,
     })
   } catch (err) {
     return apiInternalError("work-items.list", err)

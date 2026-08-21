@@ -579,14 +579,15 @@ function buildPerformanceRows(rows: RawJob[]): PerformanceJobRow[] {
   }))
 }
 
+/** Exported for equivalence tests against slim-field fetches. */
+export function performanceRowsFromRawJobs(rows: RawJob[]): PerformanceJobRow[] {
+  return buildPerformanceRows(rows)
+}
+
 export async function buildPerformancePayload(filters: PerformanceFilters, period: PerformancePeriod): Promise<PerformancePayload> {
   const previousPeriod = getPreviousPeriod(period)
   const [jobsRaw, clientsRaw, usersRaw] = await Promise.all([
-    jobService.findMany({
-      where: { includeArchived: false },
-      orderBy: { field: "dateCreated", dir: "desc" },
-      take: 25_000,
-    }) as Promise<RawJob[]>,
+    jobService.findPerformanceFields() as Promise<RawJob[]>,
     clientService.findMany({ take: 10_000 }) as Promise<RawClient[]>,
     userService.findMany() as Promise<RawUser[]>,
   ])

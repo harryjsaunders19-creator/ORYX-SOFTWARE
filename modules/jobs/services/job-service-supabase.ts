@@ -76,13 +76,7 @@ export const jobService = {
     return supabaseJobRepo.findAnalyticsFields(opts)
   },
 
-  async findPerformanceFields(): Promise<{
-    designer: string
-    status: string
-    dateCompleted: string | null
-    requiredByDate: string | null
-    updatedAt: string | null
-  }[]> {
+  async findPerformanceFields(): Promise<import("../supabase/repository").JobPerformanceFieldRow[]> {
     return supabaseJobRepo.findPerformanceFields()
   },
 

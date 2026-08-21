@@ -115,8 +115,63 @@ async function runJobListSelectQuery<T>(
 /** Perf: analytics only needs status/type/money/dates — avoid transferring full job rows. */
 const JOB_ANALYTICS_SELECT = "status,item_type,quote_value,date_created,date_completed"
 
-/** Perf: employee performance aggregates — designer + status + deadline + stamp fields. */
-const JOB_PERFORMANCE_SELECT = "designer,status,date_completed,required_by_date,updated_at"
+/** Perf: Performance page KPIs — only columns used by buildPerformancePayload.
+ * Must stay in sync with RawJob / PerformanceJobRow field usage.
+ */
+const JOB_PERFORMANCE_SELECT = [
+  "id",
+  "drawing_number",
+  "client_id",
+  "client_company",
+  "designer",
+  "status",
+  "item_type",
+  "tags",
+  "date_created",
+  "date_completed",
+  "required_by_date",
+  "requested_date",
+  "parent_job_id",
+].join(",")
+
+/** Slim row returned by findPerformanceFields — Performance page input shape. */
+export type JobPerformanceFieldRow = {
+  id: string
+  drawingNumber: string
+  clientId: string | null
+  clientCompany: string
+  designer: string
+  status: string
+  itemType: string
+  tags: string[]
+  dateCreated: string
+  dateCompleted: string | null
+  requiredByDate: string | null
+  requestedDate: string | null
+  parentJobId: string | null
+}
+
+function mapPerformanceFieldRow(r: Record<string, unknown>): JobPerformanceFieldRow {
+  const tagsRaw = r.tags
+  const tags = Array.isArray(tagsRaw)
+    ? tagsRaw.filter((t): t is string => typeof t === "string")
+    : []
+  return {
+    id: String(r.id ?? ""),
+    drawingNumber: String(r.drawing_number ?? ""),
+    clientId: (r.client_id as string | null) ?? null,
+    clientCompany: String(r.client_company ?? ""),
+    designer: String(r.designer ?? "").trim(),
+    status: String(r.status ?? ""),
+    itemType: String(r.item_type ?? ""),
+    tags,
+    dateCreated: String(r.date_created ?? ""),
+    dateCompleted: (r.date_completed as string | null) ?? null,
+    requiredByDate: (r.required_by_date as string | null) ?? null,
+    requestedDate: (r.requested_date as string | null) ?? null,
+    parentJobId: (r.parent_job_id as string | null) ?? null,
+  }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type JobQuery = any
@@ -517,16 +572,10 @@ export const supabaseJobRepo = {
   },
 
   /**
-   * Perf: slim projection for employee performance dashboard.
+   * Perf: slim projection for the Performance page.
    * Pages through all non-archived jobs (PostgREST default cap is 1000).
    */
-  async findPerformanceFields(): Promise<{
-    designer: string
-    status: string
-    dateCompleted: string | null
-    requiredByDate: string | null
-    updatedAt: string | null
-  }[]> {
+  async findPerformanceFields(): Promise<JobPerformanceFieldRow[]> {
     const pageSize = 1000
     let useArchived = jobsArchivedFilterEnabled()
     const fetchPage = (from: number, archived: boolean) => {
@@ -540,6 +589,24 @@ export const supabaseJobRepo = {
       useArchived = false
       ;({ data, error } = await fetchPage(0, false))
     }
+    // Older remotes may lack tags — retry without that column once.
+    if (error && isMissingColumnError(error, "tags")) {
+      const withoutTags = JOB_PERFORMANCE_SELECT.split(",").filter(c => c !== "tags").join(",")
+      const fetchNoTags = (from: number, archived: boolean) => {
+        let q = table().select(withoutTags).range(from, from + pageSize - 1)
+        if (archived) q = q.is("archived_at", null)
+        return q
+      }
+      ;({ data, error } = await fetchNoTags(0, useArchived))
+      if (error) throw error
+      const rows = [...(data ?? [])]
+      while ((data?.length ?? 0) === pageSize) {
+        ;({ data, error } = await fetchNoTags(rows.length, useArchived))
+        if (error) throw error
+        rows.push(...(data ?? []))
+      }
+      return (rows as unknown as Record<string, unknown>[]).map(mapPerformanceFieldRow)
+    }
     if (error) throw error
 
     const rows = [...(data ?? [])]
@@ -549,19 +616,7 @@ export const supabaseJobRepo = {
       rows.push(...(data ?? []))
     }
 
-    return (rows as {
-      designer: string | null
-      status: string
-      date_completed: string | null
-      required_by_date: string | null
-      updated_at: string | null
-    }[]).map(r => ({
-      designer: (r.designer ?? "").trim(),
-      status: r.status,
-      dateCompleted: r.date_completed ?? null,
-      requiredByDate: r.required_by_date ?? null,
-      updatedAt: r.updated_at ?? null,
-    }))
+    return (rows as unknown as Record<string, unknown>[]).map(mapPerformanceFieldRow)
   },
 
   async count(where: WhereClause = {}): Promise<number> {
@@ -577,39 +632,89 @@ export const supabaseJobRepo = {
 
   /** Non-issued job counts per client — used by client directory meta on Supabase. */
   async activeJobCountsForClients(clientIds: string[]): Promise<Map<string, number>> {
+    const stats = await this.clientJobStatsForHolds(clientIds)
     const map = new Map<string, number>()
-    if (!clientIds.length) return map
-    // Page-sized directories (≤50): parallel head counts transfer no row bodies.
-    // Filter set matches prior behaviour (status only — no archived_at clause).
-    await Promise.all(clientIds.map(async (id) => {
-      const { count, error } = await table()
-        .select("id", { count: "exact", head: true })
-        .eq("client_id", id)
-        .neq("status", "ISSUED")
-      if (error) throw error
-      if ((count ?? 0) > 0) map.set(id, count!)
-    }))
+    for (const [clientId, entry] of stats) {
+      if (entry.activeJobCount > 0) map.set(clientId, entry.activeJobCount)
+    }
     return map
   },
 
-  /** Active job count + quoted value per client — used by hold list enrichment. */
+  /**
+   * Active job count + quoted value per client — used by hold list enrichment
+   * and client directory meta.
+   *
+   * Semantics (preserved):
+   * - activeJobCount: rows with status !== 'ISSUED' (includes archived; no archived_at filter)
+   * - quoteValueTotal: sum of quote_value where value is not null and > 0 (all statuses)
+   * - includes originals and revisions
+   *
+   * Prefers SQL GROUP BY RPC (no PostgREST 1000-row cap); falls back to paged scan.
+   */
   async clientJobStatsForHolds(
     clientIds: string[],
   ): Promise<Map<string, { activeJobCount: number; quoteValueTotal: number }>> {
     const map = new Map<string, { activeJobCount: number; quoteValueTotal: number }>()
     if (!clientIds.length) return map
-    const { data, error } = await table()
-      .select("client_id, status, quote_value")
-      .in("client_id", clientIds)
-    if (error) throw error
-    for (const row of data ?? []) {
-      const clientId = row.client_id as string
-      if (!clientId) continue
-      const entry = map.get(clientId) ?? { activeJobCount: 0, quoteValueTotal: 0 }
-      if (row.status !== "ISSUED") entry.activeJobCount += 1
-      const qv = row.quote_value != null ? Number(row.quote_value) : 0
-      if (qv > 0) entry.quoteValueTotal += qv
-      map.set(clientId, entry)
+
+    const fromRpc = await this.tryClientJobStatsRpc(clientIds)
+    if (fromRpc) return fromRpc
+    return this.clientJobStatsForHoldsViaScan(clientIds)
+  },
+
+  async tryClientJobStatsRpc(
+    clientIds: string[],
+  ): Promise<Map<string, { activeJobCount: number; quoteValueTotal: number }> | null> {
+    try {
+      const { data, error } = await createAdminClient().rpc("job_stats_for_clients", {
+        p_client_ids: clientIds,
+      })
+      if (error || !Array.isArray(data)) return null
+      const map = new Map<string, { activeJobCount: number; quoteValueTotal: number }>()
+      for (const row of data as {
+        client_id?: string
+        active_job_count?: number
+        quote_value_total?: number
+      }[]) {
+        const clientId = row.client_id
+        if (!clientId) continue
+        map.set(clientId, {
+          activeJobCount: Number(row.active_job_count) || 0,
+          quoteValueTotal: Number(row.quote_value_total) || 0,
+        })
+      }
+      return map
+    } catch {
+      return null
+    }
+  },
+
+  /** Paged fallback when RPC is unavailable — avoids silent PostgREST truncation. */
+  async clientJobStatsForHoldsViaScan(
+    clientIds: string[],
+  ): Promise<Map<string, { activeJobCount: number; quoteValueTotal: number }>> {
+    const map = new Map<string, { activeJobCount: number; quoteValueTotal: number }>()
+    if (!clientIds.length) return map
+    const pageSize = 1000
+    let from = 0
+    for (;;) {
+      const { data, error } = await table()
+        .select("client_id, status, quote_value")
+        .in("client_id", clientIds)
+        .range(from, from + pageSize - 1)
+      if (error) throw error
+      const rows = data ?? []
+      for (const row of rows) {
+        const clientId = row.client_id as string
+        if (!clientId) continue
+        const entry = map.get(clientId) ?? { activeJobCount: 0, quoteValueTotal: 0 }
+        if (row.status !== "ISSUED") entry.activeJobCount += 1
+        const qv = row.quote_value != null ? Number(row.quote_value) : 0
+        if (qv > 0) entry.quoteValueTotal += qv
+        map.set(clientId, entry)
+      }
+      if (rows.length < pageSize) break
+      from += pageSize
     }
     return map
   },

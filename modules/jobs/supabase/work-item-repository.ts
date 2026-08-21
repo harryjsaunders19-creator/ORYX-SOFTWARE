@@ -62,6 +62,10 @@ export const supabaseWorkItemRepo = {
   async findActive(opts: {
     search?: string
     status?: string
+    /** When set (and status is unset), filter to these statuses instead of WORK_ITEM_ACTIVE_STATUSES. */
+    statuses?: string[]
+    /** When set, restrict to ORIGINAL or REVISION work items. */
+    workType?: "ORIGINAL" | "REVISION"
     designer?: string
     unassigned?: boolean
     parentIds?: string[]
@@ -71,9 +75,12 @@ export const supabaseWorkItemRepo = {
     let q = table().select(COLS, { count: "exact" })
     if (opts.status) {
       q = q.eq("status", opts.status)
+    } else if (opts.statuses?.length) {
+      q = q.in("status", opts.statuses)
     } else {
       q = q.in("status", [...WORK_ITEM_ACTIVE_STATUSES])
     }
+    if (opts.workType) q = q.eq("work_type", opts.workType)
     if (opts.designer) q = q.eq("designer", opts.designer)
     if (opts.unassigned) q = q.eq("designer", "")
     if (opts.parentIds?.length) q = q.in("parent_job_id", opts.parentIds)

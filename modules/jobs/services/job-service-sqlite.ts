@@ -90,18 +90,34 @@ export const jobService = {
   },
 
   async findPerformanceFields(): Promise<{
+    id: string
+    drawingNumber: string
+    clientId: string | null
+    clientCompany: string
     designer: string
     status: string
+    itemType: string
+    tags: string[]
+    dateCreated: string
     dateCompleted: string | null
     requiredByDate: string | null
-    updatedAt: string | null
+    requestedDate: string | null
+    parentJobId: string | null
   }[]> {
-    return jobDb.findMany().map(j => ({
+    return jobDb.findMany({ where: { includeArchived: false } }).map(j => ({
+      id: j.id,
+      drawingNumber: j.drawingNumber,
+      clientId: j.clientId,
+      clientCompany: j.clientCompany,
       designer: (j.designer ?? "").trim(),
       status: j.status,
+      itemType: j.itemType,
+      tags: j.tags ?? [],
+      dateCreated: j.dateCreated,
       dateCompleted: j.dateCompleted,
       requiredByDate: j.requiredByDate,
-      updatedAt: j.updatedAt ?? null,
+      requestedDate: j.requestedDate,
+      parentJobId: j.parentJobId,
     }))
   },
 

@@ -18,7 +18,7 @@ function BillingPageInner() {
   const { toast } = useToast()
   const [view, setView]   = useState<View>("awaiting")
   const [page, setPage] = useState(1)
-  const PAGE_SIZE = 200
+  const PAGE_SIZE = 100
   // Perf: SWR key includes view+page so awaiting/cleared/history share the cache correctly.
   const listKey = view === "history" ? null : `/api/billing-handoffs?view=${view}&limit=${PAGE_SIZE}&page=${page}`
   const historyKey = view === "history" ? "/api/billing-handoffs/batches" : null

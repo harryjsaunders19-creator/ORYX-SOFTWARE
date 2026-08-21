@@ -35,7 +35,7 @@ import { exportJobsToCsv } from "./job-csv-export"
 import type { JobsRegisterProject, JobsRegisterScope } from "./jobs-register-types"
 import { JOBS_REGISTER_SCOPES } from "./jobs-register-types"
 import { useJobsRegisterKeyboard } from "./use-jobs-register-keyboard"
-import { matchesJobsListScope } from "@/modules/jobs/lib/current-work"
+import { matchesJobsListScope, type JobsListScopeCounts } from "@/modules/jobs/lib/current-work"
 
 const JobsDialogs = lazy(() =>
   import("./jobs-dialogs").then(m => ({ default: m.JobsDialogs })),
@@ -74,6 +74,7 @@ interface WorkItemsResponse {
   total: number
   page: number
   pages: number
+  scopeCounts?: JobsListScopeCounts
 }
 
 /**
@@ -150,11 +151,12 @@ export function JobsRegister({
     const p = new URLSearchParams()
     p.set("page", String(page))
     p.set("limit", String(LIMIT))
+    if (!isChecking) p.set("scope", scope)
     if (debouncedSearch.trim()) p.set("search", debouncedSearch.trim())
     if (isChecking) p.set("status", "CHECKING")
     if (filterClientId) p.set("clientId", filterClientId)
     return p.toString()
-  }, [page, debouncedSearch, isChecking, filterClientId])
+  }, [page, debouncedSearch, isChecking, filterClientId, scope])
 
   const classicKey = !workItemsModel ? `/api/jobs?${classicQs}` : null
   const workKey = workItemsModel ? `/api/work-items?${workQs}` : null
@@ -189,7 +191,7 @@ export function JobsRegister({
     return mapped
   }, [workItemsModel, workData, classicData, scope, isChecking])
 
-  const scopeCounts = classicData?.scopeCounts
+  const scopeCounts = classicData?.scopeCounts ?? workData?.scopeCounts
   const total = workItemsModel ? (workData?.total ?? 0) : (classicData?.total ?? 0)
   const pages = workItemsModel
     ? (workData?.pages ?? 1)
