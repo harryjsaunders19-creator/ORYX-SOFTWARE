@@ -64,15 +64,13 @@ function prefetchJobDetails(projectId: string, workItemsModel: boolean) {
     )
     return
   }
-  const detailUrl = `/api/jobs/${projectId}?include=parent,current`
-  const revisionsUrl = `/api/jobs/${projectId}/revisions`
-  const fetcher = (url: string) =>
+  const inspectorUrl = `/api/jobs/${projectId}/inspector`
+  void preload(inspectorUrl, (url: string) =>
     apiFetch(url).then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`)
       return r.json()
-    })
-  void preload(detailUrl, fetcher)
-  void preload(revisionsUrl, fetcher)
+    }),
+  )
 }
 
 interface WorkItemsResponse {
