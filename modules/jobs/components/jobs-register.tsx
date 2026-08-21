@@ -47,6 +47,12 @@ const JobsInspector = lazy(() =>
 const LIMIT = 100
 /** Stable empty designers list — avoids breaking row memo when SWR is still loading. */
 const EMPTY_DESIGNERS: string[] = []
+/** Designers change rarely — longer client dedupe; still revalidates in background. */
+const DESIGNERS_SWR = {
+  dedupingInterval: 60_000,
+  revalidateOnFocus: false,
+  revalidateIfStale: true,
+} as const
 
 function prefetchJobDetails(projectId: string, workItemsModel: boolean) {
   if (workItemsModel) {
@@ -165,7 +171,7 @@ export function JobsRegister({
     useApi<JobsResponse>(classicKey)
   const { data: workData, isLoading: workLoading, mutate: mutateWork } =
     useApi<WorkItemsResponse>(workKey)
-  const { data: designersData } = useApi<{ designers: string[] }>("/api/jobs/designers")
+  const { data: designersData } = useApi<{ designers: string[] }>("/api/jobs/designers", DESIGNERS_SWR)
   const designers = designersData?.designers ?? EMPTY_DESIGNERS
 
   const projects: JobsRegisterProject[] = useMemo(() => {

@@ -52,6 +52,8 @@ const AttachExistingQuoteModal = lazy(() =>
 
 /** Detail secondary fetches must not briefly show another job's attachments/quotes. */
 const SECONDARY_SWR = { keepPreviousData: false } as const
+/** Inspector bootstrap — never show previous job while the next selection loads. */
+const INSPECTOR_SWR = { keepPreviousData: false, dedupingInterval: 1_500 } as const
 
 interface JobsInspectorProps {
   project: JobsRegisterProject
@@ -101,6 +103,15 @@ interface QuotesListResponse {
   quotes: Quote[]
 }
 
+interface InspectorBootstrap {
+  jobId: string
+  parentId: string
+  job: Job
+  revisions: RevisionsResponse
+  documents: DocumentsResponse
+  quotes: QuotesListResponse
+}
+
 function asSafeArray<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? value : []
 }
@@ -147,7 +158,7 @@ export function JobsInspector({
   const [wiRevSaving, setWiRevSaving] = useState(false)
   const [attachQuoteOpen, setAttachQuoteOpen] = useState(false)
   const [cat2Busy, setCat2Busy] = useState(false)
-  // Defer documents/quotes one frame so the panel paints list data first.
+  // Work-items mode: defer documents/quotes one frame so the panel paints first.
   const [secondaryReady, setSecondaryReady] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
@@ -155,26 +166,31 @@ export function JobsInspector({
   const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
+    if (!workItemsModel) {
+      setSecondaryReady(false)
+      return
+    }
     setSecondaryReady(false)
     const id = requestAnimationFrame(() => setSecondaryReady(true))
     return () => cancelAnimationFrame(id)
-  }, [project.id])
+  }, [project.id, workItemsModel])
 
   const parentKey = workItemsModel ? `/api/parent-jobs/${project.id}` : null
-  const jobKey = !workItemsModel ? `/api/jobs/${project.id}?include=parent,current` : null
-  const revisionsKey = !workItemsModel ? `/api/jobs/${project.id}/revisions` : null
-  const docsKey = secondaryReady ? `/api/jobs/${project.id}/documents?limit=40` : null
+  const inspectorKey = !workItemsModel ? `/api/jobs/${project.id}/inspector` : null
+  const docsKey = workItemsModel && secondaryReady
+    ? `/api/jobs/${project.id}/documents?limit=40`
+    : null
 
   const { data: parentDashRaw, isLoading: parentLoading, mutate: mutateParent } =
     useApi<ParentJobDashboard>(parentKey)
-  const { data: jobDetailRaw, isLoading: jobLoading, mutate: mutateJob } =
-    useApi<Job>(jobKey)
-  const { data: revisionsDataRaw, mutate: mutateRevisions } =
-    useApi<RevisionsResponse>(revisionsKey)
-  const { data: docsData, mutate: mutateDocs } = useApi<DocumentsResponse>(docsKey, SECONDARY_SWR)
+  const {
+    data: inspectorRaw,
+    isLoading: inspectorLoading,
+    mutate: mutateInspector,
+  } = useApi<InspectorBootstrap>(inspectorKey, INSPECTOR_SWR)
+  const { data: docsDataWi, mutate: mutateDocsWi } = useApi<DocumentsResponse>(docsKey, SECONDARY_SWR)
 
-  // Exact job_id filter (supports comma-separated parent + revision / legacy ids).
-  // Starts with project.id; expands once revision/work-item ids are known.
+  // Exact job_id filter for work-items quotes (classic quotes ship in inspector bootstrap).
   const quoteJobIds = useMemo(() => {
     const ids = new Set<string>([project.id])
     if (workItemsModel && parentDashRaw?.parent?.id === project.id) {
@@ -182,36 +198,35 @@ export function JobsInspector({
         if (wi.legacyJobId) ids.add(wi.legacyJobId)
       }
     }
-    if (
-      !workItemsModel
-      && revisionsDataRaw
-      && (!revisionsDataRaw.parentId || revisionsDataRaw.parentId === project.id)
-    ) {
-      for (const r of asSafeArray(revisionsDataRaw.chain)) {
-        if (r.id) ids.add(r.id)
-      }
-    }
     return [...ids].sort()
-  }, [project.id, workItemsModel, parentDashRaw, revisionsDataRaw])
+  }, [project.id, workItemsModel, parentDashRaw])
 
-  const quotesKey = secondaryReady
+  const quotesKey = workItemsModel && secondaryReady
     ? `/api/quotes?jobId=${encodeURIComponent(quoteJobIds.join(","))}&page=1&limit=200`
     : null
-  const { data: quotesData, mutate: mutateQuotes } = useApi<QuotesListResponse>(quotesKey, SECONDARY_SWR)
+  const { data: quotesDataWi, mutate: mutateQuotesWi } = useApi<QuotesListResponse>(quotesKey, SECONDARY_SWR)
 
   // Ignore keepPreviousData from a different job when switching selection.
   const parentDash =
     parentDashRaw?.parent?.id === project.id ? parentDashRaw : undefined
-  const jobDetail =
-    jobDetailRaw && jobDetailRaw.id === project.id ? jobDetailRaw : undefined
+  const inspector =
+    inspectorRaw?.jobId === project.id ? inspectorRaw : undefined
+  const jobDetail = inspector?.job
   const revisionsData =
-    revisionsDataRaw
-    && (!revisionsDataRaw.parentId || revisionsDataRaw.parentId === project.id)
-      ? revisionsDataRaw
+    inspector?.revisions
+    && (!inspector.revisions.parentId || inspector.revisions.parentId === project.id)
+      ? inspector.revisions
       : undefined
+  const docsData = workItemsModel ? docsDataWi : inspector?.documents
+  const quotesData = workItemsModel ? quotesDataWi : inspector?.quotes
 
-  const secondaryLoading = Boolean(secondaryReady && !docsData)
-  const revisionsLoading = !workItemsModel && !revisionsData && Boolean(jobLoading)
+  const mutateDocs = workItemsModel ? mutateDocsWi : mutateInspector
+  const mutateQuotes = workItemsModel ? mutateQuotesWi : mutateInspector
+
+  const secondaryLoading = workItemsModel
+    ? Boolean(secondaryReady && !docsData)
+    : Boolean(inspectorLoading && !inspector)
+  const revisionsLoading = !workItemsModel && !revisionsData && Boolean(inspectorLoading)
   const timelineLoading = workItemsModel
     ? Boolean(parentLoading && !parentDash)
     : revisionsLoading
@@ -482,8 +497,8 @@ export function JobsInspector({
 
   const refreshAll = async () => {
     if (workItemsModel) await mutateParent()
-    else await Promise.all([mutateJob(), mutateRevisions()])
-    await Promise.all([mutateDocs(), mutateQuotes()])
+    else await mutateInspector()
+    if (workItemsModel) await Promise.all([mutateDocs(), mutateQuotes()])
     onStatusChanged?.()
   }
 

@@ -364,7 +364,7 @@ function mapRevisionSidecarRows(
  * Perf: load revision rows only for parents on the current page (or export set),
  * instead of every revision matching the list WHERE clause.
  */
-async function fetchRevisionRowsForParents(
+export async function fetchRevisionRowsForParents(
   parentIds: string[],
 ): Promise<RevisionSidecarRow[]> {
   const unique = [...new Set(parentIds.filter(Boolean))]
@@ -736,6 +736,85 @@ export const supabaseJobRepo = {
     )
     // Preserve caller order (important after slim overlay paging).
     return ids.map(id => byId.get(id)).filter((j): j is JobRow => j != null)
+  },
+
+  /**
+   * Jobs Register scoped page via jobs_list_scoped_page RPC (migration 046).
+   * Returns null when the RPC is missing so callers can use the legacy overlay.
+   */
+  async findScopedListPage(opts: {
+    scope: string
+    page: number
+    pageSize: number
+    search?: string
+    searchTags?: string[]
+    status?: string
+    clientId?: string
+    itemType?: string
+    typeOfWorks?: string
+    unassigned?: boolean
+    overdue?: boolean
+    dueToday?: boolean
+    dueThisWeek?: boolean
+    sortDir?: "asc" | "desc"
+    includeCounts?: boolean
+    today?: string
+    weekStart?: string
+    weekEnd?: string
+  }): Promise<{
+    ids: string[]
+    total: number
+    scopeCounts: { all: number; active: number; revisions: number; completed: number } | null
+  } | null> {
+    try {
+      const { data, error } = await createAdminClient().rpc("jobs_list_scoped_page", {
+        p_scope: opts.scope,
+        p_page: opts.page,
+        p_page_size: opts.pageSize,
+        p_search: opts.search || null,
+        p_search_tags: opts.searchTags?.length ? opts.searchTags : null,
+        p_status: opts.status || null,
+        p_client_id: opts.clientId || null,
+        p_item_type: opts.itemType || null,
+        p_type_of_works: opts.typeOfWorks || null,
+        p_unassigned: opts.unassigned ?? false,
+        p_overdue: opts.overdue ?? false,
+        p_due_today: opts.dueToday ?? false,
+        p_due_this_week: opts.dueThisWeek ?? false,
+        p_sort_dir: opts.sortDir ?? "asc",
+        p_include_counts: opts.includeCounts ?? true,
+        p_today: opts.today || null,
+        p_week_start: opts.weekStart || null,
+        p_week_end: opts.weekEnd || null,
+      })
+      if (error || data == null || typeof data !== "object") return null
+      const row = data as {
+        ids?: unknown
+        total?: unknown
+        scope_counts?: {
+          all?: number
+          active?: number
+          revisions?: number
+          completed?: number
+        } | null
+      }
+      const ids = Array.isArray(row.ids)
+        ? row.ids.filter((id): id is string => typeof id === "string")
+        : []
+      const total = Number(row.total) || 0
+      const sc = row.scope_counts
+      const scopeCounts = sc && typeof sc === "object"
+        ? {
+            all: Number(sc.all) || 0,
+            active: Number(sc.active) || 0,
+            revisions: Number(sc.revisions) || 0,
+            completed: Number(sc.completed) || 0,
+          }
+        : null
+      return { ids, total, scopeCounts }
+    } catch {
+      return null
+    }
   },
 
   /** Slim fetch for calendar enrichment — only fields needed for drawing-number labels. */

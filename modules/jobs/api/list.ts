@@ -7,12 +7,18 @@ import { allocateDrawingNumberAsync, nextRefNumberAsync } from "@/shared/supabas
 import { isSupabaseOnly } from "@/shared/supabase/feature-flags"
 import { composeJobAddress } from "@/modules/job-map/utils/job-address"
 import { createId } from "@paralleldrive/cuid2"
-import { CREATABLE_ITEM_TYPE_VALUES, isValidWorksType, OTHER_WORKS_TYPE, REF_PREFIX_BY_ITEM_TYPE, sanitizeJobTags } from "@/lib/constants"
+import {
+  CREATABLE_ITEM_TYPE_VALUES,
+  isValidWorksType,
+  matchingJobTags,
+  OTHER_WORKS_TYPE,
+  REF_PREFIX_BY_ITEM_TYPE,
+  sanitizeJobTags,
+} from "@/lib/constants"
 import { requireModuleAccess, requireFullAccess, actorName } from "@/shared/auth/auth"
 import { MAX_JOB_LIST_EXPORT_ROWS } from "@/modules/import-export/constants"
 import { resolveRequiredByDate } from "@/shared/utils/utils"
 import { applyOptionalMoneyField } from "@/shared/utils/api-money"
-import { enrichRevisionFamily, compareRevisionLetters } from "@/lib/revision-chain"
 import { ensureSequencesSeeded } from "@/shared/supabase/seed-sequences"
 import { holdService } from "@/modules/clients/hold/services/hold-service"
 import { apiInternalError } from "@/shared/api-errors"
@@ -20,184 +26,23 @@ import { checkRateLimit, rateLimitedResponse, RATE_PRESETS } from "@/shared/auth
 import { parsePageParam, parseLimitParam } from "@/shared/utils/pagination"
 import { enrichJobsWithLinkedQuotes } from "./enrich-linked-quotes"
 import { resolveDirectoryDesigner } from "../services/designer-directory"
-import { todayIsoDate, addDaysToIsoDate } from "@/shared/utils/utils"
 import {
   matchesJobsListScope,
   parseJobsListScope,
   tallyJobsListScopeCounts,
   type JobsListScope,
-  isActiveStatus,
 } from "../lib/current-work"
+import {
+  filterByCurrentDisplay,
+  flagRevisions,
+  jobsListDeadlineAnchors,
+} from "../lib/jobs-list-overlay"
+import { isDrawingNumberListSort } from "../job-list-sort"
+import { logEvent } from "@/shared/logger"
 import {
   parseSiteVisitSchedule,
   syncSiteVisitToCalendar,
 } from "../services/sync-site-visit-calendar"
-
-/**
- * Revision family flags. Also attaches *display* fields for the current
- * work item (status/designer/deadline/value) without overwriting the parent
- * job's own status — project vs revision workflows stay independent.
- *
- * Current work priority (mirrors modules/jobs/lib/current-work.ts):
- * 1. Latest active (non-ISSUED) revision by revision letter sequence
- * 2. Else the original, when still active
- * 3. Else none — currentStatus stays ISSUED for filter/display helpers
- */
-function flagRevisions<T extends {
-  id: string
-  parentJobId: string | null
-  revisionLetter?: string | null
-  status?: string
-  designer?: string
-  requiredByDate?: string | null
-  updatedAt?: string
-  dateCompleted?: string | null
-  quoteValue?: number | null
-}>(
-  pageJobs: T[],
-  revisionRows?: {
-    id: string
-    parentJobId: string | null
-    revisionLetter?: string | null
-    status?: string
-    designer?: string | null
-    requiredByDate?: string | null
-    updatedAt?: string
-    dateCompleted?: string | null
-    quoteValue?: number | null
-  }[],
-): Array<ReturnType<typeof enrichRevisionFamily<T>>[number] & {
-  currentStatus?: string
-  currentDesigner?: string
-  currentRequiredByDate?: string | null
-  currentQuoteValue?: number | null
-  currentWorkType?: "original" | "revision" | "none"
-}> {
-  const source = revisionRows ?? pageJobs.filter(j => j.parentJobId !== null)
-  const enriched = enrichRevisionFamily(pageJobs, source)
-  const byParent = new Map<string, typeof source>()
-  for (const r of source) {
-    if (!r.parentJobId) continue
-    const list = byParent.get(r.parentJobId) ?? []
-    list.push(r)
-    byParent.set(r.parentJobId, list)
-  }
-
-  return enriched.map(job => {
-    if (job.parentJobId !== null) {
-      return {
-        ...job,
-        currentStatus: job.status,
-        currentDesigner: job.designer,
-        currentRequiredByDate: job.requiredByDate ?? null,
-        currentQuoteValue: job.quoteValue ?? null,
-        currentWorkType: isActiveStatus(job.status) ? "revision" : "none",
-      }
-    }
-
-    const revs = byParent.get(job.id) ?? []
-    const activeRevs = revs.filter(r => isActiveStatus(r.status))
-    let current: (typeof source)[number] | null = null
-    if (activeRevs.length > 0) {
-      current = [...activeRevs].sort((a, b) => {
-        const byLetter = compareRevisionLetters(a.revisionLetter, b.revisionLetter)
-        if (byLetter !== 0) return byLetter
-        return String(a.updatedAt ?? "").localeCompare(String(b.updatedAt ?? ""))
-      }).at(-1) ?? null
-    }
-
-    if (current) {
-      return {
-        ...job,
-        currentRevisionId: current.id,
-        currentRevisionLetter: current.revisionLetter ?? null,
-        currentStatus: current.status ?? job.status,
-        currentDesigner: current.designer ?? job.designer,
-        currentRequiredByDate: current.requiredByDate ?? job.requiredByDate ?? null,
-        currentQuoteValue: current.quoteValue ?? job.quoteValue ?? null,
-        currentWorkType: "revision" as const,
-      }
-    }
-
-    if (isActiveStatus(job.status)) {
-      return {
-        ...job,
-        currentStatus: job.status,
-        currentDesigner: job.designer,
-        currentRequiredByDate: job.requiredByDate ?? null,
-        currentQuoteValue: job.quoteValue ?? null,
-        currentWorkType: "original" as const,
-      }
-    }
-
-    return {
-      ...job,
-      currentStatus: job.status,
-      currentDesigner: job.designer,
-      currentRequiredByDate: job.requiredByDate ?? null,
-      currentQuoteValue: job.quoteValue ?? null,
-      currentWorkType: "none" as const,
-    }
-  })
-}
-
-function todayIso(): string {
-  return todayIsoDate()
-}
-
-function weekStartIso(): string {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  const dow = d.getDay()
-  const mondayOffset = dow === 0 ? -6 : 1 - dow
-  return addDaysToIsoDate(d, mondayOffset)
-}
-
-function weekEndIso(): string {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  const dow = d.getDay()
-  const sundayOffset = dow === 0 ? 0 : 7 - dow
-  return addDaysToIsoDate(d, sundayOffset)
-}
-
-/** Filter parent rows by their *current revision* display fields. */
-function filterByCurrentDisplay<T extends {
-  status: string
-  designer?: string
-  requiredByDate?: string | null
-  parentJobId: string | null
-  currentStatus?: string
-  currentDesigner?: string
-  currentRequiredByDate?: string | null
-}>(
-  jobs: T[],
-  opts: {
-    status?: string
-    unassigned?: boolean
-    overdue?: boolean
-    dueToday?: boolean
-    dueThisWeek?: boolean
-  },
-): T[] {
-  const today = todayIso()
-  const wkStart = weekStartIso()
-  const wkEnd = weekEndIso()
-  return jobs.filter(j => {
-    const status = j.currentStatus ?? j.status
-    const designer = j.currentDesigner ?? j.designer
-    const due = j.currentRequiredByDate ?? j.requiredByDate
-    if (opts.status && status !== opts.status) return false
-    if (opts.unassigned && (designer ?? "").trim() !== "") return false
-    if (status === "ISSUED") {
-      if (opts.overdue || opts.dueToday || opts.dueThisWeek) return false
-    }
-    if (opts.overdue && !(due != null && due < today)) return false
-    if (opts.dueToday && due !== today) return false
-    if (opts.dueThisWeek && !(due != null && due >= wkStart && due <= wkEnd)) return false
-    return true
-  })
-}
 
 // Reference-number prefixes for non-drawing item types — sourced from WORK_ITEM_TYPES
 const REF_PREFIXES = REF_PREFIX_BY_ITEM_TYPE
@@ -312,6 +157,50 @@ export async function GET(req: NextRequest) {
       if (!(await checkRateLimit(`export:${admin.user.id}`, RATE_PRESETS.export))) {
         return rateLimitedResponse(3600)
       }
+
+      // Prefer SQL-scoped IDs (no 5k scan) when drawing-number sort + Supabase RPC.
+      if (
+        needsBulkEnrich
+        && isSupabaseOnly()
+        && isDrawingNumberListSort(sortBy)
+      ) {
+        const anchors = jobsListDeadlineAnchors()
+        const rpc = await jobService.findScopedListPage({
+          scope,
+          page: 1,
+          pageSize: MAX_JOB_LIST_EXPORT_ROWS,
+          search: search || undefined,
+          searchTags: search ? matchingJobTags(search) : undefined,
+          status: status || undefined,
+          clientId: clientId || undefined,
+          itemType: itemType || undefined,
+          typeOfWorks: typeOfWorks || undefined,
+          unassigned,
+          overdue,
+          dueToday,
+          dueThisWeek,
+          sortDir,
+          includeCounts: false,
+          today: anchors.today,
+          weekStart: anchors.weekStart,
+          weekEnd: anchors.weekEnd,
+        })
+        if (rpc) {
+          const full = rpc.ids.length ? await jobService.findManyByIds(rpc.ids) : []
+          const revs = rpc.ids.length
+            ? await jobService.findRevisionRowsForParents(rpc.ids)
+            : []
+          const jobs = flagRevisions(full, revs)
+          const enrichedExport = await enrichJobsWithLinkedQuotes(jobs)
+          return listResponse({
+            jobs: enrichedExport,
+            total: rpc.total,
+            exported: jobs.length,
+            truncated: rpc.total > jobs.length,
+          })
+        }
+      }
+
       const { jobs: rawJobs, total, allForRevisions } = await jobService.findManyWithCount({
         where: needsBulkEnrich ? baseWhere : where,
         orderBy,
@@ -337,7 +226,50 @@ export async function GET(req: NextRequest) {
     }
 
     if (needsBulkEnrich) {
-      // Slim overlay: avoid shipping full list columns for every candidate parent.
+      // Preferred path: current-work filter + pagination in Postgres (migration 046).
+      if (isSupabaseOnly() && isDrawingNumberListSort(sortBy)) {
+        const anchors = jobsListDeadlineAnchors()
+        const rpc = await jobService.findScopedListPage({
+          scope,
+          page,
+          pageSize: limit,
+          search: search || undefined,
+          searchTags: search ? matchingJobTags(search) : undefined,
+          status: status || undefined,
+          clientId: clientId || undefined,
+          itemType: itemType || undefined,
+          typeOfWorks: typeOfWorks || undefined,
+          unassigned,
+          overdue,
+          dueToday,
+          dueThisWeek,
+          sortDir,
+          includeCounts,
+          today: anchors.today,
+          weekStart: anchors.weekStart,
+          weekEnd: anchors.weekEnd,
+        })
+        if (rpc) {
+          const fullPage = rpc.ids.length
+            ? await jobService.findManyByIds(rpc.ids)
+            : []
+          const revs = rpc.ids.length
+            ? await jobService.findRevisionRowsForParents(rpc.ids)
+            : []
+          const paged = flagRevisions(fullPage, revs)
+          const jobs = await maybeEnrichQuotes(paged)
+          return listResponse({
+            jobs,
+            total: rpc.total,
+            page,
+            limit,
+            ...(includeCounts && rpc.scopeCounts ? { scopeCounts: rpc.scopeCounts } : {}),
+          })
+        }
+        logEvent("jobs.list.scoped_rpc_fallback", { scope, page, limit }, "warn")
+      }
+
+      // Compatibility fallback: slim overlay up to export cap (SQLite / pre-046).
       const { jobs: rawJobs, allForRevisions } = await jobService.findManyWithCount({
         where: baseWhere,
         orderBy,

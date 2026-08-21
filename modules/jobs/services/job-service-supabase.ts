@@ -92,6 +92,48 @@ export const jobService = {
     return supabaseJobRepo.findManyByIds(ids)
   },
 
+  async findRevisionRowsForParents(parentIds: string[]): Promise<{
+    id: string
+    parentJobId: string | null
+    revisionLetter?: string | null
+    status?: string
+    designer?: string | null
+    requiredByDate?: string | null
+    updatedAt?: string
+    dateCompleted?: string | null
+    quoteValue?: number | null
+  }[]> {
+    const { fetchRevisionRowsForParents } = await import("../supabase/repository")
+    return fetchRevisionRowsForParents(parentIds)
+  },
+
+  async findScopedListPage(opts: {
+    scope: string
+    page: number
+    pageSize: number
+    search?: string
+    searchTags?: string[]
+    status?: string
+    clientId?: string
+    itemType?: string
+    typeOfWorks?: string
+    unassigned?: boolean
+    overdue?: boolean
+    dueToday?: boolean
+    dueThisWeek?: boolean
+    sortDir?: "asc" | "desc"
+    includeCounts?: boolean
+    today?: string
+    weekStart?: string
+    weekEnd?: string
+  }): Promise<{
+    ids: string[]
+    total: number
+    scopeCounts: { all: number; active: number; revisions: number; completed: number } | null
+  } | null> {
+    return supabaseJobRepo.findScopedListPage(opts)
+  },
+
   async revisionsForJob(parentId: string): Promise<JobRow[]> {
     return supabaseJobRepo.revisionsForJob(parentId)
   },

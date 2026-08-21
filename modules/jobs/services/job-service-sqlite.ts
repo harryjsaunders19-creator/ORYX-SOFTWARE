@@ -133,6 +133,62 @@ export const jobService = {
     return jobDb.findManyByIds(ids)
   },
 
+  async findRevisionRowsForParents(parentIds: string[]): Promise<{
+    id: string
+    parentJobId: string | null
+    revisionLetter?: string | null
+    status?: string
+    designer?: string | null
+    requiredByDate?: string | null
+    updatedAt?: string
+    dateCompleted?: string | null
+    quoteValue?: number | null
+  }[]> {
+    const out: {
+      id: string
+      parentJobId: string | null
+      revisionLetter?: string | null
+      status?: string
+      designer?: string | null
+      requiredByDate?: string | null
+      updatedAt?: string
+      dateCompleted?: string | null
+      quoteValue?: number | null
+    }[] = []
+    for (const parentId of parentIds) {
+      out.push(...jobDb.revisionsForJob(parentId))
+    }
+    return out
+  },
+
+  /** Supabase RPC only — SQLite keeps the Node overlay path. */
+  async findScopedListPage(_opts: {
+    scope: string
+    page: number
+    pageSize: number
+    search?: string
+    searchTags?: string[]
+    status?: string
+    clientId?: string
+    itemType?: string
+    typeOfWorks?: string
+    unassigned?: boolean
+    overdue?: boolean
+    dueToday?: boolean
+    dueThisWeek?: boolean
+    sortDir?: "asc" | "desc"
+    includeCounts?: boolean
+    today?: string
+    weekStart?: string
+    weekEnd?: string
+  }): Promise<{
+    ids: string[]
+    total: number
+    scopeCounts: { all: number; active: number; revisions: number; completed: number } | null
+  } | null> {
+    return null
+  },
+
   async revisionsForJob(parentId: string): Promise<JobRow[]> {
     return jobDb.revisionsForJob(parentId)
   },
