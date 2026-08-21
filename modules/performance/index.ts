@@ -13,6 +13,7 @@ export {
   buildPerformancePayload,
   resolvePerformancePeriod,
   aggregatePerformance,
+  aggregatePerformancePayloadFromData,
   normalizeKey,
   normalizeRole,
 } from "./services/performance-service"

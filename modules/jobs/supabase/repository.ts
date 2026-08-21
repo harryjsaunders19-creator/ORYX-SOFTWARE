@@ -619,6 +619,36 @@ export const supabaseJobRepo = {
     return (rows as unknown as Record<string, unknown>[]).map(mapPerformanceFieldRow)
   },
 
+  /**
+   * Prefers SQL KPI aggregation (migration 048). Returns null when the RPC is
+   * missing so callers can fall back to findPerformanceFields + Node aggregate.
+   */
+  async findPerformanceAggregate(opts: {
+    from: string
+    to: string
+    engineer?: string | null
+    clientId?: string | null
+    itemType?: string | null
+    tag?: string | null
+    status?: string | null
+  }): Promise<Record<string, unknown> | null> {
+    try {
+      const { data, error } = await createAdminClient().rpc("performance_aggregate", {
+        p_from: opts.from,
+        p_to: opts.to,
+        p_engineer: opts.engineer ?? null,
+        p_client_id: opts.clientId ?? null,
+        p_item_type: opts.itemType ?? null,
+        p_tag: opts.tag ?? null,
+        p_status: opts.status ?? null,
+      })
+      if (error || data == null || typeof data !== "object") return null
+      return data as Record<string, unknown>
+    } catch {
+      return null
+    }
+  },
+
   async count(where: WhereClause = {}): Promise<number> {
     const run = () =>
       applyWhere(table().select("*", { count: "exact", head: true }), where)

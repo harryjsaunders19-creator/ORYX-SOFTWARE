@@ -73,6 +73,7 @@ const MIGRATION_ORDER = [
   "045_job_stats_for_clients.sql",
   "046_jobs_list_scoped_page.sql",
   "047_search_pg_trgm_indexes.sql",
+  "048_performance_aggregate.sql",
 ]
 
 const header = `-- =============================================================================

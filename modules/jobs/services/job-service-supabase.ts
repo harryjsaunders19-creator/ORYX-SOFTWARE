@@ -80,6 +80,18 @@ export const jobService = {
     return supabaseJobRepo.findPerformanceFields()
   },
 
+  async findPerformanceAggregate(opts: {
+    from: string
+    to: string
+    engineer?: string | null
+    clientId?: string | null
+    itemType?: string | null
+    tag?: string | null
+    status?: string | null
+  }): Promise<Record<string, unknown> | null> {
+    return supabaseJobRepo.findPerformanceAggregate(opts)
+  },
+
   async count(where: WhereClause = {}): Promise<number> {
     return supabaseJobRepo.count(where)
   },

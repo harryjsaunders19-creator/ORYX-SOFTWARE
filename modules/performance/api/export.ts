@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
     const format = (query.get("format") ?? "csv").toLowerCase()
     const period = resolvePerformancePeriod(query.get("from"), query.get("to"))
     const filters = resolvePerformanceFilters(period, query)
-    const payload = await buildPerformancePayload(filters, period)
+    const payload = await buildPerformancePayload(filters, period, { includeJobs: true })
     const stamp = `${period.from}_${period.to}`
     if (format === "xlsx") {
       const body = await toExcel(payload)
