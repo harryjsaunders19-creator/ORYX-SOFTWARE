@@ -37,6 +37,8 @@ interface JobsRegisterRowProps {
   onOptimisticStatus?: (projectId: string, nextStatus: string) => void
   onStatusFailed?: (projectId: string, previous: string) => void
   onDesignerChanged?: (projectId: string, nextDesigner: string) => void
+  onOptimisticDesigner?: (projectId: string, nextDesigner: string) => void
+  onDesignerFailed?: (projectId: string, previous: string) => void
   onPrefetch?: (id: string) => void
 }
 
@@ -132,6 +134,8 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
   onOptimisticStatus,
   onStatusFailed,
   onDesignerChanged,
+  onOptimisticDesigner,
+  onDesignerFailed,
   onPrefetch,
 }: JobsRegisterRowProps) {
   void _highlightQuery
@@ -224,6 +228,8 @@ export const JobsRegisterRow = memo(function JobsRegisterRow({
             patchUrl={patchUrl}
             compact
             unassignedLabel="Unassigned"
+            onOptimisticDesigner={next => onOptimisticDesigner?.(project.id, next)}
+            onDesignerFailed={prev => onDesignerFailed?.(project.id, prev)}
             onDesignerChanged={next => onDesignerChanged?.(project.id, next)}
           />
         ) : (

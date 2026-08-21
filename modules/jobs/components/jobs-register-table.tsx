@@ -20,6 +20,8 @@ interface JobsRegisterTableProps {
   onOptimisticStatus?: (projectId: string, nextStatus: string) => void
   onStatusFailed?: (projectId: string, previous: string) => void
   onDesignerChanged?: (projectId: string, nextDesigner: string) => void
+  onOptimisticDesigner?: (projectId: string, nextDesigner: string) => void
+  onDesignerFailed?: (projectId: string, previous: string) => void
   onPrefetch?: (id: string) => void
   loading?: boolean
   className?: string
@@ -46,6 +48,8 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
   onOptimisticStatus,
   onStatusFailed,
   onDesignerChanged,
+  onOptimisticDesigner,
+  onDesignerFailed,
   onPrefetch,
   loading,
   className,
@@ -134,6 +138,8 @@ export const JobsRegisterTable = memo(function JobsRegisterTable({
                   onOptimisticStatus={onOptimisticStatus}
                   onStatusFailed={onStatusFailed}
                   onDesignerChanged={onDesignerChanged}
+                  onOptimisticDesigner={onOptimisticDesigner}
+                  onDesignerFailed={onDesignerFailed}
                   onPrefetch={onPrefetch}
                   style={{
                     position: "absolute",

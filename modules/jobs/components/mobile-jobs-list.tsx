@@ -22,6 +22,8 @@ type Props = {
   onOptimisticStatus?: (projectId: string, next: string) => void
   onStatusFailed?: (projectId: string, previous: string) => void
   onDesignerChanged?: (projectId: string, next: string) => void
+  onOptimisticDesigner?: (projectId: string, next: string) => void
+  onDesignerFailed?: (projectId: string, previous: string) => void
   className?: string
 }
 
@@ -37,6 +39,8 @@ export const MobileJobsList = forwardRef<HTMLDivElement, Props>(function MobileJ
   onOptimisticStatus,
   onStatusFailed,
   onDesignerChanged,
+  onOptimisticDesigner,
+  onDesignerFailed,
   className,
 }, ref) {
   const parentRef = useRef<HTMLDivElement | null>(null)
@@ -104,6 +108,8 @@ export const MobileJobsList = forwardRef<HTMLDivElement, Props>(function MobileJ
                   onOptimisticStatus={onOptimisticStatus}
                   onStatusFailed={onStatusFailed}
                   onDesignerChanged={onDesignerChanged}
+                  onOptimisticDesigner={onOptimisticDesigner}
+                  onDesignerFailed={onDesignerFailed}
                 />
               </li>
             )

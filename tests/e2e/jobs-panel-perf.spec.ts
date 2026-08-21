@@ -110,3 +110,176 @@ test.describe("Jobs panel request budget", () => {
     await page.request.delete(`/api/jobs/${jobB.id}`, { data: { reason: "E2E cleanup B" } })
   })
 })
+
+test.describe("Jobs optimistic mutations", () => {
+  test("status change updates UI before list revalidation and rolls back on failure", async ({ page }) => {
+    await loginAsAdmin(page)
+    const stamp = Date.now()
+    const createRes = await page.request.post("/api/jobs", {
+      data: {
+        clientCompany: `Opt Status ${stamp}`,
+        requestedBy: "E2E Tester",
+        siteName: "Opt Site",
+        siteAddress: "Bristol",
+        typeOfWorks: "Access Scaffold",
+        designer: "Admin",
+      },
+    })
+    expect(createRes.status(), await createRes.text()).toBe(201)
+    const job = await createRes.json() as { id: string; drawingNumber: string }
+
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto("/jobs")
+    await expect(page.getByRole("heading", { name: "Job List" })).toBeVisible({ timeout: 30_000 })
+    await page.getByRole("tab", { name: /^All/ }).click()
+    await expect(page.getByText(job.drawingNumber, { exact: true }).first()).toBeVisible()
+
+    const jobRow = page.getByRole("row").filter({ hasText: job.drawingNumber })
+
+    let listGetsDuringMutation = 0
+    page.on("request", req => {
+      const url = req.url()
+      if (req.method() === "GET" && url.includes("/api/jobs?") && !url.includes("/api/jobs/designers")) {
+        listGetsDuringMutation += 1
+      }
+    })
+
+    // Slow successful PATCH — UI should update before it resolves.
+    let releasePatch: (() => void) | undefined
+    const patchGate = new Promise<void>(resolve => { releasePatch = resolve })
+    await page.route(`**/api/jobs/${job.id}`, async route => {
+      if (route.request().method() !== "PATCH") {
+        await route.continue()
+        return
+      }
+      await patchGate
+      const res = await route.fetch()
+      await route.fulfill({ response: res })
+    })
+
+    const beforeListGets = listGetsDuringMutation
+    const statusTrigger = jobRow.getByRole("combobox", { name: "Change original design status" })
+    await statusTrigger.click()
+    await page.getByRole("option", { name: /In Progress/i }).click()
+
+    // Optimistic: badge text updates while PATCH is still gated.
+    await expect(statusTrigger).toContainText(/Progress|In Progress/i, { timeout: 3_000 })
+    await expect(page.locator(".skeleton").first()).toHaveCount(0)
+
+    releasePatch?.()
+    await expect(page.getByText(/Status →/i).first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(job.drawingNumber, { exact: true }).first()).toBeVisible()
+    expect(listGetsDuringMutation - beforeListGets).toBeLessThanOrEqual(3)
+
+    await page.unroute(`**/api/jobs/${job.id}`)
+
+    // Failure rollback
+    await page.route(`**/api/jobs/${job.id}`, async route => {
+      if (route.request().method() !== "PATCH") {
+        await route.continue()
+        return
+      }
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Simulated failure" }),
+      })
+    })
+
+    await statusTrigger.click()
+    await page.getByRole("option", { name: /Requires Checking|Checking/i }).click()
+    await expect(page.getByText(/Simulated failure|Failed to change status/i).first()).toBeVisible({
+      timeout: 5_000,
+    })
+    await expect(statusTrigger).not.toContainText(/Checking/i, { timeout: 5_000 })
+
+    await page.unroute(`**/api/jobs/${job.id}`)
+    await page.request.delete(`/api/jobs/${job.id}`, { data: { reason: "E2E opt status cleanup" } })
+  })
+
+  test("designer change is optimistic and rolls back on API failure", async ({ page }) => {
+    await loginAsAdmin(page)
+    const stamp = Date.now()
+    const createRes = await page.request.post("/api/jobs", {
+      data: {
+        clientCompany: `Opt Des ${stamp}`,
+        requestedBy: "E2E Tester",
+        siteName: "Opt Des Site",
+        siteAddress: "Bristol",
+        typeOfWorks: "Access Scaffold",
+        designer: "",
+      },
+    })
+    expect(createRes.status(), await createRes.text()).toBe(201)
+    const job = await createRes.json() as { id: string; drawingNumber: string }
+
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto("/jobs")
+    await expect(page.getByRole("heading", { name: "Job List" })).toBeVisible({ timeout: 30_000 })
+    await page.getByRole("tab", { name: /^All/ }).click()
+
+    const jobRow = page.getByRole("row").filter({ hasText: job.drawingNumber })
+
+    await page.route(`**/api/jobs/${job.id}`, async route => {
+      if (route.request().method() !== "PATCH") {
+        await route.continue()
+        return
+      }
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Designer rejected" }),
+      })
+    })
+
+    const designerTrigger = jobRow.getByRole("combobox", { name: "Change designer for original drawing" })
+    await designerTrigger.click()
+    const option = page.getByRole("option").filter({ hasNotText: /^Unassigned$/i }).first()
+    await expect(option).toBeVisible()
+    await option.click()
+
+    await expect(page.getByText(/Designer rejected|Failed to assign/i).first()).toBeVisible({
+      timeout: 5_000,
+    })
+    await expect(designerTrigger).toBeEnabled({ timeout: 5_000 })
+
+    await page.unroute(`**/api/jobs/${job.id}`)
+    await page.request.delete(`/api/jobs/${job.id}`, { data: { reason: "E2E opt designer cleanup" } })
+  })
+
+  test("completing a job on Active scope removes the row without list skeleton", async ({ page }) => {
+    await loginAsAdmin(page)
+    const stamp = Date.now()
+    const createRes = await page.request.post("/api/jobs", {
+      data: {
+        clientCompany: `Opt Scope ${stamp}`,
+        requestedBy: "E2E Tester",
+        siteName: "Scope Site",
+        siteAddress: "Bristol",
+        typeOfWorks: "Access Scaffold",
+        designer: "Admin",
+      },
+    })
+    expect(createRes.status(), await createRes.text()).toBe(201)
+    const job = await createRes.json() as { id: string; drawingNumber: string }
+
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto("/jobs")
+    await expect(page.getByRole("heading", { name: "Job List" })).toBeVisible({ timeout: 30_000 })
+    await page.getByRole("tab", { name: /^Active/ }).click()
+    const jobRow = page.getByRole("row").filter({ hasText: job.drawingNumber })
+    await expect(jobRow).toBeVisible()
+
+    const statusTrigger = jobRow.getByRole("combobox", { name: "Change original design status" })
+    await statusTrigger.click()
+    await page.getByRole("option", { name: /^Complete$/i }).click()
+    await expect(page.getByText(/Status → Complete/i).first()).toBeVisible({ timeout: 10_000 })
+
+    await expect(page.getByRole("row").filter({ hasText: job.drawingNumber })).toHaveCount(0, {
+      timeout: 8_000,
+    })
+    await expect(page.locator(".skeleton")).toHaveCount(0)
+
+    await page.request.delete(`/api/jobs/${job.id}`, { data: { reason: "E2E opt scope cleanup" } })
+  })
+})

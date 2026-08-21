@@ -36,6 +36,17 @@ import type { JobsRegisterProject, JobsRegisterScope } from "./jobs-register-typ
 import { JOBS_REGISTER_SCOPES } from "./jobs-register-types"
 import { useJobsRegisterKeyboard } from "./use-jobs-register-keyboard"
 import { matchesJobsListScope, type JobsListScopeCounts } from "@/modules/jobs/lib/current-work"
+import {
+  applyClassicDesignerPatch,
+  applyClassicStatusPatch,
+  createPendingMutationGate,
+  patchClassicJobsCache,
+  patchWorkItemsCache,
+  predictWorkTypeAfterStatusChange,
+  snapshotClassicJobRow,
+  type ClassicJobsListCache,
+  type WorkItemsListCache,
+} from "@/modules/jobs/lib/jobs-register-optimistic"
 
 const JobsDialogs = lazy(() =>
   import("./jobs-dialogs").then(m => ({ default: m.JobsDialogs })),
@@ -311,82 +322,186 @@ export function JobsRegister({
     }
   }
 
-  const patchClassicJobFields = useCallback((
-    projectId: string,
-    patch: { currentStatus?: string; currentDesigner?: string; designer?: string; status?: string },
-  ) => {
-    void mutateClassic(
-      (current) => {
-        if (!current?.jobs) return current
-        let changed = false
-        const jobs = current.jobs.map(j => {
-          if (j.id !== projectId) return j
-          changed = true
-          return { ...j, ...patch }
-        })
-        return changed ? { ...current, jobs } : current
-      },
-      { revalidate: false },
-    )
-  }, [mutateClassic])
+  /** Snapshots for rollback when a row is removed from the current scope page. */
+  const classicRowSnapshots = useRef(new Map<string, Record<string, unknown>>())
+  const classicListSnapshots = useRef(new Map<string, ClassicJobsListCache>())
+  const pendingGate = useRef(createPendingMutationGate()).current
 
-  const patchWorkItemFields = useCallback((
-    projectId: string,
-    patch: { status?: string; designer?: string },
-  ) => {
-    void mutateWork(
-      (current) => {
-        if (!current?.workItems) return current
-        let changed = false
-        const workItems = current.workItems.map(w => {
-          if (w.parentJobId !== projectId && w.id !== projectId) return w
-          changed = true
-          return { ...w, ...patch }
-        })
-        return changed ? { ...current, workItems } : current
-      },
-      { revalidate: false },
-    )
-  }, [mutateWork])
-
-  const onStatusOptimistic = useCallback((projectId: string, nextStatus: string) => {
-    if (workItemsModel) patchWorkItemFields(projectId, { status: nextStatus })
-    else patchClassicJobFields(projectId, { currentStatus: nextStatus, status: nextStatus })
-  }, [workItemsModel, patchClassicJobFields, patchWorkItemFields])
-
-  const onStatusFailed = useCallback((projectId: string, previous: string) => {
-    if (workItemsModel) patchWorkItemFields(projectId, { status: previous })
-    else patchClassicJobFields(projectId, { currentStatus: previous, status: previous })
-  }, [workItemsModel, patchClassicJobFields, patchWorkItemFields])
-
-  const onDesignerOptimistic = useCallback((projectId: string, nextDesigner: string) => {
-    if (workItemsModel) patchWorkItemFields(projectId, { designer: nextDesigner })
-    else {
-      patchClassicJobFields(projectId, {
-        currentDesigner: nextDesigner,
-        designer: nextDesigner,
-      })
-    }
-  }, [workItemsModel, patchClassicJobFields, patchWorkItemFields])
-
-  /** Confirmed update — soft background revalidate without blanking the list. */
   const softRevalidateList = useCallback(() => {
     if (workItemsModel) void mutateWork(undefined, { revalidate: true })
     else void mutateClassic(undefined, { revalidate: true })
   }, [workItemsModel, mutateWork, mutateClassic])
 
-  const onStatusChangedCb = useCallback((_projectId: string, _next: string) => {
-    softRevalidateList()
-  }, [softRevalidateList])
+  const softRevalidateWhenIdle = useCallback((projectId: string) => {
+    if (pendingGate.end(projectId)) softRevalidateList()
+  }, [pendingGate, softRevalidateList])
+
+  const findProject = useCallback(
+    (projectId: string) => projects.find(p => p.id === projectId) ?? null,
+    [projects],
+  )
+
+  const onStatusOptimistic = useCallback((projectId: string, nextStatus: string) => {
+    pendingGate.begin(projectId)
+    const project = findProject(projectId)
+    const editingRevision = project?.currentWorkType === "revision"
+    const nextWorkType = predictWorkTypeAfterStatusChange({
+      previousWorkType: project?.currentWorkType ?? "original",
+      nextStatus,
+      projectStatus: project?.projectStatus ?? nextStatus,
+    })
+
+    if (workItemsModel) {
+      void mutateWork(
+        (current) => patchWorkItemsCache(current as WorkItemsListCache | undefined, {
+          projectId,
+          scope,
+          nextWorkType,
+          patch: row => ({ ...row, status: nextStatus }),
+        }) as typeof current,
+        { revalidate: false },
+      )
+      return
+    }
+
+    void mutateClassic(
+      (current) => {
+        const cache = current as ClassicJobsListCache | undefined
+        if (cache?.jobs) {
+          const row = cache.jobs.find(j => j.id === projectId)
+          if (row) {
+            classicRowSnapshots.current.set(projectId, snapshotClassicJobRow(row))
+            classicListSnapshots.current.set(projectId, {
+              ...cache,
+              jobs: cache.jobs.map(j => ({ ...j })),
+            })
+          }
+        }
+        return patchClassicJobsCache(cache, {
+          projectId,
+          scope,
+          nextWorkType,
+          patch: job => applyClassicStatusPatch(job, {
+            nextStatus,
+            editingRevision: Boolean(editingRevision),
+            nextWorkType,
+          }),
+        }) as typeof current
+      },
+      { revalidate: false },
+    )
+  }, [findProject, mutateClassic, mutateWork, pendingGate, scope, workItemsModel])
+
+  const onStatusFailed = useCallback((projectId: string, previous: string) => {
+    pendingGate.end(projectId)
+    if (workItemsModel) {
+      void mutateWork(
+        (current) => patchWorkItemsCache(current as WorkItemsListCache | undefined, {
+          projectId,
+          scope: "all",
+          patch: row => ({ ...row, status: previous }),
+        }) as typeof current,
+        { revalidate: true },
+      )
+      return
+    }
+
+    const listSnap = classicListSnapshots.current.get(projectId)
+    classicListSnapshots.current.delete(projectId)
+    classicRowSnapshots.current.delete(projectId)
+    if (listSnap) {
+      void mutateClassic(() => listSnap as never, { revalidate: true })
+      return
+    }
+    void mutateClassic(
+      (current) => patchClassicJobsCache(current as ClassicJobsListCache | undefined, {
+        projectId,
+        scope: "all",
+        patch: job => applyClassicStatusPatch(job, {
+          nextStatus: previous,
+          editingRevision: false,
+          nextWorkType: predictWorkTypeAfterStatusChange({
+            previousWorkType: "original",
+            nextStatus: previous,
+            projectStatus: previous,
+          }),
+        }),
+      }) as typeof current,
+      { revalidate: true },
+    )
+  }, [mutateClassic, mutateWork, pendingGate, workItemsModel])
+
+  const onDesignerOptimistic = useCallback((projectId: string, nextDesigner: string) => {
+    pendingGate.begin(projectId)
+    const project = findProject(projectId)
+    const editingRevision = project?.currentWorkType === "revision"
+
+    if (workItemsModel) {
+      void mutateWork(
+        (current) => patchWorkItemsCache(current as WorkItemsListCache | undefined, {
+          projectId,
+          scope: "all",
+          patch: row => ({ ...row, designer: nextDesigner }),
+        }) as typeof current,
+        { revalidate: false },
+      )
+      return
+    }
+
+    void mutateClassic(
+      (current) => {
+        const cache = current as ClassicJobsListCache | undefined
+        const row = cache?.jobs?.find(j => j.id === projectId)
+        if (row) classicRowSnapshots.current.set(projectId, snapshotClassicJobRow(row))
+        return patchClassicJobsCache(cache, {
+          projectId,
+          scope: "all",
+          patch: job => applyClassicDesignerPatch(job, nextDesigner, Boolean(editingRevision)),
+        }) as typeof current
+      },
+      { revalidate: false },
+    )
+  }, [findProject, mutateClassic, mutateWork, pendingGate, workItemsModel])
+
+  const onDesignerFailed = useCallback((projectId: string, previous: string) => {
+    pendingGate.end(projectId)
+    if (workItemsModel) {
+      void mutateWork(
+        (current) => patchWorkItemsCache(current as WorkItemsListCache | undefined, {
+          projectId,
+          scope: "all",
+          patch: row => ({ ...row, designer: previous }),
+        }) as typeof current,
+        { revalidate: true },
+      )
+      return
+    }
+    const snap = classicRowSnapshots.current.get(projectId)
+    classicRowSnapshots.current.delete(projectId)
+    void mutateClassic(
+      (current) => patchClassicJobsCache(current as ClassicJobsListCache | undefined, {
+        projectId,
+        scope: "all",
+        patch: job => (snap ? { ...job, ...snap } : applyClassicDesignerPatch(job, previous, false)),
+      }) as typeof current,
+      { revalidate: true },
+    )
+  }, [mutateClassic, mutateWork, pendingGate, workItemsModel])
+
+  const onStatusChangedCb = useCallback((projectId: string, _next: string) => {
+    classicListSnapshots.current.delete(projectId)
+    classicRowSnapshots.current.delete(projectId)
+    softRevalidateWhenIdle(projectId)
+  }, [softRevalidateWhenIdle])
 
   const onInspectorStatusChanged = useCallback(() => {
     softRevalidateList()
   }, [softRevalidateList])
 
-  const onDesignerChangedCb = useCallback((projectId: string, nextDesigner: string) => {
-    onDesignerOptimistic(projectId, nextDesigner)
-    softRevalidateList()
-  }, [onDesignerOptimistic, softRevalidateList])
+  const onDesignerChangedCb = useCallback((projectId: string, _nextDesigner: string) => {
+    classicRowSnapshots.current.delete(projectId)
+    softRevalidateWhenIdle(projectId)
+  }, [softRevalidateWhenIdle])
 
   const onPrefetchProject = useCallback((id: string) => {
     prefetchJobDetails(id, workItemsModel)
@@ -650,6 +765,8 @@ export function JobsRegister({
             onOptimisticStatus={onStatusOptimistic}
             onStatusFailed={onStatusFailed}
             onDesignerChanged={onDesignerChangedCb}
+            onOptimisticDesigner={onDesignerOptimistic}
+            onDesignerFailed={onDesignerFailed}
             onPrefetch={onPrefetchProject}
             loading={loading}
           />
@@ -778,6 +895,8 @@ export function JobsRegister({
           onOptimisticStatus={onStatusOptimistic}
           onStatusFailed={onStatusFailed}
           onDesignerChanged={onDesignerChangedCb}
+          onOptimisticDesigner={onDesignerOptimistic}
+          onDesignerFailed={onDesignerFailed}
         />
 
         {pages > 1 && (

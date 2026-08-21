@@ -57,7 +57,10 @@ export type DesignerAssignmentSelectorProps = {
    */
   unassignedLabel?: string
   className?: string
+  /** Called before the PATCH so the parent list can update immediately. */
+  onOptimisticDesigner?: (next: string) => void
   onDesignerChanged?: (next: string) => void
+  onDesignerFailed?: (previous: string) => void
 }
 
 /**
@@ -76,7 +79,9 @@ export function DesignerAssignmentSelector({
   labeled = false,
   unassignedLabel = "Assign designer",
   className,
+  onOptimisticDesigner,
   onDesignerChanged,
+  onDesignerFailed,
 }: DesignerAssignmentSelectorProps) {
   const { toast } = useToast()
   const [busy, setBusy] = useState(false)
@@ -99,6 +104,7 @@ export function DesignerAssignmentSelector({
     const previous = currentDesigner
     setBusy(true)
     setOptimistic(next)
+    onOptimisticDesigner?.(next)
     try {
       const res = await fetch(patchUrl ?? `/api/jobs/${workItemId}`, {
         method: "PATCH",
@@ -109,6 +115,7 @@ export function DesignerAssignmentSelector({
         const body = await res.json().catch(() => ({})) as { error?: string }
         toast(body.error ?? "Failed to assign design engineer", "error")
         setOptimistic(previous)
+        onDesignerFailed?.(previous)
         return
       }
       toast(next ? `Designer → ${next}` : "Designer cleared", "success")
@@ -116,6 +123,7 @@ export function DesignerAssignmentSelector({
     } catch {
       toast("Network error", "error")
       setOptimistic(previous)
+      onDesignerFailed?.(previous)
     } finally {
       setBusy(false)
       setOptimistic(null)
@@ -126,6 +134,8 @@ export function DesignerAssignmentSelector({
     currentDesigner,
     disabled,
     onDesignerChanged,
+    onDesignerFailed,
+    onOptimisticDesigner,
     patchUrl,
     toast,
     workItemId,

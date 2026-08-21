@@ -23,6 +23,8 @@ type Props = {
   onOptimisticStatus?: (projectId: string, next: string) => void
   onStatusFailed?: (projectId: string, previous: string) => void
   onDesignerChanged?: (projectId: string, next: string) => void
+  onOptimisticDesigner?: (projectId: string, next: string) => void
+  onDesignerFailed?: (projectId: string, previous: string) => void
 }
 
 export const MobileJobCard = memo(function MobileJobCard({
@@ -36,6 +38,8 @@ export const MobileJobCard = memo(function MobileJobCard({
   onOptimisticStatus,
   onStatusFailed,
   onDesignerChanged,
+  onOptimisticDesigner,
+  onDesignerFailed,
 }: Props) {
   void _highlightQuery
   const site = siteDisplay(project.siteName, project.address)
@@ -150,6 +154,8 @@ export const MobileJobCard = memo(function MobileJobCard({
               patchUrl={patchUrl}
               compact
               unassignedLabel="Unassigned"
+              onOptimisticDesigner={next => onOptimisticDesigner?.(project.id, next)}
+              onDesignerFailed={prev => onDesignerFailed?.(project.id, prev)}
               onDesignerChanged={next => onDesignerChanged?.(project.id, next)}
             />
           ) : (

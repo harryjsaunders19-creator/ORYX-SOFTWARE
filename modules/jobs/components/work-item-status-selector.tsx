@@ -63,12 +63,14 @@ export function WorkItemStatusSelector({
   const { toast } = useToast()
   const [busy, setBusy] = useState(false)
   const [pending, setPending] = useState<string | null>(null)
+  const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null)
   const title = statusChangeTitle(workItemType, revisionLabel)
 
   const applyStatus = useCallback(async (next: string) => {
     if (!next || next === currentStatus || busy || disabled) return
     const previous = currentStatus
     setBusy(true)
+    setOptimisticStatus(next)
     onOptimisticStatus?.(next)
     try {
       const res = await fetch(patchUrl ?? `/api/jobs/${workItemId}`, {
@@ -79,6 +81,7 @@ export function WorkItemStatusSelector({
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
         toast(body.error ?? "Failed to change status", "error")
+        setOptimisticStatus(null)
         onStatusFailed?.(previous)
         return
       }
@@ -89,10 +92,12 @@ export function WorkItemStatusSelector({
       onStatusChanged?.(next)
     } catch {
       toast("Network error", "error")
+      setOptimisticStatus(null)
       onStatusFailed?.(previous)
     } finally {
       setBusy(false)
       setPending(null)
+      setOptimisticStatus(null)
     }
   }, [
     busy,
@@ -114,7 +119,7 @@ export function WorkItemStatusSelector({
     void applyStatus(next)
   }
 
-  const displayStatus = busy && pending ? pending : currentStatus
+  const displayStatus = optimisticStatus ?? currentStatus
 
   return (
     <>
