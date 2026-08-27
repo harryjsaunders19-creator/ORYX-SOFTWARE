@@ -109,6 +109,13 @@ export async function PATCH(
 
     const updated = await workItemService.update(id, patch)
     if (!updated) return NextResponse.json({ error: "Work item not found" }, { status: 404 })
+    if (patch.status !== undefined || patch.designer !== undefined) {
+      const { notifyJobsRegisterChanged } = await import("../lib/jobs-register-live-server")
+      notifyJobsRegisterChanged({
+        reason: patch.status !== undefined ? "status" : "designer",
+        jobId: updated.parentJobId ?? updated.id,
+      })
+    }
     return NextResponse.json(updated)
   } catch (err) {
     return apiInternalError("work-items.patch", err)

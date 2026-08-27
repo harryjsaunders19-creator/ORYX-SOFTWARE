@@ -47,6 +47,8 @@ import {
   type ClassicJobsListCache,
   type WorkItemsListCache,
 } from "@/modules/jobs/lib/jobs-register-optimistic"
+import { JOBS_REGISTER_LIVE_POLL_MS } from "@/modules/jobs/lib/jobs-register-live"
+import { useJobsRegisterLive } from "@/modules/jobs/lib/use-jobs-register-live"
 
 const JobsDialogs = lazy(() =>
   import("./jobs-dialogs").then(m => ({ default: m.JobsDialogs })),
@@ -64,6 +66,9 @@ const DESIGNERS_SWR = {
   revalidateOnFocus: false,
   revalidateIfStale: true,
 } as const
+
+/** Hover/focus prefetch cooldown — avoids N inspector bursts while scrolling. */
+const PREFETCH_COOLDOWN_MS = 30_000
 
 function prefetchJobDetails(projectId: string, workItemsModel: boolean) {
   if (workItemsModel) {
@@ -176,10 +181,27 @@ export function JobsRegister({
   const classicKey = !workItemsModel ? `/api/jobs?${classicQs}` : null
   const workKey = workItemsModel ? `/api/work-items?${workQs}` : null
 
+  // Visibility-aware soft poll — Broadcast is primary; poll covers Realtime outages.
+  const [listVisible, setListVisible] = useState(true)
+  useEffect(() => {
+    const sync = () => setListVisible(document.visibilityState !== "hidden")
+    sync()
+    document.addEventListener("visibilitychange", sync)
+    return () => document.removeEventListener("visibilitychange", sync)
+  }, [])
+
+  const LIST_SWR = useMemo(
+    () => ({
+      refreshInterval: listVisible ? JOBS_REGISTER_LIVE_POLL_MS : 0,
+      revalidateOnFocus: false,
+    }),
+    [listVisible],
+  )
+
   const { data: classicData, isLoading: classicLoading, mutate: mutateClassic } =
-    useApi<JobsResponse>(classicKey)
+    useApi<JobsResponse>(classicKey, LIST_SWR)
   const { data: workData, isLoading: workLoading, mutate: mutateWork } =
-    useApi<WorkItemsResponse>(workKey)
+    useApi<WorkItemsResponse>(workKey, LIST_SWR)
   const { data: designersData } = useApi<{ designers: string[] }>("/api/jobs/designers", DESIGNERS_SWR)
   const designers = designersData?.designers ?? EMPTY_DESIGNERS
 
@@ -326,6 +348,8 @@ export function JobsRegister({
   const classicRowSnapshots = useRef(new Map<string, Record<string, unknown>>())
   const classicListSnapshots = useRef(new Map<string, ClassicJobsListCache>())
   const pendingGate = useRef(createPendingMutationGate()).current
+  const remoteReconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prefetchCooldown = useRef(new Map<string, number>())
 
   const softRevalidateList = useCallback(() => {
     if (workItemsModel) void mutateWork(undefined, { revalidate: true })
@@ -335,6 +359,29 @@ export function JobsRegister({
   const softRevalidateWhenIdle = useCallback((projectId: string) => {
     if (pendingGate.end(projectId)) softRevalidateList()
   }, [pendingGate, softRevalidateList])
+
+  /**
+   * Debounced remote reconcile. Skips while local optimistic mutations are in
+   * flight so a stale list fetch cannot overwrite newer row edits. Local
+   * softRevalidateWhenIdle + soft poll cover the gap until pending drains.
+   */
+  const scheduleRemoteReconcile = useCallback(() => {
+    if (remoteReconcileTimer.current) clearTimeout(remoteReconcileTimer.current)
+    remoteReconcileTimer.current = setTimeout(() => {
+      remoteReconcileTimer.current = null
+      if (pendingGate.hasAnyPending()) return
+      softRevalidateList()
+    }, 120)
+  }, [pendingGate, softRevalidateList])
+
+  useEffect(() => () => {
+    if (remoteReconcileTimer.current) clearTimeout(remoteReconcileTimer.current)
+  }, [])
+
+  useJobsRegisterLive({
+    enabled: true,
+    onRemoteChange: scheduleRemoteReconcile,
+  })
 
   const findProject = useCallback(
     (projectId: string) => projects.find(p => p.id === projectId) ?? null,
@@ -504,6 +551,10 @@ export function JobsRegister({
   }, [softRevalidateWhenIdle])
 
   const onPrefetchProject = useCallback((id: string) => {
+    const now = Date.now()
+    const last = prefetchCooldown.current.get(id) ?? 0
+    if (now - last < PREFETCH_COOLDOWN_MS) return
+    prefetchCooldown.current.set(id, now)
     prefetchJobDetails(id, workItemsModel)
   }, [workItemsModel])
 

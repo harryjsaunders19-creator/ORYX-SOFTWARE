@@ -135,6 +135,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           notes: reason,
           changedBy: actorName(auth.user),
         })
+        const { notifyJobsRegisterChanged } = await import("../lib/jobs-register-live-server")
+        notifyJobsRegisterChanged({ reason: "revision", jobId: parentId })
         return NextResponse.json(item, { status: 201 })
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to create revision"
@@ -240,6 +242,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       changedBy,
     })
 
+    const { notifyJobsRegisterChanged } = await import("../lib/jobs-register-live-server")
+    notifyJobsRegisterChanged({ reason: "revision", jobId: parent.id })
     return NextResponse.json(revision, { status: 201 })
   } catch (err) {
     return apiInternalError("jobs.revisions.create", err)

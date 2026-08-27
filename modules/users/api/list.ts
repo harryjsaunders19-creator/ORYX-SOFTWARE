@@ -7,6 +7,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { requireFullAccess } from "@/shared/auth/auth"
 import { isValidRole, DEFAULT_ROLE, normalizeModuleAccess, serializeModuleAccess, hasFullAccess } from "@/shared/auth/permissions"
 import { generateTempPassword, hashPassword } from "@/shared/auth/password"
+import { invalidateDesignerDirectoryCache } from "@/modules/jobs/services/designer-directory"
 
 export async function GET() {
   const auth = await requireFullAccess()
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
       mustChangePassword: 1,
     })
 
+    invalidateDesignerDirectoryCache()
     return NextResponse.json({ user: toPublicUser(user), tempPassword }, { status: 201 })
   } catch (err) {
     return apiInternalError("users.api.list", err)

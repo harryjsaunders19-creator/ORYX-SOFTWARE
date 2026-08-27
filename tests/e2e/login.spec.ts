@@ -21,4 +21,16 @@ test.describe("Authentication", () => {
 
     await expect(page.getByText(/invalid email or password/i)).toBeVisible()
   })
+
+  test("login response includes restrictive security headers", async ({ page }) => {
+    const res = await page.goto("/login")
+    expect(res).toBeTruthy()
+    const headers = res!.headers()
+    expect(headers["x-frame-options"]?.toLowerCase()).toBe("deny")
+    expect(headers["x-content-type-options"]?.toLowerCase()).toBe("nosniff")
+    const csp = headers["content-security-policy"] ?? ""
+    expect(csp).toMatch(/default-src 'self'/)
+    expect(csp).toMatch(/frame-ancestors 'none'/)
+    expect(csp).not.toMatch(/unsafe-eval/)
+  })
 })

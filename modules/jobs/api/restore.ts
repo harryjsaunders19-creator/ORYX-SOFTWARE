@@ -18,6 +18,11 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
 
     const restored = await jobService.restore(id, auth.user.id, auth.user.name)
     if (!restored) return NextResponse.json({ error: "Restore failed" }, { status: 500 })
+    const { notifyJobsRegisterChanged } = await import("../lib/jobs-register-live-server")
+    notifyJobsRegisterChanged({
+      reason: "update",
+      jobId: restored.parentJobId ?? restored.id,
+    })
     return NextResponse.json({ ok: true, job: restored })
   } catch (err) {
     return apiInternalError("jobs.api.restore", err)

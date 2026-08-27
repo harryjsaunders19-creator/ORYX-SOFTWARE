@@ -6,6 +6,7 @@ import { toPublicUser } from "../types/user-types"
 import { requireFullAccess } from "@/shared/auth/auth"
 import { isValidRole, normalizeModuleAccess, serializeModuleAccess, hasFullAccess, parseModuleAccessJson } from "@/shared/auth/permissions"
 import type { Role } from "@/shared/types/role"
+import { invalidateDesignerDirectoryCache } from "@/modules/jobs/services/designer-directory"
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -72,6 +73,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       }),
     })
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    invalidateDesignerDirectoryCache()
     return NextResponse.json(toPublicUser(updated))
   } catch (err) {
     return apiInternalError("users.api.by-id", err)
@@ -97,6 +99,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 
     const ok = await userService.delete(id)
     if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    invalidateDesignerDirectoryCache()
     return NextResponse.json({ deleted: true })
   } catch (err) {
     return apiInternalError("users.api.by-id", err)

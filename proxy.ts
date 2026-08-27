@@ -7,6 +7,12 @@ import {
   hasValidMustChangeFlag,
 } from "@/shared/auth/session-cookie"
 import { isExperimentalEnabled } from "@/shared/experimental/experimental-features"
+import { applySecurityHeaders } from "@/shared/security/headers"
+import { getSupabaseUrl } from "@/shared/supabase/config"
+
+function secured(res: NextResponse): NextResponse {
+  return applySecurityHeaders(res, { supabaseOrigin: getSupabaseUrl() ?? null })
+}
 
 const PUBLIC_PAGES = new Set(["/login", "/set-password"])
 
@@ -83,9 +89,9 @@ export async function proxy(request: NextRequest) {
     && !isExperimentalEnabled("employees")
   ) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "This feature is not available yet" }, { status: 404 })
+      return secured(NextResponse.json({ error: "This feature is not available yet" }, { status: 404 }))
     }
-    return NextResponse.redirect(new URL("/", request.url))
+    return secured(NextResponse.redirect(new URL("/", request.url)))
   }
 
   if (
@@ -93,13 +99,13 @@ export async function proxy(request: NextRequest) {
     && !isExperimentalEnabled("jobMap")
   ) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "This feature is not available yet" }, { status: 404 })
+      return secured(NextResponse.json({ error: "This feature is not available yet" }, { status: 404 }))
     }
-    return NextResponse.redirect(new URL("/", request.url))
+    return secured(NextResponse.redirect(new URL("/", request.url)))
   }
 
   if (pathname.startsWith("/api/leave") && !isExperimentalEnabled("leave")) {
-    return NextResponse.json({ error: "This feature is not available yet" }, { status: 404 })
+    return secured(NextResponse.json({ error: "This feature is not available yet" }, { status: 404 }))
   }
 
   // Perf: skip HMAC for public GET-ish auth routes; mutating public routes
@@ -108,13 +114,13 @@ export async function proxy(request: NextRequest) {
     if (MUTATING_METHODS.has(request.method)) {
       if (pathname === "/api/auth/logout") {
         if (!originAllowedForLogout(request)) {
-          return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+          return secured(NextResponse.json({ error: "Forbidden" }, { status: 403 }))
         }
       } else if (pathname !== "/api/auth/session" && !originAllowed(request)) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        return secured(NextResponse.json({ error: "Forbidden" }, { status: 403 }))
       }
     }
-    return NextResponse.next()
+    return secured(NextResponse.next())
   }
 
   if (
@@ -122,13 +128,14 @@ export async function proxy(request: NextRequest) {
     && MUTATING_METHODS.has(request.method)
     && !originAllowed(request)
   ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    return secured(NextResponse.json({ error: "Forbidden" }, { status: 403 }))
   }
 
   // Perf: public pages with no cookie need no HMAC work.
   const token = request.cookies.get(SESSION_COOKIE)?.value
   if (!token && PUBLIC_PAGES.has(pathname)) {
-    return NextResponse.next()
+    // Includes /login — security headers must still apply.
+    return secured(NextResponse.next())
   }
 
   const hasSession = await hasValidSessionToken(token)
@@ -138,28 +145,28 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith("/api/")) {
     if (!hasSession) {
-      return NextResponse.json({ error: "Sign-in required" }, { status: 401 })
+      return secured(NextResponse.json({ error: "Sign-in required" }, { status: 401 }))
     }
     if (mustChangePassword && !isPasswordChangeApi(pathname)) {
-      return NextResponse.json(
+      return secured(NextResponse.json(
         { error: "Password change required", mustChangePassword: true },
         { status: 403 },
-      )
+      ))
     }
-    return NextResponse.next()
+    return secured(NextResponse.next())
   }
 
   if (!hasSession && !PUBLIC_PAGES.has(pathname)) {
     const login = new URL("/login", request.url)
     login.searchParams.set("from", pathname)
-    return NextResponse.redirect(login)
+    return secured(NextResponse.redirect(login))
   }
 
   if (hasSession && mustChangePassword && pathname !== "/set-password") {
-    return NextResponse.redirect(new URL("/set-password", request.url))
+    return secured(NextResponse.redirect(new URL("/set-password", request.url)))
   }
 
-  return NextResponse.next()
+  return secured(NextResponse.next())
 }
 
 export const config = {

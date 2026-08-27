@@ -222,6 +222,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
     const job = await jobService.update(id, data)
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const { notifyJobsRegisterChanged } = await import("../lib/jobs-register-live-server")
+    const { classifyJobsLiveReason } = await import("../lib/jobs-register-live")
+    notifyJobsRegisterChanged({
+      reason: classifyJobsLiveReason(data),
+      jobId: job.parentJobId ?? job.id,
+    })
     return NextResponse.json(job)
   } catch (err) {
     return apiInternalError("jobs.by_id.patch", err)
@@ -265,6 +271,8 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       }
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
+    const { notifyJobsRegisterChanged } = await import("../lib/jobs-register-live-server")
+    notifyJobsRegisterChanged({ reason: "delete", jobId: archived.parentJobId ?? archived.id })
     return NextResponse.json({ ok: true, archived: true, job: archived })
   } catch (err) {
     return apiInternalError("jobs.by_id.delete", err)

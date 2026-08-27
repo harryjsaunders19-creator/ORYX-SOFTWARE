@@ -224,5 +224,9 @@ export function createPendingMutationGate() {
     isPending(id: string): boolean {
       return (pending.get(id) ?? 0) > 0
     },
+    /** True while any row has an in-flight optimistic mutation. */
+    hasAnyPending(): boolean {
+      return pending.size > 0
+    },
   }
 }

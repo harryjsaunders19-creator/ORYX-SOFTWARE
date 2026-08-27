@@ -192,6 +192,8 @@ export async function POST(req: NextRequest) {
       changedBy: actorName(auth.user),
     })
 
+    const { notifyJobsRegisterChanged } = await import("../lib/jobs-register-live-server")
+    notifyJobsRegisterChanged({ reason: "create", jobId: id })
     return NextResponse.json(dashboard, { status: 201 })
   } catch (err) {
     return apiInternalError("parent-jobs.create", err)

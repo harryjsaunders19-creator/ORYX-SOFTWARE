@@ -41,6 +41,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const result = await jobService.assignDesigner(id, resolved.designer, changedBy)
     if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
+    const { notifyJobsRegisterChanged } = await import("../lib/jobs-register-live-server")
+    notifyJobsRegisterChanged({
+      reason: "designer",
+      jobId: result.job.parentJobId ?? result.job.id,
+    })
     return NextResponse.json({ job: result.job })
   } catch (err) {
     return apiInternalError("jobs.assign", err)

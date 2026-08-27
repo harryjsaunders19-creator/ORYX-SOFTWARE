@@ -518,6 +518,8 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const { notifyJobsRegisterChanged } = await import("../lib/jobs-register-live-server")
+    notifyJobsRegisterChanged({ reason: "create", jobId: job.id })
     return NextResponse.json(job, { status: 201 })
   } catch (err) {
     return apiInternalError("jobs.list.create", err)
