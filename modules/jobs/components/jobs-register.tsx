@@ -183,6 +183,7 @@ export function JobsRegister({
 
   // Visibility-aware soft poll — Broadcast is primary; poll covers Realtime outages.
   const [listVisible, setListVisible] = useState(true)
+  const [liveConnected, setLiveConnected] = useState(false)
   useEffect(() => {
     const sync = () => setListVisible(document.visibilityState !== "hidden")
     sync()
@@ -192,10 +193,11 @@ export function JobsRegister({
 
   const LIST_SWR = useMemo(
     () => ({
-      refreshInterval: listVisible ? JOBS_REGISTER_LIVE_POLL_MS : 0,
+      // Soft poll only when the tab is visible and Realtime is not connected.
+      refreshInterval: listVisible && !liveConnected ? JOBS_REGISTER_LIVE_POLL_MS : 0,
       revalidateOnFocus: false,
     }),
-    [listVisible],
+    [listVisible, liveConnected],
   )
 
   const { data: classicData, isLoading: classicLoading, mutate: mutateClassic } =
@@ -381,6 +383,7 @@ export function JobsRegister({
   useJobsRegisterLive({
     enabled: true,
     onRemoteChange: scheduleRemoteReconcile,
+    onConnectionChange: setLiveConnected,
   })
 
   const findProject = useCallback(

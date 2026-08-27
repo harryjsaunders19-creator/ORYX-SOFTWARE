@@ -43,18 +43,31 @@ function getBrowserRealtimeClient(): SupabaseClient | null {
 export function useJobsRegisterLive(opts: {
   enabled: boolean
   onRemoteChange: (payload: JobsRegisterLivePayload) => void
+  /** Fires when the Realtime channel reaches SUBSCRIBED / leaves it. */
+  onConnectionChange?: (connected: boolean) => void
 }): void {
-  const { enabled, onRemoteChange } = opts
+  const { enabled, onRemoteChange, onConnectionChange } = opts
   const handlerRef = useRef(onRemoteChange)
+  const connectionRef = useRef(onConnectionChange)
 
   useEffect(() => {
     handlerRef.current = onRemoteChange
   }, [onRemoteChange])
 
   useEffect(() => {
-    if (!enabled) return
+    connectionRef.current = onConnectionChange
+  }, [onConnectionChange])
+
+  useEffect(() => {
+    if (!enabled) {
+      connectionRef.current?.(false)
+      return
+    }
     const client = getBrowserRealtimeClient()
-    if (!client) return
+    if (!client) {
+      connectionRef.current?.(false)
+      return
+    }
 
     let channel: RealtimeChannel | null = null
     let cancelled = false
@@ -72,7 +85,10 @@ export function useJobsRegisterLive(opts: {
           at: typeof body.at === "number" ? body.at : Date.now(),
         })
       })
-      .subscribe()
+      .subscribe(status => {
+        if (cancelled) return
+        connectionRef.current?.(status === "SUBSCRIBED")
+      })
 
     activeJobsRegisterLiveChannels += 1
     if (typeof window !== "undefined") {
@@ -87,6 +103,7 @@ export function useJobsRegisterLive(opts: {
         ;(window as unknown as { __oryxJobsLiveChannels?: number }).__oryxJobsLiveChannels =
           activeJobsRegisterLiveChannels
       }
+      connectionRef.current?.(false)
       if (channel) void client.removeChannel(channel)
     }
   }, [enabled])
