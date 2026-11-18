@@ -28,6 +28,11 @@ export function ClientForm({ formId, initial, initialContacts, onSubmit, saving:
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
+    const primaryName = contacts[0]?.name?.trim()
+    if (!primaryName) {
+      alert("Please add a primary contact name.")
+      return
+    }
     onSubmit({
       name: name.trim(),
       billingAddress: addr.trim() || null,

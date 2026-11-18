@@ -13,6 +13,7 @@ const RULES = [
   { test: (p: string) => /[A-Z]/.test(p),    label: "One uppercase letter" },
   { test: (p: string) => /[a-z]/.test(p),    label: "One lowercase letter" },
   { test: (p: string) => /[0-9]/.test(p),    label: "One number" },
+  { test: (p: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p), label: "One special character (!@#$%^&* etc.)" },
 ]
 
 export default function SetPasswordPage() {
@@ -86,7 +87,7 @@ export default function SetPasswordPage() {
     <AuthLayout>
       <AuthBrand
         title="Set your password"
-        subtitle={`Hi ${user.name} — please choose a secure password for your account.`}
+        subtitle={`Hi ${user.name} — please choose a secure password for your account. Requirements are shown below as you type.`}
       />
 
       <form onSubmit={handleSubmit} className="space-y-4">

@@ -60,11 +60,12 @@ export function ClientContactsFields({ contacts, onChange }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2 sm:col-span-1 flex flex-col gap-1.5">
-              <Label>Name</Label>
+              <Label>Name {index === 0 ? <span className="text-dn">*</span> : null}</Label>
               <Input
                 value={contact.name}
                 onChange={e => update(index, { name: e.target.value })}
                 placeholder={index === 0 ? "Jane Smith" : "Contact name"}
+                required={index === 0}
               />
             </div>
             <div className="col-span-2 sm:col-span-1 flex flex-col gap-1.5">

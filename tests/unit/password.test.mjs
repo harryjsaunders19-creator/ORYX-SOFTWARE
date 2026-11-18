@@ -11,7 +11,7 @@ describe("generateTempPassword", () => {
   })
 
   it("uses only allowed characters", () => {
-    const allowed = /^[ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789]+$/
+    const allowed = /^[ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*]+$/
     for (let i = 0; i < 20; i++) {
       assert.match(generateTempPassword(), allowed)
     }
@@ -26,7 +26,7 @@ describe("generateTempPassword", () => {
 
 describe("validatePasswordStrength", () => {
   it("accepts a strong password", () => {
-    assert.equal(validatePasswordStrength("SecurePass1"), null)
+    assert.equal(validatePasswordStrength("SecurePass1!"), null)
   })
 
   it("rejects short passwords", () => {
@@ -42,6 +42,10 @@ describe("validatePasswordStrength", () => {
   })
 
   it("requires a number", () => {
-    assert.match(validatePasswordStrength("NoNumbers"), /number/)
+    assert.match(validatePasswordStrength("NoNumbers!"), /number/)
+  })
+
+  it("requires a special character", () => {
+    assert.match(validatePasswordStrength("SecurePass1"), /special character/)
   })
 })

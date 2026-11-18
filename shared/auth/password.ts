@@ -12,7 +12,7 @@ export function verifyPassword(plaintext: string, hash: string): boolean {
 }
 
 export function generateTempPassword(): string {
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*"
   const bytes = crypto.randomBytes(12)
   return Array.from(bytes, b => chars[b % chars.length]).join("")
 }
@@ -22,5 +22,6 @@ export function validatePasswordStrength(password: string): string | null {
   if (!/[A-Z]/.test(password)) return "Password must include an uppercase letter"
   if (!/[a-z]/.test(password)) return "Password must include a lowercase letter"
   if (!/[0-9]/.test(password)) return "Password must include a number"
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return "Password must include a special character"
   return null
 }
