@@ -729,7 +729,7 @@ export function JobsRegister({
                         Import
                       </button>
                       {canCreateJobs && (
-                        <Button type="button" size="sm" className="h-9" onClick={() => setCreateOpen(true)}>
+                        <Button type="button" size="sm" className="h-9" onClick={(e) => { e.stopPropagation(); setCreateOpen(true) }}>
                           <Plus className="h-3.5 w-3.5" />
                           Create Job
                         </Button>

@@ -25,11 +25,15 @@ export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, c
 
   const inputRef   = useRef<HTMLInputElement>(null)
   const dropRef    = useRef<HTMLDivElement>(null)
+  const lastExternal = useRef({ value, name })
 
-  // Sync display when controlled value changes
+  // Sync display only when the confirmed value changes from outside (not while typing)
   useEffect(() => {
-    setQuery(name)
-    setSelected(!!value)
+    if (lastExternal.current.value !== value || lastExternal.current.name !== name) {
+      lastExternal.current = { value, name }
+      setQuery(name)
+      setSelected(!!value)
+    }
   }, [value, name])
 
   const search = useCallback(async (q: string, signal?: AbortSignal) => {
@@ -54,15 +58,14 @@ export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, c
     return () => { clearTimeout(t); ac.abort() }
   }, [query, open, search])
 
-  // Close on outside click
+  // Close on outside click — but ignore clicks inside the dropdown
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node) &&
-          inputRef.current && !inputRef.current.contains(e.target as Node)) {
-        setOpen(false)
-        // If nothing selected, reset to previous confirmed value
-        if (!selected) setQuery(name)
-      }
+      const target = e.target as Node
+      if (dropRef.current?.contains(target) || inputRef.current?.contains(target)) return
+      setOpen(false)
+      // If nothing selected, reset to previous confirmed value
+      if (!selected) setQuery(name)
     }
     document.addEventListener("mousedown", h)
     return () => document.removeEventListener("mousedown", h)
@@ -189,11 +192,17 @@ export function ClientCombobox({ value, name, onChange, onCreateNew, disabled, c
             <div className="border-t border-bd">
               <button
                 type="button"
-                onMouseDown={e => { e.preventDefault(); setOpen(false); onCreateNew(query.trim()) }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const nameToCreate = query.trim()
+                  setOpen(false)
+                  onCreateNew(nameToCreate)
+                }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-ac hover:bg-hover-surface font-medium"
               >
                 <Plus className="h-3.5 w-3.5 shrink-0" />
-                Create &ldquo;{query.trim()}&rdquo; as new client
+                <span className="truncate">Create “{query.trim()}” as new client</span>
               </button>
             </div>
           )}

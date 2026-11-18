@@ -55,7 +55,7 @@ export function QuickCreateClientModal({ initialName, onCreated, onClose }: {
 
   return (
     <Dialog open onOpenChange={o => { if (!o) onClose() }}>
-      <DialogContent size="sm">
+      <DialogContent size="sm" nested>
         <DialogHeader><DialogTitle>New client</DialogTitle></DialogHeader>
         <form id="qc-form" onSubmit={submit}>
           <DialogBody className="space-y-3">

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Input } from "@/shared/ui/input"
 import { Textarea } from "@/shared/ui/textarea"
+import { UkDateInput } from "@/shared/ui/uk-date-input"
 import { Field } from "@/shared/ui/field"
 import {
   CREATABLE_ITEM_TYPES, OTHER_WORKS_TYPE,
@@ -57,6 +58,13 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       variationFees: job.variationFees != null ? String(job.variationFees) : "",
       additionalCharges: job.additionalCharges != null ? String(job.additionalCharges) : "",
       requiredByDate: job.requiredByDate ?? "",
+      requestedDate: job.requestedDate ?? new Date().toISOString().slice(0, 10),
+      priority: "Normal",
+      quoteAgreed: false,
+      catLevel: "TBC",
+      contractorName: "",
+      contractorContact: "",
+      additionalDesigners: "",
       visitDate: job.requiredByDate ?? defaultRequiredByDate(),
       visitStartTime: "09:00",
       visitEndTime: "10:00",
@@ -190,10 +198,18 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
 
     setSaving(true)
     try {
+      const extras: string[] = []
+      if (form.priority && form.priority !== "Normal") extras.push(`Priority: ${form.priority}`)
+      if (form.catLevel && form.catLevel !== "TBC") extras.push(`CAT level: ${form.catLevel}`)
+      if (form.quoteAgreed) extras.push("Quote agreed: Yes")
+      if (form.contractorName?.trim()) extras.push(`Contractor: ${form.contractorName.trim()}${form.contractorContact?.trim() ? ` (${form.contractorContact.trim()})` : ""}`)
+      if (form.additionalDesigners?.trim()) extras.push(`Additional designers: ${form.additionalDesigners.trim()}`)
+      const commercial = [form.commercialNotes, ...extras].filter(Boolean).join("\n")
       await onSubmit({
         ...form,
         address: composeJobAddress(form.siteName, form.siteAddress, form.address),
-        // Create workflow never sets completion date — status change owns that.
+        commercialNotes: commercial,
+        requestedDate: form.requestedDate || new Date().toISOString().slice(0, 10),
         dateCompleted: job ? form.dateCompleted : "",
       })
     } catch { /* parent toast */ } finally {
@@ -317,7 +333,7 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Site name" htmlFor="siteName" hint="Building or site description">
+            <Field label="Site name" htmlFor="siteName" hint="Short name for the site or building">
               <Input
                 className={controlClass}
                 style={controlStyle}
@@ -483,14 +499,13 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Visit date" htmlFor="visitDate" required error={errors.visitDate}>
-              <Input
+              <UkDateInput
+                id="visitDate"
                 className={controlClass}
                 style={controlStyle}
-                type="date"
                 value={form.visitDate ?? ""}
-                onChange={e => {
-                  const visitDate = e.target.value
-                  setForm(f => ({ ...f, visitDate, requiredByDate: visitDate }))
+                onChange={iso => {
+                  setForm(f => ({ ...f, visitDate: iso, requiredByDate: iso }))
                   if (errors.visitDate) setErrors(prev => ({ ...prev, visitDate: undefined }))
                 }}
               />
@@ -528,12 +543,12 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
             )}
             {job && (
               <Field label="Required by" htmlFor="requiredByDateVisit" hint="Visit / follow-up date">
-                <Input
+                <UkDateInput
+                  id="requiredByDateVisit"
                   className={controlClass}
                   style={controlStyle}
-                  type="date"
                   value={form.requiredByDate}
-                  onChange={setF("requiredByDate")}
+                  onChange={iso => setForm(f => ({ ...f, requiredByDate: iso }))}
                 />
               </Field>
             )}
@@ -573,24 +588,105 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
                 designers={designers}
               />
             </Field>
-            <Field label="Required by" htmlFor="requiredByDate" hint="Defaults to one week from today">
-              <Input
+            <Field label="Required by" htmlFor="requiredByDate" hint="Defaults to one week from today. Enter as DD/MM/YYYY.">
+              <UkDateInput
+                id="requiredByDate"
                 className={controlClass}
                 style={controlStyle}
-                type="date"
                 value={form.requiredByDate}
-                onChange={setF("requiredByDate")}
+                onChange={iso => setForm(f => ({ ...f, requiredByDate: iso }))}
               />
             </Field>
-            {job && (
-              <StatusField
-                htmlFor="jobStatus"
-                value={form.status}
-                onValueChange={setSel("status")}
-                controlClass={controlClass}
-                controlStyle={controlStyle}
+            <Field label="Date received" htmlFor="requestedDate" hint="When the request came in. Defaults to today.">
+              <UkDateInput
+                id="requestedDate"
+                className={controlClass}
+                style={controlStyle}
+                value={form.requestedDate ?? ""}
+                onChange={iso => setForm(f => ({ ...f, requestedDate: iso }))}
               />
-            )}
+            </Field>
+            <Field label="Priority" htmlFor="priority">
+              <select
+                id="priority"
+                className={cn(controlClass, "w-full rounded-lg border border-bd bg-sr px-3 text-sm")}
+                style={controlStyle}
+                value={form.priority ?? "Normal"}
+                onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
+              >
+                <option>Low</option>
+                <option>Normal</option>
+                <option>High</option>
+                <option>Urgent</option>
+              </select>
+            </Field>
+            <StatusField
+              htmlFor="jobStatusCreate"
+              value={form.status}
+              onValueChange={setSel("status")}
+              controlClass={controlClass}
+              controlStyle={controlStyle}
+            />
+            <Field label="CAT level" htmlFor="catLevel">
+              <select
+                id="catLevel"
+                className={cn(controlClass, "w-full rounded-lg border border-bd bg-sr px-3 text-sm")}
+                style={controlStyle}
+                value={form.catLevel ?? "TBC"}
+                onChange={e => setForm(f => ({ ...f, catLevel: e.target.value }))}
+              >
+                <option>TBC</option>
+                <option>CAT 0</option>
+                <option>CAT 1</option>
+                <option>CAT 2</option>
+                <option>CAT 3</option>
+              </select>
+            </Field>
+            <Field label="Additional designers / checkers" htmlFor="additionalDesigners" hint="Comma-separated names">
+              <Input
+                id="additionalDesigners"
+                className={controlClass}
+                style={controlStyle}
+                value={form.additionalDesigners ?? ""}
+                onChange={setF("additionalDesigners")}
+                placeholder="e.g. Harry, Lee"
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Contractor / customer" htmlFor="contractorName" hint="Separate from the end client">
+              <Input
+                id="contractorName"
+                className={controlClass}
+                style={controlStyle}
+                value={form.contractorName ?? ""}
+                onChange={setF("contractorName")}
+                placeholder="e.g. 1st Class Scaffolding"
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Contractor contact" htmlFor="contractorContact">
+              <Input
+                id="contractorContact"
+                className={controlClass}
+                style={controlStyle}
+                value={form.contractorContact ?? ""}
+                onChange={setF("contractorContact")}
+                placeholder="Name or phone"
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Quote agreed" htmlFor="quoteAgreed">
+              <label className="flex items-center gap-2 text-sm text-t2 h-10">
+                <input
+                  id="quoteAgreed"
+                  type="checkbox"
+                  checked={!!form.quoteAgreed}
+                  onChange={e => setForm(f => ({ ...f, quoteAgreed: e.target.checked }))}
+                  className="rounded border-bd"
+                />
+                Quote has been agreed
+              </label>
+            </Field>
           </div>
         </Section>
       )}
@@ -610,10 +706,17 @@ export function JobForm({ job, formId, onSubmit, designers }: JobFormProps) {
         }
       >
         <div className="space-y-4">
-          <Field label="Notes" htmlFor="notes" hint={isCatIii ? "Scope of check, drawings to review…" : undefined}>
+          <Field label="Description" htmlFor="notes" hint="What the job involves. Shown as Description on the job details.">
             <Textarea
+              id="notes"
               value={form.notes}
               onChange={setF("notes")}
+              onKeyDown={e => {
+                // Ensure Ctrl/Cmd+A selects only this textarea, not the page
+                if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+                  e.stopPropagation()
+                }
+              }}
               placeholder={
                 isSiteVisit
                   ? "Visit purpose, contacts on site, access notes…"

@@ -30,11 +30,15 @@ export const DialogClose   = DialogPrimitive.Close
  */
 export const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay> & { nested?: boolean }
+>(({ className, nested, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-[100] backdrop-blur-[2px]", className)}
+    className={cn(
+      "fixed inset-0 backdrop-blur-[2px]",
+      nested ? "z-[140]" : "z-[100]",
+      className,
+    )}
     style={{ backgroundColor: "rgba(0, 0, 0, 0.4)" }}
     {...props}
   />
@@ -54,19 +58,23 @@ export interface DialogContentProps
   size?: "sm" | "md" | "lg" | "xl"
   /** Show the top-right close control (default true). */
   showClose?: boolean
+  /** Nested dialog (e.g. create-client inside create-job). Uses higher z-index and does not dismiss on outside interaction from the parent. */
+  nested?: boolean
 }
 
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, size = "md", showClose = true, ...props }, ref) => (
+>(({ className, children, size = "md", showClose = true, nested, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay nested={nested} />
     <DialogPrimitive.Content
       ref={ref}
+      data-nested={nested ? "true" : undefined}
       className={cn(
         // Position: centred in viewport, above backdrop
-        "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101]",
+        "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+        nested ? "z-[150]" : "z-[101]",
         // Sizing
         "w-[calc(100vw-2rem)] max-h-[90vh]",
         size === "sm" && "max-w-[400px]",
@@ -82,6 +90,9 @@ export const DialogContent = React.forwardRef<
       )}
       style={{ background: "var(--card-surface, var(--color-sr))", border: "1px solid var(--border-default, var(--color-bd))", borderRadius: "var(--radius-xl)" }}
       {...props}
+      onPointerDownOutside={nested ? (e) => e.preventDefault() : props.onPointerDownOutside}
+      onInteractOutside={nested ? (e) => e.preventDefault() : props.onInteractOutside}
+      onFocusOutside={nested ? (e) => e.preventDefault() : props.onFocusOutside}
     >
       {children}
       {showClose && (

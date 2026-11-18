@@ -312,6 +312,19 @@ export interface JobFormData {
   variationFees: string
   additionalCharges: string
   requiredByDate:  string
+  /** ISO date — when the request was received. Defaults to today on create. */
+  requestedDate?: string
+  /** Low / Normal / High / Urgent */
+  priority?: string
+  /** Whether a quote has been agreed */
+  quoteAgreed?: boolean
+  /** CAT 0 / 1 / 2 / 3 / TBC */
+  catLevel?: string
+  /** Contractor / customer (separate from end client) */
+  contractorName?: string
+  contractorContact?: string
+  /** Additional designers or checkers (comma-separated names) */
+  additionalDesigners?: string
   /** Site visit schedule — used to create the linked calendar event. */
   visitDate?: string
   visitStartTime?: string

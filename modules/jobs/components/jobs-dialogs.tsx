@@ -39,8 +39,25 @@ export function JobsDialogs({
 }: Props) {
   return (
     <>
-      <Dialog open={createOpen} onOpenChange={() => { if (!createSaving) onCreateClose() }}>
-        <DialogContent size="lg">
+      <Dialog open={createOpen} onOpenChange={(open) => {
+        if (!open && !createSaving) {
+          // Don't close the outer dialog if a nested dialog (quick-create client) is open
+          if (document.querySelector('[data-nested="true"]')) return
+          onCreateClose()
+        }
+      }}>
+        <DialogContent
+          size="lg"
+          onInteractOutside={(e) => {
+            if (document.querySelector('[data-nested="true"]')) e.preventDefault()
+          }}
+          onPointerDownOutside={(e) => {
+            if (document.querySelector('[data-nested="true"]')) e.preventDefault()
+          }}
+          onFocusOutside={(e) => {
+            if (document.querySelector('[data-nested="true"]')) e.preventDefault()
+          }}
+        >
           <DialogHeader>
             <DialogTitle>New job</DialogTitle>
             <DialogDescription>
