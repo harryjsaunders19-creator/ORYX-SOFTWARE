@@ -52,7 +52,7 @@ export function DashboardHoldsPanel({
       />
 
       {holds.length === 0 ? (
-        <DashboardEmptyState message="No clients currently on hold" />
+        <DashboardEmptyState message="No clients currently on hold" detail="Accounts on hold will appear here." />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {holds.map(hold => {

@@ -118,7 +118,7 @@ export function DashboardScheduleRail({ events }: { events: DashboardWeekEvent[]
             </Link>
           </div>
         ) : (
-          <DashboardEmptyState message="No upcoming meetings" />
+          <DashboardEmptyState message="No upcoming meetings" detail="Schedule events from the calendar." />
         )}
       </section>
 
@@ -130,7 +130,7 @@ export function DashboardScheduleRail({ events }: { events: DashboardWeekEvent[]
           size="compact"
         />
         {siteVisits.length === 0 ? (
-          <DashboardEmptyState message="No upcoming site visits" />
+          <DashboardEmptyState message="No upcoming site visits" detail="Site visits will appear here once scheduled." />
         ) : (
           <ul className="cc-dashboard-panel cc-dashboard-surface divide-y divide-bd-subtle">
             {siteVisits.slice(0, 5).map((e, i) => {

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Input } from "@/shared/ui/input"
 import { Textarea } from "@/shared/ui/textarea"
-import { Field } from "@/shared/ui/field"
+import { Field, FormAlert } from "@/shared/ui/field"
 import type { Client } from "@/lib/types"
 import type { ClientContactInput } from "../types/client-contact-types"
 import { contactsFromClient, emptyContact } from "../types/client-contact-types"
@@ -25,14 +25,16 @@ export function ClientForm({ formId, initial, initialContacts, onSubmit, saving:
   const [addr,    setAddr]    = useState(initial.billingAddress   ?? "")
   const [notes,   setNotes]   = useState(initial.notes           ?? "")
   const [accountCode, setAccountCode] = useState(initial.accountCode ?? "")
+  const [contactError, setContactError] = useState<string | null>(null)
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const primaryName = contacts[0]?.name?.trim()
     if (!primaryName) {
-      alert("Please add a primary contact name.")
+      setContactError("A primary contact name is required.")
       return
     }
+    setContactError(null)
     onSubmit({
       name: name.trim(),
       billingAddress: addr.trim() || null,
@@ -52,7 +54,10 @@ export function ClientForm({ formId, initial, initialContacts, onSubmit, saving:
           <Input id="client-form-account-code" value={accountCode} onChange={e => setAccountCode(e.target.value)} placeholder="e.g. ACME01" />
         </Field>
       </div>
-      <ClientContactsFields contacts={contacts} onChange={setContacts} />
+      <div>
+        <ClientContactsFields contacts={contacts} onChange={c => { setContacts(c); if (contactError) setContactError(null) }} />
+        {contactError && <FormAlert className="mt-2">{contactError}</FormAlert>}
+      </div>
       <Field label="Billing address" htmlFor="client-form-billing-address">
         <Textarea id="client-form-billing-address" value={addr} onChange={e => setAddr(e.target.value)} rows={2} placeholder="14 Industrial Way, Bristol" />
       </Field>

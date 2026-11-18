@@ -8,6 +8,7 @@ import { Typography } from "@/shared/design/typography"
 import { getJobDeadlineInfo } from "@/shared/utils/utils"
 import type { Job } from "@/lib/types"
 import { DashboardEmptyState, DashboardSectionHeader } from "./dashboard-stats-primitives"
+import { DrawingStatusBadge } from "@/modules/jobs/components/drawing-status-badge"
 
 function dueCellLabel(job: Job): { date: string; overdue: string | null } {
   const dl = getJobDeadlineInfo(job)
@@ -47,7 +48,7 @@ export function DashboardOverduePanel({
       {overdueJobs.length === 0 ? (
         <DashboardEmptyState
           message="No overdue jobs"
-          detail="Everything is up to date."
+          detail="All current work is on schedule."
         />
       ) : (
         <div className="cc-dashboard-panel cc-dashboard-surface overflow-hidden">
@@ -57,6 +58,9 @@ export function DashboardOverduePanel({
                 <tr>
                   <th className={cn(Typography.TableHead, "px-4 py-2.5 text-t2 sm:px-5")}>
                     Drawing
+                  </th>
+                  <th className={cn(Typography.TableHead, "px-4 py-2.5 text-t2 sm:px-5")}>
+                    Status
                   </th>
                   <th className={cn(Typography.TableHead, "px-4 py-2.5 text-t2 sm:px-5")}>
                     Description
@@ -99,6 +103,9 @@ export function DashboardOverduePanel({
                         >
                           {job.drawingNumber}
                         </span>
+                      </td>
+                      <td className="relative z-10 px-4 py-3 pointer-events-none sm:px-5">
+                        <DrawingStatusBadge status={job.status} size="md" />
                       </td>
                       <td className="relative z-10 max-w-[220px] truncate px-4 py-3 text-t1 pointer-events-none sm:max-w-[280px] sm:px-5">
                         <span className={Typography.Table}>{description}</span>

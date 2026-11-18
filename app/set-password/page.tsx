@@ -114,20 +114,35 @@ export default function SetPasswordPage() {
           />
         </Field>
 
-        <div className="p-3 bg-pg rounded-md space-y-1">
+        <div className="p-3 bg-pg rounded-md space-y-1.5">
           {RULES.map((rule, i) => {
             const pass = password.length > 0 && rule.test(password)
             return (
-              <div key={i} className={`flex items-center gap-2 text-xs ${pass ? "text-ok-tx" : "text-t4"}`}>
-                {pass ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
-                {rule.label}
+              <div key={i} className={`flex items-center gap-2 text-xs transition-colors ${pass ? "text-ok-tx" : "text-t4"}`}>
+                {pass ? <Check className="h-3.5 w-3.5 shrink-0" /> : <X className="h-3.5 w-3.5 shrink-0 opacity-40" />}
+                <span>{rule.label}</span>
               </div>
             )
           })}
           {confirm.length > 0 && (
-            <div className={`flex items-center gap-2 text-xs ${passwordsMatch ? "text-ok-tx" : "text-dn-tx"}`}>
-              {passwordsMatch ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
-              Passwords match
+            <div className={`flex items-center gap-2 text-xs transition-colors ${passwordsMatch ? "text-ok-tx" : "text-dn-tx"}`}>
+              {passwordsMatch ? <Check className="h-3.5 w-3.5 shrink-0" /> : <X className="h-3.5 w-3.5 shrink-0" />}
+              <span>Passwords match</span>
+            </div>
+          )}
+          {password.length > 0 && (
+            <div className="pt-1">
+              <div className="h-1 w-full rounded-full bg-bd-subtle overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    allRulesPass ? "bg-ok-ic w-full" : "bg-wn-ic"
+                  }`}
+                  style={{ width: `${Math.min(100, (RULES.filter(r => r.test(password)).length / RULES.length) * 100)}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-t4 mt-1 text-right">
+                {allRulesPass ? "Strong password" : `${RULES.filter(r => r.test(password)).length} of ${RULES.length} requirements met`}
+              </p>
             </div>
           )}
         </div>
